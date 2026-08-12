@@ -1,0 +1,143 @@
+// Regression coverage for the nav/access-control feature set added this
+// session: Guest-mode Home (a materially different Hero layout from the
+// signed-in path the existing home_screen_overflow_test.dart covers), the
+// registration/verification wizard, RestrictedFeatureNotice, and
+// AnimatedBottomNavigation. Same technique as the other *_overflow_test.dart
+// files: render at a spread of widths/text-scales, assert zero exceptions.
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+import 'package:esperanza_mobile/models/access_level.dart';
+import 'package:esperanza_mobile/screens/auth/register_screen.dart';
+import 'package:esperanza_mobile/screens/home/home_screen.dart';
+import 'package:esperanza_mobile/services/balita_service.dart';
+import 'package:esperanza_mobile/services/citizen_session_service.dart';
+import 'package:esperanza_mobile/services/mock_catalog.dart';
+import 'package:esperanza_mobile/services/requests_service.dart';
+import 'package:esperanza_mobile/services/resident_profile_service.dart';
+import 'package:esperanza_mobile/widgets/animated_bottom_navigation.dart';
+import 'package:esperanza_mobile/widgets/restricted_feature_notice.dart';
+
+void main() {
+  final sizes = <String, Size>{
+    'extreme narrow (280x568)': const Size(280, 568),
+    'small (320x568)': const Size(320, 568),
+    'normal (360x800)': const Size(360, 800),
+    'large (412x915)': const Size(412, 915),
+  };
+
+  Future<void> pumpAtSize(WidgetTester tester, Size size, double textScale, Widget child) async {
+    tester.view.physicalSize = size;
+    tester.view.devicePixelRatio = 1.0;
+    tester.platformDispatcher.textScaleFactorTestValue = textScale;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+    await tester.pumpWidget(child);
+    await tester.pumpAndSettle();
+  }
+
+  MultiProvider providers({required Widget child}) {
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => CitizenSessionService()),
+        ChangeNotifierProvider(create: (_) => RequestsService()),
+        ChangeNotifierProvider(create: (_) => BalitaService()),
+        ChangeNotifierProvider(create: (_) => ResidentProfileService()),
+      ],
+      child: MaterialApp(home: child),
+    );
+  }
+
+  for (final sizeEntry in sizes.entries) {
+    for (final textScale in [1.0, 1.3]) {
+      testWidgets('Guest HomeScreen has zero overflow at ${sizeEntry.key}, textScale $textScale', (tester) async {
+        SharedPreferences.setMockInitialValues({});
+        await pumpAtSize(tester, sizeEntry.value, textScale, providers(child: const HomeScreen()));
+        // No session.continueAsGuest() call needed: with no stored session
+        // and no login, CitizenSessionService starts signed-out; HomeScreen
+        // must render its Guest branch instead of crashing on `account!`.
+        expect(tester.takeException(), isNull);
+      });
+
+      testWidgets('RegisterScreen (fresh, step 1) has zero overflow at ${sizeEntry.key}, textScale $textScale', (tester) async {
+        SharedPreferences.setMockInitialValues({});
+        await pumpAtSize(tester, sizeEntry.value, textScale, providers(child: const RegisterScreen()));
+        expect(tester.takeException(), isNull);
+      });
+
+      testWidgets('AnimatedBottomNavigation (5 tabs) has zero overflow at ${sizeEntry.key}, textScale $textScale', (tester) async {
+        SharedPreferences.setMockInitialValues({});
+        await pumpAtSize(
+          tester,
+          sizeEntry.value,
+          textScale,
+          MaterialApp(
+            home: Scaffold(
+              body: const SizedBox(),
+              bottomNavigationBar: AnimatedBottomNavigation(
+                currentIndex: 3,
+                onTap: (_) {},
+                items: const [
+                  AnimatedBottomNavItem(icon: Icons.home_outlined, activeIcon: Icons.home_rounded, label: 'Home'),
+                  AnimatedBottomNavItem(icon: Icons.description_outlined, activeIcon: Icons.description_rounded, label: 'Dokyu'),
+                  AnimatedBottomNavItem(icon: Icons.volunteer_activism_outlined, activeIcon: Icons.volunteer_activism_rounded, label: 'Tulong'),
+                  AnimatedBottomNavItem(icon: Icons.campaign_outlined, activeIcon: Icons.campaign_rounded, label: 'Balita'),
+                  AnimatedBottomNavItem(icon: Icons.shield_outlined, activeIcon: Icons.shield_rounded, label: 'Emergency'),
+                ],
+              ),
+            ),
+          ),
+        );
+        expect(tester.takeException(), isNull);
+      });
+    }
+  }
+
+  for (final reason in RestrictionReason.values) {
+    testWidgets('RestrictedFeatureNotice ($reason) has zero overflow at extreme narrow width', (tester) async {
+      SharedPreferences.setMockInitialValues({});
+      await pumpAtSize(
+        tester,
+        const Size(280, 568),
+        1.3,
+        providers(child: RestrictedFeatureNotice(reason: reason, featureName: 'Tulong (Assistance Requests)')),
+      );
+      expect(tester.takeException(), isNull);
+    });
+  }
+
+  testWidgets('RegisterScreen jumps straight to Verification Status for an already-signed-in account, no overflow', (tester) async {
+    SharedPreferences.setMockInitialValues({});
+    final session = CitizenSessionService();
+    await session.login(MockCatalog.demoAccounts.first); // Ronaldo — Pending Review
+    tester.view.physicalSize = const Size(320, 568);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(
+      MultiProvider(
+        providers: [
+          ChangeNotifierProvider<CitizenSessionService>.value(value: session),
+          ChangeNotifierProvider(create: (_) => RequestsService()),
+          ChangeNotifierProvider(create: (_) => BalitaService()),
+          ChangeNotifierProvider(create: (_) => ResidentProfileService()),
+        ],
+        child: const MaterialApp(home: RegisterScreen()),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+    expect(find.text('Verification Status'), findsOneWidget); // AppBar title for the status-only path
+    expect(find.text('Pending Review'), findsOneWidget); // StatusChip inside VerificationStatusPanel
+  });
+
+  test('AccessLevel ordering supports "at least" comparisons via .index', () {
+    expect(AccessLevel.guest.index < AccessLevel.unverified.index, isTrue);
+    expect(AccessLevel.unverified.index < AccessLevel.verified.index, isTrue);
+  });
+}

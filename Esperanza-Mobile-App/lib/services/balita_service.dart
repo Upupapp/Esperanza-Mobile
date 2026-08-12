@@ -1,0 +1,71 @@
+import 'dart:convert';
+import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import '../models/announcement.dart';
+import 'mock_catalog.dart';
+
+/// Local, frontend-only "database" for Balita posts — same shape as
+/// RequestsService: persists to SharedPreferences as JSON so posts created
+/// in the composer survive leaving/reopening Balita and app restarts,
+/// without any backend. Centralizing this in a ChangeNotifier (instead of
+/// BalitaScreen's own State, as before) also fixes a latent bug: Balita is
+/// pushed via Navigator rather than living in RootShell's IndexedStack, so
+/// its previous in-memory `_posts` was silently reset every time the
+/// screen was reopened.
+class BalitaService extends ChangeNotifier {
+  static const _key = 'esperanza_balita_posts';
+
+  List<Announcement> _posts = List.of(MockCatalog.announcements);
+  bool _loaded = false;
+
+  List<Announcement> get posts => List.unmodifiable(_posts);
+  bool get loaded => _loaded;
+
+  BalitaService() {
+    _restore();
+  }
+
+  Future<void> _restore() async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString(_key);
+    if (raw != null) {
+      final list = (jsonDecode(raw) as List).map((e) => Announcement.fromJson(e)).toList();
+      _posts = list;
+    }
+    _loaded = true;
+    notifyListeners();
+  }
+
+  Future<void> _persist() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_key, jsonEncode(_posts.map((p) => p.toJson()).toList()));
+  }
+
+  Future<void> addPost(Announcement post) async {
+    _posts.insert(0, post);
+    notifyListeners();
+    await _persist();
+  }
+
+  Future<void> toggleLike(String postId) async {
+    final post = _posts.firstWhere((p) => p.id == postId);
+    post.liked = !post.liked;
+    post.likes += post.liked ? 1 : -1;
+    notifyListeners();
+    await _persist();
+  }
+
+  Future<void> addComment(String postId, PostComment comment) async {
+    final post = _posts.firstWhere((p) => p.id == postId);
+    post.comments.add(comment);
+    notifyListeners();
+    await _persist();
+  }
+
+  Future<void> share(String postId) async {
+    final post = _posts.firstWhere((p) => p.id == postId);
+    post.shares += 1;
+    notifyListeners();
+    await _persist();
+  }
+}
