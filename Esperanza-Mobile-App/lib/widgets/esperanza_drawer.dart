@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../screens/auth/login_screen.dart';
 import '../screens/auth/register_screen.dart';
 import '../screens/directory/directory_screen.dart';
 import '../screens/profile/profile_screen.dart';
@@ -48,12 +47,12 @@ class EsperanzaDrawer extends StatelessWidget {
                     _DrawerTile(
                       icon: Icons.login_rounded,
                       label: 'Sign In',
-                      onTap: () => _goToAuth(context, const LoginScreen()),
+                      onTap: () => _goToAuth(context, register: false),
                     ),
                     _DrawerTile(
                       icon: Icons.person_add_alt_1_rounded,
                       label: 'Create Account',
-                      onTap: () => _goToAuth(context, const RegisterScreen()),
+                      onTap: () => _goToAuth(context, register: true),
                     ),
                   ],
                   _DrawerTile(
@@ -102,14 +101,23 @@ class EsperanzaDrawer extends StatelessWidget {
     Navigator.of(context).push(MaterialPageRoute(builder: (_) => screen));
   }
 
-  Future<void> _goToAuth(BuildContext context, Widget screen) async {
-    Navigator.of(context).pop();
+  Future<void> _goToAuth(BuildContext context, {required bool register}) async {
+    Navigator.of(context).pop(); // close the drawer
     await context.read<CitizenSessionService>().endGuestSession();
-    if (context.mounted) {
-      Navigator.of(context, rootNavigator: true).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (_) => screen),
-        (route) => false,
-      );
+    if (!context.mounted) return;
+    final nav = Navigator.of(context, rootNavigator: true);
+    // Pop back to the root route rather than pushing a fresh LoginScreen/
+    // RegisterScreen on top of an otherwise-emptied stack. The root route
+    // is _AuthGate (main.dart), which just reacted to endGuestSession()
+    // above and is already showing LoginScreen on its own — the previous
+    // `pushAndRemoveUntil(..., (route) => false)` removed _AuthGate from
+    // the stack entirely, so any *later* login()/logout() had nothing
+    // left to react to, leaving the user stuck on whatever screen was
+    // showing (this was the root cause behind "Ronaldo/Marites no longer
+    // opening" when reached via this Sign In / Create Account path).
+    nav.popUntil((route) => route.isFirst);
+    if (register) {
+      nav.push(MaterialPageRoute(builder: (_) => const RegisterScreen()));
     }
   }
 }

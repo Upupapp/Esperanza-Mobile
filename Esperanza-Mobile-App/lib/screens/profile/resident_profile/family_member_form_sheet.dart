@@ -10,8 +10,8 @@ import '../../../widgets/app_text_field.dart';
 /// field, not first/middle/last) — children, seniors, and residents
 /// without an Esperanza account must be fully representable here, so
 /// "Has Esperanza Account?" defaults to No and is never required to be
-/// Yes. Keyboard-safe layout mirrors PostComposerSheet: fixed header,
-/// scrollable middle, pinned footer button.
+/// Yes. Keyboard-safe layout: fixed header, scrollable middle, pinned
+/// footer button.
 class FamilyMemberFormSheet extends StatefulWidget {
   final Individual? existing;
   const FamilyMemberFormSheet({super.key, this.existing});

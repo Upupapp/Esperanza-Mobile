@@ -41,12 +41,6 @@ class BalitaService extends ChangeNotifier {
     await prefs.setString(_key, jsonEncode(_posts.map((p) => p.toJson()).toList()));
   }
 
-  Future<void> addPost(Announcement post) async {
-    _posts.insert(0, post);
-    notifyListeners();
-    await _persist();
-  }
-
   Future<void> toggleLike(String postId) async {
     final post = _posts.firstWhere((p) => p.id == postId);
     post.liked = !post.liked;

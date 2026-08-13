@@ -115,34 +115,27 @@ class PostMedia {
       );
 }
 
-/// Mirrors an entry from citizen/events.blade.php's $events array.
+/// Mirrors an entry from citizen/events.blade.php's $events array, plus
+/// an optional poster [imagePath]/[category] the Web Admin would attach
+/// when publishing a real event — each event is its own independent
+/// entry/card even when several share a venue or general topic (e.g. a
+/// basketball tournament's separate match-day posters), never merged
+/// into one combined container.
 class EventItem {
   final String title;
   final String date;
   final String time;
   final String venue;
+  final String? imagePath;
+  final String? category;
 
-  EventItem({required this.title, required this.date, required this.time, required this.venue});
-}
-
-/// Mirrors the notification rows shown in components/citizen/topbar.blade.php.
-class NotificationItem {
-  final String id;
-  final String icon;
-  final String title;
-  final String body;
-  final String time;
-  bool read;
-  final String? deepLinkCategory; // 'dokyu' | 'tulong' | 'balita' | null
-
-  NotificationItem({
-    required this.id,
-    required this.icon,
+  EventItem({
     required this.title,
-    required this.body,
+    required this.date,
     required this.time,
-    this.read = false,
-    this.deepLinkCategory,
+    required this.venue,
+    this.imagePath,
+    this.category,
   });
 }
 

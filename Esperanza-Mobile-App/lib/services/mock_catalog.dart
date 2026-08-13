@@ -1,6 +1,7 @@
 import '../models/announcement.dart';
 import '../models/catalog_item.dart';
 import '../models/citizen_account.dart';
+import '../models/evacuation_center.dart';
 import '../models/resident_profile.dart';
 
 /// Static reference data copied out of the Web Admin (read-only source —
@@ -214,10 +215,42 @@ class MockCatalog {
     ),
   ];
 
-  static final evacuationCenters = [
-    ('Poblacion Covered Court', 'Brgy. Poblacion', 'Capacity: 300'),
-    ('Santiago Elementary School', 'Brgy. Santiago', 'Capacity: 180'),
-    ('Labangtaytay Barangay Hall', 'Brgy. Labangtaytay', 'Capacity: 120'),
+  /// `distanceKm` is a simulated value standing in for real device
+  /// geolocation (this app has no `geolocator`/location-permission
+  /// integration wired up — see EvacuationCenterDetailScreen's doc
+  /// comment for why, and what a real integration would need to
+  /// replace). `currentOccupancy` is deliberately left unset everywhere:
+  /// there is no live capacity feed, and the emergency spec explicitly
+  /// forbids inventing one — the detail screen shows "Capacity
+  /// information unavailable" instead.
+  static const evacuationCenters = <EvacuationCenter>[
+    EvacuationCenter(
+      name: 'Poblacion Covered Court',
+      barangay: 'Poblacion',
+      totalCapacity: 300,
+      distanceKm: 0.8,
+      services: ['Emergency Shelter', 'Medical Aid Station', 'Relief Goods Distribution'],
+      amenities: ['Restrooms', 'Drinking Water', 'Electricity', 'Covered Sleeping Area'],
+      contactNumber: '(056) 333-1090',
+    ),
+    EvacuationCenter(
+      name: 'Santiago Elementary School',
+      barangay: 'Santiago',
+      totalCapacity: 180,
+      distanceKm: 2.4,
+      services: ['Emergency Shelter', 'Feeding Program'],
+      amenities: ['Restrooms', 'Drinking Water', 'Classrooms for Families'],
+      contactNumber: '(056) 333-1056',
+    ),
+    EvacuationCenter(
+      name: 'Labangtaytay Barangay Hall',
+      barangay: 'Labangtaytay',
+      totalCapacity: 120,
+      distanceKm: 4.1,
+      services: ['Emergency Shelter'],
+      amenities: ['Restrooms', 'Drinking Water'],
+      contactNumber: '(056) 333-1021',
+    ),
   ];
 
   static const emergencyHotlines = [
@@ -246,13 +279,84 @@ class MockCatalog {
     'Agoho': ExistingFamilyMatch(familyName: 'Ferrer Family', barangay: 'Agoho'),
   };
 
+  /// Real Esperanza event posters, each its own independent entry (never
+  /// combined into one container, even the three same-tournament
+  /// basketball posters — see EventItem's doc comment). Ordered
+  /// chronologically by actual event date.
+  ///
+  /// Note on asset filenames vs. content: the on-disk filenames "Event
+  /// 1.png" / "Eventt 1.2.png" / "Event 1.3.png" do not actually match
+  /// the "1 / 1.2 / 1.3" numbering implied by their names once opened —
+  /// "Event 1.3.png" is the Aug 3 match schedule, "Eventt 1.2.png" is the
+  /// Aug 12 quarter-final, and "Event 1.png" is the Aug 13 quarter-final.
+  /// The titles/dates/matchups below were set from each poster's actual
+  /// visible content, not from its filename.
   static final events = [
-    EventItem(title: 'Fiesta ng Esperanza — Opening Program', date: 'Aug 14, 2026', time: '6:00 PM', venue: 'Municipal Plaza'),
-    EventItem(title: 'Barangay Poblacion Medical Mission', date: 'Jul 18, 2026', time: '8:00 AM', venue: 'Poblacion Covered Court'),
-    EventItem(title: 'Livelihood Skills Training', date: 'Jul 25, 2026', time: '1:00 PM', venue: 'Municipal Hall Conference Room'),
+    EventItem(
+      title: 'Basketball Match Schedule — Baras vs Tunga, Villa vs Poblacion',
+      date: 'Aug 3, 2026',
+      time: '6:00 PM & 8:00 PM',
+      venue: 'Felimon S. Conag Cultural and Sports Center',
+      imagePath: 'assets/images/Event 1.3.png',
+      category: 'Sports',
+    ),
+    EventItem(
+      title: 'Mega Shoe Caravan',
+      date: 'Aug 7–8, 2026',
+      time: '7:00 AM – 2:00 PM',
+      venue: 'Esperanza Covered Court',
+      imagePath: 'assets/images/Event 3.png',
+      category: 'Promo',
+    ),
+    EventItem(
+      title: 'Basketball Quarter Final — Sorosimbajan vs Labangtaytay, Potingbato vs Iligan',
+      date: 'Aug 12, 2026',
+      time: '6:00 PM & 8:00 PM',
+      venue: 'Felimon S. Conag Cultural and Sports Center',
+      imagePath: 'assets/images/Eventt 1.2.png',
+      category: 'Sports',
+    ),
+    EventItem(
+      title: 'Basketball Quarter Final — Tawad vs Santiago, Villa vs Domorog',
+      date: 'Aug 13, 2026',
+      time: '6:00 PM & 8:00 PM',
+      venue: 'Felimon S. Conag Cultural and Sports Center',
+      imagePath: 'assets/images/Event 1.png',
+      category: 'Sports',
+    ),
+    EventItem(
+      title: 'Pa Jollibee ug Sorbetes ni Mayor JJ!',
+      date: 'Aug 21, 2026',
+      time: '2:00 PM',
+      venue: 'Felimon S. Conag Cultural and Sports Center',
+      imagePath: 'assets/images/Event 2.jpg',
+      category: 'Community',
+    ),
   ];
 
   static final announcements = [
+    // Admin-published recognition photo — visible content only: a DENR
+    // Certificate of Recognition naming "Domorog & Sorosimbahan
+    // Mangroves" as 2nd Runner-Up (per the certificate's own wording;
+    // the accompanying trophy plaque separately reads "2nd Place") in
+    // the "4th Gawad Iba Ka Juan: Best Mangrove Award in the Bicol
+    // Region," dated July 27, 2026, presented to LGU Esperanza. No
+    // claims beyond what's legible on the certificate/trophy.
+    Announcement(
+      id: 'bal-mangrove-award',
+      official: 'Esperanza LGU',
+      author: 'Esperanza LGU',
+      barangay: null,
+      body: 'Domorog & Sorosimbahan Mangroves Receive Recognition\n\n'
+          'LGU Esperanza was recognized as 2nd Runner-Up in the 4th Gawad Iba Ka Juan: Best Mangrove Award in the Bicol Region, '
+          'presented in celebration of International Day for the Conservation of the Mangrove Ecosystem, held July 27, 2026 in Legazpi City, Albay. '
+          'Maraming salamat sa ating mga taga-Domorog at Sorosimbahan sa pag-aalaga ng ating mangroves! 🌿',
+      time: '2 weeks ago',
+      media: const PostMedia(path: 'assets/images/News page section.png', type: PostMediaType.image, isAsset: true),
+      likes: 89,
+      shares: 21,
+      comments: const [],
+    ),
     Announcement(
       id: 'bal-1',
       official: 'Esperanza LGU',

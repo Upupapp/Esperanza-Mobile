@@ -40,6 +40,7 @@ dependencies:
   provider: ^6.1.5+1
   intl: ^0.20.3
   url_launcher: ^6.3.2
+  share_plus: ^11.0.0
 
 dev_dependencies:
   flutter_test:
@@ -68,6 +69,13 @@ flutter:
     - assets/images/labangtaytay-seal.png
     - assets/images/esperanza-aerial.jpg
     - assets/images/rectangle_cityhall.jpg
+    - assets/images/Home_Banner.png
+    - assets/images/Event 1.png
+    - assets/images/Eventt 1.2.png
+    - assets/images/Event 1.3.png
+    - assets/images/Event 2.jpg
+    - assets/images/Event 3.png
+    - assets/images/News page section.png
 
   # Inter and Lora are bundled as variable fonts (single file, multiple
   # weight entries), matching resources/css/app.css in the Web Admin, which

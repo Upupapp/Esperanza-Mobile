@@ -71,12 +71,18 @@ class _RootShellState extends State<RootShell> {
 /// Shared top-right "Alerts" icon button — every root tab's AppBar uses
 /// this instead of duplicating the same IconButton/navigation each time.
 class AlertsAction extends StatelessWidget {
-  const AlertsAction({super.key});
+  // Left null everywhere except Home's hero, which sits directly on a
+  // dark navy/brand gradient rather than inside an AppBar — the AppBar
+  // theme's foregroundColor (dark, correct for every other screen's
+  // white AppBar) would be invisible there, so only that one call site
+  // passes an explicit white override.
+  final Color? color;
+  const AlertsAction({super.key, this.color});
 
   @override
   Widget build(BuildContext context) {
     return IconButton(
-      icon: const Icon(Icons.notifications_outlined),
+      icon: Icon(Icons.notifications_outlined, color: color),
       tooltip: 'Alerts',
       onPressed: () => Navigator.of(context).push(
         MaterialPageRoute(builder: (_) => const NotificationsScreen()),

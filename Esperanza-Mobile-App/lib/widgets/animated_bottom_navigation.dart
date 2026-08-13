@@ -17,16 +17,16 @@ class AnimatedBottomNavItem {
 /// from one shared animated horizontal position ([_indexAnimation]). This
 /// is the key difference from an earlier iteration that only translated
 /// the circle over an otherwise flat, static bar: here the bar's shape is
-/// painted fresh every frame by [_NavBarPainter] from the *same* animated
-/// value that positions the circle, so a long trip (e.g. Home ->
+/// reclipped fresh every frame by [_NavBarClipper] from the *same*
+/// animated value that positions the circle, so a long trip (e.g. Home ->
 /// Emergency) reads as the whole surface flowing across the bar, not a
 /// circle sliding over an unrelated rectangle.
 ///
-/// Built entirely on Flutter's built-in `CustomPainter`/`AnimationController`
-/// — the natural Flutter equivalent of an animated SVG path — rather than
-/// a new dependency; this app already relies on the same class of
-/// built-in animation APIs elsewhere (see widgets/segmented_tabs.dart's
-/// AnimatedContainer).
+/// Built entirely on Flutter's built-in `CustomClipper`/`PhysicalShape`/
+/// `AnimationController` — the natural Flutter equivalent of an animated
+/// SVG path — rather than a new dependency; this app already relies on
+/// the same class of built-in animation APIs elsewhere (see
+/// widgets/segmented_tabs.dart's AnimatedContainer).
 class AnimatedBottomNavigation extends StatefulWidget {
   final List<AnimatedBottomNavItem> items;
   final int currentIndex;
@@ -51,17 +51,22 @@ class _AnimatedBottomNavigationState extends State<AnimatedBottomNavigation> wit
   // above the baseline (rather than centering it on the boundary) is
   // what makes it read as a floating object the surface rises toward,
   // not a bar decoration.
-  static const double _overlapIntoBar = 16;
+  // 12 (rather than the earlier 16) matches the reference screenshot more
+  // closely — there, the great majority of the circle sits above the
+  // bar's edge, with only a small sliver overlapping into it.
+  static const double _overlapIntoBar = 12;
   static const double _protrusion = _bubbleSize - _overlapIntoBar;
 
   // Geometry of the moving bump in the bar's top edge — the part of this
   // widget that makes the surface itself travel with the indicator
   // instead of staying flat. Width guidance from the nav spec: wider
-  // than the circle (60px) so the circle feels seated inside it, roughly
-  // 90-105px total across rest/in-flight.
+  // than the circle (60px) so the circle feels seated inside it. Height
+  // kept modest (rather than an earlier, more pronounced 26px peak) since
+  // the reference screenshot's bar reads as close to flat with only a
+  // gentle rise at the active tab, not an obvious hill.
   static const double _bumpHalfWidthAtRest = 44;
   static const double _bumpStretch = 10; // added while in flight, see build()
-  static const double _bumpHeight = 26;
+  static const double _bumpHeight = 14;
 
   late final AnimationController _controller;
   late Animation<double> _indexAnimation;
@@ -134,21 +139,35 @@ class _AnimatedBottomNavigationState extends State<AnimatedBottomNavigation> wit
               return Stack(
                 clipBehavior: Clip.none,
                 children: [
-                  // The bar's surface — painted fresh every animation
+                  // The bar's surface — reclipped fresh every animation
                   // frame from `centerX`/`bumpHalfWidth`, so the raised
                   // section is not a static decoration but travels with
-                  // the indicator. See _NavBarPainter for the actual
-                  // path/bump geometry.
+                  // the indicator. PhysicalShape (rather than a hand-drawn
+                  // CustomPainter shadow) both fills and casts the shadow
+                  // for the exact clip path via Flutter's standard native
+                  // elevation — that's a deliberate choice, not just
+                  // style: an earlier version painted its own shadow with
+                  // `Paint()..maskFilter = MaskFilter.blur(...)`, which is
+                  // unreliable on Flutter Web (blur mask filters are a
+                  // Skia/CanvasKit feature with inconsistent support in
+                  // the browser canvas backends) and is suspected to be
+                  // the source of a web-only "Unexpected null value"
+                  // crash. PhysicalShape's elevation shadow is a
+                  // mainstream, cross-platform-safe API for this exact
+                  // "custom animated shape with a shadow" case.
                   Positioned.fill(
-                    child: CustomPaint(
+                    child: PhysicalShape(
                       key: const ValueKey('nav-bar-shape'),
-                      painter: _NavBarPainter(
+                      clipper: _NavBarClipper(
                         centerX: centerX,
                         barTopY: barTopY,
                         bumpHalfWidth: bumpHalfWidth,
                         bumpHeight: _bumpHeight,
-                        barColor: AppColors.surface,
                       ),
+                      color: AppColors.surface,
+                      elevation: 3,
+                      shadowColor: Colors.black.withValues(alpha: 0.25),
+                      child: const SizedBox.expand(),
                     ),
                   ),
                   // Inactive/active tab content — icons and labels stay
@@ -241,32 +260,30 @@ class _AnimatedBottomNavigationState extends State<AnimatedBottomNavigation> wit
   }
 }
 
-/// Paints the bar's actual silhouette: flat everywhere except a smooth
-/// symmetric bump — two mirrored cubic Béziers meeting at a rounded apex
-/// — centered on [centerX], rising [bumpHeight] above the flat baseline
-/// [barTopY]. This is what makes the navigation *surface itself* move
-/// with the selected tab rather than staying a static rectangle under a
-/// sliding circle. A soft, low-opacity blurred copy of the same path is
-/// drawn first as a hand-tuned shadow (softer than Flutter's default
-/// Material elevation shadow) so the whole bar+bump silhouette reads as
-/// one elevated shape, not a flat panel with a circle floating in front
-/// of it.
-class _NavBarPainter extends CustomPainter {
+/// The bar's actual silhouette: flat everywhere except a smooth symmetric
+/// bump — two mirrored cubic Béziers meeting at a rounded apex — centered
+/// on [centerX], rising [bumpHeight] above the flat baseline [barTopY].
+/// This is what makes the navigation *surface itself* move with the
+/// selected tab rather than staying a static rectangle under a sliding
+/// circle. Used as a [CustomClipper] for a [PhysicalShape] so the shape
+/// gets both its fill and its elevation shadow from one standard,
+/// web-safe Flutter API — see the call site's comment for why this
+/// replaced an earlier hand-drawn `CustomPainter` shadow.
+class _NavBarClipper extends CustomClipper<Path> {
   final double centerX;
   final double barTopY;
   final double bumpHalfWidth;
   final double bumpHeight;
-  final Color barColor;
 
-  const _NavBarPainter({
+  const _NavBarClipper({
     required this.centerX,
     required this.barTopY,
     required this.bumpHalfWidth,
     required this.bumpHeight,
-    required this.barColor,
   });
 
-  Path _shape(Size size) {
+  @override
+  Path getClip(Size size) {
     final apex = Offset(centerX, barTopY - bumpHeight);
     return Path()
       ..moveTo(0, barTopY)
@@ -288,29 +305,11 @@ class _NavBarPainter extends CustomPainter {
   }
 
   @override
-  void paint(Canvas canvas, Size size) {
-    final path = _shape(size);
-
-    canvas.save();
-    canvas.translate(0, 5);
-    canvas.drawPath(
-      path,
-      Paint()
-        ..color = Colors.black.withValues(alpha: 0.10)
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 10),
-    );
-    canvas.restore();
-
-    canvas.drawPath(path, Paint()..color = barColor);
-  }
-
-  @override
-  bool shouldRepaint(covariant _NavBarPainter oldDelegate) =>
-      oldDelegate.centerX != centerX ||
-      oldDelegate.barTopY != barTopY ||
-      oldDelegate.bumpHalfWidth != bumpHalfWidth ||
-      oldDelegate.bumpHeight != bumpHeight ||
-      oldDelegate.barColor != barColor;
+  bool shouldReclip(covariant _NavBarClipper oldClipper) =>
+      oldClipper.centerX != centerX ||
+      oldClipper.barTopY != barTopY ||
+      oldClipper.bumpHalfWidth != bumpHalfWidth ||
+      oldClipper.bumpHeight != bumpHeight;
 }
 
 class _NavTapTarget extends StatelessWidget {
@@ -340,14 +339,24 @@ class _NavTapTarget extends StatelessWidget {
             child: Icon(item.icon, size: 22, color: AppColors.slate400),
           ),
           const SizedBox(height: 3),
-          AnimatedDefaultTextStyle(
+          // Reference screenshot: only the active tab carries a visible
+          // label ("Category," bold, beneath the floating circle) —
+          // inactive tabs show icon only. Opacity (not conditional
+          // removal) keeps the label's layout space reserved at all
+          // times, so toggling selection never shifts the icon's
+          // vertical position.
+          AnimatedOpacity(
             duration: const Duration(milliseconds: 180),
-            style: TextStyle(
-              fontSize: 11,
-              fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-              color: selected ? AppColors.brand600 : AppColors.slate400,
+            opacity: selected ? 1 : 0,
+            child: AnimatedDefaultTextStyle(
+              duration: const Duration(milliseconds: 180),
+              style: TextStyle(
+                fontSize: selected ? 12 : 11,
+                fontWeight: FontWeight.w700,
+                color: AppColors.brand600,
+              ),
+              child: Text(item.label),
             ),
-            child: Text(item.label),
           ),
         ],
       ),

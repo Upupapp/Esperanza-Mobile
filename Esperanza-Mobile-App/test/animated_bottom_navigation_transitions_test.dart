@@ -46,16 +46,16 @@ double _indicatorLeft(WidgetTester tester) {
   return positioned.left!;
 }
 
-/// `_NavBarPainter` is library-private (its name can't be imported), but
+/// `_NavBarClipper` is library-private (its name can't be imported), but
 /// `centerX` itself is a public field name, so it's still reachable via a
-/// dynamic reference to the painter instance obtained through the public
-/// `CustomPaint.painter` API — this is what lets the test confirm the bar
-/// shape and the circle share the same driving value without exposing
-/// painter internals as a public API just for testing.
+/// dynamic reference to the clipper instance obtained through the public
+/// `PhysicalShape.clipper` API — this is what lets the test confirm the
+/// bar shape and the circle share the same driving value without
+/// exposing clipper internals as a public API just for testing.
 double _bumpCenterX(WidgetTester tester) {
-  final customPaint = tester.widget<CustomPaint>(find.byKey(const ValueKey('nav-bar-shape')));
-  final dynamic painter = customPaint.painter;
-  return painter.centerX as double;
+  final shape = tester.widget<PhysicalShape>(find.byKey(const ValueKey('nav-bar-shape')));
+  final dynamic clipper = shape.clipper;
+  return clipper.centerX as double;
 }
 
 Future<void> _tapTab(WidgetTester tester, String label) async {

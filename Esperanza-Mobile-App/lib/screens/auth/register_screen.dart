@@ -11,7 +11,6 @@ import '../../widgets/app_button.dart';
 import '../../widgets/app_text_field.dart';
 import '../../widgets/onboarding_step_indicator.dart';
 import '../../widgets/verification_status_panel.dart';
-import '../home/root_shell.dart';
 
 /// Citizen registration, restructured (Section 9) from one long form into
 /// a step-by-step wizard: Personal Information -> Terms & Conditions ->
@@ -538,10 +537,19 @@ class _RegisterScreenState extends State<RegisterScreen> {
           iconTrailing: true,
           fullWidth: true,
           size: AppButtonSize.lg,
-          onPressed: () => Navigator.of(context, rootNavigator: true).pushAndRemoveUntil(
-            MaterialPageRoute(builder: (_) => RootShell.withKey()),
-            (route) => false,
-          ),
+          // Pop back to the root route instead of pushing a fresh
+          // RootShell.withKey() — the root route is _AuthGate (main.dart),
+          // which already reacted to the login() call above and is
+          // already showing RootShell on its own. Pushing a *second*
+          // RootShell.withKey() here would either collide with that one
+          // over RootShell's single static GlobalKey, or (via
+          // pushAndRemoveUntil's route removal) tear _AuthGate itself out
+          // of the navigator stack — after which no future login()/
+          // logout() has anything left to react to, leaving the app stuck
+          // on whatever screen was showing. This was the root cause of
+          // "Ronaldo/Marites no longer opening" after using this button
+          // or the drawer's Sign In from Guest mode.
+          onPressed: () => Navigator.of(context, rootNavigator: true).popUntil((route) => route.isFirst),
         ),
       ],
     );

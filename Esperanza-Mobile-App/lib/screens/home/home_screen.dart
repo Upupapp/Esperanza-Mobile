@@ -14,6 +14,8 @@ import '../../widgets/app_button.dart';
 import '../../widgets/app_card.dart';
 import '../../widgets/empty_state.dart';
 import '../../widgets/esperanza_drawer.dart';
+import '../../widgets/event_card.dart';
+import '../../widgets/home_welcome_banner.dart';
 import '../../widgets/parallax_header.dart';
 import '../../widgets/resident_profile_status_card.dart';
 import '../../widgets/section_header.dart';
@@ -41,6 +43,25 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   final _scrollController = ScrollController();
+  bool _bannerOffered = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // RootShell mounts HomeScreen once via IndexedStack and keeps it alive
+    // across tab switches, so `initState` running exactly once per
+    // session-entry is what makes "show once, then stay closed for the
+    // rest of this session" work without any extra persisted flag — no
+    // over-engineered banner-impression backend needed for this demo.
+    // addPostFrameCallback defers to after the first real frame, which is
+    // the standard safe point to open a dialog from initState.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!_bannerOffered && mounted) {
+        _bannerOffered = true;
+        HomeWelcomeBanner.show(context);
+      }
+    });
+  }
 
   @override
   void dispose() {
@@ -156,79 +177,17 @@ class _HomeScreenState extends State<HomeScreen> {
                   ...activeRequests.take(3).map((r) => _RequestPreviewTile(request: r)),
                 const SizedBox(height: AppSpacing.xxl),
               ],
+              // No Balita/News section here — Balita already has its own
+              // dedicated bottom tab; duplicating the feed on Home only
+              // adds noise. Events stays, since Home has always carried a
+              // short upcoming-events teaser distinct from the full
+              // Events list.
               SectionHeader(
-                title: 'Balita — Latest News',
+                title: 'Upcoming Events',
                 actionLabel: 'View all',
                 onAction: () => RootShell.jumpTo(context, 3),
               ),
-              AppCard(
-                padding: EdgeInsets.zero,
-                child: Column(
-                  children: MockCatalog.announcements
-                      .take(2)
-                      .map((a) => Padding(
-                            padding: const EdgeInsets.all(14),
-                            child: Row(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                CircleAvatar(
-                                  radius: 16,
-                                  backgroundColor: AppColors.gold50,
-                                  child: Text(
-                                    a.official.isNotEmpty ? 'LGU' : a.author.substring(0, 1),
-                                    style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: AppColors.gold700),
-                                  ),
-                                ),
-                                const SizedBox(width: 10),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(a.author, style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600)),
-                                      const SizedBox(height: 2),
-                                      Text(a.body, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 12.5, color: AppColors.slate500, height: 1.4)),
-                                      const SizedBox(height: 4),
-                                      Text(a.time, style: const TextStyle(fontSize: 11, color: AppColors.textMuted)),
-                                    ],
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ))
-                      .toList(),
-                ),
-              ),
-              const SizedBox(height: AppSpacing.xxl),
-              const SectionHeader(title: 'Upcoming Events'),
-              ...MockCatalog.events.take(2).map(
-                    (e) => AppCard(
-                      padding: const EdgeInsets.all(14),
-                      child: Padding(
-                        padding: const EdgeInsets.only(bottom: 0),
-                        child: Row(
-                          children: [
-                            Container(
-                              width: 40,
-                              height: 40,
-                              decoration: BoxDecoration(color: AppColors.brand50, borderRadius: BorderRadius.circular(10)),
-                              child: const Icon(Icons.event_outlined, size: 18, color: AppColors.brand600),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(e.title, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600)),
-                                  const SizedBox(height: 2),
-                                  Text('${e.date} · ${e.time} · ${e.venue}', style: const TextStyle(fontSize: 11, color: AppColors.textMuted)),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
+              for (final e in MockCatalog.events.take(2)) EventCard(event: e, compact: true),
             ],
           ),
         ),
@@ -290,7 +249,7 @@ class _Hero extends StatelessWidget {
         const SizedBox(width: 8),
         Expanded(child: middle),
         const SizedBox(width: 8),
-        const AlertsAction(),
+        const AlertsAction(color: Colors.white),
       ],
     );
   }

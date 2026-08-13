@@ -17,6 +17,22 @@ void _setPhoneViewport(WidgetTester tester) {
   addTearDown(tester.view.resetDevicePixelRatio);
 }
 
+/// Home shows the promotional HomeWelcomeBanner pop-up once per session,
+/// right after it first loads — dismiss it (tap its "Close" button) the
+/// same way a real user would before continuing to interact with Home,
+/// otherwise the modal barrier intercepts every subsequent tap.
+Future<void> _dismissWelcomeBanner(WidgetTester tester) async {
+  final closeButton = find.byIcon(Icons.close_rounded);
+  if (closeButton.evaluate().isNotEmpty) {
+    // warnIfMissed: false — Icon widgets are painted leaves, not hit-test
+    // targets themselves (the enclosing IconButton is), so tapping one
+    // reliably prints a benign "would not hit test on the specified
+    // widget" warning even though the tap correctly reaches the button.
+    await tester.tap(closeButton, warnIfMissed: false);
+    await tester.pumpAndSettle();
+  }
+}
+
 void main() {
   testWidgets('Scenario A — Guest: Home -> Balita public -> Dokyu shows restricted notice', (tester) async {
     SharedPreferences.setMockInitialValues({});
@@ -34,6 +50,7 @@ void main() {
 
     // 3. Enter Home successfully — Guest branch renders, not a crash on
     // `account!`.
+    await _dismissWelcomeBanner(tester);
     expect(find.textContaining('Welcome, Guest'), findsOneWidget);
     expect(find.text('Home'), findsWidgets); // bottom nav label
 
@@ -69,6 +86,7 @@ void main() {
     await tester.ensureVisible(find.text('Ronaldo Bautista'));
     await tester.tap(find.text('Ronaldo Bautista'));
     await tester.pumpAndSettle();
+    await _dismissWelcomeBanner(tester);
 
     // 2 & 3. Confirm registered-but-unverified is recognized, and status
     // is clearly visible — via Profile (hamburger drawer -> Profile).
@@ -114,6 +132,7 @@ void main() {
     await tester.ensureVisible(find.text('Marites Ferrer'));
     await tester.tap(find.text('Marites Ferrer'));
     await tester.pumpAndSettle();
+    await _dismissWelcomeBanner(tester);
 
     // 2. Confirm recognized as fully verified.
     await tester.tap(find.byIcon(Icons.menu_rounded));

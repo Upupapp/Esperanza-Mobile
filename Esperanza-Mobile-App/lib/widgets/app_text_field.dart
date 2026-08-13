@@ -42,7 +42,7 @@ class AppTextField extends StatelessWidget {
             label!,
             style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: AppColors.slate700),
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 8),
         ],
         TextField(
           controller: controller,
@@ -50,7 +50,7 @@ class AppTextField extends StatelessWidget {
           keyboardType: keyboardType,
           maxLines: obscureText ? 1 : maxLines,
           onChanged: onChanged,
-          style: const TextStyle(fontSize: 14, color: AppColors.textBody),
+          style: const TextStyle(fontSize: 14, color: AppColors.textBody, height: 1.3),
           decoration: InputDecoration(
             hintText: hintText,
             prefixIcon: icon != null ? Icon(icon, size: 18, color: AppColors.slate400) : null,
@@ -60,7 +60,7 @@ class AppTextField extends StatelessWidget {
         ),
         if (hint != null && error == null) ...[
           const SizedBox(height: 6),
-          Text(hint!, style: const TextStyle(fontSize: 12, color: AppColors.textMuted)),
+          Text(hint!, style: const TextStyle(fontSize: 12, color: AppColors.textMuted, height: 1.35)),
         ],
       ],
     );
@@ -94,7 +94,7 @@ class AppSelectField<T> extends StatelessWidget {
       children: [
         if (label != null) ...[
           Text(label!, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: AppColors.slate700)),
-          const SizedBox(height: 6),
+          const SizedBox(height: 8),
         ],
         DropdownButtonFormField<T>(
           initialValue: value,

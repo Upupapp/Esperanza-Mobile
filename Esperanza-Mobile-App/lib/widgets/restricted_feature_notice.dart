@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../screens/auth/login_screen.dart';
 import '../screens/auth/register_screen.dart';
 import '../services/citizen_session_service.dart';
 import '../theme/app_colors.dart';
@@ -75,6 +74,22 @@ class RestrictedFeatureNotice extends StatelessWidget {
     );
   }
 
+  // Pop back to the root route instead of pushing a fresh LoginScreen/
+  // RegisterScreen on top of an otherwise-emptied stack — see
+  // esperanza_drawer.dart's _goToAuth for the full explanation. The root
+  // route is _AuthGate (main.dart), already reactively showing
+  // LoginScreen once endGuestSession() completes; the previous
+  // `pushAndRemoveUntil(..., (route) => false)` removed _AuthGate from
+  // the stack entirely, so any later login()/logout() had nothing left
+  // to react to — the root cause behind demo accounts appearing to "stop
+  // opening" once reached through this notice.
+  Future<void> _endGuestAndGoToRoot(BuildContext context) async {
+    await context.read<CitizenSessionService>().endGuestSession();
+    if (context.mounted) {
+      Navigator.of(context, rootNavigator: true).popUntil((route) => route.isFirst);
+    }
+  }
+
   List<Widget> _guestActions(BuildContext context) => [
         AppButton(
           label: 'Create Account',
@@ -82,12 +97,9 @@ class RestrictedFeatureNotice extends StatelessWidget {
           fullWidth: true,
           size: AppButtonSize.lg,
           onPressed: () async {
-            await context.read<CitizenSessionService>().endGuestSession();
+            await _endGuestAndGoToRoot(context);
             if (context.mounted) {
-              Navigator.of(context, rootNavigator: true).pushAndRemoveUntil(
-                MaterialPageRoute(builder: (_) => const RegisterScreen()),
-                (route) => false,
-              );
+              Navigator.of(context, rootNavigator: true).push(MaterialPageRoute(builder: (_) => const RegisterScreen()));
             }
           },
         ),
@@ -96,15 +108,7 @@ class RestrictedFeatureNotice extends StatelessWidget {
           label: 'Sign In',
           variant: AppButtonVariant.secondary,
           fullWidth: true,
-          onPressed: () async {
-            await context.read<CitizenSessionService>().endGuestSession();
-            if (context.mounted) {
-              Navigator.of(context, rootNavigator: true).pushAndRemoveUntil(
-                MaterialPageRoute(builder: (_) => const LoginScreen()),
-                (route) => false,
-              );
-            }
-          },
+          onPressed: () => _endGuestAndGoToRoot(context),
         ),
       ];
 

@@ -1,9 +1,13 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:share_plus/share_plus.dart';
 import '../../models/announcement.dart';
+import '../../services/citizen_session_service.dart';
 import '../../theme/app_colors.dart';
 import '../../widgets/app_dialogs.dart';
 import '../../widgets/app_card.dart';
+import '../../widgets/restricted_feature_notice.dart';
 import 'comments_sheet.dart';
 
 /// A single Balita feed post — header (avatar/author/verified badge/
@@ -147,7 +151,7 @@ class PostCard extends StatelessWidget {
                     icon: post.liked ? Icons.favorite_rounded : Icons.favorite_border_rounded,
                     label: 'Like',
                     color: post.liked ? AppColors.rose500 : AppColors.slate500,
-                    onTap: onLike,
+                    onTap: () => _requireAccount(context, 'Reacting to Balita posts', onLike),
                   ),
                 ),
                 Expanded(
@@ -155,7 +159,7 @@ class PostCard extends StatelessWidget {
                     icon: Icons.mode_comment_outlined,
                     label: 'Comment',
                     color: AppColors.slate500,
-                    onTap: () => _openComments(context),
+                    onTap: () => _requireAccount(context, 'Commenting on Balita posts', () => _openComments(context)),
                   ),
                 ),
                 Expanded(
@@ -163,10 +167,13 @@ class PostCard extends StatelessWidget {
                     icon: Icons.share_outlined,
                     label: 'Share',
                     color: AppColors.slate500,
-                    onTap: () {
-                      onShare();
-                      AppDialogs.toast(context, 'Post shared to your timeline (demo).');
-                    },
+                    // Sharing stays open to everyone, including Guests —
+                    // it's re-distributing public content, not a personal
+                    // interaction. Uses the OS's native share sheet
+                    // (share_plus) rather than a fake "shared to your
+                    // timeline" simulation; no link is included since
+                    // there is no real backend URL for a post to expose.
+                    onTap: () => _sharePost(context),
                   ),
                 ),
               ],
@@ -177,6 +184,19 @@ class PostCard extends StatelessWidget {
     );
   }
 
+  /// Reacting/commenting are account actions — a Guest gets the same
+  /// reusable "create an account or sign in" notice any other protected
+  /// interaction shows, rather than an action that silently no-ops.
+  void _requireAccount(BuildContext context, String featureName, VoidCallback action) {
+    if (context.read<CitizenSessionService>().isGuest) {
+      Navigator.of(context).push(
+        MaterialPageRoute(builder: (_) => RestrictedFeatureNotice(reason: RestrictionReason.guestOnly, featureName: featureName)),
+      );
+      return;
+    }
+    action();
+  }
+
   void _openComments(BuildContext context) {
     showModalBottomSheet(
       context: context,
@@ -184,6 +204,19 @@ class PostCard extends StatelessWidget {
       backgroundColor: Colors.transparent,
       builder: (_) => CommentsSheet(post: post, onSubmit: onComment),
     );
+  }
+
+  Future<void> _sharePost(BuildContext context) async {
+    final box = context.findRenderObject() as RenderBox?;
+    final origin = box != null ? box.localToGlobal(Offset.zero) & box.size : null;
+    final who = post.isOfficial ? 'Esperanza LGU' : post.author;
+    final excerpt = post.body.trim();
+    final text = [
+      '$who — Balita, Esperanza',
+      if (excerpt.isNotEmpty) excerpt,
+    ].join('\n\n');
+    await SharePlus.instance.share(ShareParams(text: text, subject: 'Balita: $who', sharePositionOrigin: origin));
+    onShare();
   }
 
   void _showPostMenu(BuildContext context) {

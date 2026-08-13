@@ -53,7 +53,11 @@ class AppTheme {
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: AppColors.slate50,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        // 16 (rather than 14) vertical padding gives inputs comfortable
+        // breathing room instead of feeling compressed — some Esperanza
+        // users are older adults who benefit from clearly separated,
+        // easy-to-target fields.
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(AppRadius.md),
           borderSide: const BorderSide(color: AppColors.slate200),

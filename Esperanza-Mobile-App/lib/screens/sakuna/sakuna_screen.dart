@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../../models/evacuation_center.dart';
 import '../../models/service_request.dart';
 import '../../services/mock_catalog.dart';
 import '../../theme/app_colors.dart';
@@ -9,6 +10,7 @@ import '../../widgets/app_card.dart';
 import '../../widgets/esperanza_drawer.dart';
 import '../home/root_shell.dart';
 import '../shared/request_list_screen.dart';
+import 'evacuation_center_detail_screen.dart';
 
 /// Sakuna (Disaster Risk Reduction & Emergency Ops) — citizen-appropriate
 /// slice of the Web Admin's much larger Sakuna module (Command Center,
@@ -88,37 +90,96 @@ class SakunaScreen extends StatelessWidget {
             ),
           ),
           const SizedBox(height: AppSpacing.xl),
-          const Text('Evacuation Centers', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textMuted)),
-          const SizedBox(height: AppSpacing.md),
-          ...MockCatalog.evacuationCenters.map(
-            (c) => Padding(
-              padding: const EdgeInsets.only(bottom: 8),
-              child: AppCard(
-                child: Row(
-                  children: [
-                    Container(
-                      width: 38,
-                      height: 38,
-                      decoration: BoxDecoration(color: AppColors.brand50, borderRadius: BorderRadius.circular(10)),
-                      child: const Icon(Icons.home_work_outlined, size: 17, color: AppColors.brand600),
+          const _EvacuationCentersSection(),
+        ],
+      ),
+    );
+  }
+}
+
+/// Sorted by [EvacuationCenter.distanceKm] (a simulated stand-in for real
+/// device geolocation — see EvacuationCenterDetailScreen's doc comment)
+/// so the nearest center leads the list and is clearly labeled — not
+/// merely color-coded — with a badge, per the emergency spec's "do not
+/// rely only on color" requirement. Centers without a distance value
+/// (the state a real "location permission denied" fallback would produce)
+/// still render normally, just without a distance line or nearest badge —
+/// manual browsing always works regardless of location availability.
+class _EvacuationCentersSection extends StatelessWidget {
+  const _EvacuationCentersSection();
+
+  @override
+  Widget build(BuildContext context) {
+    final centers = [...MockCatalog.evacuationCenters]
+      ..sort((a, b) {
+        if (a.distanceKm == null && b.distanceKm == null) return 0;
+        if (a.distanceKm == null) return 1;
+        if (b.distanceKm == null) return -1;
+        return a.distanceKm!.compareTo(b.distanceKm!);
+      });
+    final nearest = centers.firstWhere((c) => c.distanceKm != null, orElse: () => centers.first);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text('Evacuation Centers', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textMuted)),
+        const SizedBox(height: AppSpacing.md),
+        for (final c in centers) ...[
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: AppCard(
+              onTap: () => Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => EvacuationCenterDetailScreen(center: c, isNearest: c == nearest)),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    width: 38,
+                    height: 38,
+                    decoration: BoxDecoration(color: AppColors.brand50, borderRadius: BorderRadius.circular(10)),
+                    child: const Icon(Icons.home_work_outlined, size: 17, color: AppColors.brand600),
+                  ),
+                  const SizedBox(width: AppSpacing.md),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Flexible(child: Text(c.name, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600), overflow: TextOverflow.ellipsis)),
+                            if (c == nearest) ...[
+                              const SizedBox(width: 6),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                decoration: BoxDecoration(color: AppColors.emerald50, borderRadius: BorderRadius.circular(999)),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: const [
+                                    Icon(Icons.near_me_rounded, size: 10, color: AppColors.emerald700),
+                                    SizedBox(width: 3),
+                                    Text('Nearest', style: TextStyle(fontSize: 9.5, fontWeight: FontWeight.w700, color: AppColors.emerald700)),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                        Text(
+                          c.distanceKm != null
+                              ? 'Brgy. ${c.barangay} · ${c.distanceKm!.toStringAsFixed(1)} km · Capacity: ${c.totalCapacity}'
+                              : 'Brgy. ${c.barangay} · Capacity: ${c.totalCapacity}',
+                          style: const TextStyle(fontSize: 11.5, color: AppColors.textMuted),
+                        ),
+                      ],
                     ),
-                    const SizedBox(width: AppSpacing.md),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(c.$1, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
-                          Text('${c.$2} · ${c.$3}', style: const TextStyle(fontSize: 11.5, color: AppColors.textMuted)),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
+                  ),
+                  const Icon(Icons.chevron_right_rounded, color: AppColors.slate300),
+                ],
               ),
             ),
           ),
         ],
-      ),
+      ],
     );
   }
 }
