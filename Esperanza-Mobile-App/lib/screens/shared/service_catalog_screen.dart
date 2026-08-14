@@ -6,6 +6,7 @@ import '../../theme/app_colors.dart';
 import '../../theme/app_spacing.dart';
 import '../../widgets/app_card.dart';
 import 'new_request_screen.dart';
+import 'service_request_wizard_screen.dart';
 
 /// Step 1 of the request wizard — pick a document/assistance type, guided
 /// by progressive filtering (Barangay/LGU -> Department -> Specific
@@ -203,7 +204,11 @@ class _ItemList extends StatelessWidget {
           padding: const EdgeInsets.only(bottom: 10),
           child: AppCard(
             onTap: () => Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => NewRequestScreen(category: category, item: item, accent: accent)),
+              MaterialPageRoute(
+                builder: (_) => item.formSpec != null
+                    ? ServiceRequestWizardScreen(category: category, item: item, accent: accent)
+                    : NewRequestScreen(category: category, item: item, accent: accent),
+              ),
             ),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,

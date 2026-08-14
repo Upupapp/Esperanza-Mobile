@@ -56,6 +56,11 @@ void main() {
 
     expect(find.text('Where is this service administered?'), findsNothing);
     expect(find.text('Which office handles this?'), findsOneWidget);
+    // The department list has grown since this test was written (more
+    // sourced Tulong services now exist — see docs/DOKYU_TULONG_FORM_AUDIT.md),
+    // so 'OSCA' (sorted last alphabetically) may now be below the fold;
+    // scroll it into view rather than assuming it's on-screen already.
+    await tester.scrollUntilVisible(find.text('OSCA'), 200, scrollable: find.byType(Scrollable).first);
     expect(find.text('OSCA'), findsOneWidget);
 
     await tester.tap(find.text('OSCA'));

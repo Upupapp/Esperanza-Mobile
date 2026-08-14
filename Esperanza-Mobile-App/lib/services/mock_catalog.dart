@@ -3,6 +3,7 @@ import '../models/catalog_item.dart';
 import '../models/citizen_account.dart';
 import '../models/evacuation_center.dart';
 import '../models/resident_profile.dart';
+import '../models/service_form_spec.dart';
 
 /// Static reference data copied out of the Web Admin (read-only source —
 /// see config/esperanza.php, esperanza_citizens.php, esperanza_balita.php,
@@ -18,6 +19,14 @@ class MockCatalog {
     'Agoho', 'Almero', 'Baras', 'Domorog', 'Guadalupe', 'Iligan', 'Labangtaytay',
     'Labrador', 'Libertad', 'Magsaysay', 'Masbaranon', 'Poblacion', 'Potingbato',
     'Rizal', 'San Roque', 'Santiago', 'Sorosimbajan', 'Tawad', 'Tunga', 'Villa',
+  ];
+
+  /// Reusable purpose options sourced from BRGY.CLEARANCE NEW.docx / BRGY.
+  /// RESIDENCY.docx — both official Esperanza barangay forms use the same
+  /// purpose checklist.
+  static const _barangayPurposeOptions = [
+    'Proof of Residency', 'Local Employment', 'Travel Abroad', 'Postal ID Application',
+    'Bank Requirement', 'NBI Clearance', 'Loan Purpose', 'Medical / Financial Assistance', 'Others',
   ];
 
   static const documentTypes = <CatalogItem>[
@@ -40,6 +49,14 @@ class MockCatalog {
       requirements: ['One (1) valid government-issued ID', 'Proof of residency'],
       process: ['Submit Request', 'Verify Residency', 'Approval', 'Release'],
       icon: 'file-check',
+      // Sourced: BRGY.CLEARANCE NEW.docx (official).
+      formSpec: ServiceFormSpec(steps: [
+        ServiceFormStep(label: 'Clearance Details', fields: [
+          ServiceFormField(key: 'dateOfBirth', label: 'Date of Birth', type: ServiceFieldType.date),
+          ServiceFormField(key: 'age', label: 'Age', type: ServiceFieldType.derivedAge, required: false, derivedFromKey: 'dateOfBirth'),
+          ServiceFormField(key: 'purpose', label: 'Purpose', type: ServiceFieldType.select, options: _barangayPurposeOptions),
+        ]),
+      ]),
     ),
     CatalogItem(
       key: 'dokyu_residency',
@@ -50,6 +67,15 @@ class MockCatalog {
       requirements: ['One (1) valid government-issued ID', 'Barangay Clearance', 'Proof of residency (utility bill or lease contract)'],
       process: ['Submit Request', 'Verify Residency', 'Approval', 'Release'],
       icon: 'home',
+      // Sourced: BRGY. RESIDENCY.docx (official).
+      formSpec: ServiceFormSpec(steps: [
+        ServiceFormStep(label: 'Residency Details', fields: [
+          ServiceFormField(key: 'residencyType', label: 'Residency Type', type: ServiceFieldType.select, options: ['Permanent Resident', 'Temporary Resident', 'Renter / Lessee']),
+          ServiceFormField(key: 'dateOfBirth', label: 'Date of Birth', type: ServiceFieldType.date),
+          ServiceFormField(key: 'age', label: 'Age', type: ServiceFieldType.derivedAge, required: false, derivedFromKey: 'dateOfBirth'),
+          ServiceFormField(key: 'purpose', label: 'Purpose', type: ServiceFieldType.select, options: _barangayPurposeOptions),
+        ]),
+      ]),
     ),
     CatalogItem(
       key: 'dokyu_indigency',
@@ -60,6 +86,17 @@ class MockCatalog {
       requirements: ['One (1) valid government-issued ID', 'Barangay Certification of Indigency', 'Brief interview / case assessment with MSWDO'],
       process: ['Submit Request', 'MSWDO Interview', 'Case Assessment', 'Release'],
       icon: 'heart-handshake',
+      // Sourced: BRGY.INDIGENCY 2024-1.docx (official).
+      formSpec: ServiceFormSpec(steps: [
+        ServiceFormStep(label: 'Indigency Details', fields: [
+          ServiceFormField(
+            key: 'purpose',
+            label: 'Purpose',
+            type: ServiceFieldType.select,
+            options: ['Medical Assistance', 'Financial Assistance', 'Burial Assistance', 'Educational Assistance (e.g. Scholarship)', 'Others'],
+          ),
+        ]),
+      ]),
     ),
     CatalogItem(
       key: 'dokyu_business_new',
@@ -90,6 +127,313 @@ class MockCatalog {
       requirements: ['One (1) valid government-issued ID', 'Details of the record being requested'],
       process: ['Submit Request', 'Records Verification', 'Payment', 'Release'],
       icon: 'file-text',
+    ),
+    CatalogItem(
+      key: 'dokyu_barangay_business_clearance',
+      name: 'Barangay Business Clearance',
+      office: 'Barangay Hall',
+      fee: '₱100.00',
+      days: '1-2 working days',
+      requirements: ['One (1) valid government-issued ID', 'Proof of business location (lease contract or land title)'],
+      process: ['Submit Request', 'Barangay Verification', 'Approval', 'Release'],
+      icon: 'store',
+      // Sourced: BRGY. BUSINESS CLEARANCE.docx (official).
+      formSpec: ServiceFormSpec(steps: [
+        ServiceFormStep(label: 'Business Details', fields: [
+          ServiceFormField(key: 'dateOfBirth', label: 'Date of Birth', type: ServiceFieldType.date),
+          ServiceFormField(key: 'age', label: 'Age', type: ServiceFieldType.derivedAge, required: false, derivedFromKey: 'dateOfBirth'),
+          ServiceFormField(key: 'businessName', label: 'Business Name', type: ServiceFieldType.text),
+          ServiceFormField(key: 'businessNature', label: 'Nature of Business', type: ServiceFieldType.text),
+          ServiceFormField(key: 'yearsOperating', label: 'Years Operating', type: ServiceFieldType.number),
+          ServiceFormField(key: 'capitalAmount', label: 'Capital Amount (₱)', type: ServiceFieldType.number),
+        ]),
+      ]),
+    ),
+    CatalogItem(
+      key: 'dokyu_barangay_certification',
+      name: 'Barangay Certification (General Purpose)',
+      office: 'Barangay Hall',
+      fee: '₱50.00',
+      days: '1-2 working days',
+      requirements: ['One (1) valid government-issued ID'],
+      process: ['Submit Request', 'Barangay Verification', 'Approval', 'Release'],
+      icon: 'file-text',
+      // Sourced: Barangay Certification.docx / PSA CERTIFICATION.docx — a
+      // batch of issued examples covering many purposes (official).
+      formSpec: ServiceFormSpec(steps: [
+        ServiceFormStep(label: 'Certification Details', fields: [
+          ServiceFormField(
+            key: 'purpose',
+            label: 'State the purpose of this certification',
+            type: ServiceFieldType.textarea,
+            hint: 'e.g. proof of residency, unemployment for TESDA, property ownership, event permit...',
+          ),
+        ]),
+      ]),
+    ),
+    CatalogItem(
+      key: 'dokyu_first_time_jobseeker',
+      name: 'First Time Job Seeker Certificate (RA 11261)',
+      office: 'Barangay Hall',
+      fee: 'Free',
+      days: 'Same day',
+      requirements: ['One (1) valid government-issued ID or Birth Certificate', 'Proof of Barangay residency'],
+      process: ['Submit Request', 'Barangay Verification', 'Approval', 'Release'],
+      icon: 'user-check',
+      // Sourced: First Time Job Seeker Certificate.docx (official).
+      formSpec: ServiceFormSpec(steps: [
+        ServiceFormStep(label: 'Applicant Details', fields: [
+          ServiceFormField(key: 'dateOfBirth', label: 'Date of Birth', type: ServiceFieldType.date),
+          ServiceFormField(key: 'age', label: 'Age', type: ServiceFieldType.derivedAge, required: false, derivedFromKey: 'dateOfBirth'),
+          ServiceFormField(
+            key: 'confirmFirstTime',
+            label: 'I confirm this is my first time seeking employment and I have never been previously employed.',
+            type: ServiceFieldType.checkbox,
+          ),
+        ]),
+      ]),
+    ),
+    CatalogItem(
+      key: 'dokyu_marriage_license',
+      name: 'Application for Marriage License',
+      office: 'Civil Registrar (MCRO)',
+      fee: '₱300.00',
+      days: '10 working days (includes 10-day posting period)',
+      requirements: [
+        'PSA Birth Certificate of both parties',
+        'Community Tax Certificate (Cedula) of both parties',
+        'Certificate of No Marriage (CENOMAR) from PSA',
+        "Parent's Consent (if 18-20 y/o) or Advice (if 21-25 y/o)",
+        '2x2 ID photos of both parties',
+      ],
+      process: ['Submit Application', '10-Day Posting Period', 'Payment', 'Release of License'],
+      icon: 'heart',
+      // Sourced: MCRO - Application for Marriage License.pdf, Municipal
+      // Form 90 (official). "Consent to a Marriage of Person" / "Advice
+      // Upon Intended Marriage" folded in as a requirement rather than a
+      // separate service, per docs/DOKYU_TULONG_FORM_AUDIT.md.
+      formSpec: ServiceFormSpec(steps: [
+        ServiceFormStep(label: "First Party's Information", fields: [
+          ServiceFormField(key: 'party1FullName', label: 'Full Name', type: ServiceFieldType.text),
+          ServiceFormField(key: 'party1DateOfBirth', label: 'Date of Birth', type: ServiceFieldType.date),
+          ServiceFormField(key: 'party1PlaceOfBirth', label: 'Place of Birth', type: ServiceFieldType.text),
+          ServiceFormField(key: 'party1Citizenship', label: 'Citizenship', type: ServiceFieldType.text),
+          ServiceFormField(key: 'party1Residence', label: 'Residence', type: ServiceFieldType.text),
+          ServiceFormField(key: 'party1Religion', label: 'Religion', type: ServiceFieldType.text, required: false),
+          ServiceFormField(key: 'party1CivilStatus', label: 'Civil Status', type: ServiceFieldType.select, options: ['Single', 'Widowed', 'Divorced / Annulled']),
+          ServiceFormField(key: 'party1FatherName', label: "Father's Name", type: ServiceFieldType.text),
+          ServiceFormField(key: 'party1MotherMaidenName', label: "Mother's Maiden Name", type: ServiceFieldType.text),
+        ]),
+        ServiceFormStep(label: "Second Party's Information", fields: [
+          ServiceFormField(key: 'party2FullName', label: 'Full Name', type: ServiceFieldType.text),
+          ServiceFormField(key: 'party2DateOfBirth', label: 'Date of Birth', type: ServiceFieldType.date),
+          ServiceFormField(key: 'party2PlaceOfBirth', label: 'Place of Birth', type: ServiceFieldType.text),
+          ServiceFormField(key: 'party2Citizenship', label: 'Citizenship', type: ServiceFieldType.text),
+          ServiceFormField(key: 'party2Residence', label: 'Residence', type: ServiceFieldType.text),
+          ServiceFormField(key: 'party2Religion', label: 'Religion', type: ServiceFieldType.text, required: false),
+          ServiceFormField(key: 'party2CivilStatus', label: 'Civil Status', type: ServiceFieldType.select, options: ['Single', 'Widowed', 'Divorced / Annulled']),
+          ServiceFormField(key: 'party2FatherName', label: "Father's Name", type: ServiceFieldType.text),
+          ServiceFormField(key: 'party2MotherMaidenName', label: "Mother's Maiden Name", type: ServiceFieldType.text),
+        ]),
+        ServiceFormStep(
+          label: 'Consent / Advice',
+          description: 'Required only if either party is 18–25 years old.',
+          fields: [
+            ServiceFormField(key: 'consentGuardianName', label: 'Name of person giving consent/advice', type: ServiceFieldType.text, required: false),
+            ServiceFormField(key: 'consentGuardianRelationship', label: 'Relationship to applicant', type: ServiceFieldType.text, required: false),
+          ],
+        ),
+      ]),
+    ),
+    CatalogItem(
+      key: 'dokyu_delayed_birth_registration',
+      name: 'Delayed Registration of Birth',
+      office: 'Civil Registrar (MCRO)',
+      fee: '₱200.00',
+      days: '5-7 working days',
+      requirements: [
+        'Certificate of Non-Registration of Birth (PSA)',
+        'Barangay Certification for Late Registration',
+        'Baptismal Certificate or School Record, if available',
+        'Affidavit of two (2) disinterested persons',
+      ],
+      process: ['Submit Application', 'MCRO Evaluation', 'Posting (if required)', 'Registration & Release'],
+      icon: 'file-text',
+      // Sourced: "Affidavit for Delayed Registration of Birth" within MCRO
+      // - Certificate of Live Birth.pdf (official — pages 2-3 of that
+      // file; page 1 is the issued-output record, excluded).
+      formSpec: ServiceFormSpec(steps: [
+        ServiceFormStep(label: 'Birth Details', fields: [
+          ServiceFormField(key: 'childFullName', label: "Child's Full Name", type: ServiceFieldType.text),
+          ServiceFormField(key: 'dateOfBirth', label: 'Date of Birth', type: ServiceFieldType.date),
+          ServiceFormField(key: 'placeOfBirth', label: 'Place of Birth', type: ServiceFieldType.text),
+          ServiceFormField(key: 'sex', label: 'Sex', type: ServiceFieldType.select, options: ['Male', 'Female']),
+          ServiceFormField(key: 'fatherFullName', label: "Father's Full Name", type: ServiceFieldType.text),
+          ServiceFormField(key: 'motherMaidenName', label: "Mother's Maiden Name", type: ServiceFieldType.text),
+          ServiceFormField(key: 'reasonForDelay', label: 'Reason for Delayed Registration', type: ServiceFieldType.textarea),
+        ]),
+      ]),
+    ),
+    CatalogItem(
+      key: 'dokyu_delayed_death_registration',
+      name: 'Delayed Registration of Death',
+      office: 'Civil Registrar (MCRO)',
+      fee: '₱200.00',
+      days: '5-7 working days',
+      requirements: [
+        'Certificate of Non-Registration of Death (PSA)',
+        'Barangay Certification for Registration of Death',
+        'Death records from attending physician/hospital, if available',
+        'Affidavit of two (2) disinterested persons',
+      ],
+      process: ['Submit Application', 'MCRO Evaluation', 'Posting (if required)', 'Registration & Release'],
+      icon: 'file-text',
+      // Sourced: "Affidavit for Delayed Registration of Death" within MCRO
+      // - Certificate of Death.pdf (official — page 2 of that file; page 1
+      // is the issued-output record, excluded).
+      formSpec: ServiceFormSpec(steps: [
+        ServiceFormStep(label: 'Death Details', fields: [
+          ServiceFormField(key: 'deceasedFullName', label: "Deceased's Full Name", type: ServiceFieldType.text),
+          ServiceFormField(key: 'dateOfDeath', label: 'Date of Death', type: ServiceFieldType.date),
+          ServiceFormField(key: 'placeOfDeath', label: 'Place of Death', type: ServiceFieldType.text),
+          ServiceFormField(key: 'civilStatus', label: 'Civil Status', type: ServiceFieldType.select, options: ['Single', 'Married', 'Widowed', 'Separated']),
+          ServiceFormField(key: 'religion', label: 'Religion', type: ServiceFieldType.text, required: false),
+          ServiceFormField(key: 'citizenship', label: 'Citizenship', type: ServiceFieldType.text),
+          ServiceFormField(key: 'sex', label: 'Sex', type: ServiceFieldType.select, options: ['Male', 'Female']),
+          ServiceFormField(key: 'fatherName', label: "Father's Name", type: ServiceFieldType.text, required: false),
+          ServiceFormField(key: 'motherMaidenName', label: "Mother's Maiden Name", type: ServiceFieldType.text, required: false),
+          ServiceFormField(key: 'reasonForDelay', label: 'Reason for Delayed Registration', type: ServiceFieldType.textarea),
+        ]),
+      ]),
+    ),
+    CatalogItem(
+      key: 'dokyu_barangay_cert_late_birth',
+      name: 'Barangay Certification for Late Registration of Birth',
+      office: 'Barangay Hall',
+      fee: '₱50.00',
+      days: '1-2 working days',
+      requirements: ['One (1) valid government-issued ID', 'Baptismal Certificate or School Record, if available'],
+      process: ['Submit Request', 'Barangay Verification', 'Approval', 'Release'],
+      icon: 'file-text',
+      // Sourced: BRGY.CERTIFICATION LATE REGISTRATION.docx (official).
+      formSpec: ServiceFormSpec(steps: [
+        ServiceFormStep(label: "Person's Details", fields: [
+          ServiceFormField(key: 'personFullName', label: 'Full Name', type: ServiceFieldType.text),
+          ServiceFormField(key: 'fatherName', label: "Father's Name", type: ServiceFieldType.text),
+          ServiceFormField(key: 'motherMaidenName', label: "Mother's Maiden Name", type: ServiceFieldType.text),
+          ServiceFormField(key: 'dateOfBirth', label: 'Date of Birth', type: ServiceFieldType.date),
+          ServiceFormField(key: 'placeOfBirth', label: 'Place of Birth', type: ServiceFieldType.text),
+          ServiceFormField(key: 'sex', label: 'Sex', type: ServiceFieldType.select, options: ['Male', 'Female']),
+          ServiceFormField(key: 'citizenship', label: 'Citizenship', type: ServiceFieldType.text),
+          ServiceFormField(key: 'civilStatus', label: 'Civil Status', type: ServiceFieldType.select, options: ['Single', 'Married', 'Widowed', 'Separated']),
+          ServiceFormField(key: 'occupation', label: 'Occupation', type: ServiceFieldType.text, required: false),
+          ServiceFormField(key: 'spouseName', label: "Spouse's Name (if married)", type: ServiceFieldType.text, required: false),
+        ]),
+      ]),
+    ),
+    CatalogItem(
+      key: 'dokyu_barangay_cert_death',
+      name: 'Barangay Certification for Registration of Death',
+      office: 'Barangay Hall',
+      fee: '₱50.00',
+      days: '1-2 working days',
+      requirements: ['One (1) valid government-issued ID of claimant', 'Proof of relationship to the deceased'],
+      process: ['Submit Request', 'Barangay Verification', 'Approval', 'Release'],
+      icon: 'file-text',
+      // Sourced: BRGY.CERTIFICATION REGISTRATION OF DEATH.docx (official).
+      formSpec: ServiceFormSpec(steps: [
+        ServiceFormStep(label: "Deceased's Details", fields: [
+          ServiceFormField(key: 'deceasedFullName', label: 'Full Name', type: ServiceFieldType.text),
+          ServiceFormField(key: 'fatherName', label: "Father's Name", type: ServiceFieldType.text, required: false),
+          ServiceFormField(key: 'motherMaidenName', label: "Mother's Maiden Name", type: ServiceFieldType.text, required: false),
+          ServiceFormField(key: 'dateOfDeath', label: 'Date of Death', type: ServiceFieldType.date),
+          ServiceFormField(key: 'placeOfDeath', label: 'Place of Death', type: ServiceFieldType.text),
+          ServiceFormField(key: 'civilStatus', label: 'Civil Status', type: ServiceFieldType.select, options: ['Single', 'Married', 'Widowed', 'Separated']),
+          ServiceFormField(key: 'religion', label: 'Religion', type: ServiceFieldType.text, required: false),
+          ServiceFormField(key: 'citizenship', label: 'Citizenship', type: ServiceFieldType.text),
+          ServiceFormField(key: 'sex', label: 'Sex', type: ServiceFieldType.select, options: ['Male', 'Female']),
+        ]),
+      ]),
+    ),
+    CatalogItem(
+      key: 'dokyu_pet_registration',
+      name: 'Pet Registration',
+      office: 'Municipal Agriculture Office',
+      fee: '₱50.00',
+      days: 'Same day',
+      requirements: ['Proof of rabies vaccination, if applicable', 'One (1) valid government-issued ID of owner'],
+      process: ['Submit Request', 'Records Verification', 'Approval', 'Release'],
+      icon: 'paw-print',
+      // Sourced: PET REGISTRATION FORM.docx (official).
+      formSpec: ServiceFormSpec(steps: [
+        ServiceFormStep(label: 'Pet Information', fields: [
+          ServiceFormField(key: 'petName', label: "Pet's Name", type: ServiceFieldType.text),
+          ServiceFormField(key: 'species', label: 'Species', type: ServiceFieldType.select, options: ['Dog', 'Cat', 'Other']),
+          ServiceFormField(key: 'breed', label: 'Breed', type: ServiceFieldType.text, required: false),
+          ServiceFormField(key: 'colorMarkings', label: 'Color / Markings', type: ServiceFieldType.text),
+          ServiceFormField(key: 'gender', label: 'Gender', type: ServiceFieldType.select, options: ['Male', 'Female']),
+          ServiceFormField(key: 'dobOrApproxAge', label: 'Date of Birth / Approximate Age', type: ServiceFieldType.text),
+          ServiceFormField(key: 'microchipNumber', label: 'Microchip Number', type: ServiceFieldType.text, required: false),
+        ]),
+        ServiceFormStep(label: 'Health Information', fields: [
+          ServiceFormField(key: 'lastRabiesVaccinationDate', label: 'Last Rabies Vaccination Date', type: ServiceFieldType.date, required: false),
+          ServiceFormField(key: 'otherVaccinations', label: 'Other Vaccinations', type: ServiceFieldType.textarea, required: false),
+          ServiceFormField(key: 'spayedNeutered', label: 'Spayed / Neutered', type: ServiceFieldType.select, options: ['Yes', 'No', 'Unknown']),
+        ]),
+        ServiceFormStep(label: 'Owner & Emergency Contact', fields: [
+          ServiceFormField(key: 'ownerAddress', label: "Owner's Address", type: ServiceFieldType.text),
+          ServiceFormField(key: 'emergencyContactName', label: 'Emergency Contact Name', type: ServiceFieldType.text),
+          ServiceFormField(key: 'emergencyContactNumber', label: 'Emergency Contact Number', type: ServiceFieldType.text),
+          ServiceFormField(key: 'additionalInfo', label: 'Additional Information', type: ServiceFieldType.textarea, required: false),
+        ]),
+      ]),
+    ),
+    CatalogItem(
+      key: 'dokyu_locational_clearance',
+      name: 'Locational Clearance',
+      office: 'Municipal Planning & Development Office (MPDO)',
+      fee: '₱500.00 and up (based on project)',
+      days: '5-7 working days',
+      requirements: [
+        'Lot Title (TCT/OCT) or Tax Declaration',
+        'Barangay Clearance',
+        'Vicinity / Location Map',
+        'Site Development Plan (for new construction)',
+      ],
+      process: ['Submit Application', 'Site Evaluation', 'Assessment & Payment', 'Release'],
+      icon: 'map-pin',
+      // Sourced: Placeholders/Dokyu/CPDO-Application-for-Locational-
+      // Clearance.pdf — no official Esperanza Locational Clearance form
+      // was found, so this Placeholder is used (see audit doc). Adapted:
+      // office renamed from the source's City CPDO to the municipal-level
+      // equivalent, MPDO; no other City-specific details carried over.
+      formSpec: ServiceFormSpec(steps: [
+        ServiceFormStep(label: 'Applicant & Representative', fields: [
+          ServiceFormField(key: 'applicantType', label: 'Applicant Type', type: ServiceFieldType.select, options: ['Individual', 'Corporation', 'Partnership', 'Other']),
+          ServiceFormField(key: 'authorizedRepName', label: "Authorized Representative's Name", type: ServiceFieldType.text, required: false),
+          ServiceFormField(key: 'authorizedRepAddress', label: "Authorized Representative's Address", type: ServiceFieldType.text, required: false),
+        ]),
+        ServiceFormStep(label: 'Project Details', fields: [
+          ServiceFormField(key: 'natureOfApplication', label: 'Nature of Application', type: ServiceFieldType.select, options: ['New Development', 'Improvement / Renovation', 'Change of Use', 'Other']),
+          ServiceFormField(key: 'projectTitle', label: 'Project Title', type: ServiceFieldType.text),
+          ServiceFormField(key: 'projectLocation', label: 'Project Location', type: ServiceFieldType.text),
+          ServiceFormField(key: 'floorArea', label: 'Floor Area (sqm)', type: ServiceFieldType.number, required: false),
+          ServiceFormField(key: 'buildingHeight', label: 'Building Height (m)', type: ServiceFieldType.number, required: false),
+          ServiceFormField(key: 'numberOfStoreys', label: 'Number of Storeys', type: ServiceFieldType.number, required: false),
+        ]),
+        ServiceFormStep(label: 'Lot Information', fields: [
+          ServiceFormField(key: 'lotArea', label: 'Lot Area (sqm)', type: ServiceFieldType.number),
+          ServiceFormField(key: 'titleNumber', label: 'TCT / OCT No.', type: ServiceFieldType.text),
+          ServiceFormField(key: 'rightOverLand', label: 'Right Over Land', type: ServiceFieldType.select, options: ['Owner', 'Lessee', 'Other']),
+          ServiceFormField(key: 'projectTenure', label: 'Project Tenure', type: ServiceFieldType.text, required: false),
+          ServiceFormField(
+            key: 'zoningClassification',
+            label: 'Land Use / Zoning Classification',
+            type: ServiceFieldType.multiselect,
+            options: ['Residential', 'Commercial', 'Industrial', 'Institutional', 'Agricultural', 'Open Space', 'Forestry', 'Other'],
+          ),
+        ]),
+      ]),
     ),
   ];
 
@@ -126,6 +470,34 @@ class MockCatalog {
       requirements: ['Certificate of Enrollment', 'Report Card (GWA 80 and above)', 'Certificate of Indigency', 'Barangay Residency Certificate'],
       process: ['Submit Requirements', 'Scholarship Committee Review', 'Approval', 'Disbursement'],
       icon: 'graduation-cap',
+      // Field shape adapted from Placeholders/Tulong/2F5.Application-for-
+      // Scholarship.pdf — that source form is actually an NCIP (Indigenous
+      // Peoples) scholarship application, so its IP/ICC-specific fields
+      // (ethnolinguistic group, ancestral domain, etc.) were excluded;
+      // only the general applicant/school/family shape was kept. See
+      // audit doc.
+      formSpec: ServiceFormSpec(steps: [
+        ServiceFormStep(label: 'Student Information', fields: [
+          ServiceFormField(key: 'dateOfBirth', label: 'Date of Birth', type: ServiceFieldType.date),
+          ServiceFormField(key: 'placeOfBirth', label: 'Place of Birth', type: ServiceFieldType.text),
+          ServiceFormField(key: 'civilStatus', label: 'Civil Status', type: ServiceFieldType.select, options: ['Single', 'Married']),
+          ServiceFormField(key: 'schoolName', label: 'School Name', type: ServiceFieldType.text),
+          ServiceFormField(key: 'yearOrGradeLevel', label: 'Year / Grade Level', type: ServiceFieldType.text),
+          ServiceFormField(key: 'degreeProgramOrCourse', label: 'Degree Program / Course', type: ServiceFieldType.text, required: false),
+          ServiceFormField(key: 'lastSchoolAverageGrade', label: 'Last School Year Average Grade', type: ServiceFieldType.text, required: false),
+        ]),
+        ServiceFormStep(label: 'Family Background', fields: [
+          ServiceFormField(key: 'fatherName', label: "Father's Name", type: ServiceFieldType.text, required: false),
+          ServiceFormField(key: 'fatherOccupation', label: "Father's Occupation", type: ServiceFieldType.text, required: false),
+          ServiceFormField(key: 'motherName', label: "Mother's Name", type: ServiceFieldType.text, required: false),
+          ServiceFormField(key: 'motherOccupation', label: "Mother's Occupation", type: ServiceFieldType.text, required: false),
+          ServiceFormField(key: 'parentsMonthlyIncome', label: "Parents' Monthly Income (₱)", type: ServiceFieldType.number, required: false),
+        ]),
+        ServiceFormStep(label: 'Additional Information', fields: [
+          ServiceFormField(key: 'communityInvolvement', label: 'Community / School Involvement', type: ServiceFieldType.textarea, required: false),
+          ServiceFormField(key: 'postGraduationPlans', label: 'Plans After Graduation', type: ServiceFieldType.textarea, required: false),
+        ]),
+      ]),
     ),
     CatalogItem(
       key: 'tulong_financial',
@@ -170,6 +542,294 @@ class MockCatalog {
       requirements: ['Solo Parent ID', 'PSA Birth Certificate(s) of children', 'Barangay Certification'],
       process: ['Submit Requirements', 'MSWDO Assessment', 'Approval', 'Release'],
       icon: 'heart-handshake',
+      // Sourced: MSWD - SOLO Parent Application Form.xlsx, DSWD Annex B
+      // 2023 (official) — the richest single source found in the audit.
+      formSpec: ServiceFormSpec(steps: [
+        ServiceFormStep(label: 'Identifying Information', fields: [
+          ServiceFormField(key: 'dateOfBirth', label: 'Date of Birth', type: ServiceFieldType.date),
+          ServiceFormField(key: 'age', label: 'Age', type: ServiceFieldType.derivedAge, required: false, derivedFromKey: 'dateOfBirth'),
+          ServiceFormField(key: 'sex', label: 'Sex', type: ServiceFieldType.select, options: ['Male', 'Female']),
+          ServiceFormField(key: 'placeOfBirth', label: 'Place of Birth', type: ServiceFieldType.text),
+          ServiceFormField(
+            key: 'educationalAttainment',
+            label: 'Educational Attainment',
+            type: ServiceFieldType.select,
+            options: ['None', 'Elementary', 'High School', 'Vocational', 'College', 'Post Graduate'],
+          ),
+          ServiceFormField(key: 'civilStatus', label: 'Civil Status', type: ServiceFieldType.select, options: ['Single', 'Married', 'Widowed', 'Separated', 'Annulled']),
+          ServiceFormField(key: 'occupation', label: 'Occupation', type: ServiceFieldType.text, required: false),
+          ServiceFormField(key: 'monthlyIncome', label: 'Monthly Income (₱)', type: ServiceFieldType.number, required: false),
+          ServiceFormField(key: 'employmentStatus', label: 'Employment Status', type: ServiceFieldType.select, options: ['Employed', 'Self-Employed', 'Unemployed']),
+          ServiceFormField(key: 'isPantawidBeneficiary', label: '4Ps (Pantawid) Beneficiary', type: ServiceFieldType.checkbox, required: false),
+          ServiceFormField(key: 'isIndigenousPerson', label: 'Indigenous Person / IP Member', type: ServiceFieldType.checkbox, required: false),
+        ]),
+        ServiceFormStep(
+          label: 'Family Composition',
+          description: 'List your children / dependents.',
+          fields: [
+            ServiceFormField(key: 'familyComposition', label: 'Children / Dependents (name, age, relationship)', type: ServiceFieldType.textarea),
+          ],
+        ),
+        ServiceFormStep(
+          label: 'Classification',
+          description: 'Select the circumstance that best describes your situation as a solo parent.',
+          fields: [
+            ServiceFormField(
+              key: 'soloParentClassification',
+              label: 'Circumstance of Being a Solo Parent',
+              type: ServiceFieldType.select,
+              options: [
+                'Birth from rape / exploitation',
+                'Spouse of OFW abroad',
+                'Widow / widower',
+                'Unmarried parent who chose to keep the child',
+                'Spouse of a person detained or imprisoned',
+                'Legal guardian / adoptive / foster parent',
+                'Spouse with permanent incapacity',
+                'Relative caring for a child within the 4th degree of consanguinity',
+                'Legal or de facto separation',
+                'Pregnant woman who will raise the child alone',
+                'Annulment / nullity of marriage',
+                'Abandonment by spouse for at least 1 year',
+              ],
+            ),
+          ],
+        ),
+        ServiceFormStep(label: 'Needs & Emergency Contact', fields: [
+          ServiceFormField(key: 'needsOrProblems', label: 'Needs / Problems You Would Like Assistance With', type: ServiceFieldType.textarea, required: false),
+          ServiceFormField(key: 'emergencyContactName', label: 'Emergency Contact Name', type: ServiceFieldType.text),
+          ServiceFormField(key: 'emergencyContactNumber', label: 'Emergency Contact Number', type: ServiceFieldType.text),
+        ]),
+      ]),
+    ),
+    CatalogItem(
+      key: 'tulong_senior_citizen_id',
+      name: 'Senior Citizen ID Application (OSCA Membership)',
+      office: 'OSCA',
+      fee: 'Free',
+      days: '3-5 working days',
+      requirements: ['PSA Birth Certificate or valid ID showing birthdate', '2 recent 1x1 ID photos', 'Barangay Certification'],
+      process: ['Submit Requirements', 'OSCA Verification', 'Approval', 'ID Release'],
+      icon: 'id-card',
+      // Sourced: MSWD - Senior Citizen Application Form.docx, OSCA
+      // Membership Application (official). Distinct from the existing
+      // Social Pension item, which is a cash-benefit program, not plain
+      // membership/ID registration.
+      formSpec: ServiceFormSpec(steps: [
+        ServiceFormStep(label: 'Personal Information', fields: [
+          ServiceFormField(key: 'dateOfBirth', label: 'Date of Birth', type: ServiceFieldType.date),
+          ServiceFormField(key: 'placeOfBirth', label: 'Place of Birth', type: ServiceFieldType.text),
+          ServiceFormField(key: 'sex', label: 'Sex', type: ServiceFieldType.select, options: ['Male', 'Female']),
+          ServiceFormField(key: 'civilStatus', label: 'Civil Status', type: ServiceFieldType.select, options: ['Single', 'Married', 'Widowed', 'Separated']),
+          ServiceFormField(
+            key: 'educationalAttainment',
+            label: 'Educational Attainment',
+            type: ServiceFieldType.select,
+            options: ['None', 'Elementary', 'High School', 'Vocational', 'College', 'Post Graduate'],
+          ),
+          ServiceFormField(key: 'presentOccupation', label: 'Present Occupation', type: ServiceFieldType.text, required: false),
+          ServiceFormField(key: 'annualIncome', label: 'Annual Income (₱)', type: ServiceFieldType.number, required: false),
+          ServiceFormField(key: 'receivingPension', label: 'Currently Receiving a Pension', type: ServiceFieldType.checkbox, required: false),
+          ServiceFormField(key: 'philsysIdNumber', label: 'PhilSys ID Number', type: ServiceFieldType.text, required: false),
+        ]),
+        ServiceFormStep(
+          label: "Government Service Record",
+          description: 'Fill in if you previously worked in government.',
+          fields: [
+            ServiceFormField(key: 'lastGovtOffice', label: 'Last Government Office', type: ServiceFieldType.text, required: false),
+            ServiceFormField(key: 'lastGovtPosition', label: 'Position', type: ServiceFieldType.text, required: false),
+            ServiceFormField(key: 'lastGovtYear', label: 'Year', type: ServiceFieldType.text, required: false),
+          ],
+        ),
+      ]),
+    ),
+    CatalogItem(
+      key: 'tulong_pwd_registration',
+      name: 'PWD Registration (PRPWD)',
+      office: 'MSWD / PDAO',
+      fee: 'Free',
+      days: '5-7 working days',
+      requirements: ['Medical Certificate or School/Employer Assessment confirming disability', '1x1 ID photo', 'Barangay Certification'],
+      process: ['Submit Requirements', 'MSWD/PDAO Assessment', 'Approval', 'ID Release'],
+      icon: 'accessibility',
+      // Sourced: MSWD - PRPWD Form 2.pdf, DOH Philippine Registry for
+      // Persons with Disability v3.0 (official).
+      formSpec: ServiceFormSpec(steps: [
+        ServiceFormStep(label: 'Personal Information', fields: [
+          ServiceFormField(key: 'dateOfBirth', label: 'Date of Birth', type: ServiceFieldType.date),
+          ServiceFormField(key: 'religion', label: 'Religion', type: ServiceFieldType.text, required: false),
+          ServiceFormField(key: 'sex', label: 'Sex', type: ServiceFieldType.select, options: ['Male', 'Female']),
+          ServiceFormField(key: 'civilStatus', label: 'Civil Status', type: ServiceFieldType.select, options: ['Single', 'Married', 'Widowed', 'Separated']),
+          ServiceFormField(key: 'bloodType', label: 'Blood Type', type: ServiceFieldType.text, required: false),
+        ]),
+        ServiceFormStep(label: 'Disability Information', fields: [
+          ServiceFormField(
+            key: 'disabilityType',
+            label: 'Type of Disability',
+            type: ServiceFieldType.multiselect,
+            options: [
+              'Deaf / Hard of Hearing', 'Intellectual Disability', 'Learning Disability', 'Mental Disability',
+              'Orthopedic Disability', 'Physical Disability (Non-Orthopedic)', 'Psychosocial Disability',
+              'Speech and Language Impairment', 'Visual Disability',
+            ],
+          ),
+          ServiceFormField(
+            key: 'causeOfDisability',
+            label: 'Cause of Disability',
+            type: ServiceFieldType.multiselect,
+            options: ['Acquired', 'Cancer', 'Chronic Illness', 'Congenital / Inborn', 'Injury', 'Rare Disease', 'Autism Spectrum Disorder'],
+          ),
+        ]),
+        ServiceFormStep(label: 'Education & Employment', fields: [
+          ServiceFormField(
+            key: 'educationalAttainment',
+            label: 'Educational Attainment',
+            type: ServiceFieldType.select,
+            options: ['None', 'Elementary', 'High School', 'Vocational', 'College', 'Post Graduate'],
+          ),
+          ServiceFormField(key: 'employmentStatus', label: 'Employment Status', type: ServiceFieldType.select, options: ['Employed', 'Unemployed', 'Self-Employed', 'Student', 'Not Applicable']),
+          ServiceFormField(key: 'occupation', label: 'Occupation', type: ServiceFieldType.text, required: false),
+        ]),
+        ServiceFormStep(
+          label: 'Family Background',
+          description: 'Fill in whichever is applicable.',
+          fields: [
+            ServiceFormField(key: 'fatherName', label: "Father's Name", type: ServiceFieldType.text, required: false),
+            ServiceFormField(key: 'motherName', label: "Mother's Name", type: ServiceFieldType.text, required: false),
+            ServiceFormField(key: 'guardianName', label: "Guardian's Name", type: ServiceFieldType.text, required: false),
+          ],
+        ),
+      ]),
+    ),
+    CatalogItem(
+      key: 'tulong_tupad',
+      name: 'TUPAD Emergency Employment',
+      office: 'MPESO',
+      fee: 'Free',
+      days: '5-10 working days',
+      amount: 'Minimum wage x days engaged',
+      requirements: ['Valid government-issued ID', 'Barangay Certification of Residency', 'Certificate of Indigency, if applicable'],
+      process: ['Submit Profile', 'MPESO Screening', 'Approval', 'Deployment & Payout'],
+      icon: 'briefcase',
+      // Sourced: MPESO - DOLE TUPAD PROFILE FORM.pdf, TSSD-EFIS03-010
+      // (official).
+      formSpec: ServiceFormSpec(steps: [
+        ServiceFormStep(label: 'Worker Classification', fields: [
+          ServiceFormField(
+            key: 'typeOfWorker',
+            label: 'Type of Worker',
+            type: ServiceFieldType.select,
+            options: [
+              'Underemployed', 'Laid-off due to natural calamity', 'Laid-off due to economic crisis',
+              'Laid-off due to armed conflict', 'Self-employed with lost livelihood (seasonality)',
+            ],
+          ),
+          ServiceFormField(
+            key: 'specificBeneficiaryType',
+            label: 'Specific Type of Beneficiary',
+            type: ServiceFieldType.select,
+            options: ['Crop Grower / Farmer', 'Homebased Worker', 'Transport Driver', 'Vendor / Self-Employed', 'Livestock / Poultry Raiser', 'Fisherfolk', 'Laborer', 'PWD', 'Other'],
+          ),
+        ]),
+        ServiceFormStep(label: 'Personal & Household Information', fields: [
+          ServiceFormField(key: 'dateOfBirth', label: 'Date of Birth', type: ServiceFieldType.date),
+          ServiceFormField(key: 'civilStatus', label: 'Civil Status', type: ServiceFieldType.select, options: ['Single', 'Married', 'Widowed', 'Separated']),
+          ServiceFormField(key: 'spouseName', label: "Spouse's Name", type: ServiceFieldType.text, required: false),
+          ServiceFormField(key: 'monthlyIncome', label: 'Monthly Income (₱)', type: ServiceFieldType.number),
+          ServiceFormField(key: 'numberOfDependents', label: 'Number of Dependents', type: ServiceFieldType.number),
+          ServiceFormField(key: 'currentOrPreviousEmployer', label: 'Current / Previous Employer', type: ServiceFieldType.text, required: false),
+          ServiceFormField(
+            key: 'highestEducationalAttainment',
+            label: 'Highest Educational Attainment',
+            type: ServiceFieldType.select,
+            options: ['None', 'Elementary', 'High School', 'Vocational', 'College', 'Post Graduate'],
+          ),
+        ]),
+        ServiceFormStep(label: 'Skills Training', fields: [
+          ServiceFormField(key: 'intentionToAvailSkillsTraining', label: 'I intend to avail of skills training after this project', type: ServiceFieldType.checkbox, required: false),
+        ]),
+      ]),
+    ),
+    CatalogItem(
+      key: 'tulong_tesda_registration',
+      name: 'TESDA Skills Training Registration',
+      office: 'MPESO',
+      fee: 'Free',
+      days: '3-5 working days',
+      requirements: ['Valid government-issued ID or Birth Certificate', '2x2 ID photo'],
+      process: ['Submit Profile', 'MPESO/TESDA Screening', 'Enrollment', 'Training Start'],
+      icon: 'graduation-cap',
+      // Sourced: MPESO - TESDA-DPA Form 1 Registration Form (MIS 03-01).pdf
+      // (official).
+      formSpec: ServiceFormSpec(steps: [
+        ServiceFormStep(label: 'Personal Information', fields: [
+          ServiceFormField(key: 'email', label: 'Email / Facebook', type: ServiceFieldType.text, required: false),
+          ServiceFormField(key: 'nationality', label: 'Nationality', type: ServiceFieldType.text),
+          ServiceFormField(key: 'sex', label: 'Sex', type: ServiceFieldType.select, options: ['Male', 'Female']),
+          ServiceFormField(key: 'civilStatus', label: 'Civil Status', type: ServiceFieldType.select, options: ['Single', 'Married', 'Widowed', 'Separated']),
+          ServiceFormField(key: 'employmentStatusBeforeTraining', label: 'Employment Status Before Training', type: ServiceFieldType.select, options: ['Employed', 'Unemployed', 'Self-Employed']),
+          ServiceFormField(key: 'dateOfBirth', label: 'Date of Birth', type: ServiceFieldType.date),
+          ServiceFormField(key: 'placeOfBirth', label: 'Place of Birth', type: ServiceFieldType.text),
+          ServiceFormField(
+            key: 'educationalAttainmentBeforeTraining',
+            label: 'Educational Attainment Before Training',
+            type: ServiceFieldType.select,
+            options: ['Elementary', 'High School', 'Vocational', 'College', 'Post Graduate'],
+          ),
+          ServiceFormField(key: 'parentGuardianName', label: "Parent / Guardian's Name", type: ServiceFieldType.text, required: false),
+        ]),
+        ServiceFormStep(label: 'Learner Classification', fields: [
+          ServiceFormField(
+            key: 'learnerClassification',
+            label: 'Learner Classification',
+            type: ServiceFieldType.multiselect,
+            options: [
+              '4Ps Beneficiary', 'Agrarian Reform Beneficiary', 'Balik Probinsya', 'Displaced Worker',
+              'Farmer / Fisherman', 'Indigenous People / Cultural Community', 'Industry Worker',
+              'OFW / OFW Dependent', 'Out-of-School Youth', 'Rebel Returnee', 'Repatriated OFW',
+              'Student', 'TESDA Alumni', 'Uniformed Personnel', 'Victim of Natural Disaster', 'Other',
+            ],
+          ),
+        ]),
+        ServiceFormStep(label: 'Training Preference', fields: [
+          ServiceFormField(key: 'courseOrQualification', label: 'Course / Qualification', type: ServiceFieldType.text),
+          ServiceFormField(key: 'scholarshipPackage', label: 'Scholarship Package', type: ServiceFieldType.select, options: ['TWSP', 'PESFA', 'STEP', 'Other / None']),
+        ]),
+      ]),
+    ),
+    CatalogItem(
+      key: 'tulong_erpat_registration',
+      name: "ERPAT Program Registration (Fathers' Empowerment)",
+      office: 'MSWD',
+      fee: 'Free',
+      days: '3-5 working days',
+      requirements: ['Valid government-issued ID', 'Barangay Certification'],
+      process: ['Submit Registration', 'MSWD Review', 'Enrollment', 'Program Orientation'],
+      icon: 'users',
+      // Sourced: MSWD - ERPAT FORMS.docx — Registration Form portion only
+      // (official); the file's meeting-minutes portions are internal
+      // staff records and excluded, see audit doc.
+      formSpec: ServiceFormSpec(steps: [
+        ServiceFormStep(label: 'Personal Information', fields: [
+          ServiceFormField(key: 'dateOfBirth', label: 'Date of Birth', type: ServiceFieldType.date),
+          ServiceFormField(key: 'age', label: 'Age', type: ServiceFieldType.derivedAge, required: false, derivedFromKey: 'dateOfBirth'),
+          ServiceFormField(key: 'sex', label: 'Sex', type: ServiceFieldType.select, options: ['Male', 'Female']),
+          ServiceFormField(key: 'civilStatus', label: 'Civil Status', type: ServiceFieldType.select, options: ['Single', 'Married', 'Widowed', 'Separated']),
+          ServiceFormField(key: 'occupation', label: 'Occupation', type: ServiceFieldType.text, required: false),
+          ServiceFormField(key: 'religion', label: 'Religion', type: ServiceFieldType.text, required: false),
+        ]),
+        ServiceFormStep(label: 'Family & Background', fields: [
+          ServiceFormField(key: 'familyComposition', label: 'Household Members (name, age, relationship)', type: ServiceFieldType.textarea),
+          ServiceFormField(
+            key: 'educationalAttainment',
+            label: 'Educational Attainment',
+            type: ServiceFieldType.select,
+            options: ['None', 'Elementary', 'High School', 'Vocational', 'College', 'Post Graduate'],
+          ),
+          ServiceFormField(key: 'specialSkillsHobbies', label: 'Special Abilities / Skills / Hobbies', type: ServiceFieldType.textarea, required: false),
+          ServiceFormField(key: 'communityInvolvement', label: 'Community Involvement', type: ServiceFieldType.textarea, required: false),
+        ]),
+      ]),
     ),
   ];
 

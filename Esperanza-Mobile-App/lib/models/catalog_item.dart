@@ -1,3 +1,5 @@
+import 'service_form_spec.dart';
+
 /// A selectable document type (Dokyu) or assistance program (Tulong),
 /// copied from the exact catalogs defined inline in the Web Admin's
 /// `resources/views/citizen/document-requests.blade.php` and
@@ -17,6 +19,12 @@ class CatalogItem {
   final String? amount; // Tulong only
   final String? icon; // lucide-style icon name, mapped to Material in UI
 
+  /// Sourced, service-specific citizen-input fields — see
+  /// docs/DOKYU_TULONG_FORM_AUDIT.md for where each one came from. Null
+  /// means no reliable source was found for this item, so it keeps the
+  /// generic Purpose + Attachments request flow instead of invented fields.
+  final ServiceFormSpec? formSpec;
+
   const CatalogItem({
     required this.key,
     required this.name,
@@ -27,5 +35,6 @@ class CatalogItem {
     required this.process,
     this.amount,
     this.icon,
+    this.formSpec,
   });
 }

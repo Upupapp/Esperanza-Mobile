@@ -14,6 +14,7 @@
 /// - One Household can reference more than one Family.
 library;
 
+import '../utils/age_calculator.dart';
 import 'citizen_account.dart';
 
 /// Where a Constituents record originated — lets a future Web Admin
@@ -134,13 +135,7 @@ class Individual {
     return suffix.trim().isEmpty ? parts : '$parts ${suffix.trim()}';
   }
 
-  int get age {
-    if (birthdate == null) return 0;
-    final now = DateTime.now();
-    var years = now.year - birthdate!.year;
-    if (now.month < birthdate!.month || (now.month == birthdate!.month && now.day < birthdate!.day)) years--;
-    return years < 0 ? 0 : years;
-  }
+  int get age => birthdate == null ? 0 : calculateAge(birthdate!);
 
   Map<String, dynamic> toJson() => {
         'individualId': individualId,
