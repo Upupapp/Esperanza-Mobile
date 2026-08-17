@@ -1,20 +1,25 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-import 'package:share_plus/share_plus.dart';
 import '../../models/announcement.dart';
-import '../../services/citizen_session_service.dart';
 import '../../theme/app_colors.dart';
+import '../../utils/balita_post_actions.dart';
+import '../../utils/cross_platform_image.dart';
 import '../../widgets/app_dialogs.dart';
 import '../../widgets/app_card.dart';
-import '../../widgets/restricted_feature_notice.dart';
 import 'comments_sheet.dart';
+import 'post_image_viewer.dart';
 
 /// A single Balita feed post — header (avatar/author/verified badge/
 /// barangay/timestamp/overflow menu), body text, optional image, an
 /// engagement summary row, and a Like / Comment / Share action row. All
 /// interactions are local-state simulations driven by the callbacks passed
 /// in from BalitaScreen — there is no backend for the social feed.
+///
+/// Tapping the image opens [PostImageViewer] by `post.id` only (not a
+/// snapshot of this [post]) so the viewer always reads the *live* post
+/// straight from BalitaService — the same single source of truth this
+/// card itself is built from — which is what keeps like/comment/share
+/// state trivially synchronized between the feed and the viewer without
+/// any manual prop-passing back and forth.
 class PostCard extends StatelessWidget {
   final Announcement post;
   final VoidCallback onLike;
@@ -101,7 +106,15 @@ class PostCard extends StatelessWidget {
                 borderRadius: BorderRadius.circular(12),
                 child: AspectRatio(
                   aspectRatio: 16 / 10,
-                  child: _PostMediaView(media: post.media!),
+                  // Only images open the larger viewer — a video card
+                  // (no video_player dependency in this project, per its
+                  // own doc comment below) has nothing bigger to show.
+                  child: post.media!.type == PostMediaType.image
+                      ? InkWell(
+                          onTap: () => PostImageViewer.open(context, post.id),
+                          child: PostMediaView(media: post.media!),
+                        )
+                      : PostMediaView(media: post.media!),
                 ),
               ),
             ],
@@ -147,33 +160,27 @@ class PostCard extends StatelessWidget {
             Row(
               children: [
                 Expanded(
-                  child: _ActionButton(
+                  child: PostActionButton(
                     icon: post.liked ? Icons.favorite_rounded : Icons.favorite_border_rounded,
                     label: 'Like',
                     color: post.liked ? AppColors.rose500 : AppColors.slate500,
-                    onTap: () => _requireAccount(context, 'Reacting to Balita posts', onLike),
+                    onTap: () => requireAccountForBalita(context, 'Reacting to Balita posts', onLike),
                   ),
                 ),
                 Expanded(
-                  child: _ActionButton(
+                  child: PostActionButton(
                     icon: Icons.mode_comment_outlined,
                     label: 'Comment',
                     color: AppColors.slate500,
-                    onTap: () => _requireAccount(context, 'Commenting on Balita posts', () => _openComments(context)),
+                    onTap: () => requireAccountForBalita(context, 'Commenting on Balita posts', () => openBalitaComments(context, post, onComment)),
                   ),
                 ),
                 Expanded(
-                  child: _ActionButton(
+                  child: PostActionButton(
                     icon: Icons.share_outlined,
                     label: 'Share',
                     color: AppColors.slate500,
-                    // Sharing stays open to everyone, including Guests —
-                    // it's re-distributing public content, not a personal
-                    // interaction. Uses the OS's native share sheet
-                    // (share_plus) rather than a fake "shared to your
-                    // timeline" simulation; no link is included since
-                    // there is no real backend URL for a post to expose.
-                    onTap: () => _sharePost(context),
+                    onTap: () => requireAccountForBalita(context, 'Sharing Balita posts', () => shareBalitaPost(context, post, onShare)),
                   ),
                 ),
               ],
@@ -182,41 +189,6 @@ class PostCard extends StatelessWidget {
         ),
       ),
     );
-  }
-
-  /// Reacting/commenting are account actions — a Guest gets the same
-  /// reusable "create an account or sign in" notice any other protected
-  /// interaction shows, rather than an action that silently no-ops.
-  void _requireAccount(BuildContext context, String featureName, VoidCallback action) {
-    if (context.read<CitizenSessionService>().isGuest) {
-      Navigator.of(context).push(
-        MaterialPageRoute(builder: (_) => RestrictedFeatureNotice(reason: RestrictionReason.guestOnly, featureName: featureName)),
-      );
-      return;
-    }
-    action();
-  }
-
-  void _openComments(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) => CommentsSheet(post: post, onSubmit: onComment),
-    );
-  }
-
-  Future<void> _sharePost(BuildContext context) async {
-    final box = context.findRenderObject() as RenderBox?;
-    final origin = box != null ? box.localToGlobal(Offset.zero) & box.size : null;
-    final who = post.isOfficial ? 'Esperanza LGU' : post.author;
-    final excerpt = post.body.trim();
-    final text = [
-      '$who — Balita, Esperanza',
-      if (excerpt.isNotEmpty) excerpt,
-    ].join('\n\n');
-    await SharePlus.instance.share(ShareParams(text: text, subject: 'Balita: $who', sharePositionOrigin: origin));
-    onShare();
   }
 
   void _showPostMenu(BuildContext context) {
@@ -255,20 +227,57 @@ class PostCard extends StatelessWidget {
   }
 }
 
+/// Opens the shared [CommentsSheet] bottom sheet — reused as-is by both
+/// [PostCard] and [PostImageViewer] rather than either owning its own
+/// comment UI, per the "do not create a separate comment system for the
+/// viewer" requirement.
+void openBalitaComments(BuildContext context, Announcement post, ValueChanged<PostComment> onSubmit) {
+  showModalBottomSheet(
+    context: context,
+    isScrollControlled: true,
+    backgroundColor: Colors.transparent,
+    builder: (_) => CommentsSheet(post: post, onSubmit: onSubmit),
+  );
+}
+
 /// Renders a post's attached [PostMedia] — a seed/bundled asset or a real
-/// image the citizen picked, or a video attachment card (no video_player
+/// file the citizen picked, or a video attachment card (no video_player
 /// dependency in this project, so a clear "this is a video" preview
 /// stands in for actual playback, per the simulation scope for Balita).
-class _PostMediaView extends StatelessWidget {
+/// Public (not `PostCard`-private) so [PostImageViewer] renders the exact
+/// same image — including the same cross-platform-safe loading/error
+/// handling — at a different [fit] rather than duplicating that logic.
+class PostMediaView extends StatelessWidget {
   final PostMedia media;
-  const _PostMediaView({required this.media});
+  final BoxFit fit;
+  const PostMediaView({super.key, required this.media, this.fit = BoxFit.cover});
 
   @override
   Widget build(BuildContext context) {
     if (media.type == PostMediaType.image) {
-      return media.isAsset
-          ? Image.asset(media.path, fit: BoxFit.cover, width: double.infinity)
-          : Image.file(File(media.path), fit: BoxFit.cover, width: double.infinity);
+      if (media.isAsset) return Image.asset(media.path, fit: fit, width: double.infinity);
+      // A citizen-picked photo's `path` is only ever safe to read via
+      // dart:io on native platforms — see cross_platform_image.dart. No
+      // current flow constructs a non-asset PostMedia, but this guards the
+      // same crash the attachment picker had if/when post composing ships.
+      final provider = pickedFileImageProvider(path: media.path);
+      if (provider == null) {
+        return Container(
+          color: AppColors.slate100,
+          alignment: Alignment.center,
+          child: const Icon(Icons.image_not_supported_outlined, color: AppColors.slate400, size: 28),
+        );
+      }
+      return Image(
+        image: provider,
+        fit: fit,
+        width: double.infinity,
+        errorBuilder: (context, error, stackTrace) => Container(
+          color: AppColors.slate100,
+          alignment: Alignment.center,
+          child: const Icon(Icons.image_not_supported_outlined, color: AppColors.slate400, size: 28),
+        ),
+      );
     }
     return Container(
       color: AppColors.navy900,
@@ -299,13 +308,16 @@ class _PostMediaView extends StatelessWidget {
   }
 }
 
-class _ActionButton extends StatelessWidget {
+/// One Like/Comment/Share action — public so [PostImageViewer] renders
+/// the identical row instead of a second, visually-different engagement
+/// design.
+class PostActionButton extends StatelessWidget {
   final IconData icon;
   final String label;
   final Color color;
   final VoidCallback onTap;
 
-  const _ActionButton({required this.icon, required this.label, required this.color, required this.onTap});
+  const PostActionButton({super.key, required this.icon, required this.label, required this.color, required this.onTap});
 
   @override
   Widget build(BuildContext context) {

@@ -13,6 +13,7 @@ import '../../widgets/app_card.dart';
 import '../../widgets/empty_state.dart';
 import '../../widgets/esperanza_drawer.dart';
 import '../../widgets/filter_bottom_sheet.dart';
+import '../../widgets/nav_style.dart';
 import '../../widgets/new_request_fab.dart';
 import '../../widgets/segmented_tabs.dart';
 import '../../widgets/status_chip.dart';
@@ -107,20 +108,32 @@ class _RequestListScreenState extends State<RequestListScreen> {
           ),
         ),
       ),
-      floatingActionButton: NewRequestFab(
-        accent: widget.accent,
-        // Dokyu and Tulong's RequestListScreen instances are both mounted
-        // at once (RootShell's IndexedStack), so the FAB's default hero tag
-        // — shared by every FloatingActionButton unless overridden — would
-        // collide the moment both are reachable in the same route subtree.
-        heroTag: widget.category,
-        onPressed: () => Navigator.of(context).push(
-          MaterialPageRoute(
-            builder: (_) => ServiceCatalogScreen(
-              category: widget.category,
-              title: widget.title,
-              catalog: widget.catalog,
-              accent: widget.accent,
+      // This Scaffold is nested inside RootShell's own (which owns the
+      // floating navbar via `bottomNavigationBar` + `extendBody: true`) —
+      // it has no bottomNavigationBar of its own, so a plain
+      // `floatingActionButton` would use Scaffold's default endFloat
+      // margin measured from the *true* screen edge, landing it behind
+      // the navbar. Padding it by the inherited navbar-height MediaQuery
+      // inset (see NavStyle.floatingElementGap's doc comment) plus a
+      // visual gap keeps it clearly above the bar, staying correct across
+      // screen sizes/safe-area insets since neither value is hardcoded.
+      floatingActionButton: Padding(
+        padding: EdgeInsets.only(bottom: MediaQuery.paddingOf(context).bottom + NavStyle.floatingElementGap),
+        child: NewRequestFab(
+          accent: widget.accent,
+          // Dokyu and Tulong's RequestListScreen instances are both mounted
+          // at once (RootShell's IndexedStack), so the FAB's default hero tag
+          // — shared by every FloatingActionButton unless overridden — would
+          // collide the moment both are reachable in the same route subtree.
+          heroTag: widget.category,
+          onPressed: () => Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) => ServiceCatalogScreen(
+                category: widget.category,
+                title: widget.title,
+                catalog: widget.catalog,
+                accent: widget.accent,
+              ),
             ),
           ),
         ),
@@ -231,20 +244,16 @@ class _RequestListScreenState extends State<RequestListScreen> {
           ),
           Expanded(
             child: visible.isEmpty
-                ? Center(
-                    child: SingleChildScrollView(
-                      child: EmptyState(
-                        icon: widget.icon,
-                        title: _filters.isActive ? 'No requests match your current filters.' : (_tab == 0 ? 'No active requests' : 'No completed requests yet'),
-                        description: _filters.isActive ? null : (_tab == 0 ? 'Tap "New Request" to get started.' : null),
-                        action: _filters.isActive
-                            ? OutlinedButton(
-                                onPressed: () => setState(() => _filters = const RequestFilters()),
-                                child: const Text('Clear Filters'),
-                              )
-                            : null,
-                      ),
-                    ),
+                ? _EmptyStateArea(
+                    icon: widget.icon,
+                    title: _filters.isActive ? 'No requests match your current filters.' : (_tab == 0 ? 'No active requests' : 'No completed requests yet'),
+                    description: _filters.isActive ? null : (_tab == 0 ? 'Tap "New Request" to get started.' : null),
+                    action: _filters.isActive
+                        ? OutlinedButton(
+                            onPressed: () => setState(() => _filters = const RequestFilters()),
+                            child: const Text('Clear Filters'),
+                          )
+                        : null,
                   )
                 : ListView.builder(
                     padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
@@ -254,6 +263,58 @@ class _RequestListScreenState extends State<RequestListScreen> {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// The "no requests yet" / "no results match your filters" state, biased
+/// upward so it clears the floating New Request button and the navbar
+/// beneath it — shared by Dokyu and Tulong through RequestListScreen, so
+/// fixing the positioning here keeps both consistent automatically.
+///
+/// Reserves `MediaQuery.paddingOf(context).bottom` (RootShell's
+/// `extendBody: true` publishes this as exactly the navbar's rendered
+/// height) plus the FAB's own footprint and a couple of visual gaps below
+/// the centered content — the same clearance math the FAB's own position
+/// already uses (see RequestListScreen's `floatingActionButton`), so both
+/// stay in sync if that ever changes.
+///
+/// Uses `ConstrainedBox(minHeight: ...)` + `SingleChildScrollView` (not a
+/// plain `Padding` + `Center`) specifically so short screens degrade by
+/// becoming scrollable instead of the reserved bottom padding silently
+/// eating all the available room and pushing the content past the FAB
+/// anyway — every part of the empty state stays reachable regardless of
+/// screen height.
+class _EmptyStateArea extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String? description;
+  final Widget? action;
+
+  const _EmptyStateArea({required this.icon, required this.title, this.description, this.action});
+
+  @override
+  Widget build(BuildContext context) {
+    final bottomReserve = MediaQuery.paddingOf(context).bottom +
+        NavStyle.floatingElementGap +
+        NavStyle.floatingActionButtonHeight +
+        NavStyle.floatingElementGap;
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return SingleChildScrollView(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(minHeight: constraints.maxHeight),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                EmptyState(icon: icon, title: title, description: description, action: action),
+                SizedBox(height: bottomReserve),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 }

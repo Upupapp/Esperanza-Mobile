@@ -9,7 +9,10 @@ import 'package:esperanza_mobile/main.dart';
 
 void main() {
   testWidgets('App boots to the citizen login screen', (WidgetTester tester) async {
-    SharedPreferences.setMockInitialValues({});
+    // Onboarding-complete pre-seeded: this suite exercises the normal
+    // returning-user flow (Login/Guest-Home), not the first-run Onboarding
+    // screens — see onboarding_flow_test.dart for that.
+    SharedPreferences.setMockInitialValues({'esperanza_onboarding_complete': true});
     await tester.pumpWidget(const EsperanzaMobileApp());
     await tester.pumpAndSettle();
 

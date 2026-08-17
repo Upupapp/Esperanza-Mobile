@@ -79,7 +79,15 @@ class _BalitaFeed extends StatelessWidget {
     final balita = context.watch<BalitaService>();
     final posts = balita.posts;
     return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+      // Balita posts (including their now-tappable images) are plain
+      // scrolled content sitting directly on RootShell's IndexedStack body,
+      // not a floating element, so they only need the inherited navbar
+      // MediaQuery inset itself (see NavStyle.floatingElementGap's doc
+      // comment on why extendBody publishes this) — without it, the last
+      // post's image can end up laid out underneath the floating navbar's
+      // full hit-testable bounding box and become untappable even though
+      // it looks like ordinary scrolled content.
+      padding: EdgeInsets.fromLTRB(16, 12, 16, 24 + MediaQuery.paddingOf(context).bottom),
       children: [
         if (posts.isEmpty)
           const EmptyState(icon: Icons.campaign_outlined, title: 'No announcements available', description: 'Check back soon for updates from Esperanza LGU.')

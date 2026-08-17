@@ -9,6 +9,14 @@
 # packages, and plugins designed to encourage good coding practices.
 include: package:flutter_lints/flutter.yaml
 
+analyzer:
+  exclude:
+    # Reference-only navbar source copied in from another project (see
+    # lib/widgets/magnetic_navbar_core.dart's doc comment) — its
+    # `../core/...` imports intentionally don't resolve inside this
+    # project; it's kept only as a source-of-truth reference, not built.
+    - 5-icons/**
+
 linter:
   # The lint rules applied to this project can be customized in the
   # section below to disable rules from the `package:flutter_lints/flutter.yaml`

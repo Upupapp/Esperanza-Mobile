@@ -81,12 +81,29 @@ class _HomeScreenState extends State<HomeScreen> {
     return Scaffold(
       backgroundColor: AppColors.background,
       drawer: const EsperanzaDrawer(),
+      // bottom: false — RootShell's extendBody:true publishes a bottom
+      // MediaQuery padding matching the floating navbar's *full* reported
+      // height (barHeight + protrusion, ~150px — headroom for the circle,
+      // not just the visible ~72px pill). A bottom-insetting SafeArea
+      // would reserve all of that as extra space *inside* this Scaffold's
+      // own opaque backgroundColor, which is exactly what read as a large
+      // light rectangle sitting behind/above the navbar — Home is the only
+      // tab that wraps its body in SafeArea at all, which is why this
+      // didn't show up on Dokyu/Tulong/Balita/Emergency. Top/left/right
+      // protection is still needed here since, unlike those tabs, Home has
+      // no AppBar of its own to already clear the status bar/notch.
       body: SafeArea(
+        bottom: false,
         child: RefreshIndicator(
           onRefresh: () async => Future.delayed(const Duration(milliseconds: 500)),
           child: ListView(
             controller: _scrollController,
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
+            // 100 (rather than a plain 32) leaves real, transparent
+            // clearance for the floating navbar — matching the same value
+            // RequestListScreen's own list already uses for this — so the
+            // last card can scroll clear of it without needing SafeArea's
+            // much larger, opaquely-backed inset to do that job.
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
             children: [
               _Hero(account: account, scrollController: _scrollController),
               const SizedBox(height: AppSpacing.lg),

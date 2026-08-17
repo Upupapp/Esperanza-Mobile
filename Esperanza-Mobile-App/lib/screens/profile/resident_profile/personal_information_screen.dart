@@ -1,4 +1,4 @@
-import 'dart:io';
+import 'dart:typed_data';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
@@ -9,6 +9,7 @@ import '../../../services/mock_catalog.dart';
 import '../../../services/resident_profile_service.dart';
 import '../../../theme/app_colors.dart';
 import '../../../theme/app_spacing.dart';
+import '../../../utils/cross_platform_image.dart';
 import '../../../widgets/app_button.dart';
 import '../../../widgets/app_date_field.dart';
 import '../../../widgets/app_dialogs.dart';
@@ -49,6 +50,12 @@ class _PersonalInformationScreenState extends State<PersonalInformationScreen> {
   bool _soloParent = false;
   bool _voter = false;
   String? _photoPath;
+  // In-memory preview bytes, not persisted onto Individual (no backend
+  // exists to re-fetch a real file from) — see Attachment's doc comment
+  // for the same "session-only preview" pattern. `pickedFileImageProvider`
+  // falls back to reading `_photoPath` on native platforms if this is null
+  // (e.g. re-opening this screen without having just picked a new photo).
+  Uint8List? _photoBytes;
   List<String> _documentPaths = [];
 
   bool _saving = false;
@@ -155,15 +162,28 @@ class _PersonalInformationScreenState extends State<PersonalInformationScreen> {
   Future<void> _pickPhoto() async {
     final file = await ImagePicker().pickImage(source: ImageSource.gallery, imageQuality: 85);
     if (file == null || !mounted) return;
-    setState(() => _photoPath = file.path);
+    // Read bytes up front — on Flutter Web, `file.path` is a blob: URL
+    // that `dart:io`'s `File()` cannot open, so preview must not depend on
+    // it (see cross_platform_image.dart).
+    final bytes = await file.readAsBytes();
+    if (!mounted) return;
+    setState(() {
+      _photoPath = file.path;
+      _photoBytes = bytes;
+    });
   }
 
   Future<void> _pickDocument() async {
-    final result = await FilePicker.pickFiles(type: FileType.custom, allowedExtensions: ['pdf', 'doc', 'docx', 'jpg', 'jpeg', 'png']);
+    // withData: true is required for this to work at all on Flutter Web —
+    // web never provides PlatformFile.path, only .bytes.
+    final result = await FilePicker.pickFiles(type: FileType.custom, allowedExtensions: ['pdf', 'doc', 'docx', 'jpg', 'jpeg', 'png'], withData: true);
     if (result == null || result.files.isEmpty || !mounted) return;
-    final path = result.files.single.path;
-    if (path == null) return;
-    setState(() => _documentPaths = [..._documentPaths, path]);
+    final f = result.files.single;
+    if (f.bytes == null) return;
+    // documentPaths only needs a display identifier here (_DocumentTile
+    // just shows a filename, never opens the file) — path on native,
+    // name as a stand-in on web where there is no real path.
+    setState(() => _documentPaths = [..._documentPaths, f.path ?? f.name]);
   }
 
   @override
@@ -176,7 +196,15 @@ class _PersonalInformationScreenState extends State<PersonalInformationScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              _PhotoPicker(photoPath: _photoPath, onPick: _pickPhoto, onRemove: () => setState(() => _photoPath = null)),
+              _PhotoPicker(
+                photoPath: _photoPath,
+                photoBytes: _photoBytes,
+                onPick: _pickPhoto,
+                onRemove: () => setState(() {
+                  _photoPath = null;
+                  _photoBytes = null;
+                }),
+              ),
               const SizedBox(height: AppSpacing.lg),
               FormSection(
                 title: 'Basic Information',
@@ -310,12 +338,14 @@ class _PersonalInformationScreenState extends State<PersonalInformationScreen> {
 
 class _PhotoPicker extends StatelessWidget {
   final String? photoPath;
+  final Uint8List? photoBytes;
   final VoidCallback onPick;
   final VoidCallback onRemove;
-  const _PhotoPicker({required this.photoPath, required this.onPick, required this.onRemove});
+  const _PhotoPicker({required this.photoPath, required this.photoBytes, required this.onPick, required this.onRemove});
 
   @override
   Widget build(BuildContext context) {
+    final provider = pickedFileImageProvider(bytes: photoBytes, path: photoPath);
     return Center(
       child: Column(
         children: [
@@ -324,8 +354,9 @@ class _PhotoPicker extends StatelessWidget {
               CircleAvatar(
                 radius: 40,
                 backgroundColor: AppColors.brand50,
-                backgroundImage: photoPath != null ? FileImage(File(photoPath!)) : null,
-                child: photoPath == null ? const Icon(Icons.person_outline_rounded, size: 34, color: AppColors.brand400) : null,
+                backgroundImage: provider,
+                onBackgroundImageError: provider != null ? (error, stackTrace) {} : null,
+                child: provider == null ? const Icon(Icons.person_outline_rounded, size: 34, color: AppColors.brand400) : null,
               ),
               Positioned(
                 bottom: 0,

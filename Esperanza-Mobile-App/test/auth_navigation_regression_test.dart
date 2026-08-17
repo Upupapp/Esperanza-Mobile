@@ -49,7 +49,10 @@ Future<void> _dismissWelcomeBanner(WidgetTester tester) async {
 
 void main() {
   testWidgets('Guest -> drawer "Sign In" -> Ronaldo Bautista reaches Home, not stuck on LoginScreen', (tester) async {
-    SharedPreferences.setMockInitialValues({});
+    // Onboarding-complete pre-seeded: these regression cases exercise the
+    // normal returning-user flow, not the first-run Onboarding screens —
+    // see onboarding_flow_test.dart for that.
+    SharedPreferences.setMockInitialValues({'esperanza_onboarding_complete': true});
     _setPhoneViewport(tester);
     await tester.pumpWidget(const EsperanzaMobileApp());
     await tester.pumpAndSettle();
@@ -81,7 +84,10 @@ void main() {
   });
 
   testWidgets('Guest -> Dokyu restricted notice -> "Sign In" -> Marites Ferrer reaches Home with full access', (tester) async {
-    SharedPreferences.setMockInitialValues({});
+    // Onboarding-complete pre-seeded: these regression cases exercise the
+    // normal returning-user flow, not the first-run Onboarding screens —
+    // see onboarding_flow_test.dart for that.
+    SharedPreferences.setMockInitialValues({'esperanza_onboarding_complete': true});
     _setPhoneViewport(tester);
     await tester.pumpWidget(const EsperanzaMobileApp());
     await tester.pumpAndSettle();
@@ -107,7 +113,10 @@ void main() {
   });
 
   testWidgets('RegisterScreen "Continue to App" -> Sign Out still returns cleanly to a working LoginScreen', (tester) async {
-    SharedPreferences.setMockInitialValues({});
+    // Onboarding-complete pre-seeded: these regression cases exercise the
+    // normal returning-user flow, not the first-run Onboarding screens —
+    // see onboarding_flow_test.dart for that.
+    SharedPreferences.setMockInitialValues({'esperanza_onboarding_complete': true});
     _setPhoneViewport(tester);
     await tester.pumpWidget(const EsperanzaMobileApp());
     await tester.pumpAndSettle();

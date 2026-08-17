@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import '../../models/access_level.dart';
 import '../../theme/app_colors.dart';
 import '../../widgets/access_guard.dart';
-import '../../widgets/animated_bottom_navigation.dart';
+import '../../widgets/magnetic_navbar_core.dart';
+import '../../widgets/nav_item_data.dart';
 import '../balita/balita_screen.dart';
 import '../dokyu/dokyu_screen.dart';
 import '../notifications/notifications_screen.dart';
@@ -46,21 +47,41 @@ class _RootShellState extends State<RootShell> {
   ];
 
   static const _items = [
-    AnimatedBottomNavItem(icon: Icons.home_outlined, activeIcon: Icons.home_rounded, label: 'Home'),
-    AnimatedBottomNavItem(icon: Icons.description_outlined, activeIcon: Icons.description_rounded, label: 'Dokyu'),
-    AnimatedBottomNavItem(icon: Icons.volunteer_activism_outlined, activeIcon: Icons.volunteer_activism_rounded, label: 'Tulong'),
-    AnimatedBottomNavItem(icon: Icons.campaign_outlined, activeIcon: Icons.campaign_rounded, label: 'Balita'),
-    AnimatedBottomNavItem(icon: Icons.shield_outlined, activeIcon: Icons.shield_rounded, label: 'Emergency'),
+    NavItemData(outlineIcon: Icons.home_outlined, filledIcon: Icons.home_rounded, label: 'Home'),
+    NavItemData(outlineIcon: Icons.description_outlined, filledIcon: Icons.description_rounded, label: 'Dokyu'),
+    NavItemData(outlineIcon: Icons.volunteer_activism_outlined, filledIcon: Icons.volunteer_activism_rounded, label: 'Tulong'),
+    NavItemData(outlineIcon: Icons.campaign_outlined, filledIcon: Icons.campaign_rounded, label: 'Balita'),
+    NavItemData(outlineIcon: Icons.shield_outlined, filledIcon: Icons.shield_rounded, label: 'Emergency'),
   ];
+
+  // Even fifths — same equal-division calibration method as the reference
+  // implementation's 5-destination preset, proportional to the bar's own
+  // width (not fixed pixels), so all five slots stay correctly positioned
+  // at any screen size.
+  static const _tabCenterRatios = [0.1, 0.3, 0.5, 0.7, 0.9];
 
   void setTab(int i) => setState(() => _index = i);
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      // MagneticNavbarCore reports a tall bounding box (barHeight +
+      // protrusion, for the floating circle's headroom above the pill),
+      // but only paints the small pill/circle within it — everywhere else
+      // in that box is transparent. Without extendBody, Scaffold reserves
+      // that *entire* box as "nav bar territory" and stops body there,
+      // which read as an oversized solid block sitting behind/above the
+      // actual floating pill. extendBody lets body run underneath the full
+      // box instead — exactly Flutter's documented mechanism for a
+      // non-rectangular bottomNavigationBar shape — so real page content
+      // shows through the transparent headroom and only the painted pill
+      // itself is visible, while still auto-adding a matching bottom
+      // MediaQuery inset so body content doesn't sit underneath it.
+      extendBody: true,
       body: IndexedStack(index: _index, children: _screens),
-      bottomNavigationBar: AnimatedBottomNavigation(
+      bottomNavigationBar: MagneticNavbarCore(
         items: _items,
+        tabCenterRatios: _tabCenterRatios,
         currentIndex: _index,
         onTap: setTab,
       ),

@@ -1,23 +1,32 @@
-// Verifies the "moving navbar shape" requirement: the floating circle AND
-// the bar's own raised bump must be driven from one shared animated
-// position and travel together — not a circle sliding over an otherwise
-// static rectangle. Covers all required adjacent and long-distance
-// transitions plus an interrupted mid-flight retarget.
+// Verifies the "moving navbar shape" requirement for MagneticNavbarCore —
+// reused directly from a reference implementation (see
+// lib/widgets/magnetic_navbar_core.dart's doc comment): the floating
+// circle AND the bar's own morphing notch must be driven from one shared
+// animated position (`_t`) and travel together, so a long trip (e.g. Home
+// -> Emergency) reads as one system flowing across the bar, not a circle
+// sliding over an unrelated shape. Covers all required adjacent and
+// long-distance transitions plus an interrupted mid-flight retarget.
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:esperanza_mobile/widgets/animated_bottom_navigation.dart';
+import 'package:esperanza_mobile/widgets/magnetic_navbar_core.dart';
+import 'package:esperanza_mobile/widgets/nav_bar_clipper.dart';
+import 'package:esperanza_mobile/widgets/nav_item_data.dart';
+import 'package:esperanza_mobile/widgets/nav_style.dart';
 
+// Mirrors RootShell's real 5-tab configuration exactly, so this test
+// exercises the same calibration the app actually ships.
 const _items = [
-  AnimatedBottomNavItem(icon: Icons.home_outlined, activeIcon: Icons.home_rounded, label: 'Home'),
-  AnimatedBottomNavItem(icon: Icons.description_outlined, activeIcon: Icons.description_rounded, label: 'Dokyu'),
-  AnimatedBottomNavItem(icon: Icons.volunteer_activism_outlined, activeIcon: Icons.volunteer_activism_rounded, label: 'Tulong'),
-  AnimatedBottomNavItem(icon: Icons.campaign_outlined, activeIcon: Icons.campaign_rounded, label: 'Balita'),
-  AnimatedBottomNavItem(icon: Icons.shield_outlined, activeIcon: Icons.shield_rounded, label: 'Emergency'),
+  NavItemData(outlineIcon: Icons.home_outlined, filledIcon: Icons.home_rounded, label: 'Home'),
+  NavItemData(outlineIcon: Icons.description_outlined, filledIcon: Icons.description_rounded, label: 'Dokyu'),
+  NavItemData(outlineIcon: Icons.volunteer_activism_outlined, filledIcon: Icons.volunteer_activism_rounded, label: 'Tulong'),
+  NavItemData(outlineIcon: Icons.campaign_outlined, filledIcon: Icons.campaign_rounded, label: 'Balita'),
+  NavItemData(outlineIcon: Icons.shield_outlined, filledIcon: Icons.shield_rounded, label: 'Emergency'),
 ];
+const _tabCenterRatios = [0.1, 0.3, 0.5, 0.7, 0.9];
 
-/// A tiny stateful harness so tests can drive [AnimatedBottomNavigation]
-/// the same way RootShell does — tapping a tab updates the index that
-/// flows back in as `currentIndex`.
+/// A tiny stateful harness so tests can drive [MagneticNavbarCore] the same
+/// way RootShell does — tapping a tab updates the index that flows back in
+/// as `currentIndex`.
 class _Harness extends StatefulWidget {
   const _Harness();
   @override
@@ -31,8 +40,9 @@ class _HarnessState extends State<_Harness> {
     return MaterialApp(
       home: Scaffold(
         body: const SizedBox(),
-        bottomNavigationBar: AnimatedBottomNavigation(
+        bottomNavigationBar: MagneticNavbarCore(
           items: _items,
+          tabCenterRatios: _tabCenterRatios,
           currentIndex: index,
           onTap: (i) => setState(() => index = i),
         ),
@@ -46,21 +56,42 @@ double _indicatorLeft(WidgetTester tester) {
   return positioned.left!;
 }
 
-/// `_NavBarClipper` is library-private (its name can't be imported), but
-/// `centerX` itself is a public field name, so it's still reachable via a
-/// dynamic reference to the clipper instance obtained through the public
-/// `PhysicalShape.clipper` API — this is what lets the test confirm the
-/// bar shape and the circle share the same driving value without
-/// exposing clipper internals as a public API just for testing.
-double _bumpCenterX(WidgetTester tester) {
-  final shape = tester.widget<PhysicalShape>(find.byKey(const ValueKey('nav-bar-shape')));
-  final dynamic clipper = shape.clipper;
-  return clipper.centerX as double;
+/// The notch center comes from the same `NavBarClipper` instance that
+/// clips the bar's morphing silhouette — reading it directly (rather than
+/// re-deriving it) is what proves the notch and the floating circle share
+/// one driving value instead of two independently-tuned ones.
+///
+/// `NavBarClipper.notchCenterX` is in the *pill's own local* coordinate
+/// space (the PhysicalShape sits inset by the floating pill's horizontal
+/// margin), while the floating indicator's `Positioned.left` is in
+/// *screen-global* coordinates — so this returns the notch center already
+/// converted to global coordinates, directly comparable to
+/// `_indicatorLeft(tester) + NavStyle.circleSize / 2`.
+double _notchCenterXGlobal(WidgetTester tester, double screenWidth) {
+  final shape = tester.widget<PhysicalShape>(find.descendant(of: find.byKey(const ValueKey('nav-bar-shape')), matching: find.byType(PhysicalShape)));
+  final localCx = (shape.clipper as NavBarClipper).notchCenterX;
+  return localCx + _horizontalMargin(screenWidth);
+}
+
+double _horizontalMargin(double screenWidth) {
+  final barWidth = screenWidth * NavStyle.barWidthFraction;
+  return (screenWidth - barWidth) / 2;
 }
 
 Future<void> _tapTab(WidgetTester tester, String label) async {
   await tester.tap(find.text(label));
   await tester.pump();
+}
+
+/// The resting `left` of the floating indicator for a given destination,
+/// derived the same way MagneticNavbarCore itself computes it — from
+/// [NavStyle]'s proportional geometry and this preset's tabCenterRatios,
+/// not a fixed pixel guess.
+double _expectedRestingLeft(double screenWidth, int index) {
+  final barWidth = screenWidth * NavStyle.barWidthFraction;
+  final horizontalMargin = (screenWidth - barWidth) / 2;
+  final cx = barWidth * _tabCenterRatios[index];
+  return horizontalMargin + cx - NavStyle.circleSize / 2;
 }
 
 void main() {
@@ -71,19 +102,21 @@ void main() {
     expect(find.byKey(const ValueKey('nav-bar-shape')), findsOneWidget);
   });
 
-  testWidgets('the bar bump and the floating circle are driven by the same centerX at rest and mid-flight', (tester) async {
+  testWidgets('the notch and the floating circle are driven by the same center at rest and mid-flight', (tester) async {
     await tester.pumpWidget(const _Harness());
     await tester.pumpAndSettle();
 
+    final screenWidth = tester.getSize(find.byType(MagneticNavbarCore)).width;
+
     // At rest.
-    final restBubbleCenter = _indicatorLeft(tester) + 30; // + bubbleSize/2
-    expect(_bumpCenterX(tester), closeTo(restBubbleCenter, 0.01));
+    final restBubbleCenter = _indicatorLeft(tester) + NavStyle.circleSize / 2;
+    expect(_notchCenterXGlobal(tester, screenWidth), closeTo(restBubbleCenter, 0.01));
 
     // Mid-flight, partway through a long trip.
     await _tapTab(tester, 'Emergency');
-    await tester.pump(const Duration(milliseconds: 120));
-    final midBubbleCenter = _indicatorLeft(tester) + 30;
-    expect(_bumpCenterX(tester), closeTo(midBubbleCenter, 0.01));
+    await tester.pump(const Duration(milliseconds: 180));
+    final midBubbleCenter = _indicatorLeft(tester) + NavStyle.circleSize / 2;
+    expect(_notchCenterXGlobal(tester, screenWidth), closeTo(midBubbleCenter, 0.01));
     // And it should have actually moved from the resting position by now.
     expect(midBubbleCenter, isNot(closeTo(restBubbleCenter, 1.0)));
 
@@ -105,7 +138,7 @@ void main() {
   for (final t in transitions) {
     final from = t[0];
     final to = t[1];
-    testWidgets('$from -> $to: circle and bar bump both settle centered above the destination tab', (tester) async {
+    testWidgets('$from -> $to: circle and notch both settle centered above the destination tab', (tester) async {
       await tester.pumpWidget(const _Harness());
       await tester.pumpAndSettle();
 
@@ -123,14 +156,12 @@ void main() {
       expect(tester.takeException(), isNull);
 
       final settledLeft = _indicatorLeft(tester);
-      final barWidth = tester.getSize(find.byType(AnimatedBottomNavigation)).width;
-      final segmentWidth = barWidth / _items.length;
-      const bubbleSize = 60.0;
-      final expectedLeft = segmentWidth * toIndex + (segmentWidth - bubbleSize) / 2;
+      final screenWidth = tester.getSize(find.byType(MagneticNavbarCore)).width;
+      final expectedLeft = _expectedRestingLeft(screenWidth, toIndex);
       expect(settledLeft, closeTo(expectedLeft, 0.5));
 
-      // The bump must have followed it to the exact same resting spot.
-      expect(_bumpCenterX(tester), closeTo(settledLeft + bubbleSize / 2, 0.5));
+      // The notch must have followed it to the exact same resting spot.
+      expect(_notchCenterXGlobal(tester, screenWidth), closeTo(settledLeft + NavStyle.circleSize / 2, 0.5));
 
       if (fromIndex != toIndex) {
         expect(settledLeft, isNot(closeTo(startLeft, 0.5)));
@@ -148,12 +179,10 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(tester.takeException(), isNull);
-    final barWidth = tester.getSize(find.byType(AnimatedBottomNavigation)).width;
-    final segmentWidth = barWidth / _items.length;
-    const bubbleSize = 60.0;
-    final expectedLeft = segmentWidth * 1 + (segmentWidth - bubbleSize) / 2; // Dokyu = index 1
+    final screenWidth = tester.getSize(find.byType(MagneticNavbarCore)).width;
+    final expectedLeft = _expectedRestingLeft(screenWidth, 1); // Dokyu = index 1
     expect(_indicatorLeft(tester), closeTo(expectedLeft, 0.5));
-    expect(_bumpCenterX(tester), closeTo(expectedLeft + bubbleSize / 2, 0.5));
+    expect(_notchCenterXGlobal(tester, screenWidth), closeTo(expectedLeft + NavStyle.circleSize / 2, 0.5));
   });
 
   testWidgets('indicator height and vertical (top) position never change across tabs', (tester) async {
@@ -172,5 +201,25 @@ void main() {
       expect(topOf(tester), initialTop);
       expect(heightOf(tester), initialHeight);
     }
+  });
+
+  testWidgets('the active label follows contentIndex and every inactive tab stays reachable by name', (tester) async {
+    await tester.pumpWidget(const _Harness());
+    await tester.pumpAndSettle();
+
+    // At rest on Home, its label is the one (visibly) floating above the bar.
+    expect(find.text('Home'), findsOneWidget);
+
+    // Every other tab is still findable by name (present, zero-opacity) —
+    // this is what lets tests (and any future assistive tooling) target a
+    // destination by label even though only the active one visibly shows
+    // text, matching this app's established tab-navigation convention.
+    for (final label in ['Dokyu', 'Tulong', 'Balita', 'Emergency']) {
+      expect(find.text(label), findsOneWidget);
+    }
+
+    await _tapTab(tester, 'Balita');
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
   });
 }

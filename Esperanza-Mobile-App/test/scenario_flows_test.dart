@@ -35,7 +35,10 @@ Future<void> _dismissWelcomeBanner(WidgetTester tester) async {
 
 void main() {
   testWidgets('Scenario A — Guest: Home -> Balita public -> Dokyu shows restricted notice', (tester) async {
-    SharedPreferences.setMockInitialValues({});
+    // Onboarding-complete pre-seeded: these scenarios exercise the normal
+    // returning-user flow, not the first-run Onboarding screens — see
+    // onboarding_flow_test.dart for that.
+    SharedPreferences.setMockInitialValues({'esperanza_onboarding_complete': true});
     _setPhoneViewport(tester);
     await tester.pumpWidget(const EsperanzaMobileApp());
     await tester.pumpAndSettle();
@@ -75,7 +78,10 @@ void main() {
   });
 
   testWidgets('Scenario B — Ronaldo Bautista: registered but unverified, restricted from Dokyu, allowed into Emergency', (tester) async {
-    SharedPreferences.setMockInitialValues({});
+    // Onboarding-complete pre-seeded: these scenarios exercise the normal
+    // returning-user flow, not the first-run Onboarding screens — see
+    // onboarding_flow_test.dart for that.
+    SharedPreferences.setMockInitialValues({'esperanza_onboarding_complete': true});
     _setPhoneViewport(tester);
     await tester.pumpWidget(const EsperanzaMobileApp());
     await tester.pumpAndSettle();
@@ -121,7 +127,10 @@ void main() {
   });
 
   testWidgets('Scenario C — Marites Ferrer: fully verified, full access, no guest/verification warnings', (tester) async {
-    SharedPreferences.setMockInitialValues({});
+    // Onboarding-complete pre-seeded: these scenarios exercise the normal
+    // returning-user flow, not the first-run Onboarding screens — see
+    // onboarding_flow_test.dart for that.
+    SharedPreferences.setMockInitialValues({'esperanza_onboarding_complete': true});
     _setPhoneViewport(tester);
     await tester.pumpWidget(const EsperanzaMobileApp());
     await tester.pumpAndSettle();

@@ -1,8 +1,8 @@
-// Regression coverage for the nav/access-control feature set added this
-// session: Guest-mode Home (a materially different Hero layout from the
-// signed-in path the existing home_screen_overflow_test.dart covers), the
-// registration/verification wizard, RestrictedFeatureNotice, and
-// AnimatedBottomNavigation. Same technique as the other *_overflow_test.dart
+// Regression coverage for the nav/access-control feature set: Guest-mode
+// Home (a materially different Hero layout from the signed-in path the
+// existing home_screen_overflow_test.dart covers), the registration/
+// verification wizard, RestrictedFeatureNotice, and MagneticNavbarCore
+// (the bottom nav). Same technique as the other *_overflow_test.dart
 // files: render at a spread of widths/text-scales, assert zero exceptions.
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -17,7 +17,8 @@ import 'package:esperanza_mobile/services/citizen_session_service.dart';
 import 'package:esperanza_mobile/services/mock_catalog.dart';
 import 'package:esperanza_mobile/services/requests_service.dart';
 import 'package:esperanza_mobile/services/resident_profile_service.dart';
-import 'package:esperanza_mobile/widgets/animated_bottom_navigation.dart';
+import 'package:esperanza_mobile/widgets/magnetic_navbar_core.dart';
+import 'package:esperanza_mobile/widgets/nav_item_data.dart';
 import 'package:esperanza_mobile/widgets/restricted_feature_notice.dart';
 
 void main() {
@@ -68,7 +69,7 @@ void main() {
         expect(tester.takeException(), isNull);
       });
 
-      testWidgets('AnimatedBottomNavigation (5 tabs) has zero overflow at ${sizeEntry.key}, textScale $textScale', (tester) async {
+      testWidgets('MagneticNavbarCore (5 tabs) has zero overflow at ${sizeEntry.key}, textScale $textScale', (tester) async {
         SharedPreferences.setMockInitialValues({});
         await pumpAtSize(
           tester,
@@ -77,15 +78,16 @@ void main() {
           MaterialApp(
             home: Scaffold(
               body: const SizedBox(),
-              bottomNavigationBar: AnimatedBottomNavigation(
+              bottomNavigationBar: MagneticNavbarCore(
                 currentIndex: 3,
                 onTap: (_) {},
+                tabCenterRatios: const [0.1, 0.3, 0.5, 0.7, 0.9],
                 items: const [
-                  AnimatedBottomNavItem(icon: Icons.home_outlined, activeIcon: Icons.home_rounded, label: 'Home'),
-                  AnimatedBottomNavItem(icon: Icons.description_outlined, activeIcon: Icons.description_rounded, label: 'Dokyu'),
-                  AnimatedBottomNavItem(icon: Icons.volunteer_activism_outlined, activeIcon: Icons.volunteer_activism_rounded, label: 'Tulong'),
-                  AnimatedBottomNavItem(icon: Icons.campaign_outlined, activeIcon: Icons.campaign_rounded, label: 'Balita'),
-                  AnimatedBottomNavItem(icon: Icons.shield_outlined, activeIcon: Icons.shield_rounded, label: 'Emergency'),
+                  NavItemData(outlineIcon: Icons.home_outlined, filledIcon: Icons.home_rounded, label: 'Home'),
+                  NavItemData(outlineIcon: Icons.description_outlined, filledIcon: Icons.description_rounded, label: 'Dokyu'),
+                  NavItemData(outlineIcon: Icons.volunteer_activism_outlined, filledIcon: Icons.volunteer_activism_rounded, label: 'Tulong'),
+                  NavItemData(outlineIcon: Icons.campaign_outlined, filledIcon: Icons.campaign_rounded, label: 'Balita'),
+                  NavItemData(outlineIcon: Icons.shield_outlined, filledIcon: Icons.shield_rounded, label: 'Emergency'),
                 ],
               ),
             ),

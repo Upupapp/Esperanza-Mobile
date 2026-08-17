@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 enum AttachmentCategory { image, pdf, docx, video, other }
 
 extension AttachmentCategoryX on AttachmentCategory {
@@ -21,17 +23,31 @@ extension AttachmentCategoryX on AttachmentCategory {
   }
 }
 
-/// A file/photo attached to a request. `localPath` points at the file the
-/// user actually picked on-device (real image_picker/file_picker output —
-/// not a placeholder). This shape is intentionally backend-ready: once a
-/// real API exists, `localPath` is replaced by an uploaded `remoteUrl` and
-/// nothing else about this model needs to change.
+/// A file/photo attached to a request. `localPath` is the file the user
+/// picked on-device (real image_picker/file_picker output — not a
+/// placeholder) — but on Flutter Web that "path" is a blob: URL, or absent
+/// entirely, so it must never be fed into `dart:io`'s `File()`. Preview
+/// (and any future upload) goes through [bytes] instead — see
+/// `lib/utils/cross_platform_image.dart`, the one place platform-specific
+/// handling lives.
+///
+/// [bytes] is intentionally excluded from [toJson] — this is a
+/// frontend-only demo with no backend to re-fetch a real file from, so a
+/// picked attachment's preview is only guaranteed to survive the current
+/// session, not an app restart. After restoring from SharedPreferences,
+/// `bytes` is null and the UI falls back to a category icon instead of a
+/// thumbnail (see `AttachmentPicker`), rather than attempting to read a
+/// path that may no longer resolve to anything. This shape is otherwise
+/// backend-ready: once a real API exists, [bytes] is uploaded and
+/// [remoteUrl] takes over as the source of truth for re-display.
 class Attachment {
   final String id;
   final String fileName;
   final AttachmentCategory category;
   final int sizeBytes;
-  final String localPath;
+  final String? localPath;
+  final Uint8List? bytes;
+  final String? remoteUrl;
   final DateTime addedAt;
   final String documentTypeLabel;
 
@@ -40,7 +56,9 @@ class Attachment {
     required this.fileName,
     required this.category,
     required this.sizeBytes,
-    required this.localPath,
+    this.localPath,
+    this.bytes,
+    this.remoteUrl,
     required this.addedAt,
     required this.documentTypeLabel,
   });
@@ -57,6 +75,7 @@ class Attachment {
         'category': category.name,
         'sizeBytes': sizeBytes,
         'localPath': localPath,
+        'remoteUrl': remoteUrl,
         'addedAt': addedAt.toIso8601String(),
         'documentTypeLabel': documentTypeLabel,
       };
@@ -67,6 +86,7 @@ class Attachment {
         category: AttachmentCategory.values.firstWhere((c) => c.name == json['category']),
         sizeBytes: json['sizeBytes'],
         localPath: json['localPath'],
+        remoteUrl: json['remoteUrl'],
         addedAt: DateTime.parse(json['addedAt']),
         documentTypeLabel: json['documentTypeLabel'],
       );

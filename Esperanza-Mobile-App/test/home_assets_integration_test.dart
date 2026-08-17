@@ -21,7 +21,10 @@ void _setPhoneViewport(WidgetTester tester) {
 }
 
 Future<void> _enterAsGuest(WidgetTester tester) async {
-  SharedPreferences.setMockInitialValues({});
+  // Onboarding-complete pre-seeded: this suite exercises the normal
+  // returning-user flow, not the first-run Onboarding screens — see
+  // onboarding_flow_test.dart for that.
+  SharedPreferences.setMockInitialValues({'esperanza_onboarding_complete': true});
   _setPhoneViewport(tester);
   await tester.pumpWidget(const EsperanzaMobileApp());
   await tester.pumpAndSettle();
@@ -89,25 +92,45 @@ void main() {
 
     // The Events ListView only inflates elements near the viewport (a
     // plain ListView(children:...) still lazily builds its Sliver
-    // elements), so scroll each title into view individually rather than
-    // asserting a simultaneous global count — each found title is its own
-    // distinct EventCard ancestor, which is exactly what proves they're
-    // separate cards and not one merged container.
+    // elements), so this sweeps the full scroll range checking for every
+    // title at each step, rather than searching for titles one at a time
+    // in sequence. Searching sequentially (each search resuming from
+    // wherever the previous one stopped) let the accumulated scroll
+    // position run past the last card's narrow "still built" window
+    // before ever looking for it — not a bug in the cards themselves, just
+    // an artifact of chaining several finds together. Driving the
+    // scrollable's position directly (rather than gesture-based dragging)
+    // sidesteps both that accumulation and Flutter's touch-slop, which
+    // makes any single drag smaller than ~18px liable to be interpreted as
+    // a tap instead of a scroll — on an EventCard, that tap opens the full
+    // poster viewer, an unrelated screen with no Scrollable at all.
     final scrollable = find.byType(Scrollable).last;
-    for (final title in [
+    final position = tester.state<ScrollableState>(scrollable).position;
+    const titles = [
       'Baras vs Tunga',
       'Sorosimbajan vs Labangtaytay',
       'Tawad vs Santiago',
       'Pa Jollibee ug Sorbetes ni Mayor JJ!',
       'Mega Shoe Caravan',
-    ]) {
-      await tester.scrollUntilVisible(find.textContaining(title), 250, scrollable: scrollable);
-      expect(find.textContaining(title), findsOneWidget);
-      expect(
-        find.ancestor(of: find.textContaining(title), matching: find.byType(EventCard)),
-        findsOneWidget,
-      );
+    ];
+    final seen = <String>{};
+    for (double p = 0; p <= position.maxScrollExtent; p += 20) {
+      position.jumpTo(p);
+      await tester.pumpAndSettle();
+      for (final title in titles) {
+        if (seen.contains(title)) continue;
+        if (find.textContaining(title).evaluate().isEmpty) continue;
+        seen.add(title);
+        // Each found title is its own distinct EventCard ancestor, which
+        // is exactly what proves they're separate cards and not one
+        // merged container.
+        expect(
+          find.ancestor(of: find.textContaining(title), matching: find.byType(EventCard)),
+          findsOneWidget,
+        );
+      }
     }
+    expect(seen, titles.toSet());
     expect(tester.takeException(), isNull);
 
     // Tapping one opens the full poster viewer for that specific event —
