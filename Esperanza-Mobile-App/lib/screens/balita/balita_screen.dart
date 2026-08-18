@@ -5,6 +5,7 @@ import '../../services/mock_catalog.dart';
 import '../../widgets/empty_state.dart';
 import '../../widgets/esperanza_drawer.dart';
 import '../../widgets/event_card.dart';
+import '../../widgets/promotional_banner_dialog.dart';
 import '../../widgets/segmented_tabs.dart';
 import '../home/root_shell.dart';
 import 'post_card.dart';
@@ -32,7 +33,28 @@ class BalitaScreen extends StatefulWidget {
 class _BalitaScreenState extends State<BalitaScreen> with SingleTickerProviderStateMixin {
   late final TabController _tabController = TabController(length: 2, vsync: this)..addListener(_onTabChanged);
 
-  void _onTabChanged() => setState(() {});
+  // Balita's own promotional popup is offered by RootShell the first time
+  // this tab is opened (see RootShell's own doc comment) — it owns Home/
+  // Dokyu/Tulong/Balita/Emergency's "first time this *tab* is opened"
+  // popups centrally, since IndexedStack builds every tab's State
+  // immediately at launch, so a plain initState here would fire long
+  // before the citizen ever actually looks at Balita. The Events *sub*-tab
+  // is different: it's only ever reached by an explicit in-screen
+  // selection (this TabController), which is a real, first-hand "the
+  // citizen just chose Events" signal — so that one popup is owned here.
+  bool _eventsBannerOffered = false;
+
+  void _onTabChanged() {
+    setState(() {});
+    if (_tabController.index == 1 && !_eventsBannerOffered) {
+      _eventsBannerOffered = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          PromotionalBannerDialog.show(context, assetPath: 'assets/images/Balita tab_Events.png', label: 'Events');
+        }
+      });
+    }
+  }
 
   @override
   void dispose() {
@@ -117,12 +139,14 @@ class _EventsList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final events = MockCatalog.events;
-    if (events.isEmpty) {
-      return const Center(child: EmptyState(icon: Icons.event_outlined, title: 'No upcoming events'));
-    }
     return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
-      children: [for (final e in events) EventCard(event: e)],
+      padding: EdgeInsets.fromLTRB(16, 4, 16, 24 + MediaQuery.paddingOf(context).bottom),
+      children: [
+        if (events.isEmpty)
+          const EmptyState(icon: Icons.event_outlined, title: 'No upcoming events')
+        else
+          for (final e in events) EventCard(event: e),
+      ],
     );
   }
 }

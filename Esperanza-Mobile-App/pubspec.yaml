@@ -76,6 +76,14 @@ flutter:
     - assets/images/Event 2.jpg
     - assets/images/Event 3.png
     - assets/images/News page section.png
+    - assets/images/Welcome Screen 1.png
+    - assets/images/Welcome Screen 2.png
+    - assets/images/Welcome Screen 3.png
+    - assets/images/Dokyu Tab.png
+    - assets/images/Tulong Tab.png
+    - assets/images/Balita Tab.png
+    - assets/images/Balita tab_Events.png
+    - assets/images/Emergency.png
 
   # Inter and Lora are bundled as variable fonts (single file, multiple
   # weight entries), matching resources/css/app.css in the Web Admin, which

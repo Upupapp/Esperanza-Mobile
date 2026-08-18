@@ -5,6 +5,7 @@ import 'screens/home/root_shell.dart';
 import 'screens/splash/splash_screen.dart';
 import 'services/balita_service.dart';
 import 'services/citizen_session_service.dart';
+import 'services/notifications_service.dart';
 import 'services/requests_service.dart';
 import 'services/resident_profile_service.dart';
 import 'theme/app_colors.dart';
@@ -25,6 +26,7 @@ class EsperanzaMobileApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => RequestsService()),
         ChangeNotifierProvider(create: (_) => BalitaService()),
         ChangeNotifierProvider(create: (_) => ResidentProfileService()),
+        ChangeNotifierProvider(create: (_) => NotificationsService()),
       ],
       child: MaterialApp(
         title: 'Esperanza Mobile',

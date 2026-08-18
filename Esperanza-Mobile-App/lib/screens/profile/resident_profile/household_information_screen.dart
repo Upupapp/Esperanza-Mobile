@@ -39,6 +39,8 @@ class _HouseholdInformationScreenState extends State<HouseholdInformationScreen>
   bool _saving = false;
   String? _error;
 
+  ResidentProfileService get _service => context.read<ResidentProfileService>();
+
   @override
   void initState() {
     super.initState();
@@ -112,6 +114,20 @@ class _HouseholdInformationScreenState extends State<HouseholdInformationScreen>
     AppDialogs.toast(context, markComplete ? 'Household information saved.' : 'Saved for later.');
     Navigator.of(context).pop();
   }
+
+  Future<void> _addOtherFamily() async {
+    final result = await showModalBottomSheet<_OtherFamilyResult>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => const _OtherFamilyFormSheet(),
+    );
+    if (result != null && mounted) {
+      await _service.addOtherFamilyToHousehold(_accountId, result.familyName, headName: result.headName, members: result.members);
+    }
+  }
+
+  Future<void> _removeOtherFamily(String familyId) => _service.removeOtherFamilyFromHousehold(_accountId, familyId);
 
   @override
   Widget build(BuildContext context) {
@@ -217,6 +233,34 @@ class _HouseholdInformationScreenState extends State<HouseholdInformationScreen>
                   _CompositionRow(label: 'Families living in household', value: '${profile.householdFamilyCount}'),
                 ],
               ),
+              const SizedBox(height: AppSpacing.lg),
+              // A household is the physical residence — this is where
+              // *other* family groups sharing it belong, distinct from
+              // Family Information (which is only the signed-in citizen's
+              // own family). Moved here from Family Information.
+              FormSection(
+                title: 'Families in this Household',
+                description: 'A household can include more than one family living together.',
+                children: [
+                  _FamilyChip(
+                    name: profile.familyName.trim().isEmpty ? '${context.watch<CitizenSessionService>().account!.lastName} Family' : profile.familyName,
+                    isOwn: true,
+                  ),
+                  for (final f in profile.household.otherFamilies)
+                    _FamilyChip(
+                      name: f.familyName,
+                      headName: f.headName,
+                      memberCount: f.members.length,
+                      onRemove: () => _removeOtherFamily(f.familyId),
+                    ),
+                  const SizedBox(height: 4),
+                  OutlinedButton.icon(
+                    onPressed: _addOtherFamily,
+                    icon: const Icon(Icons.add_rounded, size: 17),
+                    label: const Text('Add Another Family'),
+                  ),
+                ],
+              ),
               if (_error != null) ...[
                 const SizedBox(height: AppSpacing.md),
                 Text(_error!, style: const TextStyle(fontSize: 12.5, color: AppColors.rose600)),
@@ -252,6 +296,216 @@ class _CompositionRow extends StatelessWidget {
           Expanded(child: Text(label, style: const TextStyle(fontSize: 13, color: AppColors.slate600))),
           Text(value, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
         ],
+      ),
+    );
+  }
+}
+
+/// One family group living in this household — the citizen's own (never
+/// removable, no head/member entry needed since that's already captured in
+/// Family Information) or another family they've acknowledged, which can
+/// optionally show who leads it and how many members it has.
+class _FamilyChip extends StatelessWidget {
+  final String name;
+  final bool isOwn;
+  final String? headName;
+  final int memberCount;
+  final VoidCallback? onRemove;
+  const _FamilyChip({required this.name, this.isOwn = false, this.headName, this.memberCount = 0, this.onRemove});
+
+  @override
+  Widget build(BuildContext context) {
+    final subtitleParts = <String>[
+      if (headName != null && headName!.trim().isNotEmpty) 'Head: ${headName!.trim()}',
+      if (memberCount > 0) '$memberCount member${memberCount == 1 ? '' : 's'}',
+    ];
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: isOwn ? AppColors.brand50 : AppColors.slate50,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.diversity_3_outlined, size: 17, color: isOwn ? AppColors.brand600 : AppColors.slate500),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  name,
+                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: isOwn ? AppColors.brand700 : AppColors.slate700),
+                ),
+                if (subtitleParts.isNotEmpty)
+                  Text(subtitleParts.join(' · '), style: const TextStyle(fontSize: 11, color: AppColors.textMuted)),
+              ],
+            ),
+          ),
+          if (isOwn)
+            const Text('Your family', style: TextStyle(fontSize: 11, color: AppColors.brand600, fontWeight: FontWeight.w600))
+          else if (onRemove != null)
+            IconButton(
+              onPressed: onRemove,
+              icon: const Icon(Icons.close_rounded, size: 17, color: AppColors.slate400),
+              constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+              padding: EdgeInsets.zero,
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _OtherFamilyResult {
+  final String familyName;
+  final String headName;
+  final List<OtherFamilyMember> members;
+  const _OtherFamilyResult({required this.familyName, required this.headName, required this.members});
+}
+
+/// Captures a household-mate family group beyond just its name — family
+/// head and members, each with their relationship to that family's head —
+/// per the household restructure's requirement that other families in the
+/// household aren't just acknowledged by name but can record who's in
+/// them. Deliberately lighter than [FamilyMemberFormSheet] (plain
+/// name/relationship, no full Individual record): these are someone
+/// else's family being noted for household-composition purposes, not
+/// Individuals-table records the citizen is authoring.
+class _OtherFamilyFormSheet extends StatefulWidget {
+  const _OtherFamilyFormSheet();
+
+  @override
+  State<_OtherFamilyFormSheet> createState() => _OtherFamilyFormSheetState();
+}
+
+class _OtherFamilyFormSheetState extends State<_OtherFamilyFormSheet> {
+  final _familyName = TextEditingController();
+  final _headName = TextEditingController();
+  final List<TextEditingController> _memberNames = [];
+  final List<String?> _memberRelationships = [];
+  String? _error;
+
+  @override
+  void dispose() {
+    _familyName.dispose();
+    _headName.dispose();
+    for (final c in _memberNames) {
+      c.dispose();
+    }
+    super.dispose();
+  }
+
+  void _addMemberRow() {
+    setState(() {
+      _memberNames.add(TextEditingController());
+      _memberRelationships.add(null);
+    });
+  }
+
+  void _removeMemberRow(int i) {
+    setState(() {
+      _memberNames.removeAt(i).dispose();
+      _memberRelationships.removeAt(i);
+    });
+  }
+
+  void _submit() {
+    if (_familyName.text.trim().isEmpty) {
+      setState(() => _error = 'Please enter a family name.');
+      return;
+    }
+    final members = <OtherFamilyMember>[
+      for (var i = 0; i < _memberNames.length; i++)
+        if (_memberNames[i].text.trim().isNotEmpty)
+          OtherFamilyMember(name: _memberNames[i].text.trim(), relationship: _memberRelationships[i] ?? ''),
+    ];
+    Navigator.of(context).pop(
+      _OtherFamilyResult(familyName: _familyName.text.trim(), headName: _headName.text.trim(), members: members),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
+      child: SafeArea(
+        child: Container(
+          margin: const EdgeInsets.all(12),
+          constraints: BoxConstraints(maxHeight: MediaQuery.sizeOf(context).height * 0.85),
+          decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20)),
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text('Add Another Family', style: TextStyle(fontSize: 15.5, fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
+                const SizedBox(height: 4),
+                const Text(
+                  'A different family group living in this same household.',
+                  style: TextStyle(fontSize: 12, color: AppColors.textMuted, height: 1.35),
+                ),
+                const SizedBox(height: AppSpacing.lg),
+                AppTextField(label: 'Family name', controller: _familyName, icon: Icons.diversity_3_outlined),
+                AppTextField(label: 'Family head (optional)', controller: _headName, icon: Icons.person_outline_rounded),
+                const SizedBox(height: AppSpacing.md),
+                const Text('Family Members', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.slate600)),
+                const SizedBox(height: AppSpacing.sm),
+                for (var i = 0; i < _memberNames.length; i++)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          flex: 3,
+                          child: AppTextField(label: 'Name', controller: _memberNames[i], icon: Icons.person_outline_rounded),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          flex: 3,
+                          child: AppSelectField<String>(
+                            label: 'Relationship to head',
+                            value: _memberRelationships[i],
+                            options: ResidentProfileOptions.relationshipToHead,
+                            labelBuilder: (v) => v,
+                            onChanged: (v) => setState(() => _memberRelationships[i] = v),
+                          ),
+                        ),
+                        IconButton(
+                          onPressed: () => _removeMemberRow(i),
+                          icon: const Icon(Icons.delete_outline_rounded, size: 19, color: AppColors.rose500),
+                          constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+                          padding: EdgeInsets.zero,
+                        ),
+                      ],
+                    ),
+                  ),
+                OutlinedButton.icon(
+                  onPressed: _addMemberRow,
+                  icon: const Icon(Icons.person_add_alt_1_rounded, size: 17),
+                  label: const Text('Add Member'),
+                ),
+                if (_error != null) ...[
+                  const SizedBox(height: AppSpacing.sm),
+                  Text(_error!, style: const TextStyle(fontSize: 12.5, color: AppColors.rose600)),
+                ],
+                const SizedBox(height: AppSpacing.xl),
+                Row(
+                  children: [
+                    Expanded(
+                      child: AppButton(label: 'Cancel', variant: AppButtonVariant.ghost, onPressed: () => Navigator.of(context).pop()),
+                    ),
+                    const SizedBox(width: AppSpacing.sm),
+                    Expanded(child: AppButton(label: 'Add Family', onPressed: _submit)),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }

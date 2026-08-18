@@ -20,6 +20,19 @@ void _setPhoneViewport(WidgetTester tester) {
   addTearDown(tester.view.resetDevicePixelRatio);
 }
 
+/// Dokyu/Tulong/Balita/Events/Emergency each offer their own promotional
+/// popup (PromotionalBannerDialog) the first time RootShell switches to
+/// that tab — dismiss it the same way a real user would (tap its X) before
+/// interacting with the screen underneath, otherwise the modal barrier
+/// intercepts every subsequent tap/scroll meant for that screen.
+Future<void> _dismissPromotionalBanner(WidgetTester tester) async {
+  final closeButton = find.byIcon(Icons.close_rounded);
+  if (closeButton.evaluate().isNotEmpty) {
+    await tester.tap(closeButton.last, warnIfMissed: false);
+    await tester.pumpAndSettle();
+  }
+}
+
 Future<void> _enterAsGuest(WidgetTester tester) async {
   // Onboarding-complete pre-seeded: this suite exercises the normal
   // returning-user flow, not the first-run Onboarding screens — see
@@ -87,8 +100,10 @@ void main() {
 
     await tester.tap(find.text('Balita'));
     await tester.pumpAndSettle();
+    await _dismissPromotionalBanner(tester); // Balita tab's own promotional popup
     await tester.tap(find.text('Events'));
     await tester.pumpAndSettle();
+    await _dismissPromotionalBanner(tester); // Events sub-tab's own promotional popup
 
     // The Events ListView only inflates elements near the viewport (a
     // plain ListView(children:...) still lazily builds its Sliver

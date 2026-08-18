@@ -112,26 +112,6 @@ class _FamilyInformationScreenState extends State<FamilyInformationScreen> {
     if (selected != null && mounted) await _service.setHeadOfFamily(_accountId, selected);
   }
 
-  Future<void> _addOtherFamily() async {
-    final controller = TextEditingController();
-    final name = await showDialog<String>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Add Another Family'),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          decoration: const InputDecoration(hintText: 'e.g. Dela Cruz Family'),
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('Cancel')),
-          TextButton(onPressed: () => Navigator.of(ctx).pop(controller.text.trim()), child: const Text('Add')),
-        ],
-      ),
-    );
-    if (name != null && name.isNotEmpty && mounted) await _service.addOtherFamilyToHousehold(_accountId, name);
-  }
-
   Future<void> _joinFamily(ExistingFamilyMatch match) async {
     await _service.requestJoinFamily(_accountId, match);
     if (mounted) AppDialogs.toast(context, 'Request to join ${match.familyName} sent (demo).');
@@ -193,25 +173,6 @@ class _FamilyInformationScreenState extends State<FamilyInformationScreen> {
               onPressed: _addMember,
               icon: const Icon(Icons.person_add_alt_1_rounded, size: 17),
               label: const Text('Add Family Member'),
-            ),
-            const SizedBox(height: AppSpacing.xl),
-            FormSection(
-              title: 'Families in this Household',
-              description: 'A household can include more than one family living together.',
-              children: [
-                _FamilyChip(name: profile.familyName.trim().isEmpty ? '${account.lastName} Family' : profile.familyName, isOwn: true),
-                for (final f in profile.household.otherFamilies)
-                  _FamilyChip(
-                    name: f.familyName,
-                    onRemove: () => _service.removeOtherFamilyFromHousehold(_accountId, f.familyId),
-                  ),
-                const SizedBox(height: 4),
-                OutlinedButton.icon(
-                  onPressed: _addOtherFamily,
-                  icon: const Icon(Icons.add_rounded, size: 17),
-                  label: const Text('Add Another Family'),
-                ),
-              ],
             ),
             if (_error != null) ...[
               const SizedBox(height: AppSpacing.md),
@@ -318,45 +279,6 @@ class _MemberTile extends StatelessWidget {
   }
 }
 
-class _FamilyChip extends StatelessWidget {
-  final String name;
-  final bool isOwn;
-  final VoidCallback? onRemove;
-  const _FamilyChip({required this.name, this.isOwn = false, this.onRemove});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      decoration: BoxDecoration(
-        color: isOwn ? AppColors.brand50 : AppColors.slate50,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Row(
-        children: [
-          Icon(Icons.diversity_3_outlined, size: 17, color: isOwn ? AppColors.brand600 : AppColors.slate500),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              name,
-              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: isOwn ? AppColors.brand700 : AppColors.slate700),
-            ),
-          ),
-          if (isOwn)
-            const Text('Your family', style: TextStyle(fontSize: 11, color: AppColors.brand600, fontWeight: FontWeight.w600))
-          else if (onRemove != null)
-            IconButton(
-              onPressed: onRemove,
-              icon: const Icon(Icons.close_rounded, size: 17, color: AppColors.slate400),
-              constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-              padding: EdgeInsets.zero,
-            ),
-        ],
-      ),
-    );
-  }
-}
 
 class _ExistingMatchBanner extends StatelessWidget {
   final ExistingFamilyMatch match;

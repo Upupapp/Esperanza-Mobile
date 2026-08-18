@@ -17,6 +17,7 @@ import 'package:esperanza_mobile/screens/shared/service_request_wizard_screen.da
 import 'package:esperanza_mobile/services/citizen_session_service.dart';
 import 'package:esperanza_mobile/services/mock_catalog.dart';
 import 'package:esperanza_mobile/services/requests_service.dart';
+import 'package:esperanza_mobile/services/notifications_service.dart';
 import 'package:esperanza_mobile/services/resident_profile_service.dart';
 import 'package:esperanza_mobile/theme/app_colors.dart';
 import 'package:esperanza_mobile/widgets/onboarding_step_indicator.dart';
@@ -29,8 +30,9 @@ Future<void> _pumpDokyuAsMarites(WidgetTester tester) async {
     MultiProvider(
       providers: [
         ChangeNotifierProvider<CitizenSessionService>.value(value: session),
-        ChangeNotifierProvider(create: (_) => RequestsService()),
+        ChangeNotifierProvider(create: (_) => RequestsService(seedDemoData: false)),
         ChangeNotifierProvider(create: (_) => ResidentProfileService()),
+        ChangeNotifierProvider(create: (_) => NotificationsService()),
       ],
       child: const MaterialApp(
         home: ServiceCatalogScreen(

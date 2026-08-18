@@ -11,6 +11,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:esperanza_mobile/screens/home/home_screen.dart';
 import 'package:esperanza_mobile/services/citizen_session_service.dart';
 import 'package:esperanza_mobile/services/mock_catalog.dart';
+import 'package:esperanza_mobile/services/notifications_service.dart';
 import 'package:esperanza_mobile/services/requests_service.dart';
 import 'package:esperanza_mobile/services/resident_profile_service.dart';
 
@@ -45,6 +46,7 @@ void main() {
               ChangeNotifierProvider<CitizenSessionService>.value(value: session),
               ChangeNotifierProvider<RequestsService>(create: (_) => RequestsService()),
               ChangeNotifierProvider<ResidentProfileService>(create: (_) => ResidentProfileService()),
+              ChangeNotifierProvider<NotificationsService>(create: (_) => NotificationsService()),
             ],
             child: const MaterialApp(home: HomeScreen()),
           ),

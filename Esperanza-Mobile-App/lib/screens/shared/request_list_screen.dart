@@ -354,7 +354,20 @@ class _RequestTile extends StatelessWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text('Submitted ${_fmt(request.submittedAt)}', style: const TextStyle(fontSize: 11, color: AppColors.textMuted)),
+                // Flexible: a spaceBetween Row sizes each child to its own
+                // natural width — on a narrow phone "Submitted M/D/YYYY"
+                // plus "Track >" can together exceed the card width (a
+                // pre-existing overflow this task's new demo-seeded
+                // requests newly exposed, since Dokyu/Tulong are no longer
+                // always empty at narrow widths). Same fix pattern as
+                // PostActionButton's own label elsewhere in this app.
+                Flexible(
+                  child: Text(
+                    'Submitted ${_fmt(request.submittedAt)}',
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontSize: 11, color: AppColors.textMuted),
+                  ),
+                ),
                 Row(
                   children: [
                     Text('Track', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: accent)),

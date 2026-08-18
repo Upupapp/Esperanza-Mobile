@@ -15,6 +15,7 @@ import 'package:esperanza_mobile/widgets/filter_bottom_sheet.dart';
 import 'package:esperanza_mobile/services/citizen_session_service.dart';
 import 'package:esperanza_mobile/services/mock_catalog.dart';
 import 'package:esperanza_mobile/services/requests_service.dart';
+import 'package:esperanza_mobile/services/notifications_service.dart';
 import 'package:esperanza_mobile/services/resident_profile_service.dart';
 import 'package:esperanza_mobile/services/balita_service.dart';
 
@@ -108,7 +109,7 @@ void main() {
       SharedPreferences.setMockInitialValues({});
       final session = CitizenSessionService();
       await session.login(MockCatalog.demoAccounts.last); // Marites — Approved/verified
-      final requests = RequestsService();
+      final requests = RequestsService(seedDemoData: false);
       for (final r in seed) {
         await requests.submit(
           applicantId: r.applicantId,
@@ -135,6 +136,7 @@ void main() {
             ChangeNotifierProvider<RequestsService>.value(value: requests),
             ChangeNotifierProvider(create: (_) => BalitaService()),
             ChangeNotifierProvider(create: (_) => ResidentProfileService()),
+        ChangeNotifierProvider(create: (_) => NotificationsService()),
           ],
           child: const MaterialApp(home: DokyuScreen()),
         ),

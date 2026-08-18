@@ -78,6 +78,10 @@ Future<void> _openMangroveViewer(WidgetTester tester) async {
   await tester.tap(find.text('Balita'));
   await tester.pumpAndSettle();
   expect(find.text('Balita & Events'), findsOneWidget);
+  // Balita's own promotional popup (PromotionalBannerDialog), shown the
+  // first time this tab is opened — dismiss it before interacting with
+  // the feed underneath, same as a real user tapping its X.
+  await _dismissWelcomeBanner(tester);
 
   expect(_mangrovePostImage, findsOneWidget);
   await _tapClearOfNavbar(tester, _mangrovePostImage);

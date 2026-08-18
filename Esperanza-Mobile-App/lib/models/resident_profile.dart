@@ -242,21 +242,61 @@ class Family {
       );
 }
 
+/// One member of an [SimpleFamilyRef] other-family entry — just a name and
+/// how they relate to that family's own head, never a full [Individual]
+/// record. Other families sharing a household are acknowledged, not fully
+/// encoded (see [SimpleFamilyRef]'s own doc comment), so this stays as
+/// lightweight as the family-level fields it sits alongside.
+class OtherFamilyMember {
+  final String name;
+  final String relationship;
+
+  const OtherFamilyMember({required this.name, this.relationship = ''});
+
+  Map<String, dynamic> toJson() => {'name': name, 'relationship': relationship};
+
+  factory OtherFamilyMember.fromJson(Map<String, dynamic> json) =>
+      OtherFamilyMember(name: json['name'] ?? '', relationship: json['relationship'] ?? '');
+}
+
 /// A lightweight reference to another family sharing this household, per
 /// Section 7 — deliberately NOT a full [Family] record, since the citizen
 /// is only acknowledging that family exists in the household, not
-/// encoding its members. A future Web Admin integration would resolve
-/// this to a real Family record once one exists.
+/// encoding a full Individuals-table record for each of its members. Still
+/// captures who leads that family and who's in it (per the household
+/// restructure's "family head, family members, relationship between
+/// members" requirement) — just as plain name/relationship strings on this
+/// entry rather than standalone [Individual] records with their own IDs.
+/// A future Web Admin integration would resolve this to real Family +
+/// Individuals records once one exists. `headName`/`members` default to
+/// empty so existing persisted entries (saved before this field existed)
+/// still parse cleanly — see [SimpleFamilyRef.fromJson].
 class SimpleFamilyRef {
   final String familyId;
   final String familyName;
+  final String headName;
+  final List<OtherFamilyMember> members;
 
-  const SimpleFamilyRef({required this.familyId, required this.familyName});
+  const SimpleFamilyRef({
+    required this.familyId,
+    required this.familyName,
+    this.headName = '',
+    this.members = const [],
+  });
 
-  Map<String, dynamic> toJson() => {'familyId': familyId, 'familyName': familyName};
+  Map<String, dynamic> toJson() => {
+        'familyId': familyId,
+        'familyName': familyName,
+        'headName': headName,
+        'members': members.map((m) => m.toJson()).toList(),
+      };
 
-  factory SimpleFamilyRef.fromJson(Map<String, dynamic> json) =>
-      SimpleFamilyRef(familyId: json['familyId'], familyName: json['familyName']);
+  factory SimpleFamilyRef.fromJson(Map<String, dynamic> json) => SimpleFamilyRef(
+        familyId: json['familyId'],
+        familyName: json['familyName'],
+        headName: json['headName'] ?? '',
+        members: (json['members'] as List? ?? []).map((m) => OtherFamilyMember.fromJson(m)).toList(),
+      );
 }
 
 /// Maps to Web Admin: Constituents > Households. `familyIds` supports one

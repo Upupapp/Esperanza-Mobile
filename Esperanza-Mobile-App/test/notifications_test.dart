@@ -11,6 +11,7 @@ import 'package:esperanza_mobile/models/citizen_account.dart';
 import 'package:esperanza_mobile/screens/notifications/notifications_screen.dart';
 import 'package:esperanza_mobile/screens/profile/resident_profile/resident_profile_overview_screen.dart';
 import 'package:esperanza_mobile/services/citizen_session_service.dart';
+import 'package:esperanza_mobile/services/notifications_service.dart';
 import 'package:esperanza_mobile/services/requests_service.dart';
 import 'package:esperanza_mobile/services/resident_profile_service.dart';
 
@@ -39,8 +40,9 @@ Future<void> _pump(WidgetTester tester, {CitizenAccount? account, ResidentProfil
     MultiProvider(
       providers: [
         ChangeNotifierProvider<CitizenSessionService>.value(value: session),
-        ChangeNotifierProvider(create: (_) => RequestsService()),
+        ChangeNotifierProvider(create: (_) => RequestsService(seedDemoData: false)),
         ChangeNotifierProvider<ResidentProfileService>.value(value: residentProfileService ?? ResidentProfileService()),
+        ChangeNotifierProvider(create: (_) => NotificationsService()),
       ],
       child: const MaterialApp(home: NotificationsScreen()),
     ),

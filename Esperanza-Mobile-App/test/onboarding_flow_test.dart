@@ -19,6 +19,17 @@ void _setPhoneViewport(WidgetTester tester) {
   addTearDown(tester.view.resetDevicePixelRatio);
 }
 
+/// Confirms the given welcome screen's real final artwork is actually the
+/// one loaded on screen (not a placeholder), plus the branding overlay
+/// that sits on top of every page.
+void _expectPageImageAndBrand(WidgetTester tester, String fileName) {
+  final imageFinder = find.byWidgetPredicate(
+    (w) => w is Image && w.image is AssetImage && (w.image as AssetImage).assetName == 'assets/images/$fileName',
+  );
+  expect(imageFinder, findsOneWidget, reason: '$fileName should be loaded as this page\'s background');
+  expect(find.text('Municipalidad ng Esperanza'), findsOneWidget);
+}
+
 void main() {
   testWidgets('First launch: opening animation leads into all three welcome screens, then Sign In', (tester) async {
     SharedPreferences.setMockInitialValues({});
@@ -33,9 +44,10 @@ void main() {
 
     await tester.pumpAndSettle();
 
-    // Screen 1.
+    // Screen 1 — the real "Welcome Screen 1" artwork, seal + municipality
+    // name overlaid upper-middle, Skip upper-right, Next lower-middle.
     expect(find.byType(OnboardingScreen), findsOneWidget);
-    expect(find.text('Esperanza, Closer to You'), findsOneWidget);
+    _expectPageImageAndBrand(tester, 'Welcome Screen 1.png');
     expect(find.text('Skip'), findsOneWidget);
     expect(find.text('Next'), findsOneWidget);
     expect(find.text('Get Started'), findsNothing);
@@ -44,7 +56,7 @@ void main() {
     await tester.pumpAndSettle();
 
     // Screen 2.
-    expect(find.text('Services Made Simpler'), findsOneWidget);
+    _expectPageImageAndBrand(tester, 'Welcome Screen 2.png');
     expect(find.text('Skip'), findsOneWidget);
     expect(find.text('Next'), findsOneWidget);
 
@@ -55,7 +67,7 @@ void main() {
     // IgnorePointer, per OnboardingScreen's build method), not removed from
     // the tree outright, so verify it that way rather than with
     // find.text(...findsNothing) — the Text widget itself stays mounted.
-    expect(find.text('Stay Connected. Stay Ready.'), findsOneWidget);
+    _expectPageImageAndBrand(tester, 'Welcome Screen 3.png');
     final skipOpacity = tester.widget<Opacity>(
       find.ancestor(of: find.text('Skip'), matching: find.byType(Opacity)),
     );
@@ -84,7 +96,7 @@ void main() {
     await tester.pumpWidget(const EsperanzaMobileApp());
     await tester.pumpAndSettle();
 
-    expect(find.text('Esperanza, Closer to You'), findsOneWidget);
+    _expectPageImageAndBrand(tester, 'Welcome Screen 1.png');
     await tester.tap(find.text('Skip'));
     await tester.pumpAndSettle();
 
@@ -109,7 +121,7 @@ void main() {
 
     // Straight to the normal entry point — no welcome screens.
     expect(find.byType(OnboardingScreen), findsNothing);
-    expect(find.text('Esperanza, Closer to You'), findsNothing);
+    expect(find.text('Municipalidad ng Esperanza'), findsNothing);
     expect(find.text('Welcome back'), findsOneWidget);
     expect(find.text('Continue as Guest'), findsOneWidget);
   });

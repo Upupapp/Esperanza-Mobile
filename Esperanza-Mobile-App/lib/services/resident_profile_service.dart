@@ -97,9 +97,19 @@ class ResidentProfileService extends ChangeNotifier {
     await _save(p);
   }
 
-  Future<void> addOtherFamilyToHousehold(String accountId, String familyName) async {
+  Future<void> addOtherFamilyToHousehold(
+    String accountId,
+    String familyName, {
+    String headName = '',
+    List<OtherFamilyMember> members = const [],
+  }) async {
     final p = _profiles[accountId]!;
-    final ref = SimpleFamilyRef(familyId: 'FAM-${DateTime.now().microsecondsSinceEpoch}', familyName: familyName);
+    final ref = SimpleFamilyRef(
+      familyId: 'FAM-${DateTime.now().microsecondsSinceEpoch}',
+      familyName: familyName,
+      headName: headName,
+      members: members,
+    );
     p.household.otherFamilies = [...p.household.otherFamilies, ref];
     await _save(p);
   }

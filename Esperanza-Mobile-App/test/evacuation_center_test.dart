@@ -11,13 +11,19 @@ import 'package:esperanza_mobile/screens/sakuna/sakuna_screen.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:esperanza_mobile/services/citizen_session_service.dart';
+import 'package:esperanza_mobile/services/notifications_service.dart';
+import 'package:esperanza_mobile/services/requests_service.dart';
 
 void main() {
   Future<void> pumpSakuna(WidgetTester tester) async {
     SharedPreferences.setMockInitialValues({});
     await tester.pumpWidget(
       MultiProvider(
-        providers: [ChangeNotifierProvider(create: (_) => CitizenSessionService())],
+        providers: [
+          ChangeNotifierProvider(create: (_) => CitizenSessionService()),
+          ChangeNotifierProvider(create: (_) => NotificationsService()),
+          ChangeNotifierProvider(create: (_) => RequestsService()),
+        ],
         child: const MaterialApp(home: SakunaScreen()),
       ),
     );

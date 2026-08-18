@@ -62,6 +62,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Balita & Events'), findsOneWidget);
     expect(find.byType(Scaffold), findsWidgets); // real screen, not a notice
+    await _dismissWelcomeBanner(tester); // Balita's own promotional popup
 
     // 5. Try a restricted feature (Dokyu).
     await tester.tap(find.text('Dokyu'));
@@ -122,6 +123,7 @@ void main() {
     // must reach the real screen, not another notice.
     await tester.tap(find.text('Emergency'));
     await tester.pumpAndSettle();
+    await _dismissWelcomeBanner(tester); // Emergency's own promotional popup
     expect(find.text('Risk Reduction & Emergency'), findsOneWidget);
     expect(find.text('Report an Incident'), findsOneWidget); // real Sakuna content
   });
@@ -156,12 +158,15 @@ void main() {
     // real screens render, not RestrictedFeatureNotice.
     await tester.tap(find.text('Dokyu'));
     await tester.pumpAndSettle();
+    await _dismissWelcomeBanner(tester); // Dokyu's own promotional popup
     expect(find.text('Dokyu'), findsWidgets); // AppBar title among other things
     expect(find.text('Complete your account verification to access this service.'), findsNothing);
     expect(find.text('This feature is available to registered Esperanza users. Create an account or sign in to continue.'), findsNothing);
 
     await tester.tap(find.text('Tulong'));
     await tester.pumpAndSettle();
+    await _dismissWelcomeBanner(tester); // Tulong's own promotional popup
+    expect(find.text('Tulong'), findsWidgets); // AppBar title — confirms we actually reached Tulong
     expect(find.text('Complete your account verification to access this service.'), findsNothing);
 
     // 4. No unnecessary Guest or verification warnings anywhere on Home.

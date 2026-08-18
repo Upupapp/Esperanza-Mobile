@@ -16,6 +16,7 @@ import 'package:esperanza_mobile/services/balita_service.dart';
 import 'package:esperanza_mobile/services/citizen_session_service.dart';
 import 'package:esperanza_mobile/services/mock_catalog.dart';
 import 'package:esperanza_mobile/services/requests_service.dart';
+import 'package:esperanza_mobile/services/notifications_service.dart';
 import 'package:esperanza_mobile/services/resident_profile_service.dart';
 import 'package:esperanza_mobile/theme/app_theme.dart';
 import 'package:esperanza_mobile/widgets/empty_state.dart';
@@ -43,9 +44,10 @@ Future<void> _pumpSignedInAsMarites(WidgetTester tester, Size size) async {
     MultiProvider(
       providers: [
         ChangeNotifierProvider<CitizenSessionService>.value(value: session),
-        ChangeNotifierProvider(create: (_) => RequestsService()),
+        ChangeNotifierProvider(create: (_) => RequestsService(seedDemoData: false)),
         ChangeNotifierProvider(create: (_) => BalitaService()),
         ChangeNotifierProvider(create: (_) => ResidentProfileService()),
+        ChangeNotifierProvider(create: (_) => NotificationsService()),
       ],
       child: MaterialApp(theme: AppTheme.light, home: RootShell.withKey()),
     ),

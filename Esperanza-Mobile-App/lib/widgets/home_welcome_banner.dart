@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'promotional_banner_dialog.dart';
 
 /// The post-entry promotional pop-up shown once Home has loaded — the
 /// municipal welcome/services poster, never a normal card inside the Home
@@ -6,6 +7,13 @@ import 'package:flutter/material.dart';
 /// dims the screen behind it) rather than a bespoke overlay: this is
 /// informational/promotional content the user must be free to dismiss
 /// immediately, never a blocking gate in front of Home.
+///
+/// Kept as its own named widget/type (rather than calling
+/// [PromotionalBannerDialog.show] directly from HomeScreen) purely so
+/// existing call sites/tests that key off `HomeWelcomeBanner` specifically
+/// keep working — the actual presentation is [PromotionalBannerDialog],
+/// the shared implementation every other tab's promotional popup also
+/// uses.
 class HomeWelcomeBanner extends StatelessWidget {
   const HomeWelcomeBanner({super.key});
 
@@ -26,48 +34,5 @@ class HomeWelcomeBanner extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) {
-    final size = MediaQuery.sizeOf(context);
-    return Dialog(
-      backgroundColor: Colors.transparent,
-      insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 48),
-      child: Stack(
-        clipBehavior: Clip.none,
-        alignment: Alignment.topRight,
-        children: [
-          ConstrainedBox(
-            // Bounded, not forced: BoxFit.contain inside these max bounds
-            // keeps the poster's real aspect ratio — never stretched,
-            // never cropped, so the mayor's message, logos, and the
-            // bottom "Tayo ang Pag-Asa" band all stay fully visible
-            // regardless of phone width/height.
-            constraints: BoxConstraints(maxWidth: size.width * 0.88, maxHeight: size.height * 0.82),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(20),
-              child: Image.asset(_assetPath, fit: BoxFit.contain),
-            ),
-          ),
-          // Positioned just outside the poster's own corner (not
-          // overlapping it) so it can never cover any banner text/logo,
-          // with its own dark circular backdrop so it stays clearly
-          // visible regardless of what's directly behind it.
-          Positioned(
-            top: -14,
-            right: -14,
-            child: Material(
-              color: Colors.black.withValues(alpha: 0.55),
-              shape: const CircleBorder(),
-              child: IconButton(
-                icon: const Icon(Icons.close_rounded, color: Colors.white),
-                tooltip: 'Close',
-                iconSize: 22,
-                constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
-                onPressed: () => Navigator.of(context).pop(),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+  Widget build(BuildContext context) => const PromotionalBannerDialog(assetPath: _assetPath, label: 'Home');
 }

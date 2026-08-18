@@ -16,6 +16,7 @@ import 'package:esperanza_mobile/services/balita_service.dart';
 import 'package:esperanza_mobile/services/citizen_session_service.dart';
 import 'package:esperanza_mobile/services/mock_catalog.dart';
 import 'package:esperanza_mobile/services/requests_service.dart';
+import 'package:esperanza_mobile/services/notifications_service.dart';
 import 'package:esperanza_mobile/services/resident_profile_service.dart';
 import 'package:esperanza_mobile/widgets/magnetic_navbar_core.dart';
 import 'package:esperanza_mobile/widgets/nav_item_data.dart';
@@ -47,6 +48,7 @@ void main() {
         ChangeNotifierProvider(create: (_) => RequestsService()),
         ChangeNotifierProvider(create: (_) => BalitaService()),
         ChangeNotifierProvider(create: (_) => ResidentProfileService()),
+        ChangeNotifierProvider(create: (_) => NotificationsService()),
       ],
       child: MaterialApp(home: child),
     );
@@ -127,6 +129,7 @@ void main() {
           ChangeNotifierProvider(create: (_) => RequestsService()),
           ChangeNotifierProvider(create: (_) => BalitaService()),
           ChangeNotifierProvider(create: (_) => ResidentProfileService()),
+        ChangeNotifierProvider(create: (_) => NotificationsService()),
         ],
         child: const MaterialApp(home: RegisterScreen()),
       ),
