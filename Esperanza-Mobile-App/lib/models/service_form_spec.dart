@@ -40,6 +40,18 @@ class ServiceFormField {
   /// this age is computed from.
   final String? derivedFromKey;
 
+  /// Optional conditional-visibility gate — when set, this field is only
+  /// shown (and only enforced if [required]) while the field keyed
+  /// [visibleWhenKey] currently holds one of [visibleWhenValueIn]. Null
+  /// (the default, and every pre-existing field's behavior) means always
+  /// visible. Kept deliberately minimal — a single-field value-in-list
+  /// check, not a general expression engine — since that's the only shape
+  /// any sourced form has actually needed so far (e.g. a "specify if
+  /// multiple delivery" field that only applies when Type of Delivery
+  /// isn't Single).
+  final String? visibleWhenKey;
+  final List<String>? visibleWhenValueIn;
+
   const ServiceFormField({
     required this.key,
     required this.label,
@@ -48,6 +60,8 @@ class ServiceFormField {
     this.hint,
     this.options,
     this.derivedFromKey,
+    this.visibleWhenKey,
+    this.visibleWhenValueIn,
   });
 }
 

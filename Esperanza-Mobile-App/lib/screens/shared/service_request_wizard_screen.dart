@@ -84,6 +84,15 @@ class _ServiceRequestWizardScreenState extends State<ServiceRequestWizardScreen>
 
   bool get _hasPurposeField => _serviceSteps.any((s) => s.fields.any((f) => f.key == 'purpose'));
 
+  /// Whether [f] should currently be shown/enforced — see
+  /// [ServiceFormField.visibleWhenKey]'s own doc comment. Fields with no
+  /// gate are always visible, which is every pre-existing formSpec's
+  /// entire field list, so this is a no-op for them.
+  bool _isFieldVisible(ServiceFormField f) {
+    if (f.visibleWhenKey == null) return true;
+    return f.visibleWhenValueIn!.contains(_values[f.visibleWhenKey]);
+  }
+
   @override
   void initState() {
     super.initState();
@@ -160,7 +169,7 @@ class _ServiceRequestWizardScreenState extends State<ServiceRequestWizardScreen>
     if (step >= 1 && step <= _serviceSteps.length) {
       final s = _serviceSteps[step - 1];
       for (final f in s.fields) {
-        if (!f.required) continue;
+        if (!f.required || !_isFieldVisible(f)) continue;
         if (_isFieldEmpty(f)) return 'Please complete "${f.label}".';
       }
       return null;
@@ -420,7 +429,7 @@ class _ServiceRequestWizardScreenState extends State<ServiceRequestWizardScreen>
         FormSection(
           title: step.label,
           description: step.description,
-          children: [for (final f in step.fields) _buildField(f)],
+          children: [for (final f in step.fields.where(_isFieldVisible)) _buildField(f)],
         ),
         if (_error != null) ...[
           const SizedBox(height: AppSpacing.md),
@@ -578,7 +587,7 @@ class _ServiceRequestWizardScreenState extends State<ServiceRequestWizardScreen>
           onEdit: () => setState(() => _step = 0),
         ),
         for (int i = 0; i < _serviceSteps.length; i++) ...[
-          for (final f in _serviceSteps[i].fields)
+          for (final f in _serviceSteps[i].fields.where(_isFieldVisible))
             // Derived Age never gets its own Edit control — editing it
             // means changing the Date of Birth it's computed from, so only
             // that field's row is tappable.
