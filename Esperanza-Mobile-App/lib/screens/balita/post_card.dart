@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../models/announcement.dart';
 import '../../theme/app_colors.dart';
+import '../../theme/app_spacing.dart';
 import '../../utils/balita_post_actions.dart';
 import '../../utils/cross_platform_image.dart';
 import '../../widgets/app_dialogs.dart';
@@ -26,13 +27,7 @@ class PostCard extends StatelessWidget {
   final ValueChanged<PostComment> onComment;
   final VoidCallback onShare;
 
-  const PostCard({
-    super.key,
-    required this.post,
-    required this.onLike,
-    required this.onComment,
-    required this.onShare,
-  });
+  const PostCard({super.key, required this.post, required this.onLike, required this.onComment, required this.onShare});
 
   @override
   Widget build(BuildContext context) {
@@ -54,7 +49,11 @@ class PostCard extends StatelessWidget {
                   backgroundColor: isOfficial ? AppColors.gold50 : AppColors.brand50,
                   child: Text(
                     isOfficial ? 'LGU' : (post.author.isNotEmpty ? post.author.substring(0, 1).toUpperCase() : '?'),
-                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: isOfficial ? AppColors.gold700 : AppColors.brand600),
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: isOfficial ? AppColors.gold700 : AppColors.brand600,
+                    ),
                   ),
                 ),
                 const SizedBox(width: 10),
@@ -72,7 +71,7 @@ class PostCard extends StatelessWidget {
                             ),
                           ),
                           if (isOfficial) ...[
-                            const SizedBox(width: 4),
+                            const SizedBox(width: AppSpacing.xs),
                             const Icon(Icons.verified_rounded, size: 14, color: AppColors.brand500),
                           ],
                         ],
@@ -91,7 +90,7 @@ class PostCard extends StatelessWidget {
                   borderRadius: BorderRadius.circular(20),
                   onTap: () => _showPostMenu(context),
                   child: const Padding(
-                    padding: EdgeInsets.all(8),
+                    padding: EdgeInsets.all(AppSpacing.sm),
                     child: Icon(Icons.more_horiz_rounded, size: 19, color: AppColors.slate400),
                   ),
                 ),
@@ -131,7 +130,10 @@ class PostCard extends StatelessWidget {
                       child: const Icon(Icons.favorite_rounded, size: 11, color: Colors.white),
                     ),
                     const SizedBox(width: 6),
-                    Text('${post.likes}', style: const TextStyle(fontSize: 12, color: AppColors.slate500, fontWeight: FontWeight.w500)),
+                    Text(
+                      '${post.likes}',
+                      style: const TextStyle(fontSize: 12, color: AppColors.slate500, fontWeight: FontWeight.w500),
+                    ),
                   ],
                   const Spacer(),
                   // Flexible: a Spacer only shrinks itself to make room, it
@@ -154,7 +156,7 @@ class PostCard extends StatelessWidget {
                     ),
                 ],
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: AppSpacing.sm),
               const Divider(height: 1),
             ],
             Row(
@@ -172,7 +174,11 @@ class PostCard extends StatelessWidget {
                     icon: Icons.mode_comment_outlined,
                     label: 'Comment',
                     color: AppColors.slate500,
-                    onTap: () => requireAccountForBalita(context, 'Commenting on Balita posts', () => openBalitaComments(context, post, onComment)),
+                    onTap: () => requireAccountForBalita(
+                      context,
+                      'Commenting on Balita posts',
+                      () => openBalitaComments(context, post, onComment),
+                    ),
                   ),
                 ),
                 Expanded(
@@ -180,7 +186,11 @@ class PostCard extends StatelessWidget {
                     icon: Icons.share_outlined,
                     label: 'Share',
                     color: AppColors.slate500,
-                    onTap: () => requireAccountForBalita(context, 'Sharing Balita posts', () => shareBalitaPost(context, post, onShare)),
+                    onTap: () => requireAccountForBalita(
+                      context,
+                      'Sharing Balita posts',
+                      () => shareBalitaPost(context, post, onShare),
+                    ),
                   ),
                 ),
               ],
@@ -197,8 +207,8 @@ class PostCard extends StatelessWidget {
       backgroundColor: Colors.transparent,
       builder: (ctx) => SafeArea(
         child: Container(
-          margin: const EdgeInsets.all(12),
-          padding: const EdgeInsets.symmetric(vertical: 8),
+          margin: const EdgeInsets.all(AppSpacing.md),
+          padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
           decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20)),
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -255,7 +265,25 @@ class PostMediaView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (media.type == PostMediaType.image) {
-      if (media.isAsset) return Image.asset(media.path, fit: fit, width: double.infinity);
+      // Some bundled seed images (e.g. the aerial/city-hall shots) are
+      // several megapixels — far more than a feed card or the viewer ever
+      // displays. LayoutBuilder reads the actual bounded width this
+      // instance is being laid out at (feed card vs. the taller viewer
+      // each pass a different constraint) so the decoder only produces a
+      // bitmap sized for what's really on screen, in either context,
+      // without hardcoding either one's size here.
+      if (media.isAsset) {
+        return LayoutBuilder(
+          builder: (context, constraints) => Image.asset(
+            media.path,
+            fit: fit,
+            width: double.infinity,
+            cacheWidth: constraints.hasBoundedWidth
+                ? (constraints.maxWidth * MediaQuery.devicePixelRatioOf(context)).round()
+                : null,
+          ),
+        );
+      }
       // A citizen-picked photo's `path` is only ever safe to read via
       // dart:io on native platforms — see cross_platform_image.dart. No
       // current flow constructs a non-asset PostMedia, but this guards the
@@ -292,9 +320,9 @@ class PostMediaView extends StatelessWidget {
             decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.15), shape: BoxShape.circle),
             child: const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 28),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: AppSpacing.sm),
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24),
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xxl),
             child: Text(
               media.fileName ?? 'Video attached',
               maxLines: 1,
@@ -317,7 +345,13 @@ class PostActionButton extends StatelessWidget {
   final Color color;
   final VoidCallback onTap;
 
-  const PostActionButton({super.key, required this.icon, required this.label, required this.color, required this.onTap});
+  const PostActionButton({
+    super.key,
+    required this.icon,
+    required this.label,
+    required this.color,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -327,7 +361,7 @@ class PostActionButton extends StatelessWidget {
         borderRadius: BorderRadius.circular(10),
         onTap: onTap,
         child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 4),
+          padding: const EdgeInsets.symmetric(vertical: AppSpacing.md, horizontal: AppSpacing.xs),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [

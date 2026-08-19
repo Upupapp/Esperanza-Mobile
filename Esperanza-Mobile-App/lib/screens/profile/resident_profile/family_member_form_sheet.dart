@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../models/resident_profile.dart';
 import '../../../theme/app_colors.dart';
+import '../../../theme/app_spacing.dart';
 import '../../../widgets/app_button.dart';
 import '../../../widgets/app_date_field.dart';
 import '../../../widgets/app_text_field.dart';
@@ -86,7 +87,10 @@ class _FamilyMemberFormSheetState extends State<FamilyMemberFormSheet> {
           top: false,
           child: Container(
             margin: const EdgeInsets.fromLTRB(0, 12, 0, 0),
-            decoration: const BoxDecoration(color: Colors.white, borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+            ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -104,7 +108,11 @@ class _FamilyMemberFormSheetState extends State<FamilyMemberFormSheet> {
                         alignment: Alignment.centerLeft,
                         child: Text(
                           widget.existing == null ? 'Add Family Member' : 'Edit Family Member',
-                          style: const TextStyle(fontSize: 15.5, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
+                          style: const TextStyle(
+                            fontSize: 15.5,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.textPrimary,
+                          ),
                         ),
                       ),
                     ],
@@ -139,7 +147,11 @@ class _FamilyMemberFormSheetState extends State<FamilyMemberFormSheet> {
                             ),
                             const SizedBox(width: 12),
                             Expanded(
-                              child: AppDateField(label: 'Birthdate', value: _birthdate, onChanged: (d) => setState(() => _birthdate = d)),
+                              child: AppDateField(
+                                label: 'Birthdate',
+                                value: _birthdate,
+                                onChanged: (d) => setState(() => _birthdate = d),
+                              ),
                             ),
                           ],
                         ),
@@ -155,21 +167,29 @@ class _FamilyMemberFormSheetState extends State<FamilyMemberFormSheet> {
                         AppTextField(label: 'Occupation', controller: _occupation, icon: Icons.work_outline_rounded),
                         const SizedBox(height: 14),
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: AppSpacing.xs),
                           decoration: BoxDecoration(color: AppColors.slate50, borderRadius: BorderRadius.circular(12)),
                           child: Row(
                             children: [
                               const Expanded(
                                 child: Text(
                                   'Has Esperanza Account?',
-                                  style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w500, color: AppColors.slate700),
+                                  style: TextStyle(
+                                    fontSize: 13.5,
+                                    fontWeight: FontWeight.w500,
+                                    color: AppColors.slate700,
+                                  ),
                                 ),
                               ),
-                              Switch(value: _hasAccount, onChanged: (v) => setState(() => _hasAccount = v), activeThumbColor: AppColors.brand500),
+                              Switch(
+                                value: _hasAccount,
+                                onChanged: (v) => setState(() => _hasAccount = v),
+                                activeThumbColor: AppColors.brand500,
+                              ),
                             ],
                           ),
                         ),
-                        const SizedBox(height: 4),
+                        const SizedBox(height: AppSpacing.xs),
                         const Text(
                           'It\'s okay if they don\'t have one — children, seniors, and dependents can still be added.',
                           style: TextStyle(fontSize: 11, color: AppColors.textMuted, height: 1.3),

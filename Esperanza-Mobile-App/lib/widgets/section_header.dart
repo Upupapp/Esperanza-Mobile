@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
+import '../theme/app_typography.dart';
 
 class SectionHeader extends StatelessWidget {
   final String title;
@@ -21,12 +22,7 @@ class SectionHeader extends StatelessWidget {
           // to the "View all" action can overflow horizontally instead of
           // respecting the row's actual available width.
           Expanded(
-            child: Text(
-              title,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
-            ),
+            child: Text(title, maxLines: 1, overflow: TextOverflow.ellipsis, style: AppTypography.h3),
           ),
           if (actionLabel != null) ...[
             const SizedBox(width: AppSpacing.sm),
@@ -35,7 +31,10 @@ class SectionHeader extends StatelessWidget {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text(actionLabel!, style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w500, color: AppColors.brand600)),
+                  Text(
+                    actionLabel!,
+                    style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w500, color: AppColors.brand600),
+                  ),
                   const SizedBox(width: 2),
                   const Icon(Icons.arrow_forward_rounded, size: 14, color: AppColors.brand600),
                 ],

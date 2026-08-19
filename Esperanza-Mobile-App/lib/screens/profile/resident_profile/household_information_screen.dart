@@ -123,7 +123,12 @@ class _HouseholdInformationScreenState extends State<HouseholdInformationScreen>
       builder: (_) => const _OtherFamilyFormSheet(),
     );
     if (result != null && mounted) {
-      await _service.addOtherFamilyToHousehold(_accountId, result.familyName, headName: result.headName, members: result.members);
+      await _service.addOtherFamilyToHousehold(
+        _accountId,
+        result.familyName,
+        headName: result.headName,
+        members: result.members,
+      );
     }
   }
 
@@ -182,7 +187,12 @@ class _HouseholdInformationScreenState extends State<HouseholdInformationScreen>
                     labelBuilder: (v) => v,
                     onChanged: (v) => setState(() => _housingType = v),
                   ),
-                  AppTextField(label: 'Number of rooms', controller: _numberOfRooms, keyboardType: TextInputType.number, icon: Icons.meeting_room_outlined),
+                  AppTextField(
+                    label: 'Number of rooms',
+                    controller: _numberOfRooms,
+                    keyboardType: TextInputType.number,
+                    icon: Icons.meeting_room_outlined,
+                  ),
                 ],
               ),
               const SizedBox(height: AppSpacing.lg),
@@ -211,14 +221,21 @@ class _HouseholdInformationScreenState extends State<HouseholdInformationScreen>
                     onChanged: (v) => setState(() => _electricitySource = v),
                   ),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: AppSpacing.xs),
                     decoration: BoxDecoration(color: AppColors.slate50, borderRadius: BorderRadius.circular(12)),
                     child: Row(
                       children: [
                         const Expanded(
-                          child: Text('Internet Access', style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w500, color: AppColors.slate700)),
+                          child: Text(
+                            'Internet Access',
+                            style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w500, color: AppColors.slate700),
+                          ),
                         ),
-                        Switch(value: _hasInternet, onChanged: (v) => setState(() => _hasInternet = v), activeThumbColor: AppColors.brand500),
+                        Switch(
+                          value: _hasInternet,
+                          onChanged: (v) => setState(() => _hasInternet = v),
+                          activeThumbColor: AppColors.brand500,
+                        ),
                       ],
                     ),
                   ),
@@ -243,7 +260,9 @@ class _HouseholdInformationScreenState extends State<HouseholdInformationScreen>
                 description: 'A household can include more than one family living together.',
                 children: [
                   _FamilyChip(
-                    name: profile.familyName.trim().isEmpty ? '${context.watch<CitizenSessionService>().account!.lastName} Family' : profile.familyName,
+                    name: profile.familyName.trim().isEmpty
+                        ? '${context.watch<CitizenSessionService>().account!.lastName} Family'
+                        : profile.familyName,
                     isOwn: true,
                   ),
                   for (final f in profile.household.otherFamilies)
@@ -253,7 +272,7 @@ class _HouseholdInformationScreenState extends State<HouseholdInformationScreen>
                       memberCount: f.members.length,
                       onRemove: () => _removeOtherFamily(f.familyId),
                     ),
-                  const SizedBox(height: 4),
+                  const SizedBox(height: AppSpacing.xs),
                   OutlinedButton.icon(
                     onPressed: _addOtherFamily,
                     icon: const Icon(Icons.add_rounded, size: 17),
@@ -266,7 +285,13 @@ class _HouseholdInformationScreenState extends State<HouseholdInformationScreen>
                 Text(_error!, style: const TextStyle(fontSize: 12.5, color: AppColors.rose600)),
               ],
               const SizedBox(height: AppSpacing.xxl),
-              AppButton(label: 'Save & Continue', onPressed: () => _save(markComplete: true), loading: _saving, fullWidth: true, size: AppButtonSize.lg),
+              AppButton(
+                label: 'Save & Continue',
+                onPressed: () => _save(markComplete: true),
+                loading: _saving,
+                fullWidth: true,
+                size: AppButtonSize.lg,
+              ),
               const SizedBox(height: AppSpacing.sm),
               AppButton(
                 label: 'Save for Later',
@@ -290,11 +315,16 @@ class _CompositionRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
+      padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
       child: Row(
         children: [
-          Expanded(child: Text(label, style: const TextStyle(fontSize: 13, color: AppColors.slate600))),
-          Text(value, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
+          Expanded(
+            child: Text(label, style: const TextStyle(fontSize: 13, color: AppColors.slate600)),
+          ),
+          Text(
+            value,
+            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
+          ),
         ],
       ),
     );
@@ -321,7 +351,7 @@ class _FamilyChip extends StatelessWidget {
     ];
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: 10),
       decoration: BoxDecoration(
         color: isOwn ? AppColors.brand50 : AppColors.slate50,
         borderRadius: BorderRadius.circular(12),
@@ -336,7 +366,11 @@ class _FamilyChip extends StatelessWidget {
               children: [
                 Text(
                   name,
-                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: isOwn ? AppColors.brand700 : AppColors.slate700),
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: isOwn ? AppColors.brand700 : AppColors.slate700,
+                  ),
                 ),
                 if (subtitleParts.isNotEmpty)
                   Text(subtitleParts.join(' · '), style: const TextStyle(fontSize: 11, color: AppColors.textMuted)),
@@ -344,7 +378,10 @@ class _FamilyChip extends StatelessWidget {
             ),
           ),
           if (isOwn)
-            const Text('Your family', style: TextStyle(fontSize: 11, color: AppColors.brand600, fontWeight: FontWeight.w600))
+            const Text(
+              'Your family',
+              style: TextStyle(fontSize: 11, color: AppColors.brand600, fontWeight: FontWeight.w600),
+            )
           else if (onRemove != null)
             IconButton(
               onPressed: onRemove,
@@ -421,9 +458,9 @@ class _OtherFamilyFormSheetState extends State<_OtherFamilyFormSheet> {
         if (_memberNames[i].text.trim().isNotEmpty)
           OtherFamilyMember(name: _memberNames[i].text.trim(), relationship: _memberRelationships[i] ?? ''),
     ];
-    Navigator.of(context).pop(
-      _OtherFamilyResult(familyName: _familyName.text.trim(), headName: _headName.text.trim(), members: members),
-    );
+    Navigator.of(
+      context,
+    ).pop(_OtherFamilyResult(familyName: _familyName.text.trim(), headName: _headName.text.trim(), members: members));
   }
 
   @override
@@ -432,7 +469,7 @@ class _OtherFamilyFormSheetState extends State<_OtherFamilyFormSheet> {
       padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
       child: SafeArea(
         child: Container(
-          margin: const EdgeInsets.all(12),
+          margin: const EdgeInsets.all(AppSpacing.md),
           constraints: BoxConstraints(maxHeight: MediaQuery.sizeOf(context).height * 0.85),
           decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20)),
           child: SingleChildScrollView(
@@ -441,17 +478,27 @@ class _OtherFamilyFormSheetState extends State<_OtherFamilyFormSheet> {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Text('Add Another Family', style: TextStyle(fontSize: 15.5, fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
-                const SizedBox(height: 4),
+                const Text(
+                  'Add Another Family',
+                  style: TextStyle(fontSize: 15.5, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
+                ),
+                const SizedBox(height: AppSpacing.xs),
                 const Text(
                   'A different family group living in this same household.',
                   style: TextStyle(fontSize: 12, color: AppColors.textMuted, height: 1.35),
                 ),
                 const SizedBox(height: AppSpacing.lg),
                 AppTextField(label: 'Family name', controller: _familyName, icon: Icons.diversity_3_outlined),
-                AppTextField(label: 'Family head (optional)', controller: _headName, icon: Icons.person_outline_rounded),
+                AppTextField(
+                  label: 'Family head (optional)',
+                  controller: _headName,
+                  icon: Icons.person_outline_rounded,
+                ),
                 const SizedBox(height: AppSpacing.md),
-                const Text('Family Members', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.slate600)),
+                const Text(
+                  'Family Members',
+                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.slate600),
+                ),
                 const SizedBox(height: AppSpacing.sm),
                 for (var i = 0; i < _memberNames.length; i++)
                   Padding(
@@ -461,9 +508,13 @@ class _OtherFamilyFormSheetState extends State<_OtherFamilyFormSheet> {
                       children: [
                         Expanded(
                           flex: 3,
-                          child: AppTextField(label: 'Name', controller: _memberNames[i], icon: Icons.person_outline_rounded),
+                          child: AppTextField(
+                            label: 'Name',
+                            controller: _memberNames[i],
+                            icon: Icons.person_outline_rounded,
+                          ),
                         ),
-                        const SizedBox(width: 8),
+                        const SizedBox(width: AppSpacing.sm),
                         Expanded(
                           flex: 3,
                           child: AppSelectField<String>(
@@ -496,10 +547,16 @@ class _OtherFamilyFormSheetState extends State<_OtherFamilyFormSheet> {
                 Row(
                   children: [
                     Expanded(
-                      child: AppButton(label: 'Cancel', variant: AppButtonVariant.ghost, onPressed: () => Navigator.of(context).pop()),
+                      child: AppButton(
+                        label: 'Cancel',
+                        variant: AppButtonVariant.ghost,
+                        onPressed: () => Navigator.of(context).pop(),
+                      ),
                     ),
                     const SizedBox(width: AppSpacing.sm),
-                    Expanded(child: AppButton(label: 'Add Family', onPressed: _submit)),
+                    Expanded(
+                      child: AppButton(label: 'Add Family', onPressed: _submit),
+                    ),
                   ],
                 ),
               ],

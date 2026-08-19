@@ -54,7 +54,8 @@ class _ReviewSubmitScreenState extends State<ReviewSubmitScreen> {
             _SummaryCard(
               title: 'Personal Information',
               status: profile.personalStatus,
-              onEdit: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const PersonalInformationScreen())),
+              onEdit: () =>
+                  Navigator.of(context).push(MaterialPageRoute(builder: (_) => const PersonalInformationScreen())),
               rows: [
                 profile.personal.fullName.trim().isEmpty ? '—' : profile.personal.fullName,
                 if (profile.personal.barangay.isNotEmpty) 'Brgy. ${profile.personal.barangay}',
@@ -64,7 +65,8 @@ class _ReviewSubmitScreenState extends State<ReviewSubmitScreen> {
             _SummaryCard(
               title: 'Family',
               status: profile.familyStatus,
-              onEdit: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const FamilyInformationScreen())),
+              onEdit: () =>
+                  Navigator.of(context).push(MaterialPageRoute(builder: (_) => const FamilyInformationScreen())),
               rows: [
                 profile.familyName.trim().isEmpty ? '—' : profile.familyName,
                 'Head of Family: ${profile.headIndividual.fullName.isEmpty ? account.fullName : profile.headIndividual.fullName}',
@@ -75,7 +77,8 @@ class _ReviewSubmitScreenState extends State<ReviewSubmitScreen> {
             _SummaryCard(
               title: 'Household',
               status: profile.householdStatus,
-              onEdit: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const HouseholdInformationScreen())),
+              onEdit: () =>
+                  Navigator.of(context).push(MaterialPageRoute(builder: (_) => const HouseholdInformationScreen())),
               rows: [
                 if (profile.household.barangay.isNotEmpty) 'Brgy. ${profile.household.barangay}',
                 if (profile.household.sitioPurok.isNotEmpty) 'Sitio ${profile.household.sitioPurok}',
@@ -90,9 +93,15 @@ class _ReviewSubmitScreenState extends State<ReviewSubmitScreen> {
                   const Icon(Icons.attach_file_rounded, size: 18, color: AppColors.slate500),
                   const SizedBox(width: 10),
                   const Expanded(
-                    child: Text('Supporting Documents', style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
+                    child: Text(
+                      'Supporting Documents',
+                      style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
+                    ),
                   ),
-                  Text('${profile.documentCount} Attached', style: const TextStyle(fontSize: 12.5, color: AppColors.textMuted)),
+                  Text(
+                    '${profile.documentCount} Attached',
+                    style: const TextStyle(fontSize: 12.5, color: AppColors.textMuted),
+                  ),
                 ],
               ),
             ),
@@ -105,7 +114,7 @@ class _ReviewSubmitScreenState extends State<ReviewSubmitScreen> {
                 child: const Row(
                   children: [
                     Icon(Icons.info_outline_rounded, size: 16, color: AppColors.amber700),
-                    SizedBox(width: 8),
+                    SizedBox(width: AppSpacing.sm),
                     Expanded(
                       child: Text(
                         'Complete Personal, Family, and Household Information before submitting.',
@@ -144,8 +153,16 @@ class _SummaryCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(title.toUpperCase(), style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.textMuted, letterSpacing: 0.4)),
-          const SizedBox(height: 8),
+          Text(
+            title.toUpperCase(),
+            style: const TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+              color: AppColors.textMuted,
+              letterSpacing: 0.4,
+            ),
+          ),
+          const SizedBox(height: AppSpacing.sm),
           Row(
             children: [
               // Flexible (not a bare child): a non-flex sibling of Spacer()
@@ -157,7 +174,10 @@ class _SummaryCard extends StatelessWidget {
               const Spacer(),
               GestureDetector(
                 onTap: onEdit,
-                child: const Text('Edit', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: AppColors.brand600)),
+                child: const Text(
+                  'Edit',
+                  style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: AppColors.brand600),
+                ),
               ),
             ],
           ),
@@ -165,7 +185,10 @@ class _SummaryCard extends StatelessWidget {
           for (final r in rows)
             Padding(
               padding: const EdgeInsets.only(bottom: 2),
-              child: Text(r, style: const TextStyle(fontSize: 13.5, color: AppColors.slate700, fontWeight: FontWeight.w500)),
+              child: Text(
+                r,
+                style: const TextStyle(fontSize: 13.5, color: AppColors.slate700, fontWeight: FontWeight.w500),
+              ),
             ),
         ],
       ),

@@ -1,5 +1,4 @@
 import 'dart:typed_data';
-import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
@@ -10,6 +9,7 @@ import '../../../services/resident_profile_service.dart';
 import '../../../theme/app_colors.dart';
 import '../../../theme/app_spacing.dart';
 import '../../../utils/cross_platform_image.dart';
+import '../../../utils/protected_action.dart';
 import '../../../widgets/app_button.dart';
 import '../../../widgets/app_date_field.dart';
 import '../../../widgets/app_dialogs.dart';
@@ -90,42 +90,54 @@ class _PersonalInformationScreenState extends State<PersonalInformationScreen> {
 
   @override
   void dispose() {
-    for (final c in [_firstName, _middleName, _lastName, _suffix, _mobile, _email, _sitioPurok, _completeAddress, _occupation]) {
+    for (final c in [
+      _firstName,
+      _middleName,
+      _lastName,
+      _suffix,
+      _mobile,
+      _email,
+      _sitioPurok,
+      _completeAddress,
+      _occupation,
+    ]) {
       c.dispose();
     }
     super.dispose();
   }
 
   Individual _buildUpdated() => Individual(
-        individualId: _original.individualId,
-        firstName: _firstName.text.trim(),
-        middleName: _middleName.text.trim(),
-        lastName: _lastName.text.trim(),
-        suffix: _suffix.text.trim(),
-        sex: _sex ?? '',
-        birthdate: _birthdate,
-        civilStatus: _civilStatus ?? '',
-        mobile: _mobile.text.trim(),
-        email: _email.text.trim(),
-        barangay: _barangay ?? '',
-        sitioPurok: _sitioPurok.text.trim(),
-        completeAddress: _completeAddress.text.trim(),
-        occupation: _occupation.text.trim(),
-        educationalAttainment: _educationalAttainment ?? '',
-        isSeniorCitizen: _senior,
-        isPWD: _pwd,
-        isSoloParent: _soloParent,
-        isVoter: _voter,
-        photoPath: _photoPath,
-        documentPaths: _documentPaths,
-        hasEsperanzaAccount: true,
-        linkedCitizenAccountId: _original.individualId,
-        familyId: _original.familyId,
-        householdId: _original.householdId,
-      );
+    individualId: _original.individualId,
+    firstName: _firstName.text.trim(),
+    middleName: _middleName.text.trim(),
+    lastName: _lastName.text.trim(),
+    suffix: _suffix.text.trim(),
+    sex: _sex ?? '',
+    birthdate: _birthdate,
+    civilStatus: _civilStatus ?? '',
+    mobile: _mobile.text.trim(),
+    email: _email.text.trim(),
+    barangay: _barangay ?? '',
+    sitioPurok: _sitioPurok.text.trim(),
+    completeAddress: _completeAddress.text.trim(),
+    occupation: _occupation.text.trim(),
+    educationalAttainment: _educationalAttainment ?? '',
+    isSeniorCitizen: _senior,
+    isPWD: _pwd,
+    isSoloParent: _soloParent,
+    isVoter: _voter,
+    photoPath: _photoPath,
+    documentPaths: _documentPaths,
+    hasEsperanzaAccount: true,
+    linkedCitizenAccountId: _original.individualId,
+    familyId: _original.familyId,
+    householdId: _original.householdId,
+  );
 
   String? _missingFieldError() {
-    if (_firstName.text.trim().isEmpty || _lastName.text.trim().isEmpty) return 'Please enter your first and last name.';
+    if (_firstName.text.trim().isEmpty || _lastName.text.trim().isEmpty) {
+      return 'Please enter your first and last name.';
+    }
     if (_sex == null) return 'Please select your sex.';
     if (_birthdate == null) return 'Please select your birthdate.';
     if (_civilStatus == null) return 'Please select your civil status.';
@@ -160,7 +172,7 @@ class _PersonalInformationScreenState extends State<PersonalInformationScreen> {
   }
 
   Future<void> _pickPhoto() async {
-    final file = await ImagePicker().pickImage(source: ImageSource.gallery, imageQuality: 85);
+    final file = await pickImageProtected(context, source: ImageSource.gallery);
     if (file == null || !mounted) return;
     // Read bytes up front — on Flutter Web, `file.path` is a blob: URL
     // that `dart:io`'s `File()` cannot open, so preview must not depend on
@@ -176,7 +188,10 @@ class _PersonalInformationScreenState extends State<PersonalInformationScreen> {
   Future<void> _pickDocument() async {
     // withData: true is required for this to work at all on Flutter Web —
     // web never provides PlatformFile.path, only .bytes.
-    final result = await FilePicker.pickFiles(type: FileType.custom, allowedExtensions: ['pdf', 'doc', 'docx', 'jpg', 'jpeg', 'png'], withData: true);
+    final result = await pickDocumentProtected(
+      context,
+      allowedExtensions: ['pdf', 'doc', 'docx', 'jpg', 'jpeg', 'png'],
+    );
     if (result == null || result.files.isEmpty || !mounted) return;
     final f = result.files.single;
     if (f.bytes == null) return;
@@ -211,16 +226,25 @@ class _PersonalInformationScreenState extends State<PersonalInformationScreen> {
                 children: [
                   Row(
                     children: [
-                      Expanded(child: AppTextField(label: 'First name', controller: _firstName)),
+                      Expanded(
+                        child: AppTextField(label: 'First name', controller: _firstName),
+                      ),
                       const SizedBox(width: AppSpacing.md),
-                      Expanded(child: AppTextField(label: 'Middle name', controller: _middleName)),
+                      Expanded(
+                        child: AppTextField(label: 'Middle name', controller: _middleName),
+                      ),
                     ],
                   ),
                   Row(
                     children: [
-                      Expanded(flex: 2, child: AppTextField(label: 'Last name', controller: _lastName)),
+                      Expanded(
+                        flex: 2,
+                        child: AppTextField(label: 'Last name', controller: _lastName),
+                      ),
                       const SizedBox(width: AppSpacing.md),
-                      Expanded(child: AppTextField(label: 'Suffix', controller: _suffix, hintText: 'Jr., Sr., III')),
+                      Expanded(
+                        child: AppTextField(label: 'Suffix', controller: _suffix, hintText: 'Jr., Sr., III'),
+                      ),
                     ],
                   ),
                   Row(
@@ -257,8 +281,19 @@ class _PersonalInformationScreenState extends State<PersonalInformationScreen> {
               FormSection(
                 title: 'Contact Information',
                 children: [
-                  AppTextField(label: 'Mobile number', controller: _mobile, keyboardType: TextInputType.phone, icon: Icons.phone_outlined, hintText: '09XX XXX XXXX'),
-                  AppTextField(label: 'Email address', controller: _email, keyboardType: TextInputType.emailAddress, icon: Icons.mail_outline_rounded),
+                  AppTextField(
+                    label: 'Mobile number',
+                    controller: _mobile,
+                    keyboardType: TextInputType.phone,
+                    icon: Icons.phone_outlined,
+                    hintText: '09XX XXX XXXX',
+                  ),
+                  AppTextField(
+                    label: 'Email address',
+                    controller: _email,
+                    keyboardType: TextInputType.emailAddress,
+                    icon: Icons.mail_outline_rounded,
+                  ),
                 ],
               ),
               const SizedBox(height: AppSpacing.lg),
@@ -295,10 +330,26 @@ class _PersonalInformationScreenState extends State<PersonalInformationScreen> {
                 title: 'Classifications',
                 description: 'Select any that apply to you.',
                 children: [
-                  _ClassificationSwitch(label: 'Senior Citizen', value: _senior, onChanged: (v) => setState(() => _senior = v)),
-                  _ClassificationSwitch(label: 'Person with Disability (PWD)', value: _pwd, onChanged: (v) => setState(() => _pwd = v)),
-                  _ClassificationSwitch(label: 'Solo Parent', value: _soloParent, onChanged: (v) => setState(() => _soloParent = v)),
-                  _ClassificationSwitch(label: 'Registered Voter', value: _voter, onChanged: (v) => setState(() => _voter = v)),
+                  _ClassificationSwitch(
+                    label: 'Senior Citizen',
+                    value: _senior,
+                    onChanged: (v) => setState(() => _senior = v),
+                  ),
+                  _ClassificationSwitch(
+                    label: 'Person with Disability (PWD)',
+                    value: _pwd,
+                    onChanged: (v) => setState(() => _pwd = v),
+                  ),
+                  _ClassificationSwitch(
+                    label: 'Solo Parent',
+                    value: _soloParent,
+                    onChanged: (v) => setState(() => _soloParent = v),
+                  ),
+                  _ClassificationSwitch(
+                    label: 'Registered Voter',
+                    value: _voter,
+                    onChanged: (v) => setState(() => _voter = v),
+                  ),
                 ],
               ),
               const SizedBox(height: AppSpacing.lg),
@@ -307,7 +358,10 @@ class _PersonalInformationScreenState extends State<PersonalInformationScreen> {
                 description: 'Optional — a valid ID or proof of residency helps LGU verification.',
                 children: [
                   for (final path in _documentPaths)
-                    _DocumentTile(path: path, onRemove: () => setState(() => _documentPaths = _documentPaths.where((d) => d != path).toList())),
+                    _DocumentTile(
+                      path: path,
+                      onRemove: () => setState(() => _documentPaths = _documentPaths.where((d) => d != path).toList()),
+                    ),
                   OutlinedButton.icon(
                     onPressed: _pickDocument,
                     icon: const Icon(Icons.attach_file_rounded, size: 16),
@@ -320,7 +374,13 @@ class _PersonalInformationScreenState extends State<PersonalInformationScreen> {
                 Text(_error!, style: const TextStyle(fontSize: 12.5, color: AppColors.rose600)),
               ],
               const SizedBox(height: AppSpacing.xxl),
-              AppButton(label: 'Save & Continue', onPressed: () => _save(markComplete: true), loading: _saving, fullWidth: true, size: AppButtonSize.lg),
+              AppButton(
+                label: 'Save & Continue',
+                onPressed: () => _save(markComplete: true),
+                loading: _saving,
+                fullWidth: true,
+                size: AppButtonSize.lg,
+              ),
               const SizedBox(height: AppSpacing.sm),
               AppButton(
                 label: 'Save for Later',
@@ -356,7 +416,9 @@ class _PhotoPicker extends StatelessWidget {
                 backgroundColor: AppColors.brand50,
                 backgroundImage: provider,
                 onBackgroundImageError: provider != null ? (error, stackTrace) {} : null,
-                child: provider == null ? const Icon(Icons.person_outline_rounded, size: 34, color: AppColors.brand400) : null,
+                child: provider == null
+                    ? const Icon(Icons.person_outline_rounded, size: 34, color: AppColors.brand400)
+                    : null,
               ),
               Positioned(
                 bottom: 0,
@@ -367,15 +429,21 @@ class _PhotoPicker extends StatelessWidget {
                   child: InkWell(
                     customBorder: const CircleBorder(),
                     onTap: onPick,
-                    child: const Padding(padding: EdgeInsets.all(7), child: Icon(Icons.camera_alt_rounded, size: 15, color: Colors.white)),
+                    child: const Padding(
+                      padding: EdgeInsets.all(7),
+                      child: Icon(Icons.camera_alt_rounded, size: 15, color: Colors.white),
+                    ),
                   ),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: AppSpacing.sm),
           if (photoPath != null)
-            TextButton(onPressed: onRemove, child: const Text('Remove photo', style: TextStyle(fontSize: 12)))
+            TextButton(
+              onPressed: onRemove,
+              child: const Text('Remove photo', style: TextStyle(fontSize: 12)),
+            )
           else
             Text('Profile photo (optional)', style: const TextStyle(fontSize: 12, color: AppColors.textMuted)),
         ],
@@ -396,10 +464,15 @@ class _ClassificationSwitch extends StatelessWidget {
       onTap: () => onChanged(!value),
       borderRadius: BorderRadius.circular(10),
       child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 4),
+        padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
         child: Row(
           children: [
-            Expanded(child: Text(label, style: const TextStyle(fontSize: 13.5, color: AppColors.slate700, fontWeight: FontWeight.w500))),
+            Expanded(
+              child: Text(
+                label,
+                style: const TextStyle(fontSize: 13.5, color: AppColors.slate700, fontWeight: FontWeight.w500),
+              ),
+            ),
             Switch(value: value, onChanged: onChanged, activeThumbColor: AppColors.brand500),
           ],
         ),
@@ -424,13 +497,22 @@ class _DocumentTile extends StatelessWidget {
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.all(10),
-      decoration: BoxDecoration(color: AppColors.slate50, borderRadius: BorderRadius.circular(12), border: Border.all(color: AppColors.border)),
+      decoration: BoxDecoration(
+        color: AppColors.slate50,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.border),
+      ),
       child: Row(
         children: [
           const Icon(Icons.insert_drive_file_outlined, size: 18, color: AppColors.slate500),
           const SizedBox(width: 10),
           Expanded(
-            child: Text(_fileName, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w500, color: AppColors.slate700)),
+            child: Text(
+              _fileName,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w500, color: AppColors.slate700),
+            ),
           ),
           IconButton(
             onPressed: onRemove,

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
+import '../theme/app_spacing.dart';
 
 /// Progress indicator for the registration/verification wizard (Section
 /// 9) — a labeled "Step X of Y" line plus a row of segment bars, rather
@@ -24,7 +25,7 @@ class OnboardingStepIndicator extends StatelessWidget {
               'Step ${currentStep + 1} of ${stepLabels.length}',
               style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.brand600),
             ),
-            const SizedBox(width: 8),
+            const SizedBox(width: AppSpacing.sm),
             Expanded(
               child: Text(
                 stepLabels[currentStep],
@@ -39,7 +40,7 @@ class OnboardingStepIndicator extends StatelessWidget {
         Row(
           children: [
             for (int i = 0; i < stepLabels.length; i++) ...[
-              if (i > 0) const SizedBox(width: 4),
+              if (i > 0) const SizedBox(width: AppSpacing.xs),
               Expanded(
                 child: AnimatedContainer(
                   duration: const Duration(milliseconds: 250),

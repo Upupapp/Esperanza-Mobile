@@ -34,7 +34,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 SwitchListTile(
                   value: _pushEnabled,
                   onChanged: (v) => setState(() => _pushEnabled = v),
-                  title: const Text('Push notifications', style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w500)),
+                  title: const Text(
+                    'Push notifications',
+                    style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w500),
+                  ),
                   subtitle: const Text('Request status updates and announcements', style: TextStyle(fontSize: 11.5)),
                   activeThumbColor: AppColors.brand500,
                 ),
@@ -42,7 +45,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 SwitchListTile(
                   value: _emailEnabled,
                   onChanged: (v) => setState(() => _emailEnabled = v),
-                  title: const Text('Email notifications', style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w500)),
+                  title: const Text(
+                    'Email notifications',
+                    style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w500),
+                  ),
                   subtitle: const Text('Copy of important updates by email', style: TextStyle(fontSize: 11.5)),
                   activeThumbColor: AppColors.brand500,
                 ),
@@ -58,11 +64,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
               onChanged: (v) => setState(() => _language = v!),
               child: Column(
                 children: ['Filipino', 'English']
-                    .map((lang) => RadioListTile<String>(
-                          value: lang,
-                          title: Text(lang, style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w500)),
-                          activeColor: AppColors.brand500,
-                        ))
+                    .map(
+                      (lang) => RadioListTile<String>(
+                        value: lang,
+                        title: Text(lang, style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w500)),
+                        activeColor: AppColors.brand500,
+                      ),
+                    )
                     .toList(),
               ),
             ),
@@ -74,10 +82,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: const [
                 Text('Esperanza Mobile', style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600)),
-                SizedBox(height: 4),
-                Text('Version 1.0.0 (Frontend Preview Build)', style: TextStyle(fontSize: 12, color: AppColors.textMuted)),
-                SizedBox(height: 4),
-                Text('Municipality of Esperanza, Masbate — Region V (Bicol Region)', style: TextStyle(fontSize: 12, color: AppColors.textMuted)),
+                SizedBox(height: AppSpacing.xs),
+                Text(
+                  'Version 1.0.0 (Frontend Preview Build)',
+                  style: TextStyle(fontSize: 12, color: AppColors.textMuted),
+                ),
+                SizedBox(height: AppSpacing.xs),
+                Text(
+                  'Municipality of Esperanza, Masbate — Region V (Bicol Region)',
+                  style: TextStyle(fontSize: 12, color: AppColors.textMuted),
+                ),
               ],
             ),
           ),
@@ -94,7 +108,15 @@ class _SectionLabel extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 8, left: 4),
-      child: Text(text.toUpperCase(), style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppColors.textMuted, letterSpacing: 0.5)),
+      child: Text(
+        text.toUpperCase(),
+        style: const TextStyle(
+          fontSize: 11,
+          fontWeight: FontWeight.w600,
+          color: AppColors.textMuted,
+          letterSpacing: 0.5,
+        ),
+      ),
     );
   }
 }

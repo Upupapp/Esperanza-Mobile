@@ -49,15 +49,24 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
   void initState() {
     super.initState();
     _controller = AnimationController(vsync: this, duration: _animationDuration);
-    _logoOpacity = CurvedAnimation(parent: _controller, curve: const Interval(0.0, 0.46, curve: Curves.easeOut));
+    _logoOpacity = CurvedAnimation(
+      parent: _controller,
+      curve: const Interval(0.0, 0.46, curve: Curves.easeOut),
+    );
     _logoScale = Tween<double>(begin: 0.85, end: 1.0).animate(
-      CurvedAnimation(parent: _controller, curve: const Interval(0.0, 0.46, curve: Curves.easeOutCubic)),
+      CurvedAnimation(
+        parent: _controller,
+        curve: const Interval(0.0, 0.46, curve: Curves.easeOutCubic),
+      ),
     );
     // Starts once the logo is most of the way in, rather than waiting for
     // it to fully finish — reads as one connected sequence instead of two
     // separate beats. Finishes at 0.76, leaving the last ~24% of the
     // duration as a still hold with the finished branding fully visible.
-    _titleOpacity = CurvedAnimation(parent: _controller, curve: const Interval(0.34, 0.76, curve: Curves.easeOut));
+    _titleOpacity = CurvedAnimation(
+      parent: _controller,
+      curve: const Interval(0.34, 0.76, curve: Curves.easeOut),
+    );
     _run();
   }
 
@@ -78,9 +87,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
     // screen comes next while keeping exactly one route on the stack, so
     // that screen becomes the new *root* route. See AuthGate's doc
     // comment in main.dart for why that invariant matters.
-    Navigator.of(context).pushReplacement(
-      fadePageRoute(onboardingDone ? const AuthGate() : const OnboardingScreen()),
-    );
+    Navigator.of(context).pushReplacement(fadePageRoute(onboardingDone ? const AuthGate() : const OnboardingScreen()));
   }
 
   @override
@@ -112,7 +119,9 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                       height: 280,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        gradient: RadialGradient(colors: [AppColors.brand500.withValues(alpha: 0.28), Colors.transparent]),
+                        gradient: RadialGradient(
+                          colors: [AppColors.brand500.withValues(alpha: 0.28), Colors.transparent],
+                        ),
                       ),
                     ),
                   ),
@@ -132,7 +141,14 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                               border: Border.all(color: Colors.white.withValues(alpha: 0.2), width: 2),
                             ),
                             child: ClipOval(
-                              child: Image.asset('assets/images/esperanza-seal.png', fit: BoxFit.cover),
+                              // Source seal is 500x500; displayed at 112
+                              // logical px here, so cap decode to that (x
+                              // DPR) instead of the full source resolution.
+                              child: Image.asset(
+                                'assets/images/esperanza-seal.png',
+                                fit: BoxFit.cover,
+                                cacheWidth: (112 * MediaQuery.devicePixelRatioOf(context)).round(),
+                              ),
                             ),
                           ),
                         ),
@@ -142,7 +158,12 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                         opacity: _titleOpacity.value,
                         child: const Text(
                           'Esperanza Mobile',
-                          style: TextStyle(fontFamily: AppTypography.display, fontSize: 24, fontWeight: FontWeight.w600, color: Colors.white),
+                          style: TextStyle(
+                            fontFamily: AppTypography.display,
+                            fontSize: 24,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.white,
+                          ),
                         ),
                       ),
                     ],

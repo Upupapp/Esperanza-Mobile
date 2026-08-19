@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import '../models/citizen_account.dart';
 import '../theme/app_colors.dart';
+import '../theme/app_spacing.dart';
 import '../theme/app_status.dart';
+import '../theme/app_typography.dart';
 
 /// A tappable "quick demo login" row on the login screen. Previously this
 /// was an inline `OutlinedButton.styleFrom(padding: EdgeInsets.symmetric(
@@ -37,7 +39,7 @@ class DemoAccountCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
         onTap: onTap,
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: 14),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(12),
             border: Border.all(color: AppColors.slate200),
@@ -59,18 +61,18 @@ class DemoAccountCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Text(
-                      account.fullName,
-                      style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
-                    ),
+                    Text(account.fullName, style: AppTypography.cardTitle),
                     const SizedBox(height: 2),
-                    Text('Brgy. ${account.barangay}', style: const TextStyle(fontSize: 11.5, color: AppColors.textMuted)),
+                    Text(
+                      'Brgy. ${account.barangay}',
+                      style: const TextStyle(fontSize: 11.5, color: AppColors.textMuted),
+                    ),
                   ],
                 ),
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: AppSpacing.sm),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: AppSpacing.xs),
                 decoration: BoxDecoration(color: badgeBg, borderRadius: BorderRadius.circular(999)),
                 child: Text(
                   _isVerified ? 'Verified User' : 'Unverified User',

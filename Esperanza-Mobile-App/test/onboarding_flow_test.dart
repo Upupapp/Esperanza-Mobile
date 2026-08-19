@@ -23,9 +23,15 @@ void _setPhoneViewport(WidgetTester tester) {
 /// one loaded on screen (not a placeholder), plus the branding overlay
 /// that sits on top of every page.
 void _expectPageImageAndBrand(WidgetTester tester, String fileName) {
-  final imageFinder = find.byWidgetPredicate(
-    (w) => w is Image && w.image is AssetImage && (w.image as AssetImage).assetName == 'assets/images/$fileName',
-  );
+  final imageFinder = find.byWidgetPredicate((w) {
+    if (w is! Image) return false;
+    final provider = w.image;
+    // Image.asset(..., cacheWidth: ...) wraps its AssetImage in a
+    // ResizeImage (a display-size decode optimization) — unwrap it so
+    // this still matches regardless of whether cacheWidth is set.
+    final asset = provider is ResizeImage ? provider.imageProvider : provider;
+    return asset is AssetImage && asset.assetName == 'assets/images/$fileName';
+  });
   expect(imageFinder, findsOneWidget, reason: '$fileName should be loaded as this page\'s background');
   expect(find.text('Municipalidad ng Esperanza'), findsOneWidget);
 }
@@ -68,9 +74,7 @@ void main() {
     // the tree outright, so verify it that way rather than with
     // find.text(...findsNothing) — the Text widget itself stays mounted.
     _expectPageImageAndBrand(tester, 'Welcome Screen 3.png');
-    final skipOpacity = tester.widget<Opacity>(
-      find.ancestor(of: find.text('Skip'), matching: find.byType(Opacity)),
-    );
+    final skipOpacity = tester.widget<Opacity>(find.ancestor(of: find.text('Skip'), matching: find.byType(Opacity)));
     expect(skipOpacity.opacity, 0, reason: 'Skip should be invisible on the final screen');
     expect(find.text('Get Started'), findsOneWidget);
 

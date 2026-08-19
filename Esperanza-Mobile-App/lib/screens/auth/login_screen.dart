@@ -59,7 +59,10 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() => _loading = false);
 
     if (match.isEmpty) {
-      setState(() => _error = 'No resident account found for that email in this demo. Try a quick demo login below, or register.');
+      setState(
+        () => _error =
+            'No resident account found for that email in this demo. Try a quick demo login below, or register.',
+      );
       return;
     }
     await context.read<CitizenSessionService>().login(match.first);
@@ -100,7 +103,9 @@ class _LoginScreenState extends State<LoginScreen> {
                     height: 260,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      gradient: RadialGradient(colors: [AppColors.brand500.withValues(alpha: 0.28), Colors.transparent]),
+                      gradient: RadialGradient(
+                        colors: [AppColors.brand500.withValues(alpha: 0.28), Colors.transparent],
+                      ),
                     ),
                   ),
                 ),
@@ -115,13 +120,25 @@ class _LoginScreenState extends State<LoginScreen> {
                           border: Border.all(color: Colors.white.withValues(alpha: 0.2), width: 2),
                         ),
                         child: ClipOval(
-                          child: Image.asset('assets/images/esperanza-seal.png', fit: BoxFit.cover),
+                          // Source seal is 500x500; displayed at 84 logical
+                          // px here, so cap decode to that (x DPR) instead
+                          // of the full source resolution.
+                          child: Image.asset(
+                            'assets/images/esperanza-seal.png',
+                            fit: BoxFit.cover,
+                            cacheWidth: (84 * MediaQuery.devicePixelRatioOf(context)).round(),
+                          ),
                         ),
                       ),
                       const SizedBox(height: AppSpacing.lg),
                       const Text(
                         'Esperanza',
-                        style: TextStyle(fontFamily: 'Lora', fontSize: 26, fontWeight: FontWeight.w600, color: Colors.white),
+                        style: TextStyle(
+                          fontFamily: 'Lora',
+                          fontSize: 26,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.white,
+                        ),
                       ),
                       const SizedBox(height: 2),
                       Text(
@@ -135,14 +152,20 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
               const SizedBox(height: AppSpacing.xl),
               Container(
-                padding: const EdgeInsets.all(20),
+                padding: const EdgeInsets.all(AppSpacing.xl),
                 decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(24)),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    const Text('Welcome back', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
-                    const SizedBox(height: 4),
-                    const Text('Sign in to manage your requests.', style: TextStyle(fontSize: 12.5, color: AppColors.textMuted)),
+                    const Text(
+                      'Welcome back',
+                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
+                    ),
+                    const SizedBox(height: AppSpacing.xs),
+                    const Text(
+                      'Sign in to manage your requests.',
+                      style: TextStyle(fontSize: 12.5, color: AppColors.textMuted),
+                    ),
                     const SizedBox(height: AppSpacing.xl),
                     AppTextField(
                       label: 'Email address',
@@ -164,7 +187,13 @@ class _LoginScreenState extends State<LoginScreen> {
                       Text(_error!, style: const TextStyle(fontSize: 12.5, color: AppColors.rose600)),
                     ],
                     const SizedBox(height: AppSpacing.xl),
-                    AppButton(label: 'Sign In', onPressed: _submit, loading: _loading, fullWidth: true, size: AppButtonSize.lg),
+                    AppButton(
+                      label: 'Sign In',
+                      onPressed: _submit,
+                      loading: _loading,
+                      fullWidth: true,
+                      size: AppButtonSize.lg,
+                    ),
                     const SizedBox(height: AppSpacing.sm),
                     AppButton(
                       label: 'Continue as Guest',
@@ -178,7 +207,10 @@ class _LoginScreenState extends State<LoginScreen> {
                         const Expanded(child: Divider()),
                         Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 10),
-                          child: Text('or try a demo account', style: TextStyle(fontSize: 11, color: AppColors.textMuted)),
+                          child: Text(
+                            'or try a demo account',
+                            style: TextStyle(fontSize: 11, color: AppColors.textMuted),
+                          ),
                         ),
                         const Expanded(child: Divider()),
                       ],
@@ -187,10 +219,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     ...MockCatalog.demoAccounts.map(
                       (a) => Padding(
                         padding: const EdgeInsets.only(bottom: 10),
-                        child: DemoAccountCard(
-                          account: a,
-                          onTap: _loading ? null : () => _quickLogin(a),
-                        ),
+                        child: DemoAccountCard(account: a, onTap: _loading ? null : () => _quickLogin(a)),
                       ),
                     ),
                   ],
@@ -199,13 +228,17 @@ class _LoginScreenState extends State<LoginScreen> {
               const SizedBox(height: AppSpacing.xl),
               Center(
                 child: TextButton(
-                  onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const RegisterScreen())),
+                  onPressed: () =>
+                      Navigator.of(context).push(MaterialPageRoute(builder: (_) => const RegisterScreen())),
                   child: RichText(
                     text: TextSpan(
                       style: TextStyle(fontSize: 13, color: Colors.white.withValues(alpha: 0.7)),
                       children: const [
                         TextSpan(text: "Don't have an account? "),
-                        TextSpan(text: 'Register', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
+                        TextSpan(
+                          text: 'Register',
+                          style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+                        ),
                       ],
                     ),
                   ),

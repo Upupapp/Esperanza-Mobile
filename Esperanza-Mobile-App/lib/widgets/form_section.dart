@@ -20,9 +20,12 @@ class FormSection extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(title, style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
+          Text(
+            title,
+            style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
+          ),
           if (description != null) ...[
-            const SizedBox(height: 4),
+            const SizedBox(height: AppSpacing.xs),
             Text(description!, style: const TextStyle(fontSize: 12, color: AppColors.textMuted, height: 1.35)),
           ],
           const SizedBox(height: AppSpacing.lg),
@@ -31,10 +34,7 @@ class FormSection extends StatelessWidget {
           // of feeling compressed; especially relevant since some
           // Esperanza users are older adults who need clearly separated
           // touch targets and reading zones.
-          for (int i = 0; i < children.length; i++) ...[
-            if (i > 0) const SizedBox(height: 18),
-            children[i],
-          ],
+          for (int i = 0; i < children.length; i++) ...[if (i > 0) const SizedBox(height: 18), children[i]],
         ],
       ),
     );

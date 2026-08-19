@@ -237,7 +237,9 @@ class _ServiceRequestWizardScreenState extends State<ServiceRequestWizardScreen>
     for (final s in _serviceSteps) {
       for (final f in s.fields) {
         final dynamic raw = switch (f.type) {
-          ServiceFieldType.text || ServiceFieldType.textarea || ServiceFieldType.number => _controllers[f.key]?.text.trim(),
+          ServiceFieldType.text ||
+          ServiceFieldType.textarea ||
+          ServiceFieldType.number => _controllers[f.key]?.text.trim(),
           ServiceFieldType.date => (_values[f.key] as DateTime?)?.toIso8601String(),
           ServiceFieldType.select => _values[f.key],
           ServiceFieldType.multiselect => (_values[f.key] as Set<String>?)?.toList(),
@@ -293,9 +295,9 @@ class _ServiceRequestWizardScreenState extends State<ServiceRequestWizardScreen>
           referenceNumber: request.referenceNumber,
           typeName: request.typeName,
           accent: widget.accent,
-          onViewRequest: () => Navigator.of(context).pushReplacement(
-            MaterialPageRoute(builder: (_) => RequestDetailScreen(requestId: request.id)),
-          ),
+          onViewRequest: () => Navigator.of(
+            context,
+          ).pushReplacement(MaterialPageRoute(builder: (_) => RequestDetailScreen(requestId: request.id))),
         ),
       ),
     );
@@ -313,17 +315,19 @@ class _ServiceRequestWizardScreenState extends State<ServiceRequestWizardScreen>
               child: OnboardingStepIndicator(currentStep: _step, stepLabels: _stepLabels),
             ),
             Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.all(20),
-                child: _buildStep(),
-              ),
+              child: SingleChildScrollView(padding: const EdgeInsets.all(AppSpacing.xl), child: _buildStep()),
             ),
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
               child: Row(
                 children: [
                   Expanded(
-                    child: AppButton(label: 'Back', variant: AppButtonVariant.secondary, fullWidth: true, onPressed: _submitting ? null : _back),
+                    child: AppButton(
+                      label: 'Back',
+                      variant: AppButtonVariant.secondary,
+                      fullWidth: true,
+                      onPressed: _submitting ? null : _back,
+                    ),
                   ),
                   const SizedBox(width: AppSpacing.md),
                   Expanded(
@@ -387,9 +391,20 @@ class _ServiceRequestWizardScreenState extends State<ServiceRequestWizardScreen>
         const SizedBox(height: AppSpacing.lg),
         AppTextField(label: 'Purok / Sitio', controller: _purok, icon: Icons.place_outlined),
         const SizedBox(height: AppSpacing.lg),
-        AppTextField(label: 'Mobile number', controller: _contact, keyboardType: TextInputType.phone, icon: Icons.phone_outlined, hintText: '09XX XXX XXXX'),
+        AppTextField(
+          label: 'Mobile number',
+          controller: _contact,
+          keyboardType: TextInputType.phone,
+          icon: Icons.phone_outlined,
+          hintText: '09XX XXX XXXX',
+        ),
         const SizedBox(height: AppSpacing.lg),
-        AppTextField(label: 'Email address', controller: _email, keyboardType: TextInputType.emailAddress, icon: Icons.mail_outline_rounded),
+        AppTextField(
+          label: 'Email address',
+          controller: _email,
+          keyboardType: TextInputType.emailAddress,
+          icon: Icons.mail_outline_rounded,
+        ),
         if (_error != null) ...[
           const SizedBox(height: AppSpacing.md),
           Text(_error!, style: const TextStyle(fontSize: 12.5, color: AppColors.rose600)),
@@ -420,7 +435,12 @@ class _ServiceRequestWizardScreenState extends State<ServiceRequestWizardScreen>
       case ServiceFieldType.text:
         return AppTextField(label: f.label, hintText: f.hint, controller: _controllerFor(f.key));
       case ServiceFieldType.number:
-        return AppTextField(label: f.label, hintText: f.hint, controller: _controllerFor(f.key), keyboardType: TextInputType.number);
+        return AppTextField(
+          label: f.label,
+          hintText: f.hint,
+          controller: _controllerFor(f.key),
+          keyboardType: TextInputType.number,
+        );
       case ServiceFieldType.textarea:
         return AppTextField(label: f.label, hintText: f.hint, controller: _controllerFor(f.key), maxLines: 4);
       case ServiceFieldType.date:
@@ -465,14 +485,18 @@ class _ServiceRequestWizardScreenState extends State<ServiceRequestWizardScreen>
       children: [
         Container(
           padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(14), border: Border.all(color: AppColors.border)),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: AppColors.border),
+          ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
                 children: [
                   Icon(Icons.checklist_rounded, size: 16, color: widget.accent),
-                  const SizedBox(width: 8),
+                  const SizedBox(width: AppSpacing.sm),
                   const Text('Requirements', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
                 ],
               ),
@@ -484,8 +508,10 @@ class _ServiceRequestWizardScreenState extends State<ServiceRequestWizardScreen>
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       const Icon(Icons.check_circle_outline_rounded, size: 15, color: AppColors.emerald500),
-                      const SizedBox(width: 8),
-                      Expanded(child: Text(r, style: const TextStyle(fontSize: 12.5, color: AppColors.slate600, height: 1.3))),
+                      const SizedBox(width: AppSpacing.sm),
+                      Expanded(
+                        child: Text(r, style: const TextStyle(fontSize: 12.5, color: AppColors.slate600, height: 1.3)),
+                      ),
                     ],
                   ),
                 ),
@@ -501,9 +527,15 @@ class _ServiceRequestWizardScreenState extends State<ServiceRequestWizardScreen>
           maxLines: 3,
         ),
         const SizedBox(height: AppSpacing.xl),
-        const Text('Attach Requirements', style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600, color: AppColors.textPrimary)),
-        const SizedBox(height: 4),
-        const Text('Take a photo or choose a file for each requirement above.', style: TextStyle(fontSize: 12, color: AppColors.textMuted)),
+        const Text(
+          'Attach Requirements',
+          style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
+        ),
+        const SizedBox(height: AppSpacing.xs),
+        const Text(
+          'Take a photo or choose a file for each requirement above.',
+          style: TextStyle(fontSize: 12, color: AppColors.textMuted),
+        ),
         const SizedBox(height: AppSpacing.md),
         AttachmentPicker(
           documentTypeLabel: widget.item.name,
@@ -523,27 +555,49 @@ class _ServiceRequestWizardScreenState extends State<ServiceRequestWizardScreen>
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const Text('Review Your Request', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
+        const Text(
+          'Review Your Request',
+          style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
+        ),
         const SizedBox(height: 6),
-        const Text('Make sure everything looks correct before submitting.', style: TextStyle(fontSize: 12.5, color: AppColors.textMuted, height: 1.4)),
+        const Text(
+          'Make sure everything looks correct before submitting.',
+          style: TextStyle(fontSize: 12.5, color: AppColors.textMuted, height: 1.4),
+        ),
         const SizedBox(height: AppSpacing.xl),
         _reviewRow('Full name', _fullName.text.trim(), onEdit: () => setState(() => _step = 0)),
         _reviewRow('Barangay', _barangay ?? '—', onEdit: () => setState(() => _step = 0)),
-        _reviewRow('Purok / Sitio', _purok.text.trim().isEmpty ? '—' : _purok.text.trim(), onEdit: () => setState(() => _step = 0)),
-        _reviewRow('Mobile', _contact.text.trim().isEmpty ? '—' : _contact.text.trim(), onEdit: () => setState(() => _step = 0)),
+        _reviewRow(
+          'Purok / Sitio',
+          _purok.text.trim().isEmpty ? '—' : _purok.text.trim(),
+          onEdit: () => setState(() => _step = 0),
+        ),
+        _reviewRow(
+          'Mobile',
+          _contact.text.trim().isEmpty ? '—' : _contact.text.trim(),
+          onEdit: () => setState(() => _step = 0),
+        ),
         for (int i = 0; i < _serviceSteps.length; i++) ...[
           for (final f in _serviceSteps[i].fields)
             // Derived Age never gets its own Edit control — editing it
             // means changing the Date of Birth it's computed from, so only
             // that field's row is tappable.
-            _reviewRow(f.label, _displayValue(f), onEdit: f.type == ServiceFieldType.derivedAge ? null : () => setState(() => _step = i + 1)),
+            _reviewRow(
+              f.label,
+              _displayValue(f),
+              onEdit: f.type == ServiceFieldType.derivedAge ? null : () => setState(() => _step = i + 1),
+            ),
         ],
         _reviewRow(
           _hasPurposeField ? 'Additional notes' : 'Purpose',
           _notesController.text.trim().isEmpty ? '—' : _notesController.text.trim(),
           onEdit: () => setState(() => _step = _requirementsStep),
         ),
-        _reviewRow('Attachments', _attachments.isEmpty ? '—' : '${_attachments.length} file(s)', onEdit: () => setState(() => _step = _requirementsStep)),
+        _reviewRow(
+          'Attachments',
+          _attachments.isEmpty ? '—' : '${_attachments.length} file(s)',
+          onEdit: () => setState(() => _step = _requirementsStep),
+        ),
         if (_error != null) ...[
           const SizedBox(height: AppSpacing.md),
           Text(_error!, style: const TextStyle(fontSize: 12.5, color: AppColors.rose600)),
@@ -564,14 +618,20 @@ class _ServiceRequestWizardScreenState extends State<ServiceRequestWizardScreen>
               children: [
                 Text(label, style: const TextStyle(fontSize: 11.5, color: AppColors.textMuted)),
                 const SizedBox(height: 2),
-                Text(value, style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600, color: AppColors.slate700)),
+                Text(
+                  value,
+                  style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600, color: AppColors.slate700),
+                ),
               ],
             ),
           ),
           if (onEdit != null)
             GestureDetector(
               onTap: onEdit,
-              child: const Text('Edit', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: AppColors.brand600)),
+              child: const Text(
+                'Edit',
+                style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: AppColors.brand600),
+              ),
             ),
         ],
       ),
@@ -595,12 +655,19 @@ class _DerivedAgeField extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: AppColors.slate700)),
-        const SizedBox(height: 8),
+        Text(
+          label,
+          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: AppColors.slate700),
+        ),
+        const SizedBox(height: AppSpacing.sm),
         Container(
           width: double.infinity,
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-          decoration: BoxDecoration(color: AppColors.slate100, borderRadius: BorderRadius.circular(12), border: Border.all(color: AppColors.border)),
+          decoration: BoxDecoration(
+            color: AppColors.slate100,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: AppColors.border),
+          ),
           child: Row(
             children: [
               const Icon(Icons.cake_outlined, size: 17, color: AppColors.slate400),
@@ -623,15 +690,23 @@ class _MultiSelectField extends StatelessWidget {
   final Set<String> selected;
   final ValueChanged<Set<String>> onChanged;
 
-  const _MultiSelectField({required this.label, required this.options, required this.selected, required this.onChanged});
+  const _MultiSelectField({
+    required this.label,
+    required this.options,
+    required this.selected,
+    required this.onChanged,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: AppColors.slate700)),
-        const SizedBox(height: 8),
+        Text(
+          label,
+          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: AppColors.slate700),
+        ),
+        const SizedBox(height: AppSpacing.sm),
         Wrap(
           spacing: 8,
           runSpacing: 8,
@@ -652,7 +727,10 @@ class _MultiSelectField extends StatelessWidget {
                 selectedColor: AppColors.brand100,
                 backgroundColor: AppColors.slate100,
                 checkmarkColor: AppColors.brand700,
-                labelStyle: TextStyle(color: selected.contains(o) ? AppColors.brand700 : AppColors.slate600, fontWeight: selected.contains(o) ? FontWeight.w600 : FontWeight.w400),
+                labelStyle: TextStyle(
+                  color: selected.contains(o) ? AppColors.brand700 : AppColors.slate600,
+                  fontWeight: selected.contains(o) ? FontWeight.w600 : FontWeight.w400,
+                ),
                 side: BorderSide.none,
               ),
           ],

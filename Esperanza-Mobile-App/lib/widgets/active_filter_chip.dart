@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
+import '../theme/app_spacing.dart';
 
 /// A single removable "filter is active" pill — used in the row shown
 /// under Dokyu/Tulong's search bar once any filter facet is set, so it's
@@ -39,7 +40,7 @@ class ActiveFilterChip extends StatelessWidget {
             borderRadius: BorderRadius.circular(999),
             onTap: onRemove,
             child: Padding(
-              padding: const EdgeInsets.all(4),
+              padding: const EdgeInsets.all(AppSpacing.xs),
               child: Icon(Icons.close_rounded, size: 14, color: color),
             ),
           ),

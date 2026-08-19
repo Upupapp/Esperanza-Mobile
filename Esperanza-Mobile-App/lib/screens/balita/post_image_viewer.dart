@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../../models/announcement.dart';
 import '../../services/balita_service.dart';
 import '../../theme/app_colors.dart';
+import '../../theme/app_spacing.dart';
 import '../../utils/balita_post_actions.dart';
 import 'post_card.dart';
 
@@ -19,9 +20,9 @@ class PostImageViewer extends StatelessWidget {
   const PostImageViewer({super.key, required this.postId});
 
   static void open(BuildContext context, String postId) {
-    Navigator.of(context).push(
-      MaterialPageRoute(fullscreenDialog: true, builder: (_) => PostImageViewer(postId: postId)),
-    );
+    Navigator.of(
+      context,
+    ).push(MaterialPageRoute(fullscreenDialog: true, builder: (_) => PostImageViewer(postId: postId)));
   }
 
   @override
@@ -77,11 +78,7 @@ class PostImageViewer extends StatelessWidget {
                     color: Colors.black,
                     child: PostMediaView(media: post.media!, fit: BoxFit.contain),
                   ),
-                  Positioned(
-                    top: 10,
-                    right: 12,
-                    child: _CloseButton(onTap: () => Navigator.of(context).pop()),
-                  ),
+                  Positioned(top: 10, right: 12, child: _CloseButton(onTap: () => Navigator.of(context).pop())),
                 ],
               ),
               Padding(
@@ -94,7 +91,11 @@ class PostImageViewer extends StatelessWidget {
                       backgroundColor: isOfficial ? AppColors.gold50 : AppColors.brand50,
                       child: Text(
                         isOfficial ? 'LGU' : (post.author.isNotEmpty ? post.author.substring(0, 1).toUpperCase() : '?'),
-                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: isOfficial ? AppColors.gold700 : AppColors.brand600),
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          color: isOfficial ? AppColors.gold700 : AppColors.brand600,
+                        ),
                       ),
                     ),
                     const SizedBox(width: 10),
@@ -112,7 +113,7 @@ class PostImageViewer extends StatelessWidget {
                                 ),
                               ),
                               if (isOfficial) ...[
-                                const SizedBox(width: 4),
+                                const SizedBox(width: AppSpacing.xs),
                                 const Icon(Icons.verified_rounded, size: 14, color: AppColors.brand500),
                               ],
                             ],
@@ -133,12 +134,15 @@ class PostImageViewer extends StatelessWidget {
               if (post.body.trim().isNotEmpty)
                 Padding(
                   padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
-                  child: Text(post.body, style: const TextStyle(fontSize: 13.5, color: AppColors.slate700, height: 1.45)),
+                  child: Text(
+                    post.body,
+                    style: const TextStyle(fontSize: 13.5, color: AppColors.slate700, height: 1.45),
+                  ),
                 ),
               const SizedBox(height: 12),
               if (hasEngagement)
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
                   child: Row(
                     children: [
                       if (post.likes > 0) ...[
@@ -150,14 +154,18 @@ class PostImageViewer extends StatelessWidget {
                           child: const Icon(Icons.favorite_rounded, size: 11, color: Colors.white),
                         ),
                         const SizedBox(width: 6),
-                        Text('${post.likes}', style: const TextStyle(fontSize: 12, color: AppColors.slate500, fontWeight: FontWeight.w500)),
+                        Text(
+                          '${post.likes}',
+                          style: const TextStyle(fontSize: 12, color: AppColors.slate500, fontWeight: FontWeight.w500),
+                        ),
                       ],
                       const Spacer(),
                       if (post.commentCount > 0 || post.shares > 0)
                         Flexible(
                           child: Text(
                             [
-                              if (post.commentCount > 0) '${post.commentCount} comment${post.commentCount == 1 ? '' : 's'}',
+                              if (post.commentCount > 0)
+                                '${post.commentCount} comment${post.commentCount == 1 ? '' : 's'}',
                               if (post.shares > 0) '${post.shares} share${post.shares == 1 ? '' : 's'}',
                             ].join('  ·  '),
                             textAlign: TextAlign.right,
@@ -180,7 +188,11 @@ class PostImageViewer extends StatelessWidget {
                             icon: post.liked ? Icons.favorite_rounded : Icons.favorite_border_rounded,
                             label: 'Like',
                             color: post.liked ? AppColors.rose500 : AppColors.slate500,
-                            onTap: () => requireAccountForBalita(context, 'Reacting to Balita posts', () => balita.toggleLike(post!.id)),
+                            onTap: () => requireAccountForBalita(
+                              context,
+                              'Reacting to Balita posts',
+                              () => balita.toggleLike(post!.id),
+                            ),
                           ),
                         ),
                         Expanded(

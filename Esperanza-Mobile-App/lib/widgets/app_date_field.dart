@@ -8,7 +8,7 @@ import '../theme/app_colors.dart';
 /// opens the platform date picker — the mobile-native way to satisfy
 /// "dropdowns/date pickers that work on mobile" without a custom calendar
 /// widget.
-class AppDateField extends StatelessWidget {
+class AppDateField extends StatefulWidget {
   final String? label;
   final DateTime? value;
   final ValueChanged<DateTime> onChanged;
@@ -24,18 +24,46 @@ class AppDateField extends StatelessWidget {
     this.hintText = 'Select date',
     DateTime? firstDate,
     DateTime? lastDate,
-  })  : firstDate = firstDate ?? DateTime(1900),
-        lastDate = lastDate ?? DateTime.now();
+  }) : firstDate = firstDate ?? DateTime(1900),
+       lastDate = lastDate ?? DateTime.now();
+
+  @override
+  State<AppDateField> createState() => _AppDateFieldState();
+}
+
+class _AppDateFieldState extends State<AppDateField> {
+  // Owned once here instead of a fresh TextEditingController being
+  // allocated on every build (the previous StatelessWidget did that
+  // inline in its `controller:` argument, never disposing any of them) —
+  // this instance is created once and just has its `.text` kept in sync
+  // whenever `widget.value` changes.
+  late final _controller = TextEditingController(text: _format(widget.value));
+
+  String _format(DateTime? d) => d != null ? DateFormat('MMM d, y').format(d) : '';
+
+  @override
+  void didUpdateWidget(covariant AppDateField oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.value != widget.value) {
+      _controller.text = _format(widget.value);
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
 
   Future<void> _pick(BuildContext context) async {
     final picked = await showDatePicker(
       context: context,
-      initialDate: value ?? DateTime(lastDate!.year - 25),
-      firstDate: firstDate!,
-      lastDate: lastDate!,
+      initialDate: widget.value ?? DateTime(widget.lastDate!.year - 25),
+      firstDate: widget.firstDate!,
+      lastDate: widget.lastDate!,
       initialDatePickerMode: DatePickerMode.year,
     );
-    if (picked != null) onChanged(picked);
+    if (picked != null) widget.onChanged(picked);
   }
 
   @override
@@ -43,17 +71,20 @@ class AppDateField extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        if (label != null) ...[
-          Text(label!, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: AppColors.slate700)),
+        if (widget.label != null) ...[
+          Text(
+            widget.label!,
+            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: AppColors.slate700),
+          ),
           const SizedBox(height: 6),
         ],
         TextFormField(
           readOnly: true,
-          controller: TextEditingController(text: value != null ? DateFormat('MMM d, y').format(value!) : ''),
+          controller: _controller,
           onTap: () => _pick(context),
           style: const TextStyle(fontSize: 14, color: AppColors.textBody),
           decoration: InputDecoration(
-            hintText: hintText,
+            hintText: widget.hintText,
             prefixIcon: const Icon(Icons.calendar_today_outlined, size: 17, color: AppColors.slate400),
             suffixIcon: const Icon(Icons.keyboard_arrow_down_rounded, color: AppColors.slate400),
           ),

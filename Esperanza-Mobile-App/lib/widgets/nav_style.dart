@@ -82,9 +82,5 @@ class NavStyle {
   static const Duration travelDuration = Duration(milliseconds: 360);
   static const Curve travelCurve = Curves.easeInOutCubic;
 
-  static const TextStyle activeLabelStyle = TextStyle(
-    fontSize: 11,
-    fontWeight: FontWeight.w500,
-    letterSpacing: 0.1,
-  );
+  static const TextStyle activeLabelStyle = TextStyle(fontSize: 11, fontWeight: FontWeight.w500, letterSpacing: 0.1);
 }

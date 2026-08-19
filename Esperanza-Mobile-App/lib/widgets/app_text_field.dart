@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
+import '../theme/app_spacing.dart';
 
 /// Mirrors `resources/views/components/ui/input.blade.php`: label above,
 /// optional leading icon, slate-50 fill, brand-colored focus ring, rose
@@ -42,7 +43,7 @@ class AppTextField extends StatelessWidget {
             label!,
             style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: AppColors.slate700),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: AppSpacing.sm),
         ],
         TextField(
           controller: controller,
@@ -93,8 +94,11 @@ class AppSelectField<T> extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         if (label != null) ...[
-          Text(label!, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: AppColors.slate700)),
-          const SizedBox(height: 8),
+          Text(
+            label!,
+            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: AppColors.slate700),
+          ),
+          const SizedBox(height: AppSpacing.sm),
         ],
         DropdownButtonFormField<T>(
           initialValue: value,
@@ -102,7 +106,12 @@ class AppSelectField<T> extends StatelessWidget {
           icon: const Icon(Icons.keyboard_arrow_down_rounded, color: AppColors.slate400),
           decoration: InputDecoration(hintText: hintText),
           items: options
-              .map((o) => DropdownMenuItem<T>(value: o, child: Text(labelBuilder(o), style: const TextStyle(fontSize: 14))))
+              .map(
+                (o) => DropdownMenuItem<T>(
+                  value: o,
+                  child: Text(labelBuilder(o), style: const TextStyle(fontSize: 14)),
+                ),
+              )
               .toList(),
           onChanged: onChanged,
         ),

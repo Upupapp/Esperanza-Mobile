@@ -107,7 +107,8 @@ class _FamilyInformationScreenState extends State<FamilyInformationScreen> {
     final selected = await showModalBottomSheet<String>(
       context: context,
       backgroundColor: Colors.transparent,
-      builder: (_) => _HeadPickerSheet(individuals: profile.allFamilyIndividuals, currentHeadId: profile.headIndividualId),
+      builder: (_) =>
+          _HeadPickerSheet(individuals: profile.allFamilyIndividuals, currentHeadId: profile.headIndividualId),
     );
     if (selected != null && mounted) await _service.setHeadOfFamily(_accountId, selected);
   }
@@ -122,7 +123,8 @@ class _FamilyInformationScreenState extends State<FamilyInformationScreen> {
     final account = context.watch<CitizenSessionService>().account!;
     final profile = context.watch<ResidentProfileService>().profileFor(account);
     final match = MockCatalog.existingFamilyMatches[profile.personal.barangay];
-    final showMatch = match != null && profile.familyMembers.isEmpty && !profile.familySaved && !profile.joinRequestSent;
+    final showMatch =
+        match != null && profile.familyMembers.isEmpty && !profile.familySaved && !profile.joinRequestSent;
 
     return Scaffold(
       appBar: AppBar(title: const Text('Family Information')),
@@ -154,11 +156,14 @@ class _FamilyInformationScreenState extends State<FamilyInformationScreen> {
               ],
             ),
             const SizedBox(height: AppSpacing.xl),
-            const Text('Family Members', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.slate600)),
+            const Text(
+              'Family Members',
+              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.slate600),
+            ),
             const SizedBox(height: AppSpacing.sm),
             if (profile.familyMembers.isEmpty)
               Container(
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.all(AppSpacing.lg),
                 decoration: BoxDecoration(color: AppColors.slate50, borderRadius: BorderRadius.circular(14)),
                 child: const Text(
                   'No family members added yet. Add anyone living with you — even if they don\'t have an Esperanza account.',
@@ -179,7 +184,13 @@ class _FamilyInformationScreenState extends State<FamilyInformationScreen> {
               Text(_error!, style: const TextStyle(fontSize: 12.5, color: AppColors.rose600)),
             ],
             const SizedBox(height: AppSpacing.xxl),
-            AppButton(label: 'Save & Continue', onPressed: () => _save(markComplete: true), loading: _saving, fullWidth: true, size: AppButtonSize.lg),
+            AppButton(
+              label: 'Save & Continue',
+              onPressed: () => _save(markComplete: true),
+              loading: _saving,
+              fullWidth: true,
+              size: AppButtonSize.lg,
+            ),
             const SizedBox(height: AppSpacing.sm),
             AppButton(
               label: 'Save for Later',
@@ -209,17 +220,27 @@ class _InfoRow extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          SizedBox(width: 110, child: Text(label, style: const TextStyle(fontSize: 12, color: AppColors.textMuted))),
+          SizedBox(
+            width: 110,
+            child: Text(label, style: const TextStyle(fontSize: 12, color: AppColors.textMuted)),
+          ),
           Expanded(
             child: Text(
               value,
-              style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: muted ? AppColors.slate400 : AppColors.slate700),
+              style: TextStyle(
+                fontSize: 12.5,
+                fontWeight: FontWeight.w600,
+                color: muted ? AppColors.slate400 : AppColors.slate700,
+              ),
             ),
           ),
           if (actionLabel != null)
             GestureDetector(
               onTap: onAction,
-              child: Text(actionLabel!, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.brand600)),
+              child: Text(
+                actionLabel!,
+                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.brand600),
+              ),
             ),
         ],
       ),
@@ -260,7 +281,10 @@ class _MemberTile extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(member.fullName, style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
+                  Text(
+                    member.fullName,
+                    style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
+                  ),
                   const SizedBox(height: 2),
                   Text(subtitleParts.join(' · '), style: const TextStyle(fontSize: 11.5, color: AppColors.textMuted)),
                 ],
@@ -279,7 +303,6 @@ class _MemberTile extends StatelessWidget {
   }
 }
 
-
 class _ExistingMatchBanner extends StatelessWidget {
   final ExistingFamilyMatch match;
   final VoidCallback onJoin;
@@ -288,7 +311,7 @@ class _ExistingMatchBanner extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(AppSpacing.lg),
       decoration: BoxDecoration(
         color: AppColors.brand50,
         borderRadius: BorderRadius.circular(16),
@@ -300,14 +323,20 @@ class _ExistingMatchBanner extends StatelessWidget {
           const Row(
             children: [
               Icon(Icons.info_outline_rounded, size: 17, color: AppColors.brand600),
-              SizedBox(width: 8),
+              SizedBox(width: AppSpacing.sm),
               Expanded(
-                child: Text('We found a possible existing family record.', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: AppColors.brand700)),
+                child: Text(
+                  'We found a possible existing family record.',
+                  style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: AppColors.brand700),
+                ),
               ),
             ],
           ),
           const SizedBox(height: 10),
-          Text(match.familyName, style: const TextStyle(fontSize: 14.5, fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
+          Text(
+            match.familyName,
+            style: const TextStyle(fontSize: 14.5, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
+          ),
           Text('Brgy. ${match.barangay}', style: const TextStyle(fontSize: 12, color: AppColors.textMuted)),
           const SizedBox(height: AppSpacing.md),
           AppButton(label: 'Request to Join Family', size: AppButtonSize.sm, onPressed: onJoin),
@@ -326,17 +355,20 @@ class _HeadPickerSheet extends StatelessWidget {
   Widget build(BuildContext context) {
     return SafeArea(
       child: Container(
-        margin: const EdgeInsets.all(12),
-        padding: const EdgeInsets.symmetric(vertical: 12),
+        margin: const EdgeInsets.all(AppSpacing.md),
+        padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
         decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20)),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 16),
+              padding: EdgeInsets.symmetric(horizontal: AppSpacing.lg),
               child: Align(
                 alignment: Alignment.centerLeft,
-                child: Text('Head of Family', style: TextStyle(fontSize: 14.5, fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
+                child: Text(
+                  'Head of Family',
+                  style: TextStyle(fontSize: 14.5, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
+                ),
               ),
             ),
             const SizedBox(height: 6),
@@ -345,10 +377,15 @@ class _HeadPickerSheet extends StatelessWidget {
                 leading: CircleAvatar(
                   radius: 16,
                   backgroundColor: AppColors.slate100,
-                  child: Text(i.firstName.isNotEmpty ? i.firstName.substring(0, 1).toUpperCase() : '?', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.slate600)),
+                  child: Text(
+                    i.firstName.isNotEmpty ? i.firstName.substring(0, 1).toUpperCase() : '?',
+                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.slate600),
+                  ),
                 ),
                 title: Text(i.fullName, style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600)),
-                trailing: i.individualId == currentHeadId ? const Icon(Icons.check_circle_rounded, color: AppColors.brand600, size: 20) : null,
+                trailing: i.individualId == currentHeadId
+                    ? const Icon(Icons.check_circle_rounded, color: AppColors.brand600, size: 20)
+                    : null,
                 onTap: () => Navigator.of(context).pop(i.individualId),
               ),
           ],

@@ -1,4 +1,3 @@
-import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../models/citizen_account.dart';
@@ -7,6 +6,7 @@ import '../../services/mock_catalog.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_spacing.dart';
 import '../../theme/app_status.dart';
+import '../../utils/protected_action.dart';
 import '../../widgets/app_button.dart';
 import '../../widgets/app_text_field.dart';
 import '../../widgets/onboarding_step_indicator.dart';
@@ -108,7 +108,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
   String? _validateStep(int step) {
     switch (step) {
       case 0:
-        if (_firstName.text.trim().isEmpty || _lastName.text.trim().isEmpty) return 'Please enter your first and last name.';
+        if (_firstName.text.trim().isEmpty || _lastName.text.trim().isEmpty) {
+          return 'Please enter your first and last name.';
+        }
         if (_email.text.trim().isEmpty) return 'Please enter your email address.';
         if (_barangay == null) return 'Please select your barangay.';
         return null;
@@ -127,7 +129,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
   }
 
   Future<void> _pickId() async {
-    final result = await FilePicker.pickFiles(type: FileType.custom, allowedExtensions: ['jpg', 'jpeg', 'png', 'pdf']);
+    final result = await pickDocumentProtected(
+      context,
+      allowedExtensions: ['jpg', 'jpeg', 'png', 'pdf'],
+      withData: false,
+    );
     if (result == null || result.files.isEmpty) return;
     final f = result.files.single;
     if (f.path == null) return;
@@ -193,10 +199,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 child: OnboardingStepIndicator(currentStep: _step, stepLabels: _stepLabels),
               ),
             Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.all(20),
-                child: _buildStep(),
-              ),
+              child: SingleChildScrollView(padding: const EdgeInsets.all(AppSpacing.xl), child: _buildStep()),
             ),
             if (_step < 5)
               Padding(
@@ -205,7 +208,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   children: [
                     if (_step > 0)
                       Expanded(
-                        child: AppButton(label: 'Back', variant: AppButtonVariant.secondary, fullWidth: true, onPressed: _back),
+                        child: AppButton(
+                          label: 'Back',
+                          variant: AppButtonVariant.secondary,
+                          fullWidth: true,
+                          onPressed: _back,
+                        ),
                       ),
                     if (_step > 0) const SizedBox(width: AppSpacing.md),
                     Expanded(
@@ -268,15 +276,30 @@ class _RegisterScreenState extends State<RegisterScreen> {
         const SizedBox(height: AppSpacing.xl),
         Row(
           children: [
-            Expanded(child: AppTextField(label: 'First name', controller: _firstName)),
+            Expanded(
+              child: AppTextField(label: 'First name', controller: _firstName),
+            ),
             const SizedBox(width: AppSpacing.md),
-            Expanded(child: AppTextField(label: 'Last name', controller: _lastName)),
+            Expanded(
+              child: AppTextField(label: 'Last name', controller: _lastName),
+            ),
           ],
         ),
         const SizedBox(height: AppSpacing.lg),
-        AppTextField(label: 'Email address', controller: _email, keyboardType: TextInputType.emailAddress, icon: Icons.mail_outline_rounded),
+        AppTextField(
+          label: 'Email address',
+          controller: _email,
+          keyboardType: TextInputType.emailAddress,
+          icon: Icons.mail_outline_rounded,
+        ),
         const SizedBox(height: AppSpacing.lg),
-        AppTextField(label: 'Mobile number', controller: _mobile, keyboardType: TextInputType.phone, icon: Icons.phone_outlined, hintText: '09XX XXX XXXX'),
+        AppTextField(
+          label: 'Mobile number',
+          controller: _mobile,
+          keyboardType: TextInputType.phone,
+          icon: Icons.phone_outlined,
+          hintText: '09XX XXX XXXX',
+        ),
         const SizedBox(height: AppSpacing.lg),
         AppSelectField<String>(
           label: 'Barangay',
@@ -300,11 +323,18 @@ class _RegisterScreenState extends State<RegisterScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const Text('Terms & Conditions', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
-        const SizedBox(height: 8),
+        const Text(
+          'Terms & Conditions',
+          style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
+        ),
+        const SizedBox(height: AppSpacing.sm),
         Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(color: AppColors.slate50, borderRadius: BorderRadius.circular(14), border: Border.all(color: AppColors.border)),
+          padding: const EdgeInsets.all(AppSpacing.lg),
+          decoration: BoxDecoration(
+            color: AppColors.slate50,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: AppColors.border),
+          ),
           child: const Text(
             'By creating an Esperanza account, you agree to provide accurate information for barangay/municipal record-keeping. '
             'Your data is used only for LGU service delivery (document requests, assistance programs, resident records) and is '
@@ -319,15 +349,22 @@ class _RegisterScreenState extends State<RegisterScreen> {
           onTap: () => setState(() => _termsAccepted = !_termsAccepted),
           borderRadius: BorderRadius.circular(10),
           child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 4),
+            padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Checkbox(value: _termsAccepted, onChanged: (v) => setState(() => _termsAccepted = v ?? false), activeColor: AppColors.brand500),
+                Checkbox(
+                  value: _termsAccepted,
+                  onChanged: (v) => setState(() => _termsAccepted = v ?? false),
+                  activeColor: AppColors.brand500,
+                ),
                 const Expanded(
                   child: Padding(
                     padding: EdgeInsets.only(top: 12),
-                    child: Text('I have read and agree to the Terms & Conditions and Privacy Policy.', style: TextStyle(fontSize: 13, color: AppColors.slate700)),
+                    child: Text(
+                      'I have read and agree to the Terms & Conditions and Privacy Policy.',
+                      style: TextStyle(fontSize: 13, color: AppColors.slate700),
+                    ),
                   ),
                 ),
               ],
@@ -346,7 +383,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const Text('Valid ID Upload', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
+        const Text(
+          'Valid ID Upload',
+          style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
+        ),
         const SizedBox(height: 6),
         const Text(
           'Upload a photo or scan of any valid government-issued ID. This helps Esperanza LGU verify your identity.',
@@ -356,15 +396,30 @@ class _RegisterScreenState extends State<RegisterScreen> {
         if (_idFilePath != null)
           Container(
             padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(color: AppColors.emerald50, borderRadius: BorderRadius.circular(14), border: Border.all(color: AppColors.emerald500.withValues(alpha: 0.25))),
+            decoration: BoxDecoration(
+              color: AppColors.emerald50,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: AppColors.emerald500.withValues(alpha: 0.25)),
+            ),
             child: Row(
               children: [
                 const Icon(Icons.check_circle_rounded, color: AppColors.emerald700, size: 22),
                 const SizedBox(width: 12),
                 Expanded(
-                  child: Text(_idFileName ?? 'ID uploaded', maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.emerald700)),
+                  child: Text(
+                    _idFileName ?? 'ID uploaded',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.emerald700),
+                  ),
                 ),
-                TextButton(onPressed: () => setState(() { _idFilePath = null; _idFileName = null; }), child: const Text('Change')),
+                TextButton(
+                  onPressed: () => setState(() {
+                    _idFilePath = null;
+                    _idFileName = null;
+                  }),
+                  child: const Text('Change'),
+                ),
               ],
             ),
           )
@@ -375,12 +430,19 @@ class _RegisterScreenState extends State<RegisterScreen> {
             child: Container(
               width: double.infinity,
               padding: const EdgeInsets.symmetric(vertical: 32),
-              decoration: BoxDecoration(color: AppColors.brand50, borderRadius: BorderRadius.circular(14), border: Border.all(color: AppColors.brand200)),
+              decoration: BoxDecoration(
+                color: AppColors.brand50,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: AppColors.brand200),
+              ),
               child: const Column(
                 children: [
                   Icon(Icons.badge_outlined, color: AppColors.brand500, size: 30),
                   SizedBox(height: 10),
-                  Text('Upload Valid ID', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.brand600)),
+                  Text(
+                    'Upload Valid ID',
+                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.brand600),
+                  ),
                   SizedBox(height: 2),
                   Text('JPG, PNG, or PDF', style: TextStyle(fontSize: 11.5, color: AppColors.textMuted)),
                 ],
@@ -399,7 +461,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const Text('Face Verification', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
+        const Text(
+          'Face Verification',
+          style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
+        ),
         const SizedBox(height: 6),
         const Text(
           'We\'ll match a quick face scan against your uploaded ID to help confirm it\'s really you.',
@@ -434,7 +499,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
           loading: _faceScanning,
           onPressed: _faceScanCompleted ? null : _runFaceScan,
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: AppSpacing.sm),
         const Text(
           'Frontend simulation — no camera access or facial data is actually captured in this demo build.',
           textAlign: TextAlign.center,
@@ -442,7 +507,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
         ),
         if (_error != null) ...[
           const SizedBox(height: AppSpacing.md),
-          Text(_error!, textAlign: TextAlign.center, style: const TextStyle(fontSize: 12.5, color: AppColors.rose600)),
+          Text(
+            _error!,
+            textAlign: TextAlign.center,
+            style: const TextStyle(fontSize: 12.5, color: AppColors.rose600),
+          ),
         ],
       ],
     );
@@ -452,17 +521,39 @@ class _RegisterScreenState extends State<RegisterScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const Text('Review Your Information', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
+        const Text(
+          'Review Your Information',
+          style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
+        ),
         const SizedBox(height: 6),
-        const Text('Make sure everything looks correct before submitting for verification.', style: TextStyle(fontSize: 12.5, color: AppColors.textMuted, height: 1.4)),
+        const Text(
+          'Make sure everything looks correct before submitting for verification.',
+          style: TextStyle(fontSize: 12.5, color: AppColors.textMuted, height: 1.4),
+        ),
         const SizedBox(height: AppSpacing.xl),
-        _reviewRow('Name', '${_firstName.text.trim()} ${_lastName.text.trim()}', onEdit: () => setState(() => _step = 0)),
+        _reviewRow(
+          'Name',
+          '${_firstName.text.trim()} ${_lastName.text.trim()}',
+          onEdit: () => setState(() => _step = 0),
+        ),
         _reviewRow('Email', _email.text.trim(), onEdit: () => setState(() => _step = 0)),
-        _reviewRow('Mobile', _mobile.text.trim().isEmpty ? '—' : _mobile.text.trim(), onEdit: () => setState(() => _step = 0)),
+        _reviewRow(
+          'Mobile',
+          _mobile.text.trim().isEmpty ? '—' : _mobile.text.trim(),
+          onEdit: () => setState(() => _step = 0),
+        ),
         _reviewRow('Barangay', _barangay ?? '—', onEdit: () => setState(() => _step = 0)),
-        _reviewRow('Terms & Conditions', _termsAccepted ? 'Accepted' : 'Not accepted', onEdit: () => setState(() => _step = 1)),
+        _reviewRow(
+          'Terms & Conditions',
+          _termsAccepted ? 'Accepted' : 'Not accepted',
+          onEdit: () => setState(() => _step = 1),
+        ),
         _reviewRow('Valid ID', _idFileName ?? '—', onEdit: () => setState(() => _step = 2)),
-        _reviewRow('Face Verification', _faceScanCompleted ? 'Completed' : 'Not completed', onEdit: () => setState(() => _step = 3)),
+        _reviewRow(
+          'Face Verification',
+          _faceScanCompleted ? 'Completed' : 'Not completed',
+          onEdit: () => setState(() => _step = 3),
+        ),
         if (_error != null) ...[
           const SizedBox(height: AppSpacing.md),
           Text(_error!, style: const TextStyle(fontSize: 12.5, color: AppColors.rose600)),
@@ -483,13 +574,19 @@ class _RegisterScreenState extends State<RegisterScreen> {
               children: [
                 Text(label, style: const TextStyle(fontSize: 11.5, color: AppColors.textMuted)),
                 const SizedBox(height: 2),
-                Text(value, style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600, color: AppColors.slate700)),
+                Text(
+                  value,
+                  style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600, color: AppColors.slate700),
+                ),
               ],
             ),
           ),
           GestureDetector(
             onTap: onEdit,
-            child: const Text('Edit', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: AppColors.brand600)),
+            child: const Text(
+              'Edit',
+              style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: AppColors.brand600),
+            ),
           ),
         ],
       ),
@@ -521,7 +618,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
           textAlign: TextAlign.center,
           style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
         ),
-        const SizedBox(height: 4),
+        const SizedBox(height: AppSpacing.xs),
         if (!_alreadyHasAccount)
           const Text(
             'Your information has been submitted to Esperanza LGU for verification.',

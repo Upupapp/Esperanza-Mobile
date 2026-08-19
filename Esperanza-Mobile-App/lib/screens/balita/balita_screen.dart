@@ -79,13 +79,7 @@ class _BalitaScreenState extends State<BalitaScreen> with SingleTickerProviderSt
             ),
           ),
           Expanded(
-            child: TabBarView(
-              controller: _tabController,
-              children: const [
-                _BalitaFeed(),
-                _EventsList(),
-              ],
-            ),
+            child: TabBarView(controller: _tabController, children: const [_BalitaFeed(), _EventsList()]),
           ),
         ],
       ),
@@ -100,7 +94,18 @@ class _BalitaFeed extends StatelessWidget {
   Widget build(BuildContext context) {
     final balita = context.watch<BalitaService>();
     final posts = balita.posts;
-    return ListView(
+    if (posts.isEmpty) {
+      return const EmptyState(
+        icon: Icons.campaign_outlined,
+        title: 'No announcements available',
+        description: 'Check back soon for updates from Esperanza LGU.',
+      );
+    }
+    // ListView.builder rather than a plain ListView(children: posts.map(...))
+    // — post images (some several megapixels, see PostMediaView) only ever
+    // get built/decoded for cards actually near the viewport instead of the
+    // whole feed at once, without changing scrolling behavior or layout.
+    return ListView.builder(
       // Balita posts (including their now-tappable images) are plain
       // scrolled content sitting directly on RootShell's IndexedStack body,
       // not a floating element, so they only need the inherited navbar
@@ -110,20 +115,17 @@ class _BalitaFeed extends StatelessWidget {
       // full hit-testable bounding box and become untappable even though
       // it looks like ordinary scrolled content.
       padding: EdgeInsets.fromLTRB(16, 12, 16, 24 + MediaQuery.paddingOf(context).bottom),
-      children: [
-        if (posts.isEmpty)
-          const EmptyState(icon: Icons.campaign_outlined, title: 'No announcements available', description: 'Check back soon for updates from Esperanza LGU.')
-        else
-          ...posts.map(
-            (p) => PostCard(
-              key: ValueKey(p.id),
-              post: p,
-              onLike: () => balita.toggleLike(p.id),
-              onComment: (c) => balita.addComment(p.id, c),
-              onShare: () => balita.share(p.id),
-            ),
-          ),
-      ],
+      itemCount: posts.length,
+      itemBuilder: (context, i) {
+        final p = posts[i];
+        return PostCard(
+          key: ValueKey(p.id),
+          post: p,
+          onLike: () => balita.toggleLike(p.id),
+          onComment: (c) => balita.addComment(p.id, c),
+          onShare: () => balita.share(p.id),
+        );
+      },
     );
   }
 }
@@ -139,14 +141,13 @@ class _EventsList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final events = MockCatalog.events;
-    return ListView(
+    if (events.isEmpty) {
+      return const EmptyState(icon: Icons.event_outlined, title: 'No upcoming events');
+    }
+    return ListView.builder(
       padding: EdgeInsets.fromLTRB(16, 4, 16, 24 + MediaQuery.paddingOf(context).bottom),
-      children: [
-        if (events.isEmpty)
-          const EmptyState(icon: Icons.event_outlined, title: 'No upcoming events')
-        else
-          for (final e in events) EventCard(event: e),
-      ],
+      itemCount: events.length,
+      itemBuilder: (context, i) => EventCard(event: events[i]),
     );
   }
 }

@@ -13,13 +13,7 @@ class MenuListTile extends StatelessWidget {
   final VoidCallback onTap;
   final bool danger;
 
-  const MenuListTile({
-    super.key,
-    required this.icon,
-    required this.label,
-    required this.onTap,
-    this.danger = false,
-  });
+  const MenuListTile({super.key, required this.icon, required this.label, required this.onTap, this.danger = false});
 
   @override
   Widget build(BuildContext context) {

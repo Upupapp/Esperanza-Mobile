@@ -34,17 +34,13 @@ class MagneticNavbarCore extends StatefulWidget {
     required this.tabCenterRatios,
     required this.currentIndex,
     required this.onTap,
-  }) : assert(
-         items.length == tabCenterRatios.length,
-         'tabCenterRatios must have exactly one entry per item',
-       );
+  }) : assert(items.length == tabCenterRatios.length, 'tabCenterRatios must have exactly one entry per item');
 
   @override
   State<MagneticNavbarCore> createState() => _MagneticNavbarCoreState();
 }
 
-class _MagneticNavbarCoreState extends State<MagneticNavbarCore>
-    with SingleTickerProviderStateMixin {
+class _MagneticNavbarCoreState extends State<MagneticNavbarCore> with SingleTickerProviderStateMixin {
   late final AnimationController _controller;
   late final Animation<double> _t;
   late int _fromIndex;
@@ -53,10 +49,7 @@ class _MagneticNavbarCoreState extends State<MagneticNavbarCore>
   void initState() {
     super.initState();
     _fromIndex = widget.currentIndex;
-    _controller = AnimationController(
-      vsync: this,
-      duration: NavStyle.travelDuration,
-    );
+    _controller = AnimationController(vsync: this, duration: NavStyle.travelDuration);
     _t = CurvedAnimation(parent: _controller, curve: NavStyle.travelCurve);
   }
 
@@ -103,15 +96,10 @@ class _MagneticNavbarCoreState extends State<MagneticNavbarCore>
             animation: _t,
             builder: (context, child) {
               final t = _t.value;
-              final cx = lerpDouble(
-                centerXFor(_fromIndex),
-                centerXFor(widget.currentIndex),
-                t,
-              )!;
+              final cx = lerpDouble(centerXFor(_fromIndex), centerXFor(widget.currentIndex), t)!;
 
               final showingNewContent = t >= 0.5;
-              final contentIndex =
-                  showingNewContent ? widget.currentIndex : _fromIndex;
+              final contentIndex = showingNewContent ? widget.currentIndex : _fromIndex;
               // Label hides while the bubble is mid-flight and reappears
               // once it settles near either end, instead of two labels
               // crossfading illegibly on top of each other.
@@ -154,10 +142,7 @@ class _MagneticNavbarCoreState extends State<MagneticNavbarCore>
                                 onTap: () => widget.onTap(i),
                                 child: SizedBox.expand(
                                   child: Align(
-                                    alignment: Alignment(
-                                      0,
-                                      NavStyle.rowVerticalAlign,
-                                    ),
+                                    alignment: Alignment(0, NavStyle.rowVerticalAlign),
                                     // A Stack (not a Column) so the invisible
                                     // label below never perturbs the icon's
                                     // own geometry — Stack centers each
@@ -194,11 +179,7 @@ class _MagneticNavbarCoreState extends State<MagneticNavbarCore>
                                         // future a11y tooling) without
                                         // rendering a second, visually
                                         // duplicate label.
-                                        if (i != contentIndex)
-                                          Opacity(
-                                            opacity: 0,
-                                            child: Text(widget.items[i].label),
-                                          ),
+                                        if (i != contentIndex) Opacity(opacity: 0, child: Text(widget.items[i].label)),
                                       ],
                                     ),
                                   ),
@@ -212,9 +193,7 @@ class _MagneticNavbarCoreState extends State<MagneticNavbarCore>
                     Positioned(
                       key: const ValueKey('nav-floating-indicator'),
                       left: horizontalMargin + cx - circleRadius,
-                      top: NavStyle.protrusion +
-                          bubbleCenterYInBar -
-                          circleRadius,
+                      top: NavStyle.protrusion + bubbleCenterYInBar - circleRadius,
                       width: NavStyle.circleSize,
                       height: NavStyle.circleSize,
                       child: GestureDetector(
@@ -228,10 +207,7 @@ class _MagneticNavbarCoreState extends State<MagneticNavbarCore>
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
                             color: Colors.white,
-                            border: Border.all(
-                              color: AppColors.brand500,
-                              width: NavStyle.activeCircleBorderWidth,
-                            ),
+                            border: Border.all(color: AppColors.brand500, width: NavStyle.activeCircleBorderWidth),
                             boxShadow: [
                               // Neutral drop shadow, mostly downward — reads
                               // as the circle sitting physically elevated
@@ -245,16 +221,14 @@ class _MagneticNavbarCoreState extends State<MagneticNavbarCore>
                               // Inner glow: tight, brighter — a defined
                               // luminous edge right at the circle.
                               BoxShadow(
-                                color: AppColors.brand500
-                                    .withValues(alpha: 0.55),
+                                color: AppColors.brand500.withValues(alpha: 0.55),
                                 blurRadius: 8,
                                 spreadRadius: 0.5,
                               ),
                               // Outer glow: broad, soft — the atmospheric
                               // halo that fades into the pocket's open space.
                               BoxShadow(
-                                color: AppColors.brand500
-                                    .withValues(alpha: 0.22),
+                                color: AppColors.brand500.withValues(alpha: 0.22),
                                 blurRadius: 24,
                                 spreadRadius: 2,
                               ),
@@ -272,9 +246,7 @@ class _MagneticNavbarCoreState extends State<MagneticNavbarCore>
                     Positioned(
                       left: horizontalMargin + cx - slotWidth / 2,
                       width: slotWidth,
-                      top: NavStyle.protrusion +
-                          NavStyle.notchDepth +
-                          NavStyle.labelGap,
+                      top: NavStyle.protrusion + NavStyle.notchDepth + NavStyle.labelGap,
                       child: Opacity(
                         opacity: labelOpacity,
                         child: Text(

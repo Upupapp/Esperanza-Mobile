@@ -42,7 +42,8 @@ class ResidentProfileOverviewScreen extends StatelessWidget {
               const SizedBox(height: AppSpacing.lg),
               _CorrectionBanner(
                 message: profile.correctionMessage ?? 'Some information needs to be updated.',
-                onUpdate: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const PersonalInformationScreen())),
+                onUpdate: () =>
+                    Navigator.of(context).push(MaterialPageRoute(builder: (_) => const PersonalInformationScreen())),
               ),
             ],
             if (profile.status == VerificationStatus.pendingVerification) ...[
@@ -50,14 +51,18 @@ class ResidentProfileOverviewScreen extends StatelessWidget {
               _DemoVerificationPanel(accountId: account.id),
             ],
             const SizedBox(height: AppSpacing.xxl),
-            const Text('Sections', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.slate600)),
+            const Text(
+              'Sections',
+              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.slate600),
+            ),
             const SizedBox(height: AppSpacing.sm),
             _SectionCard(
               icon: Icons.badge_outlined,
               title: 'Personal Information',
               description: 'Your basic, contact, and address details.',
               status: profile.personalStatus,
-              onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const PersonalInformationScreen())),
+              onTap: () =>
+                  Navigator.of(context).push(MaterialPageRoute(builder: (_) => const PersonalInformationScreen())),
             ),
             const SizedBox(height: 10),
             _SectionCard(
@@ -65,7 +70,8 @@ class ResidentProfileOverviewScreen extends StatelessWidget {
               title: 'Family Information',
               description: 'Tell us about your family members living with you.',
               status: profile.familyStatus,
-              onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const FamilyInformationScreen())),
+              onTap: () =>
+                  Navigator.of(context).push(MaterialPageRoute(builder: (_) => const FamilyInformationScreen())),
             ),
             const SizedBox(height: 10),
             _SectionCard(
@@ -73,7 +79,8 @@ class ResidentProfileOverviewScreen extends StatelessWidget {
               title: 'Household Information',
               description: 'Your residence, utilities, and who you live with.',
               status: profile.householdStatus,
-              onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const HouseholdInformationScreen())),
+              onTap: () =>
+                  Navigator.of(context).push(MaterialPageRoute(builder: (_) => const HouseholdInformationScreen())),
             ),
             const SizedBox(height: 10),
             _SectionCard(
@@ -103,15 +110,21 @@ class _ProgressCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('$pct% Complete', style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
+          Text(
+            '$pct% Complete',
+            style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
+          ),
           if (profile.status != VerificationStatus.draft && profile.status != VerificationStatus.incomplete) ...[
             const SizedBox(height: 6),
             Align(
               alignment: Alignment.centerLeft,
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+                padding: const EdgeInsets.symmetric(horizontal: 9, vertical: AppSpacing.xs),
                 decoration: BoxDecoration(color: AppColors.brand50, borderRadius: BorderRadius.circular(999)),
-                child: Text(profile.status.label, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.brand600)),
+                child: Text(
+                  profile.status.label,
+                  style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.brand600),
+                ),
               ),
             ),
           ],
@@ -125,8 +138,11 @@ class _ProgressCard extends StatelessWidget {
               valueColor: const AlwaysStoppedAnimation(AppColors.brand500),
             ),
           ),
-          const SizedBox(height: 8),
-          Text(profile.status.citizenMessage, style: const TextStyle(fontSize: 12.5, color: AppColors.textMuted, height: 1.35)),
+          const SizedBox(height: AppSpacing.sm),
+          Text(
+            profile.status.citizenMessage,
+            style: const TextStyle(fontSize: 12.5, color: AppColors.textMuted, height: 1.35),
+          ),
         ],
       ),
     );
@@ -151,7 +167,7 @@ class _SectionCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AppCard(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(AppSpacing.lg),
       onTap: onTap,
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -168,17 +184,23 @@ class _SectionCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title, style: const TextStyle(fontSize: 14.5, fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
+                Text(
+                  title,
+                  style: const TextStyle(fontSize: 14.5, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
+                ),
                 if (status != null) ...[
-                  const SizedBox(height: 4),
-                  Align(alignment: Alignment.centerLeft, child: SectionStatusChip(status: status!)),
+                  const SizedBox(height: AppSpacing.xs),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: SectionStatusChip(status: status!),
+                  ),
                 ],
-                const SizedBox(height: 4),
+                const SizedBox(height: AppSpacing.xs),
                 Text(description, style: const TextStyle(fontSize: 12, color: AppColors.textMuted, height: 1.35)),
               ],
             ),
           ),
-          const SizedBox(width: 4),
+          const SizedBox(width: AppSpacing.xs),
           const Icon(Icons.chevron_right_rounded, color: AppColors.slate300),
         ],
       ),
@@ -194,7 +216,7 @@ class _CorrectionBanner extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(AppSpacing.lg),
       decoration: BoxDecoration(
         color: AppColors.rose50,
         borderRadius: BorderRadius.circular(16),
@@ -206,14 +228,22 @@ class _CorrectionBanner extends StatelessWidget {
           const Row(
             children: [
               Icon(Icons.error_outline_rounded, size: 18, color: AppColors.rose600),
-              SizedBox(width: 8),
-              Text('Needs Correction', style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700, color: AppColors.rose700)),
+              SizedBox(width: AppSpacing.sm),
+              Text(
+                'Needs Correction',
+                style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700, color: AppColors.rose700),
+              ),
             ],
           ),
           const SizedBox(height: 6),
           Text(message, style: const TextStyle(fontSize: 12.5, color: AppColors.rose700, height: 1.4)),
           const SizedBox(height: AppSpacing.md),
-          AppButton(label: 'Update Information', variant: AppButtonVariant.danger, size: AppButtonSize.sm, onPressed: onUpdate),
+          AppButton(
+            label: 'Update Information',
+            variant: AppButtonVariant.danger,
+            size: AppButtonSize.sm,
+            onPressed: onUpdate,
+          ),
         ],
       ),
     );
@@ -246,16 +276,19 @@ class _DemoVerificationPanelState extends State<_DemoVerificationPanel> {
             child: Row(
               children: [
                 const Icon(Icons.science_outlined, size: 16, color: AppColors.amber500),
-                const SizedBox(width: 8),
+                const SizedBox(width: AppSpacing.sm),
                 const Expanded(
-                  child: Text('Demo: Simulate LGU Verification', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: AppColors.amber700)),
+                  child: Text(
+                    'Demo: Simulate LGU Verification',
+                    style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: AppColors.amber700),
+                  ),
                 ),
                 Icon(_expanded ? Icons.expand_less_rounded : Icons.expand_more_rounded, color: AppColors.slate400),
               ],
             ),
           ),
           if (_expanded) ...[
-            const SizedBox(height: 8),
+            const SizedBox(height: AppSpacing.sm),
             const Text(
               'No real Web Admin connection exists yet — this previews how an LGU verifier\'s decision would appear on your profile.',
               style: TextStyle(fontSize: 11, color: AppColors.textMuted, height: 1.4),
@@ -282,10 +315,12 @@ class _DemoVerificationPanelState extends State<_DemoVerificationPanel> {
                     size: AppButtonSize.sm,
                     onPressed: () async {
                       await context.read<ResidentProfileService>().simulateNeedsCorrection(
-                            widget.accountId,
-                            'Please provide your complete Sitio / Purok.',
-                          );
-                      if (context.mounted) AppDialogs.toast(context, 'Marked as needing correction (simulated).', success: false);
+                        widget.accountId,
+                        'Please provide your complete Sitio / Purok.',
+                      );
+                      if (context.mounted) {
+                        AppDialogs.toast(context, 'Marked as needing correction (simulated).', success: false);
+                      }
                     },
                   ),
                 ),

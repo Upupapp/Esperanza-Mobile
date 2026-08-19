@@ -16,7 +16,7 @@ class EmptyState extends StatelessWidget {
     required this.title,
     this.description,
     this.action,
-    this.padding = const EdgeInsets.symmetric(vertical: 56, horizontal: 24),
+    this.padding = const EdgeInsets.symmetric(vertical: 56, horizontal: AppSpacing.xxl),
   });
 
   @override
@@ -28,23 +28,23 @@ class EmptyState extends StatelessWidget {
           Container(
             width: 64,
             height: 64,
-            decoration: BoxDecoration(color: AppColors.slate100, borderRadius: BorderRadius.circular(16)),
+            decoration: BoxDecoration(color: AppColors.slate100, borderRadius: BorderRadius.circular(AppRadius.lg)),
             child: Icon(icon, size: 28, color: AppColors.slate400),
           ),
           const SizedBox(height: AppSpacing.lg),
-          Text(title, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.slate700)),
+          Text(
+            title,
+            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.slate700),
+          ),
           if (description != null) ...[
-            const SizedBox(height: 4),
+            const SizedBox(height: AppSpacing.xs),
             Text(
               description!,
               textAlign: TextAlign.center,
               style: const TextStyle(fontSize: 13, color: AppColors.textMuted),
             ),
           ],
-          if (action != null) ...[
-            const SizedBox(height: AppSpacing.xl),
-            action!,
-          ],
+          if (action != null) ...[const SizedBox(height: AppSpacing.xl), action!],
         ],
       ),
     );
@@ -114,24 +114,35 @@ class ErrorState extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 56, horizontal: 24),
+      padding: const EdgeInsets.symmetric(vertical: 56, horizontal: AppSpacing.xxl),
       child: Column(
         children: [
           Container(
             width: 64,
             height: 64,
-            decoration: BoxDecoration(color: AppColors.rose50, borderRadius: BorderRadius.circular(16)),
+            decoration: BoxDecoration(color: AppColors.rose50, borderRadius: BorderRadius.circular(AppRadius.lg)),
             child: const Icon(Icons.error_outline_rounded, size: 28, color: AppColors.rose600),
           ),
           const SizedBox(height: AppSpacing.lg),
-          Text(title, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.slate700)),
+          Text(
+            title,
+            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.slate700),
+          ),
           if (description != null) ...[
-            const SizedBox(height: 4),
-            Text(description!, textAlign: TextAlign.center, style: const TextStyle(fontSize: 13, color: AppColors.textMuted)),
+            const SizedBox(height: AppSpacing.xs),
+            Text(
+              description!,
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 13, color: AppColors.textMuted),
+            ),
           ],
           if (onRetry != null) ...[
             const SizedBox(height: AppSpacing.lg),
-            TextButton.icon(onPressed: onRetry, icon: const Icon(Icons.refresh_rounded, size: 16), label: const Text('Try again')),
+            TextButton.icon(
+              onPressed: onRetry,
+              icon: const Icon(Icons.refresh_rounded, size: 16),
+              label: const Text('Try again'),
+            ),
           ],
         ],
       ),

@@ -34,40 +34,28 @@ class AppButton extends StatelessWidget {
   });
 
   EdgeInsets get _padding => switch (size) {
-        AppButtonSize.sm => const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-        AppButtonSize.md => const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
-        AppButtonSize.lg => const EdgeInsets.symmetric(horizontal: 24, vertical: 15),
-      };
+    AppButtonSize.sm => const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+    AppButtonSize.md => const EdgeInsets.symmetric(horizontal: 18, vertical: AppSpacing.md),
+    AppButtonSize.lg => const EdgeInsets.symmetric(horizontal: AppSpacing.xxl, vertical: 15),
+  };
 
   double get _fontSize => size == AppButtonSize.lg ? 15 : (size == AppButtonSize.sm ? 12.5 : 14);
 
   _VariantStyle get _colors => switch (variant) {
-        AppButtonVariant.primary => _VariantStyle(
-            background: AppColors.brand500,
-            foreground: Colors.white,
-            border: null,
-          ),
-        AppButtonVariant.secondary => _VariantStyle(
-            background: Colors.white,
-            foreground: AppColors.slate700,
-            border: AppColors.slate200,
-          ),
-        AppButtonVariant.ghost => _VariantStyle(
-            background: Colors.transparent,
-            foreground: AppColors.slate500,
-            border: null,
-          ),
-        AppButtonVariant.danger => _VariantStyle(
-            background: AppColors.rose600,
-            foreground: Colors.white,
-            border: null,
-          ),
-        AppButtonVariant.gold => _VariantStyle(
-            background: AppColors.gold400,
-            foreground: AppColors.navy950,
-            border: null,
-          ),
-      };
+    AppButtonVariant.primary => _VariantStyle(background: AppColors.brand500, foreground: Colors.white, border: null),
+    AppButtonVariant.secondary => _VariantStyle(
+      background: Colors.white,
+      foreground: AppColors.slate700,
+      border: AppColors.slate200,
+    ),
+    AppButtonVariant.ghost => _VariantStyle(
+      background: Colors.transparent,
+      foreground: AppColors.slate500,
+      border: null,
+    ),
+    AppButtonVariant.danger => _VariantStyle(background: AppColors.rose600, foreground: Colors.white, border: null),
+    AppButtonVariant.gold => _VariantStyle(background: AppColors.gold400, foreground: AppColors.navy950, border: null),
+  };
 
   @override
   Widget build(BuildContext context) {
@@ -77,11 +65,7 @@ class AppButton extends StatelessWidget {
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
         if (loading) ...[
-          SizedBox(
-            width: 15,
-            height: 15,
-            child: CircularProgressIndicator(strokeWidth: 2, color: c.foreground),
-          ),
+          SizedBox(width: 15, height: 15, child: CircularProgressIndicator(strokeWidth: 2, color: c.foreground)),
           const SizedBox(width: AppSpacing.sm),
         ] else if (icon != null && !iconTrailing) ...[
           Icon(icon, size: size == AppButtonSize.lg ? 18 : 16, color: c.foreground),
@@ -105,14 +89,14 @@ class AppButton extends StatelessWidget {
       width: fullWidth ? double.infinity : null,
       child: Material(
         color: c.background,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(AppRadius.md),
         child: InkWell(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(AppRadius.md),
           onTap: loading ? null : onPressed,
           child: Container(
             padding: _padding,
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(AppRadius.md),
               border: c.border != null ? Border.all(color: c.border!) : null,
             ),
             child: child,

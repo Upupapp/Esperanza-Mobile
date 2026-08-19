@@ -12,6 +12,7 @@ import '../../widgets/resident_profile_status_card.dart';
 import '../../widgets/verification_status_panel.dart';
 import '../auth/register_screen.dart';
 import '../directory/directory_screen.dart';
+import '../support/help_support_screen.dart';
 import 'edit_profile_screen.dart';
 import 'resident_profile/resident_profile_overview_screen.dart';
 import 'settings_screen.dart';
@@ -42,12 +43,21 @@ class ProfileScreen extends StatelessWidget {
                 CircleAvatar(
                   radius: 34,
                   backgroundColor: AppColors.brand50,
-                  child: Text(account.initials, style: const TextStyle(fontSize: 21, fontWeight: FontWeight.w700, color: AppColors.brand600)),
+                  child: Text(
+                    account.initials,
+                    style: const TextStyle(fontSize: 21, fontWeight: FontWeight.w700, color: AppColors.brand600),
+                  ),
                 ),
                 const SizedBox(height: AppSpacing.md),
-                Text(account.fullName, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
+                Text(
+                  account.fullName,
+                  style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
+                ),
                 const SizedBox(height: 3),
-                Text('${account.id} · Brgy. ${account.barangay}', style: const TextStyle(fontSize: 12, color: AppColors.textMuted)),
+                Text(
+                  '${account.id} · Brgy. ${account.barangay}',
+                  style: const TextStyle(fontSize: 12, color: AppColors.textMuted),
+                ),
                 const SizedBox(height: AppSpacing.lg),
                 ClipRRect(
                   borderRadius: BorderRadius.circular(999),
@@ -58,14 +68,18 @@ class ProfileScreen extends StatelessWidget {
                     valueColor: const AlwaysStoppedAnimation(AppColors.emerald500),
                   ),
                 ),
-                const SizedBox(height: 8),
-                Text('Profile ${account.profileCompleteness}% complete', style: const TextStyle(fontSize: 11.5, color: AppColors.textMuted)),
+                const SizedBox(height: AppSpacing.sm),
+                Text(
+                  'Profile ${account.profileCompleteness}% complete',
+                  style: const TextStyle(fontSize: 11.5, color: AppColors.textMuted),
+                ),
                 const SizedBox(height: AppSpacing.lg),
                 SizedBox(
                   width: double.infinity,
                   height: 46,
                   child: OutlinedButton.icon(
-                    onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const EditProfileScreen())),
+                    onPressed: () =>
+                        Navigator.of(context).push(MaterialPageRoute(builder: (_) => const EditProfileScreen())),
                     icon: const Icon(Icons.edit_outlined, size: 16),
                     label: const Text('Edit Profile'),
                   ),
@@ -83,24 +97,44 @@ class ProfileScreen extends StatelessWidget {
           const SizedBox(height: AppSpacing.lg),
           ResidentProfileStatusCard(
             profile: residentProfile,
-            onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const ResidentProfileOverviewScreen())),
+            onTap: () =>
+                Navigator.of(context).push(MaterialPageRoute(builder: (_) => const ResidentProfileOverviewScreen())),
           ),
           const SizedBox(height: AppSpacing.xl),
           MenuListTile(
             icon: Icons.home_work_outlined,
             label: 'Household & Family',
-            onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const ResidentProfileOverviewScreen())),
+            onTap: () =>
+                Navigator.of(context).push(MaterialPageRoute(builder: (_) => const ResidentProfileOverviewScreen())),
           ),
-          MenuListTile(icon: Icons.apartment_outlined, label: 'Government Directory', onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const DirectoryScreen()))),
-          MenuListTile(icon: Icons.settings_outlined, label: 'Settings', onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const SettingsScreen()))),
-          MenuListTile(icon: Icons.help_outline_rounded, label: 'Help & Support', onTap: () => AppDialogs.toast(context, 'Help & Support content coming soon.')),
+          MenuListTile(
+            icon: Icons.apartment_outlined,
+            label: 'Government Directory',
+            onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const DirectoryScreen())),
+          ),
+          MenuListTile(
+            icon: Icons.settings_outlined,
+            label: 'Settings',
+            onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const SettingsScreen())),
+          ),
+          MenuListTile(
+            icon: Icons.help_outline_rounded,
+            label: 'Help & Support',
+            onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const HelpSupportScreen())),
+          ),
           const SizedBox(height: AppSpacing.md),
           MenuListTile(
             icon: Icons.logout_rounded,
             label: 'Sign Out',
             danger: true,
             onTap: () async {
-              final ok = await AppDialogs.confirm(context, title: 'Sign out?', message: 'You can sign back in anytime with your registered email.', confirmLabel: 'Sign Out', danger: true);
+              final ok = await AppDialogs.confirm(
+                context,
+                title: 'Sign out?',
+                message: 'You can sign back in anytime with your registered email.',
+                confirmLabel: 'Sign Out',
+                danger: true,
+              );
               if (ok) await session.logout();
             },
           ),

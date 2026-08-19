@@ -57,6 +57,30 @@ class AppTypography {
     color: AppColors.textMuted,
   );
 
+  /// Card/list-tile title text — Balita post headers, request/notification
+  /// tiles, evacuation-center rows, and similar "titled item" rows. Added
+  /// after an audit found this exact (13, w600) pairing was already the
+  /// plurality choice among several near-duplicate sizes (12.5/13/13.5)
+  /// used for the same role — this names the value that already won,
+  /// rather than introducing a new one.
+  static const TextStyle cardTitle = TextStyle(
+    fontFamily: sans,
+    fontSize: 13,
+    fontWeight: FontWeight.w600,
+    color: AppColors.textPrimary,
+  );
+
+  /// A quiet subsection label sitting above a group of related content
+  /// (e.g. "Family Members", "Emergency Hotlines") — smaller and less
+  /// prominent than [h3]'s full section titles, matching the dominant
+  /// existing pattern for this specific role.
+  static const TextStyle subsectionLabel = TextStyle(
+    fontFamily: sans,
+    fontSize: 13,
+    fontWeight: FontWeight.w600,
+    color: AppColors.textMuted,
+  );
+
   static const TextStyle overline = TextStyle(
     fontFamily: sans,
     fontSize: 11,
@@ -65,11 +89,7 @@ class AppTypography {
     letterSpacing: 0.6,
   );
 
-  static const TextStyle button = TextStyle(
-    fontFamily: sans,
-    fontSize: 14,
-    fontWeight: FontWeight.w500,
-  );
+  static const TextStyle button = TextStyle(fontFamily: sans, fontSize: 14, fontWeight: FontWeight.w500);
 
   /// Reserved for ceremonial contexts: document/certificate previews,
   /// official-looking headers — matches the Web Admin's narrow, deliberate

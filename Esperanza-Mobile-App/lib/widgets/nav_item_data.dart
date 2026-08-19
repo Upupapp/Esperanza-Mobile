@@ -9,9 +9,5 @@ class NavItemData {
   final IconData filledIcon;
   final String label;
 
-  const NavItemData({
-    required this.outlineIcon,
-    required this.filledIcon,
-    required this.label,
-  });
+  const NavItemData({required this.outlineIcon, required this.filledIcon, required this.label});
 }

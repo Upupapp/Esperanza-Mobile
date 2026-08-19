@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../screens/auth/register_screen.dart';
 import '../screens/directory/directory_screen.dart';
+import '../screens/legal/privacy_policy_screen.dart';
 import '../screens/profile/profile_screen.dart';
 import '../screens/profile/settings_screen.dart';
+import '../screens/support/help_support_screen.dart';
 import '../services/citizen_session_service.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
@@ -30,7 +32,7 @@ class EsperanzaDrawer extends StatelessWidget {
             const Divider(height: 1),
             Expanded(
               child: ListView(
-                padding: const EdgeInsets.symmetric(vertical: 8),
+                padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
                 children: [
                   if (session.isSignedIn) ...[
                     _DrawerTile(
@@ -63,13 +65,18 @@ class EsperanzaDrawer extends StatelessWidget {
                   _DrawerTile(
                     icon: Icons.help_outline_rounded,
                     label: 'Help & Support',
-                    onTap: () {
-                      Navigator.of(context).pop();
-                      AppDialogs.toast(context, 'Help & Support content coming soon.');
-                    },
+                    onTap: () => _push(context, const HelpSupportScreen()),
+                  ),
+                  _DrawerTile(
+                    icon: Icons.privacy_tip_outlined,
+                    label: 'Privacy Policy',
+                    onTap: () => _push(context, const PrivacyPolicyScreen()),
                   ),
                   if (session.isSignedIn) ...[
-                    const Padding(padding: EdgeInsets.symmetric(vertical: 8), child: Divider(height: 1)),
+                    const Padding(
+                      padding: EdgeInsets.symmetric(vertical: AppSpacing.sm),
+                      child: Divider(height: 1),
+                    ),
                     _DrawerTile(
                       icon: Icons.logout_rounded,
                       label: 'Sign Out',
@@ -133,7 +140,11 @@ class _Header extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.fromLTRB(20, 28, 20, 20),
       decoration: const BoxDecoration(
-        gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [AppColors.navy900, AppColors.brand700]),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [AppColors.navy900, AppColors.brand700],
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -142,7 +153,10 @@ class _Header extends StatelessWidget {
             radius: 26,
             backgroundColor: Colors.white.withValues(alpha: 0.15),
             child: account != null
-                ? Text(account.initials, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 16))
+                ? Text(
+                    account.initials,
+                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 16),
+                  )
                 : const Icon(Icons.person_outline_rounded, color: Colors.white, size: 26),
           ),
           const SizedBox(height: AppSpacing.md),
@@ -173,7 +187,10 @@ class _DrawerTile extends StatelessWidget {
     final color = danger ? AppColors.rose600 : AppColors.slate700;
     return ListTile(
       leading: Icon(icon, color: danger ? AppColors.rose500 : AppColors.slate500, size: 22),
-      title: Text(label, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: color)),
+      title: Text(
+        label,
+        style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: color),
+      ),
       onTap: onTap,
     );
   }

@@ -13,6 +13,15 @@ import 'package:esperanza_mobile/screens/shared/event_poster_viewer.dart';
 import 'package:esperanza_mobile/widgets/event_card.dart';
 import 'package:esperanza_mobile/widgets/home_welcome_banner.dart';
 
+/// Unwraps the `ResizeImage` that `Image.asset(..., cacheWidth: ...)` now
+/// wraps its `AssetImage` in (a performance optimization — decode at
+/// display size instead of full source resolution) so tests can still
+/// assert on the underlying asset path regardless of whether a given call
+/// site specifies cacheWidth or not.
+AssetImage _unwrapAssetImage(ImageProvider provider) {
+  return provider is ResizeImage ? provider.imageProvider as AssetImage : provider as AssetImage;
+}
+
 void _setPhoneViewport(WidgetTester tester) {
   tester.view.physicalSize = const Size(390, 844);
   tester.view.devicePixelRatio = 1.0;
@@ -47,19 +56,25 @@ Future<void> _enterAsGuest(WidgetTester tester) async {
 }
 
 void main() {
-  testWidgets('Home_Banner pop-up appears after entering Home, over a dimmed background, not distorted', (tester) async {
+  testWidgets('Home_Banner pop-up appears after entering Home, over a dimmed background, not distorted', (
+    tester,
+  ) async {
     await _enterAsGuest(tester);
 
     expect(find.byType(HomeWelcomeBanner), findsOneWidget);
     // The actual poster image is present and not stretched/cropped —
     // BoxFit.contain inside a bounded ConstrainedBox, never .cover.
-    final image = tester.widget<Image>(find.descendant(of: find.byType(HomeWelcomeBanner), matching: find.byType(Image)));
+    final image = tester.widget<Image>(
+      find.descendant(of: find.byType(HomeWelcomeBanner), matching: find.byType(Image)),
+    );
     expect(image.fit, BoxFit.contain);
-    expect((image.image as AssetImage).assetName, 'assets/images/Home_Banner.png');
+    expect(_unwrapAssetImage(image.image).assetName, 'assets/images/Home_Banner.png');
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('X button is upper-right, closes the banner, and it does not reopen on an ordinary rebuild', (tester) async {
+  testWidgets('X button is upper-right, closes the banner, and it does not reopen on an ordinary rebuild', (
+    tester,
+  ) async {
     await _enterAsGuest(tester);
     expect(find.byType(HomeWelcomeBanner), findsOneWidget);
 
@@ -93,7 +108,9 @@ void main() {
     expect(find.text('Notifications'), findsOneWidget);
   });
 
-  testWidgets('all 5 real event posters render as separate cards on the Events tab, not merged into one container', (tester) async {
+  testWidgets('all 5 real event posters render as separate cards on the Events tab, not merged into one container', (
+    tester,
+  ) async {
     await _enterAsGuest(tester);
     await tester.tap(find.byIcon(Icons.close_rounded), warnIfMissed: false);
     await tester.pumpAndSettle();
@@ -139,10 +156,7 @@ void main() {
         // Each found title is its own distinct EventCard ancestor, which
         // is exactly what proves they're separate cards and not one
         // merged container.
-        expect(
-          find.ancestor(of: find.textContaining(title), matching: find.byType(EventCard)),
-          findsOneWidget,
-        );
+        expect(find.ancestor(of: find.textContaining(title), matching: find.byType(EventCard)), findsOneWidget);
       }
     }
     expect(seen, titles.toSet());
@@ -169,9 +183,11 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.textContaining('Domorog & Sorosimbahan Mangroves Receive Recognition'), findsOneWidget);
-    final newsImage = tester.widgetList<Image>(find.byType(Image)).where(
-          (img) => img.image is AssetImage && (img.image as AssetImage).assetName == 'assets/images/News page section.png',
-        );
+    final newsImage = tester.widgetList<Image>(find.byType(Image)).where((img) {
+      final provider = img.image;
+      if (provider is! AssetImage && provider is! ResizeImage) return false;
+      return _unwrapAssetImage(provider).assetName == 'assets/images/News page section.png';
+    });
     expect(newsImage.length, 1);
 
     // Hard rule check: no create/upload/publish affordance exists anywhere

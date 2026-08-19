@@ -26,8 +26,7 @@ class RequestsService extends ChangeNotifier {
   List<ServiceRequest> get all => List.unmodifiable(_requests);
 
   List<ServiceRequest> byCategory(ServiceCategory category) =>
-      _requests.where((r) => r.category == category).toList()
-        ..sort((a, b) => b.submittedAt.compareTo(a.submittedAt));
+      _requests.where((r) => r.category == category).toList()..sort((a, b) => b.submittedAt.compareTo(a.submittedAt));
 
   RequestsService({this.seedDemoData = true}) {
     _restore();
@@ -100,7 +99,12 @@ class RequestsService extends ChangeNotifier {
         submittedAt: submittedAt,
         status: finalStatus,
         statusHistory: [
-          StatusHistoryEntry(status: 'Submitted', at: submittedAt, actor: 'Citizen', remarks: 'Request submitted via mobile app.'),
+          StatusHistoryEntry(
+            status: 'Submitted',
+            at: submittedAt,
+            actor: 'Citizen',
+            remarks: 'Request submitted via mobile app.',
+          ),
           StatusHistoryEntry(status: finalStatus, at: daysAgo(1), actor: actorRole, remarks: remarks),
         ],
         attachments: const [],
@@ -231,7 +235,12 @@ class RequestsService extends ChangeNotifier {
       submittedAt: now,
       status: 'Submitted',
       statusHistory: [
-        StatusHistoryEntry(status: 'Submitted', at: now, actor: 'Citizen', remarks: 'Request submitted via mobile app.'),
+        StatusHistoryEntry(
+          status: 'Submitted',
+          at: now,
+          actor: 'Citizen',
+          remarks: 'Request submitted via mobile app.',
+        ),
       ],
       attachments: attachments,
       expectedDays: expectedDays,
@@ -241,28 +250,6 @@ class RequestsService extends ChangeNotifier {
     await _persist();
     notifyListeners();
     return request;
-  }
-
-  /// DEMO-ONLY: simulates what a Web Admin staff member would do on the
-  /// admin side (Review -> Approve/Reject/Request Additional Requirements
-  /// -> Release), so the full citizen <-> admin loop can be seen end-to-end
-  /// inside this frontend-only build even though no real Web Admin
-  /// connection exists yet. Screens must clearly label this as a demo
-  /// control, never presented as if a real admin acted.
-  Future<void> simulateAdminUpdate(
-    String requestId, {
-    required String newStatus,
-    required String actorRole,
-    String? remarks,
-  }) async {
-    final request = _requests.firstWhere((r) => r.id == requestId);
-    request.status = newStatus;
-    request.adminRemarks = remarks;
-    request.statusHistory.add(
-      StatusHistoryEntry(status: newStatus, at: DateTime.now(), actor: actorRole, remarks: remarks),
-    );
-    await _persist();
-    notifyListeners();
   }
 
   Future<void> cancel(String requestId) async {

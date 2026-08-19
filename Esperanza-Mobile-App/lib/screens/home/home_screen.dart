@@ -110,7 +110,9 @@ class _HomeScreenState extends State<HomeScreen> {
               if (account != null) ...[
                 ResidentProfileStatusCard(
                   profile: residentProfile!,
-                  onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const ResidentProfileOverviewScreen())),
+                  onTap: () => Navigator.of(
+                    context,
+                  ).push(MaterialPageRoute(builder: (_) => const ResidentProfileOverviewScreen())),
                 ),
                 const SizedBox(height: AppSpacing.xl),
                 // Two content-sized rows instead of GridView.count's fixed
@@ -187,7 +189,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       icon: Icons.inbox_outlined,
                       title: 'No active requests',
                       description: 'Start a Dokyu or Tulong request and track it here.',
-                      padding: const EdgeInsets.symmetric(vertical: 28, horizontal: 20),
+                      padding: const EdgeInsets.symmetric(vertical: 28, horizontal: AppSpacing.xl),
                     ),
                   )
                 else
@@ -240,11 +242,15 @@ class _Hero extends StatelessWidget {
       borderRadius: BorderRadius.circular(20),
       background: const DecoratedBox(
         decoration: BoxDecoration(
-          gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [AppColors.navy900, AppColors.brand700]),
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [AppColors.navy900, AppColors.brand700],
+          ),
         ),
       ),
       foreground: Padding(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.all(AppSpacing.xl),
         child: account != null ? _signedInContent(context, account!) : _guestContent(context),
       ),
     );
@@ -258,14 +264,14 @@ class _Hero extends StatelessWidget {
             borderRadius: BorderRadius.circular(20),
             onTap: () => Scaffold.of(context).openDrawer(),
             child: const Padding(
-              padding: EdgeInsets.all(4),
+              padding: EdgeInsets.all(AppSpacing.xs),
               child: Icon(Icons.menu_rounded, color: Colors.white, size: 22),
             ),
           ),
         ),
-        const SizedBox(width: 8),
+        const SizedBox(width: AppSpacing.sm),
         Expanded(child: middle),
-        const SizedBox(width: 8),
+        const SizedBox(width: AppSpacing.sm),
         const AlertsAction(color: Colors.white),
       ],
     );
@@ -283,7 +289,10 @@ class _Hero extends StatelessWidget {
               CircleAvatar(
                 radius: 22,
                 backgroundColor: Colors.white.withValues(alpha: 0.15),
-                child: Text(account.initials, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
+                child: Text(
+                  account.initials,
+                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
+                ),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -293,7 +302,12 @@ class _Hero extends StatelessWidget {
                     Text(
                       'Magandang araw, ${account.firstName} 👋',
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w700, height: 1.25),
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        height: 1.25,
+                      ),
                     ),
                     const SizedBox(height: 2),
                     Text(
@@ -338,7 +352,8 @@ class _Hero extends StatelessWidget {
             // action labels are never cut off.
             final perButtonWidth = (constraints.maxWidth - _buttonGap) / 2;
             final availableTextWidth = perButtonWidth - _nonTextWidth;
-            final sideBySideFits = _fitsOneLine(tulongLabel, availableTextWidth) && _fitsOneLine(dokyuLabel, availableTextWidth);
+            final sideBySideFits =
+                _fitsOneLine(tulongLabel, availableTextWidth) && _fitsOneLine(dokyuLabel, availableTextWidth);
 
             if (sideBySideFits) {
               return Row(
@@ -366,10 +381,19 @@ class _Hero extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _topBar(context, middle: const Text('Esperanza', style: TextStyle(fontFamily: 'Lora', color: Colors.white, fontSize: 18, fontWeight: FontWeight.w600))),
+        _topBar(
+          context,
+          middle: const Text(
+            'Esperanza',
+            style: TextStyle(fontFamily: 'Lora', color: Colors.white, fontSize: 18, fontWeight: FontWeight.w600),
+          ),
+        ),
         const SizedBox(height: AppSpacing.lg),
-        const Text('Welcome, Guest 👋', style: TextStyle(color: Colors.white, fontSize: 17, fontWeight: FontWeight.w700)),
-        const SizedBox(height: 4),
+        const Text(
+          'Welcome, Guest 👋',
+          style: TextStyle(color: Colors.white, fontSize: 17, fontWeight: FontWeight.w700),
+        ),
+        const SizedBox(height: AppSpacing.xs),
         Text(
           "You're browsing public content. Sign in or create an account for full access.",
           style: TextStyle(color: Colors.white.withValues(alpha: 0.75), fontSize: 12, height: 1.35),
@@ -423,7 +447,12 @@ class _RequestPreviewTile extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(request.typeName, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600)),
+                  Text(
+                    request.typeName,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600),
+                  ),
                   const SizedBox(height: 2),
                   Text(request.referenceNumber, style: const TextStyle(fontSize: 11, color: AppColors.textMuted)),
                 ],

@@ -3,6 +3,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../services/mock_catalog.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_spacing.dart';
+import '../../theme/app_typography.dart';
 import '../../widgets/app_card.dart';
 
 /// Mirrors citizen/directory.blade.php — municipal offices with real names
@@ -17,7 +18,7 @@ class DirectoryScreen extends StatelessWidget {
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
         children: [
-          const Text('Municipal Offices', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textMuted)),
+          const Text('Municipal Offices', style: AppTypography.subsectionLabel),
           const SizedBox(height: AppSpacing.md),
           ...MockCatalog.directoryOffices.map((o) => _OfficeTile(name: o.$1, head: o.$2, contact: o.$3)),
         ],

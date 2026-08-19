@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../main.dart';
 import '../../services/onboarding_service.dart';
-import '../../theme/app_colors.dart';
+import '../../theme/app_spacing.dart';
 import '../../theme/app_typography.dart';
 import '../../utils/fade_page_route.dart';
 import '../../widgets/app_button.dart';
@@ -37,6 +37,29 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   final _pageController = PageController();
   int _page = 0;
   bool _finishing = false;
+  bool _imagesPrecached = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Decoding a ~1MB welcome-screen PNG takes a frame or two — without
+    // this, swiping/tapping Next to a page whose image hasn't been
+    // decoded yet leaves that frame briefly empty, exposing whatever sits
+    // behind it (this screen's own Scaffold background) until the decode
+    // finishes. Precaching all three up front (cheap: this only runs
+    // once, and the images are already about to be shown regardless)
+    // means every page's image is already decoded before it can ever be
+    // swiped/tapped to. Must build the exact same ResizeImage-wrapped
+    // provider _OnboardingPage's Image.asset(cacheWidth: ...) uses below
+    // — precaching a plain, unwrapped AssetImage would populate a
+    // different image-cache entry and not actually help.
+    if (_imagesPrecached) return;
+    _imagesPrecached = true;
+    final cacheWidth = (MediaQuery.sizeOf(context).width * MediaQuery.devicePixelRatioOf(context)).round();
+    for (final p in _pages) {
+      precacheImage(ResizeImage.resizeIfNeeded(cacheWidth, null, AssetImage(p.imagePath)), context);
+    }
+  }
 
   @override
   void dispose() {
@@ -67,7 +90,14 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   Widget build(BuildContext context) {
     final isLast = _page == _pages.length - 1;
     return Scaffold(
-      backgroundColor: AppColors.navy900,
+      // White, not the app's navy brand color — this is only ever visible
+      // for a stray frame behind a page whose image hasn't fully painted
+      // yet during a transition (see didChangeDependencies' precaching
+      // above, which minimizes how often that happens at all). Navy read
+      // as a jarring dark flash against these light welcome photos; white
+      // is the neutral, barely-noticeable fallback every other loading
+      // state in this app already uses.
+      backgroundColor: Colors.white,
       body: Stack(
         children: [
           PageView.builder(
@@ -107,7 +137,10 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                         ignoring: isLast,
                         child: _PillButton(
                           onTap: _finishing ? null : _finish,
-                          child: const Text('Skip', style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600, color: Colors.white)),
+                          child: const Text(
+                            'Skip',
+                            style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600, color: Colors.white),
+                          ),
                         ),
                       ),
                     ),
@@ -153,7 +186,7 @@ class _PageDot extends StatelessWidget {
     return AnimatedContainer(
       duration: const Duration(milliseconds: 200),
       curve: Curves.easeOut,
-      margin: const EdgeInsets.symmetric(horizontal: 4),
+      margin: const EdgeInsets.symmetric(horizontal: AppSpacing.xs),
       width: active ? 22 : 8,
       height: 8,
       decoration: BoxDecoration(
@@ -182,10 +215,7 @@ class _PillButton extends StatelessWidget {
       child: InkWell(
         borderRadius: BorderRadius.circular(999),
         onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
-          child: child,
-        ),
+        child: Padding(padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9), child: child),
       ),
     );
   }
@@ -198,10 +228,7 @@ class _BrandBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.fromLTRB(6, 6, 14, 6),
-      decoration: BoxDecoration(
-        color: Colors.black.withValues(alpha: 0.38),
-        borderRadius: BorderRadius.circular(999),
-      ),
+      decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.38), borderRadius: BorderRadius.circular(999)),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -212,9 +239,17 @@ class _BrandBadge extends StatelessWidget {
               shape: BoxShape.circle,
               border: Border.all(color: Colors.white.withValues(alpha: 0.5), width: 1),
             ),
-            child: ClipOval(child: Image.asset('assets/images/esperanza-seal.png', fit: BoxFit.cover)),
+            // Source seal is 500x500; displayed at 26 logical px here, so
+            // cap decode to that (x DPR) instead of the full resolution.
+            child: ClipOval(
+              child: Image.asset(
+                'assets/images/esperanza-seal.png',
+                fit: BoxFit.cover,
+                cacheWidth: (26 * MediaQuery.devicePixelRatioOf(context)).round(),
+              ),
+            ),
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: AppSpacing.sm),
           // Flexible + ellipsis: a Row with mainAxisSize.min still demands
           // its full natural width regardless of what's actually
           // available — on a narrow phone this text alone can exceed the
@@ -226,7 +261,12 @@ class _BrandBadge extends StatelessWidget {
               'Municipalidad ng Esperanza',
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: TextStyle(fontFamily: AppTypography.display, fontSize: 12.5, fontWeight: FontWeight.w600, color: Colors.white),
+              style: TextStyle(
+                fontFamily: AppTypography.display,
+                fontSize: 12.5,
+                fontWeight: FontWeight.w600,
+                color: Colors.white,
+              ),
             ),
           ),
         ],
@@ -241,10 +281,15 @@ class _OnboardingPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Full-bleed background — cap decode to the device's actual physical
+    // width (source art is ~1024px wide, already close to most phones'
+    // physical width, but this keeps decode matched to the screen rather
+    // than the source file on higher-resolution devices).
+    final cacheWidth = (MediaQuery.sizeOf(context).width * MediaQuery.devicePixelRatioOf(context)).round();
     return Stack(
       fit: StackFit.expand,
       children: [
-        Image.asset(data.imagePath, fit: BoxFit.cover),
+        Image.asset(data.imagePath, fit: BoxFit.cover, cacheWidth: cacheWidth),
         // Soft top/bottom scrims so the brand badge/Skip and the page
         // dots/Next button stay readable regardless of what's directly
         // behind them in the artwork, without covering the middle of the

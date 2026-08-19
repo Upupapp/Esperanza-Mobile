@@ -1,10 +1,10 @@
-import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import '../models/attachment.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
 import '../utils/cross_platform_image.dart';
+import '../utils/protected_action.dart';
 
 /// Real device attachment picker — camera, photo gallery, or document
 /// browser, backed by image_picker/file_picker (not a fake button). Per
@@ -50,15 +50,17 @@ class AttachmentPicker extends StatelessWidget {
   }
 
   Future<void> _pickFromCamera(BuildContext context, {String? replaceId}) async {
-    final picker = ImagePicker();
-    final file = await picker.pickImage(source: ImageSource.camera, imageQuality: 85);
-    if (file == null) return; // user cancelled — just return to the form
+    // Explanation dialog + permission handling both live in
+    // protected_action.dart — never call ImagePicker directly here. See
+    // that file's own doc comments for exactly why each resource is
+    // handled the way it is.
+    final file = await pickImageProtected(context, source: ImageSource.camera);
+    if (file == null) return; // declined, cancelled, or denied — just return to the form
     await _addImage(file, replaceId: replaceId);
   }
 
   Future<void> _pickFromGallery(BuildContext context, {String? replaceId}) async {
-    final picker = ImagePicker();
-    final file = await picker.pickImage(source: ImageSource.gallery, imageQuality: 85);
+    final file = await pickImageProtected(context, source: ImageSource.gallery);
     if (file == null) return;
     await _addImage(file, replaceId: replaceId);
   }
@@ -66,10 +68,9 @@ class AttachmentPicker extends StatelessWidget {
   Future<void> _pickDocument(BuildContext context, {String? replaceId}) async {
     // withData: true is required for this to work at all on Flutter Web —
     // web never provides PlatformFile.path, only .bytes.
-    final result = await FilePicker.pickFiles(
-      type: FileType.custom,
+    final result = await pickDocumentProtected(
+      context,
       allowedExtensions: ['pdf', 'doc', 'docx', 'jpg', 'jpeg', 'png'],
-      withData: true,
     );
     if (result == null || result.files.isEmpty) return;
     final f = result.files.single;
@@ -100,7 +101,7 @@ class AttachmentPicker extends StatelessWidget {
       backgroundColor: Colors.transparent,
       builder: (ctx) => SafeArea(
         child: Container(
-          margin: const EdgeInsets.all(12),
+          margin: const EdgeInsets.all(AppSpacing.md),
           // Material (not a plain Container+BoxDecoration) so the ListTiles
           // below paint their ink splashes correctly against this
           // background instead of being hidden behind it.
@@ -109,7 +110,7 @@ class AttachmentPicker extends StatelessWidget {
             borderRadius: BorderRadius.circular(20),
             clipBehavior: Clip.antiAlias,
             child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 8),
+              padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -170,7 +171,10 @@ class AttachmentPicker extends StatelessWidget {
               children: [
                 Icon(Icons.add_photo_alternate_outlined, color: AppColors.brand500, size: 22),
                 SizedBox(height: 6),
-                Text('Add photo or document', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: AppColors.brand600)),
+                Text(
+                  'Add photo or document',
+                  style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: AppColors.brand600),
+                ),
               ],
             ),
           ),
@@ -195,12 +199,16 @@ class _AttachmentTileState extends State<_AttachmentTile> {
   bool _previewFailed = false;
 
   ({Color bg, Color fg, IconData icon}) get _style => switch (widget.attachment.category) {
-        AttachmentCategory.image => (bg: AppColors.brand50, fg: AppColors.brand500, icon: Icons.image_outlined),
-        AttachmentCategory.pdf => (bg: AppColors.rose50, fg: AppColors.rose600, icon: Icons.picture_as_pdf_outlined),
-        AttachmentCategory.docx => (bg: AppColors.blue50, fg: AppColors.blue700, icon: Icons.description_outlined),
-        AttachmentCategory.video => (bg: AppColors.rose50, fg: AppColors.rose600, icon: Icons.videocam_outlined),
-        AttachmentCategory.other => (bg: AppColors.slate100, fg: AppColors.slate500, icon: Icons.insert_drive_file_outlined),
-      };
+    AttachmentCategory.image => (bg: AppColors.brand50, fg: AppColors.brand500, icon: Icons.image_outlined),
+    AttachmentCategory.pdf => (bg: AppColors.rose50, fg: AppColors.rose600, icon: Icons.picture_as_pdf_outlined),
+    AttachmentCategory.docx => (bg: AppColors.blue50, fg: AppColors.blue700, icon: Icons.description_outlined),
+    AttachmentCategory.video => (bg: AppColors.rose50, fg: AppColors.rose600, icon: Icons.videocam_outlined),
+    AttachmentCategory.other => (
+      bg: AppColors.slate100,
+      fg: AppColors.slate500,
+      icon: Icons.insert_drive_file_outlined,
+    ),
+  };
 
   @override
   void didUpdateWidget(covariant _AttachmentTile oldWidget) {
@@ -243,7 +251,12 @@ class _AttachmentTileState extends State<_AttachmentTile> {
                           WidgetsBinding.instance.addPostFrameCallback((_) {
                             if (mounted) setState(() => _previewFailed = true);
                           });
-                          return Container(width: 48, height: 48, color: s.bg, child: Icon(s.icon, size: 20, color: s.fg));
+                          return Container(
+                            width: 48,
+                            height: 48,
+                            color: s.bg,
+                            child: Icon(s.icon, size: 20, color: s.fg),
+                          );
                         },
                       )
                     : Container(
@@ -258,16 +271,30 @@ class _AttachmentTileState extends State<_AttachmentTile> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(widget.attachment.fileName, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: AppColors.slate700)),
+                    Text(
+                      widget.attachment.fileName,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: AppColors.slate700),
+                    ),
                     const SizedBox(height: 2),
-                    Text('${widget.attachment.category.shortLabel} · ${widget.attachment.readableSize}', style: const TextStyle(fontSize: 11, color: AppColors.textMuted)),
+                    Text(
+                      '${widget.attachment.category.shortLabel} · ${widget.attachment.readableSize}',
+                      style: const TextStyle(fontSize: 11, color: AppColors.textMuted),
+                    ),
                   ],
                 ),
               ),
               TextButton(
                 onPressed: widget.onReplace,
-                style: TextButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 8), minimumSize: const Size(0, 32)),
-                child: const Text('Replace', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.brand600)),
+                style: TextButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
+                  minimumSize: const Size(0, 32),
+                ),
+                child: const Text(
+                  'Replace',
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.brand600),
+                ),
               ),
               IconButton(
                 onPressed: widget.onRemove,
@@ -279,7 +306,10 @@ class _AttachmentTileState extends State<_AttachmentTile> {
           ),
           if (_previewFailed) ...[
             const SizedBox(height: 6),
-            const Text('Unable to load this image. Please try another file.', style: TextStyle(fontSize: 11, color: AppColors.rose600)),
+            const Text(
+              'Unable to load this image. Please try another file.',
+              style: TextStyle(fontSize: 11, color: AppColors.rose600),
+            ),
           ],
         ],
       ),

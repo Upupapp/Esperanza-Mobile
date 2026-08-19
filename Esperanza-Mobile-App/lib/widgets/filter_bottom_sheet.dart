@@ -50,18 +50,28 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
         child: Container(
           margin: const EdgeInsets.fromLTRB(0, 12, 0, 0),
           constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.88),
-          decoration: const BoxDecoration(color: Colors.white, borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               const SizedBox(height: 10),
-              Container(width: 36, height: 4, decoration: BoxDecoration(color: AppColors.slate200, borderRadius: BorderRadius.circular(999))),
+              Container(
+                width: 36,
+                height: 4,
+                decoration: BoxDecoration(color: AppColors.slate200, borderRadius: BorderRadius.circular(999)),
+              ),
               Padding(
                 padding: const EdgeInsets.fromLTRB(20, 16, 12, 4),
                 child: Row(
                   children: [
                     const Expanded(
-                      child: Text('Filter Requests', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
+                      child: Text(
+                        'Filter Requests',
+                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
+                      ),
                     ),
                     TextButton(
                       onPressed: () => setState(() {
@@ -98,9 +108,11 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
                               label: scope.label,
                               selected: _draft.scope == scope,
                               accent: widget.accent,
-                              onTap: () => setState(() => _draft = _draft.scope == scope
-                                  ? _draft.copyWith(clearScope: true)
-                                  : _draft.copyWith(scope: scope)),
+                              onTap: () => setState(
+                                () => _draft = _draft.scope == scope
+                                    ? _draft.copyWith(clearScope: true)
+                                    : _draft.copyWith(scope: scope),
+                              ),
                             ),
                         ],
                       ),
@@ -117,9 +129,11 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
                                 label: type,
                                 selected: _draft.typeName == type,
                                 accent: widget.accent,
-                                onTap: () => setState(() => _draft = _draft.typeName == type
-                                    ? _draft.copyWith(clearTypeName: true)
-                                    : _draft.copyWith(typeName: type)),
+                                onTap: () => setState(
+                                  () => _draft = _draft.typeName == type
+                                      ? _draft.copyWith(clearTypeName: true)
+                                      : _draft.copyWith(typeName: type),
+                                ),
                               ),
                           ],
                         ),
@@ -137,9 +151,11 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
                                 label: status,
                                 selected: _draft.status == status,
                                 accent: widget.accent,
-                                onTap: () => setState(() => _draft = _draft.status == status
-                                    ? _draft.copyWith(clearStatus: true)
-                                    : _draft.copyWith(status: status)),
+                                onTap: () => setState(
+                                  () => _draft = _draft.status == status
+                                      ? _draft.copyWith(clearStatus: true)
+                                      : _draft.copyWith(status: status),
+                                ),
                               ),
                           ],
                         ),
@@ -164,7 +180,11 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
                               Expanded(
                                 child: Text(
                                   _draft.dateRange == null ? 'Any date' : _formatRange(_draft.dateRange!),
-                                  style: const TextStyle(fontSize: 13.5, color: AppColors.slate700, fontWeight: FontWeight.w500),
+                                  style: const TextStyle(
+                                    fontSize: 13.5,
+                                    color: AppColors.slate700,
+                                    fontWeight: FontWeight.w500,
+                                  ),
                                 ),
                               ),
                               if (_draft.dateRange != null)
@@ -212,7 +232,10 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
     );
   }
 
-  Widget _sectionLabel(String text) => Text(text, style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: AppColors.slate600));
+  Widget _sectionLabel(String text) => Text(
+    text,
+    style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: AppColors.slate600),
+  );
 
   Future<void> _pickDateRange() async {
     final now = DateTime.now();

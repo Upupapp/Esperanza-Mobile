@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../../models/announcement.dart';
 import '../../services/citizen_session_service.dart';
 import '../../theme/app_colors.dart';
+import '../../theme/app_spacing.dart';
 
 /// Bottom sheet for viewing a post's comments and adding a local mock
 /// comment as the signed-in citizen. Purely local state — appended comments
@@ -62,7 +63,10 @@ class _CommentsSheetState extends State<CommentsSheet> {
                 decoration: BoxDecoration(color: AppColors.slate200, borderRadius: BorderRadius.circular(999)),
               ),
               const SizedBox(height: 14),
-              const Text('Comments', style: TextStyle(fontSize: 14.5, fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
+              const Text(
+                'Comments',
+                style: TextStyle(fontSize: 14.5, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
+              ),
               const SizedBox(height: 10),
               const Divider(height: 1),
               Flexible(
@@ -90,20 +94,41 @@ class _CommentsSheetState extends State<CommentsSheet> {
                                   backgroundColor: AppColors.slate100,
                                   child: Text(
                                     c.author.isNotEmpty ? c.author.substring(0, 1).toUpperCase() : '?',
-                                    style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.slate600),
+                                    style: const TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w700,
+                                      color: AppColors.slate600,
+                                    ),
                                   ),
                                 ),
                                 const SizedBox(width: 10),
                                 Expanded(
                                   child: Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                                    decoration: BoxDecoration(color: AppColors.slate50, borderRadius: BorderRadius.circular(14)),
+                                    padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: 10),
+                                    decoration: BoxDecoration(
+                                      color: AppColors.slate50,
+                                      borderRadius: BorderRadius.circular(14),
+                                    ),
                                     child: Column(
                                       crossAxisAlignment: CrossAxisAlignment.start,
                                       children: [
-                                        Text(c.author, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
+                                        Text(
+                                          c.author,
+                                          style: const TextStyle(
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w700,
+                                            color: AppColors.textPrimary,
+                                          ),
+                                        ),
                                         const SizedBox(height: 2),
-                                        Text(c.body, style: const TextStyle(fontSize: 12.5, color: AppColors.slate700, height: 1.35)),
+                                        Text(
+                                          c.body,
+                                          style: const TextStyle(
+                                            fontSize: 12.5,
+                                            color: AppColors.slate700,
+                                            height: 1.35,
+                                          ),
+                                        ),
                                       ],
                                     ),
                                   ),
@@ -130,12 +155,15 @@ class _CommentsSheetState extends State<CommentsSheet> {
                           filled: true,
                           fillColor: AppColors.slate50,
                           contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(999), borderSide: BorderSide.none),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(999),
+                            borderSide: BorderSide.none,
+                          ),
                         ),
                         onSubmitted: (_) => _send(),
                       ),
                     ),
-                    const SizedBox(width: 8),
+                    const SizedBox(width: AppSpacing.sm),
                     Material(
                       color: AppColors.brand500,
                       shape: const CircleBorder(),
@@ -143,7 +171,7 @@ class _CommentsSheetState extends State<CommentsSheet> {
                         customBorder: const CircleBorder(),
                         onTap: _send,
                         child: const Padding(
-                          padding: EdgeInsets.all(12),
+                          padding: EdgeInsets.all(AppSpacing.md),
                           child: Icon(Icons.send_rounded, size: 18, color: Colors.white),
                         ),
                       ),

@@ -103,7 +103,7 @@ class _RequestListScreenState extends State<RequestListScreen> {
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(40),
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: AppSpacing.xs),
             child: Text(widget.subtitle, style: const TextStyle(fontSize: 12, color: AppColors.textMuted)),
           ),
         ),
@@ -156,14 +156,21 @@ class _RequestListScreenState extends State<RequestListScreen> {
                 Expanded(
                   child: OutlinedButton.icon(
                     onPressed: () => _openFilters(categoryRequests),
-                    icon: Icon(Icons.tune_rounded, size: 16, color: _filters.isActive ? widget.accent : AppColors.slate600),
+                    icon: Icon(
+                      Icons.tune_rounded,
+                      size: 16,
+                      color: _filters.isActive ? widget.accent : AppColors.slate600,
+                    ),
                     label: Text(
                       _filters.isActive ? 'Filter (${_filters.activeCount})' : 'Filter',
-                      style: TextStyle(color: _filters.isActive ? widget.accent : AppColors.slate700, fontWeight: FontWeight.w600),
+                      style: TextStyle(
+                        color: _filters.isActive ? widget.accent : AppColors.slate700,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                     style: OutlinedButton.styleFrom(
                       side: BorderSide(color: _filters.isActive ? widget.accent : AppColors.slate200),
-                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
                     ),
                   ),
                 ),
@@ -246,7 +253,9 @@ class _RequestListScreenState extends State<RequestListScreen> {
             child: visible.isEmpty
                 ? _EmptyStateArea(
                     icon: widget.icon,
-                    title: _filters.isActive ? 'No requests match your current filters.' : (_tab == 0 ? 'No active requests' : 'No completed requests yet'),
+                    title: _filters.isActive
+                        ? 'No requests match your current filters.'
+                        : (_tab == 0 ? 'No active requests' : 'No completed requests yet'),
                     description: _filters.isActive ? null : (_tab == 0 ? 'Tap "New Request" to get started.' : null),
                     action: _filters.isActive
                         ? OutlinedButton(
@@ -295,7 +304,8 @@ class _EmptyStateArea extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bottomReserve = MediaQuery.paddingOf(context).bottom +
+    final bottomReserve =
+        MediaQuery.paddingOf(context).bottom +
         NavStyle.floatingElementGap +
         NavStyle.floatingActionButtonHeight +
         NavStyle.floatingElementGap;
@@ -329,24 +339,37 @@ class _RequestTile extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
       child: AppCard(
-        onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => RequestDetailScreen(requestId: request.id))),
+        onTap: () =>
+            Navigator.of(context).push(MaterialPageRoute(builder: (_) => RequestDetailScreen(requestId: request.id))),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               children: [
                 Expanded(
-                  child: Text(request.typeName, style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600, color: AppColors.textPrimary)),
+                  child: Text(
+                    request.typeName,
+                    style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
+                  ),
                 ),
                 StatusChip(status: AppStatusX.fromLabel(request.status), small: true),
               ],
             ),
             const SizedBox(height: 6),
-            Text(request.referenceNumber, style: const TextStyle(fontSize: 12, color: AppColors.textMuted, fontFeatures: [FontFeature.tabularFigures()])),
+            Text(
+              request.referenceNumber,
+              style: const TextStyle(
+                fontSize: 12,
+                color: AppColors.textMuted,
+                fontFeatures: [FontFeature.tabularFigures()],
+              ),
+            ),
             const SizedBox(height: 2),
             Row(
               children: [
-                Expanded(child: Text(request.office, style: const TextStyle(fontSize: 12, color: AppColors.textMuted))),
+                Expanded(
+                  child: Text(request.office, style: const TextStyle(fontSize: 12, color: AppColors.textMuted)),
+                ),
                 _ScopeTag(office: request.office),
               ],
             ),
@@ -370,7 +393,10 @@ class _RequestTile extends StatelessWidget {
                 ),
                 Row(
                   children: [
-                    Text('Track', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: accent)),
+                    Text(
+                      'Track',
+                      style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: accent),
+                    ),
                     Icon(Icons.chevron_right_rounded, size: 15, color: accent),
                   ],
                 ),
@@ -404,7 +430,11 @@ class _ScopeTag extends StatelessWidget {
       ),
       child: Text(
         isBarangay ? 'Barangay' : 'LGU',
-        style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: isBarangay ? AppColors.emerald700 : AppColors.indigo700),
+        style: TextStyle(
+          fontSize: 10,
+          fontWeight: FontWeight.w700,
+          color: isBarangay ? AppColors.emerald700 : AppColors.indigo700,
+        ),
       ),
     );
   }

@@ -20,27 +20,28 @@ class VerificationStatusPanel extends StatelessWidget {
   const VerificationStatusPanel({super.key, required this.status, this.onAction});
 
   IconData get _icon => switch (status) {
-        AppStatus.approved => Icons.verified_rounded,
-        AppStatus.rejected => Icons.error_outline_rounded,
-        AppStatus.underVerification => Icons.fact_check_outlined,
-        _ => Icons.hourglass_top_rounded,
-      };
+    AppStatus.approved => Icons.verified_rounded,
+    AppStatus.rejected => Icons.error_outline_rounded,
+    AppStatus.underVerification => Icons.fact_check_outlined,
+    _ => Icons.hourglass_top_rounded,
+  };
 
   String get _explanation => switch (status) {
-        AppStatus.pendingReview =>
-          'Esperanza LGU is reviewing your submitted information. This usually takes 1–3 business days — no action needed from you right now.',
-        AppStatus.underVerification =>
-          'Some of your details need a closer look from Esperanza LGU staff. No action needed from you right now.',
-        AppStatus.approved => 'Your account has been verified. You now have full access to Esperanza mobile services.',
-        AppStatus.rejected => 'Your submission needs corrections before it can be verified. Please review and resubmit your information.',
-        _ => 'Complete your registration to begin the verification process.',
-      };
+    AppStatus.pendingReview =>
+      'Esperanza LGU is reviewing your submitted information. This usually takes 1–3 business days — no action needed from you right now.',
+    AppStatus.underVerification =>
+      'Some of your details need a closer look from Esperanza LGU staff. No action needed from you right now.',
+    AppStatus.approved => 'Your account has been verified. You now have full access to Esperanza mobile services.',
+    AppStatus.rejected =>
+      'Your submission needs corrections before it can be verified. Please review and resubmit your information.',
+    _ => 'Complete your registration to begin the verification process.',
+  };
 
   String? get _actionLabel => switch (status) {
-        AppStatus.rejected => 'Resubmit Information',
-        AppStatus.draft => 'Continue Registration',
-        _ => null,
-      };
+    AppStatus.rejected => 'Resubmit Information',
+    AppStatus.draft => 'Continue Registration',
+    _ => null,
+  };
 
   @override
   Widget build(BuildContext context) {
@@ -64,7 +65,10 @@ class VerificationStatusPanel extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('Account Verification', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
+                    const Text(
+                      'Account Verification',
+                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
+                    ),
                     const SizedBox(height: 6),
                     // StatusChip and this title never share a Row: the
                     // longest AppStatus label ("Under Verification") next
@@ -74,7 +78,10 @@ class VerificationStatusPanel extends StatelessWidget {
                     // Expanded title gets measured at its unconstrained
                     // natural width). Each on its own line sidesteps it
                     // entirely rather than relying on Flexible tricks.
-                    Align(alignment: Alignment.centerLeft, child: StatusChip(status: status)),
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: StatusChip(status: status),
+                    ),
                   ],
                 ),
               ),

@@ -11,10 +11,10 @@ class SectionStatusChip extends StatelessWidget {
   const SectionStatusChip({super.key, required this.status});
 
   ({Color bg, Color fg, IconData icon}) get _style => switch (status) {
-        SectionStatus.complete => (bg: AppColors.emerald50, fg: AppColors.emerald700, icon: Icons.check_circle_rounded),
-        SectionStatus.inProgress => (bg: AppColors.amber50, fg: AppColors.amber700, icon: Icons.timelapse_rounded),
-        SectionStatus.notStarted => (bg: AppColors.slate100, fg: AppColors.slate500, icon: Icons.circle_outlined),
-      };
+    SectionStatus.complete => (bg: AppColors.emerald50, fg: AppColors.emerald700, icon: Icons.check_circle_rounded),
+    SectionStatus.inProgress => (bg: AppColors.amber50, fg: AppColors.amber700, icon: Icons.timelapse_rounded),
+    SectionStatus.notStarted => (bg: AppColors.slate100, fg: AppColors.slate500, icon: Icons.circle_outlined),
+  };
 
   @override
   Widget build(BuildContext context) {

@@ -16,11 +16,9 @@ class SubmissionConfirmationScreen extends StatelessWidget {
       body: SafeArea(
         child: LayoutBuilder(
           builder: (context, constraints) => SingleChildScrollView(
-            padding: const EdgeInsets.all(24),
+            padding: const EdgeInsets.all(AppSpacing.xxl),
             child: ConstrainedBox(
-              constraints: BoxConstraints(
-                minHeight: constraints.maxHeight - 48,
-              ),
+              constraints: BoxConstraints(minHeight: constraints.maxHeight - 48),
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
@@ -28,53 +26,28 @@ class SubmissionConfirmationScreen extends StatelessWidget {
                     width: 84,
                     height: 84,
                     alignment: Alignment.center,
-                    decoration: const BoxDecoration(
-                      color: AppColors.emerald50,
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(
-                      Icons.check_circle_rounded,
-                      size: 44,
-                      color: AppColors.emerald500,
-                    ),
+                    decoration: const BoxDecoration(color: AppColors.emerald50, shape: BoxShape.circle),
+                    child: const Icon(Icons.check_circle_rounded, size: 44, color: AppColors.emerald500),
                   ),
                   const SizedBox(height: AppSpacing.xl),
                   const Text(
                     'Profile Submitted',
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.textPrimary,
-                    ),
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: AppSpacing.sm),
                   const Text(
                     'Your resident information has been submitted to Esperanza LGU for verification.',
                     textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 13.5,
-                      color: AppColors.textMuted,
-                      height: 1.45,
-                    ),
+                    style: TextStyle(fontSize: 13.5, color: AppColors.textMuted, height: 1.45),
                   ),
                   const SizedBox(height: AppSpacing.xl),
                   Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 10,
-                    ),
-                    decoration: BoxDecoration(
-                      color: AppColors.amber50,
-                      borderRadius: BorderRadius.circular(999),
-                    ),
+                    padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: 10),
+                    decoration: BoxDecoration(color: AppColors.amber50, borderRadius: BorderRadius.circular(999)),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Icon(
-                          Icons.hourglass_top_rounded,
-                          size: 15,
-                          color: AppColors.amber700,
-                        ),
+                        const Icon(Icons.hourglass_top_rounded, size: 15, color: AppColors.amber700),
                         const SizedBox(width: 6),
                         Flexible(
                           child: Text(

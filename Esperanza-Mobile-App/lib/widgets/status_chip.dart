@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../theme/app_spacing.dart';
 import '../theme/app_status.dart';
 
 /// Direct port of `resources/views/components/ui/badge.blade.php` — a pill
@@ -19,7 +20,7 @@ class StatusChip extends StatelessWidget {
       padding: EdgeInsets.symmetric(horizontal: small ? 8 : 10, vertical: small ? 3 : 5),
       decoration: BoxDecoration(
         color: style.background,
-        borderRadius: BorderRadius.circular(999),
+        borderRadius: BorderRadius.circular(AppRadius.full),
         border: Border.all(color: style.foreground.withValues(alpha: 0.15)),
       ),
       child: Row(
@@ -42,11 +43,7 @@ class StatusChip extends StatelessWidget {
             child: Text(
               status.label,
               textWidthBasis: TextWidthBasis.longestLine,
-              style: TextStyle(
-                fontSize: small ? 11 : 12,
-                fontWeight: FontWeight.w500,
-                color: style.foreground,
-              ),
+              style: TextStyle(fontSize: small ? 11 : 12, fontWeight: FontWeight.w500, color: style.foreground),
             ),
           ),
         ],

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
+import '../theme/app_spacing.dart';
 
 /// A reusable pill/segmented tab control — same visual language reused for
 /// the request Active/Done tabs and the Balita/Events tabs. Segments are
@@ -23,15 +24,12 @@ class SegmentedTabs extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(4),
-      decoration: BoxDecoration(
-        color: AppColors.slate100,
-        borderRadius: BorderRadius.circular(12),
-      ),
+      padding: const EdgeInsets.all(AppSpacing.xs),
+      decoration: BoxDecoration(color: AppColors.slate100, borderRadius: BorderRadius.circular(12)),
       child: Row(
         children: [
           for (int i = 0; i < labels.length; i++) ...[
-            if (i > 0) const SizedBox(width: 4),
+            if (i > 0) const SizedBox(width: AppSpacing.xs),
             Expanded(
               child: _Segment(
                 label: labels[i],
@@ -65,7 +63,7 @@ class _Segment extends StatelessWidget {
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 160),
           curve: Curves.easeOut,
-          padding: const EdgeInsets.symmetric(vertical: 12),
+          padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
           alignment: Alignment.center,
           decoration: BoxDecoration(
             color: selected ? Colors.white : Colors.transparent,
@@ -77,11 +75,7 @@ class _Segment extends StatelessWidget {
           child: Text(
             label,
             textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-              color: selected ? accent : AppColors.slate500,
-            ),
+            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: selected ? accent : AppColors.slate500),
           ),
         ),
       ),

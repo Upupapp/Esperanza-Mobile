@@ -39,6 +39,14 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     _barangay = _original.barangay;
   }
 
+  @override
+  void dispose() {
+    _mobile.dispose();
+    _occupation.dispose();
+    _purok.dispose();
+    super.dispose();
+  }
+
   Future<void> _save() async {
     setState(() => _saving = true);
     await Future.delayed(const Duration(milliseconds: 600));
@@ -78,21 +86,29 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       appBar: AppBar(title: const Text('Edit Profile')),
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(20),
+          padding: const EdgeInsets.all(AppSpacing.xl),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const Text('Full name', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: AppColors.slate700)),
+              const Text(
+                'Full name',
+                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: AppColors.slate700),
+              ),
               const SizedBox(height: 6),
               Container(
                 width: double.infinity,
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: 14),
                 decoration: BoxDecoration(color: AppColors.slate100, borderRadius: BorderRadius.circular(12)),
                 child: Text(_original.fullName, style: const TextStyle(fontSize: 14, color: AppColors.slate500)),
               ),
               const _ReadOnlyNote(),
               const SizedBox(height: AppSpacing.lg),
-              AppTextField(label: 'Mobile number', controller: _mobile, keyboardType: TextInputType.phone, icon: Icons.phone_outlined),
+              AppTextField(
+                label: 'Mobile number',
+                controller: _mobile,
+                keyboardType: TextInputType.phone,
+                icon: Icons.phone_outlined,
+              ),
               const SizedBox(height: AppSpacing.lg),
               AppSelectField<String>(
                 label: 'Barangay',
@@ -106,7 +122,13 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
               const SizedBox(height: AppSpacing.lg),
               AppTextField(label: 'Occupation', controller: _occupation, icon: Icons.work_outline_rounded),
               const SizedBox(height: AppSpacing.xxl),
-              AppButton(label: 'Save Changes', onPressed: _save, loading: _saving, fullWidth: true, size: AppButtonSize.lg),
+              AppButton(
+                label: 'Save Changes',
+                onPressed: _save,
+                loading: _saving,
+                fullWidth: true,
+                size: AppButtonSize.lg,
+              ),
             ],
           ),
         ),

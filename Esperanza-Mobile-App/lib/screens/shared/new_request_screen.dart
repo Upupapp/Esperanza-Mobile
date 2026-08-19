@@ -36,6 +36,12 @@ class _NewRequestScreenState extends State<NewRequestScreen> {
   bool _submitting = false;
   String? _error;
 
+  @override
+  void dispose() {
+    _purposeController.dispose();
+    super.dispose();
+  }
+
   Future<void> _submit() async {
     if (_purposeController.text.trim().isEmpty) {
       setState(() => _error = 'Please describe the purpose of this request.');
@@ -55,15 +61,15 @@ class _NewRequestScreenState extends State<NewRequestScreen> {
     await Future.delayed(const Duration(milliseconds: 900)); // simulated network/processing delay
 
     final request = await requestsService.submit(
-          applicantId: account.id,
-          applicantName: account.fullName,
-          typeName: widget.item.name,
-          category: widget.category,
-          office: widget.item.office,
-          purpose: _purposeController.text.trim(),
-          expectedDays: widget.item.days,
-          attachments: _attachments,
-        );
+      applicantId: account.id,
+      applicantName: account.fullName,
+      typeName: widget.item.name,
+      category: widget.category,
+      office: widget.item.office,
+      purpose: _purposeController.text.trim(),
+      expectedDays: widget.item.days,
+      attachments: _attachments,
+    );
 
     if (!mounted) return;
     setState(() => _submitting = false);
@@ -74,9 +80,9 @@ class _NewRequestScreenState extends State<NewRequestScreen> {
           referenceNumber: request.referenceNumber,
           typeName: request.typeName,
           accent: widget.accent,
-          onViewRequest: () => Navigator.of(context).pushReplacement(
-            MaterialPageRoute(builder: (_) => RequestDetailScreen(requestId: request.id)),
-          ),
+          onViewRequest: () => Navigator.of(
+            context,
+          ).pushReplacement(MaterialPageRoute(builder: (_) => RequestDetailScreen(requestId: request.id))),
         ),
       ),
     );
@@ -99,7 +105,7 @@ class _NewRequestScreenState extends State<NewRequestScreen> {
                     Row(
                       children: [
                         Icon(Icons.timeline_rounded, size: 16, color: widget.accent),
-                        const SizedBox(width: 8),
+                        const SizedBox(width: AppSpacing.sm),
                         const Text('Process', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
                       ],
                     ),
@@ -124,7 +130,7 @@ class _NewRequestScreenState extends State<NewRequestScreen> {
                     Row(
                       children: [
                         Icon(Icons.checklist_rounded, size: 16, color: widget.accent),
-                        const SizedBox(width: 8),
+                        const SizedBox(width: AppSpacing.sm),
                         const Text('Requirements', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
                       ],
                     ),
@@ -136,8 +142,13 @@ class _NewRequestScreenState extends State<NewRequestScreen> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Icon(Icons.check_circle_outline_rounded, size: 15, color: AppColors.emerald500),
-                            const SizedBox(width: 8),
-                            Expanded(child: Text(r, style: const TextStyle(fontSize: 12.5, color: AppColors.slate600, height: 1.3))),
+                            const SizedBox(width: AppSpacing.sm),
+                            Expanded(
+                              child: Text(
+                                r,
+                                style: const TextStyle(fontSize: 12.5, color: AppColors.slate600, height: 1.3),
+                              ),
+                            ),
                           ],
                         ),
                       ),
@@ -153,9 +164,15 @@ class _NewRequestScreenState extends State<NewRequestScreen> {
                 maxLines: 3,
               ),
               const SizedBox(height: AppSpacing.xl),
-              const Text('Attach Requirements', style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600, color: AppColors.textPrimary)),
-              const SizedBox(height: 4),
-              const Text('Take a photo or choose a file for each requirement above.', style: TextStyle(fontSize: 12, color: AppColors.textMuted)),
+              const Text(
+                'Attach Requirements',
+                style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
+              ),
+              const SizedBox(height: AppSpacing.xs),
+              const Text(
+                'Take a photo or choose a file for each requirement above.',
+                style: TextStyle(fontSize: 12, color: AppColors.textMuted),
+              ),
               const SizedBox(height: AppSpacing.md),
               AttachmentPicker(
                 documentTypeLabel: widget.item.name,
@@ -190,7 +207,14 @@ class _NewRequestScreenState extends State<NewRequestScreen> {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          CircleAvatar(radius: 7, backgroundColor: widget.accent, child: Text('$n', style: const TextStyle(fontSize: 9, color: Colors.white, fontWeight: FontWeight.w700))),
+          CircleAvatar(
+            radius: 7,
+            backgroundColor: widget.accent,
+            child: Text(
+              '$n',
+              style: const TextStyle(fontSize: 9, color: Colors.white, fontWeight: FontWeight.w700),
+            ),
+          ),
           const SizedBox(width: 5),
           Flexible(
             child: Text(

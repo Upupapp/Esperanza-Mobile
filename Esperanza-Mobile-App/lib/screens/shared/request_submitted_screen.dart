@@ -26,7 +26,7 @@ class RequestSubmittedScreen extends StatelessWidget {
     return Scaffold(
       body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.all(24),
+          padding: const EdgeInsets.all(AppSpacing.xxl),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
@@ -37,8 +37,11 @@ class RequestSubmittedScreen extends StatelessWidget {
                 child: const Icon(Icons.check_rounded, size: 44, color: AppColors.emerald500),
               ),
               const SizedBox(height: AppSpacing.xxl),
-              const Text('Request Submitted', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
-              const SizedBox(height: 8),
+              const Text(
+                'Request Submitted',
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
+              ),
+              const SizedBox(height: AppSpacing.sm),
               Text(
                 typeName,
                 textAlign: TextAlign.center,
@@ -46,13 +49,28 @@ class RequestSubmittedScreen extends StatelessWidget {
               ),
               const SizedBox(height: AppSpacing.xl),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-                decoration: BoxDecoration(color: AppColors.slate50, borderRadius: BorderRadius.circular(14), border: Border.all(color: AppColors.slate100)),
+                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl, vertical: 14),
+                decoration: BoxDecoration(
+                  color: AppColors.slate50,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: AppColors.slate100),
+                ),
                 child: Column(
                   children: [
-                    const Text('REFERENCE NUMBER', style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w600, color: AppColors.textMuted, letterSpacing: 0.6)),
-                    const SizedBox(height: 4),
-                    Text(referenceNumber, style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: accent, letterSpacing: 1)),
+                    const Text(
+                      'REFERENCE NUMBER',
+                      style: TextStyle(
+                        fontSize: 10.5,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.textMuted,
+                        letterSpacing: 0.6,
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.xs),
+                    Text(
+                      referenceNumber,
+                      style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: accent, letterSpacing: 1),
+                    ),
                   ],
                 ),
               ),

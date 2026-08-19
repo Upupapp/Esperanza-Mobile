@@ -24,9 +24,13 @@ class NotificationsScreen extends StatelessWidget {
       appBar: AppBar(title: const Text('Notifications')),
       body: items.isEmpty
           ? const EmptyState(icon: Icons.notifications_none_rounded, title: "You're all caught up")
-          : ListView(
+          : ListView.builder(
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
-              children: [for (final n in items) _NotificationTile(notification: n, unread: !notifService.isRead(n.id))],
+              itemCount: items.length,
+              itemBuilder: (context, i) {
+                final n = items[i];
+                return _NotificationTile(notification: n, unread: !notifService.isRead(n.id));
+              },
             ),
     );
   }
@@ -69,7 +73,11 @@ class _NotificationTile extends StatelessWidget {
                     child: Container(
                       width: 9,
                       height: 9,
-                      decoration: BoxDecoration(color: AppColors.rose500, shape: BoxShape.circle, border: Border.all(color: Colors.white, width: 1.5)),
+                      decoration: BoxDecoration(
+                        color: AppColors.rose500,
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.white, width: 1.5),
+                      ),
                     ),
                   ),
               ],
@@ -91,7 +99,7 @@ class _NotificationTile extends StatelessWidget {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 4),
+                  const SizedBox(height: AppSpacing.xs),
                   // Icon + text label together (never color alone) so the
                   // notification's severity/type reads clearly even for
                   // colorblind users or in bright outdoor sunlight.
@@ -103,22 +111,28 @@ class _NotificationTile extends StatelessWidget {
                       children: [
                         Icon(n.kind.badgeIcon, size: 10, color: n.kind.foreground),
                         const SizedBox(width: 3),
-                        Text(n.kind.badgeLabel, style: TextStyle(fontSize: 9.5, fontWeight: FontWeight.w700, color: n.kind.foreground)),
+                        Text(
+                          n.kind.badgeLabel,
+                          style: TextStyle(fontSize: 9.5, fontWeight: FontWeight.w700, color: n.kind.foreground),
+                        ),
                       ],
                     ),
                   ),
                   const SizedBox(height: 6),
                   Text(n.body, style: const TextStyle(fontSize: 12, color: AppColors.slate500, height: 1.35)),
                   if (n.time != null) ...[
-                    const SizedBox(height: 4),
+                    const SizedBox(height: AppSpacing.xs),
                     Text(n.time!, style: const TextStyle(fontSize: 11, color: AppColors.textMuted)),
                   ],
                   if (n.actionLabel != null) ...[
-                    const SizedBox(height: 8),
+                    const SizedBox(height: AppSpacing.sm),
                     Row(
                       children: [
-                        Text(n.actionLabel!, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: n.kind.foreground)),
-                        const SizedBox(width: 4),
+                        Text(
+                          n.actionLabel!,
+                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: n.kind.foreground),
+                        ),
+                        const SizedBox(width: AppSpacing.xs),
                         Icon(Icons.arrow_forward_rounded, size: 13, color: n.kind.foreground),
                       ],
                     ),

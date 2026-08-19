@@ -38,7 +38,19 @@ class EventCard extends StatelessWidget {
                   color: AppColors.slate100,
                   constraints: BoxConstraints(maxHeight: compact ? 220 : 420),
                   width: double.infinity,
-                  child: Image.asset(event.imagePath!, fit: BoxFit.contain),
+                  // Decode at the card's actual bounded width rather than
+                  // the source poster's full resolution — BoxFit.contain
+                  // never crops, so scaling decode to width alone (letting
+                  // height follow proportionally) can't distort or crop it.
+                  child: LayoutBuilder(
+                    builder: (context, constraints) => Image.asset(
+                      event.imagePath!,
+                      fit: BoxFit.contain,
+                      cacheWidth: constraints.hasBoundedWidth
+                          ? (constraints.maxWidth * MediaQuery.devicePixelRatioOf(context)).round()
+                          : null,
+                    ),
+                  ),
                 ),
               ),
             Padding(
@@ -54,24 +66,35 @@ class EventCard extends StatelessWidget {
                           event.title,
                           maxLines: compact ? 1 : 2,
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
+                          style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.textPrimary,
+                          ),
                         ),
                       ),
                       if (event.category != null) ...[
-                        const SizedBox(width: 8),
+                        const SizedBox(width: AppSpacing.sm),
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: 3),
                           decoration: BoxDecoration(color: AppColors.brand50, borderRadius: BorderRadius.circular(999)),
-                          child: Text(event.category!, style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: AppColors.brand600)),
+                          child: Text(
+                            event.category!,
+                            style: const TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.brand600,
+                            ),
+                          ),
                         ),
                       ],
                     ],
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: AppSpacing.sm),
                   _MetaRow(icon: Icons.calendar_today_rounded, text: event.date),
-                  const SizedBox(height: 4),
+                  const SizedBox(height: AppSpacing.xs),
                   _MetaRow(icon: Icons.schedule_rounded, text: event.time),
-                  const SizedBox(height: 4),
+                  const SizedBox(height: AppSpacing.xs),
                   _MetaRow(icon: Icons.place_outlined, text: event.venue),
                   if (event.imagePath != null) ...[
                     const SizedBox(height: AppSpacing.sm),
@@ -87,10 +110,14 @@ class EventCard extends StatelessWidget {
                             'View full poster',
                             textWidthBasis: TextWidthBasis.longestLine,
                             overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: AppColors.brand600),
+                            style: const TextStyle(
+                              fontSize: 11.5,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.brand600,
+                            ),
                           ),
                         ),
-                        const SizedBox(width: 4),
+                        const SizedBox(width: AppSpacing.xs),
                         const Icon(Icons.open_in_full_rounded, size: 12, color: AppColors.brand600),
                       ],
                     ),
@@ -117,7 +144,9 @@ class _MetaRow extends StatelessWidget {
       children: [
         Icon(icon, size: 13, color: AppColors.slate400),
         const SizedBox(width: 6),
-        Expanded(child: Text(text, style: const TextStyle(fontSize: 12, color: AppColors.textMuted, height: 1.3))),
+        Expanded(
+          child: Text(text, style: const TextStyle(fontSize: 12, color: AppColors.textMuted, height: 1.3)),
+        ),
       ],
     );
   }

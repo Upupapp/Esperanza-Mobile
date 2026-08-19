@@ -24,13 +24,13 @@ class StatTile extends StatelessWidget {
   });
 
   ({Color bg, Color fg}) get _colors => switch (color) {
-        StatTileColor.brand => (bg: AppColors.brand50, fg: AppColors.brand600),
-        StatTileColor.green => (bg: AppColors.emerald50, fg: AppColors.emerald700),
-        StatTileColor.purple => (bg: AppColors.purple50, fg: AppColors.purple700),
-        StatTileColor.orange => (bg: AppColors.orange50, fg: AppColors.orange700),
-        StatTileColor.red => (bg: AppColors.rose50, fg: AppColors.rose700),
-        StatTileColor.gold => (bg: AppColors.gold50, fg: AppColors.gold700),
-      };
+    StatTileColor.brand => (bg: AppColors.brand50, fg: AppColors.brand600),
+    StatTileColor.green => (bg: AppColors.emerald50, fg: AppColors.emerald700),
+    StatTileColor.purple => (bg: AppColors.purple50, fg: AppColors.purple700),
+    StatTileColor.orange => (bg: AppColors.orange50, fg: AppColors.orange700),
+    StatTileColor.red => (bg: AppColors.rose50, fg: AppColors.rose700),
+    StatTileColor.gold => (bg: AppColors.gold50, fg: AppColors.gold700),
+  };
 
   @override
   Widget build(BuildContext context) {
@@ -59,11 +59,19 @@ class StatTile extends StatelessWidget {
                 child: Icon(icon, size: 17, color: c.fg),
               ),
               const SizedBox(height: AppSpacing.md),
-              Text(value, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: AppColors.navy900)),
+              Text(
+                value,
+                style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: AppColors.navy900),
+              ),
               const SizedBox(height: 2),
               Text(
                 label.toUpperCase(),
-                style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.w600, color: AppColors.textMuted, letterSpacing: 0.4),
+                style: const TextStyle(
+                  fontSize: 10.5,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textMuted,
+                  letterSpacing: 0.4,
+                ),
               ),
             ],
           ),

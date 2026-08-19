@@ -29,7 +29,7 @@ class RestrictedFeatureNotice extends StatelessWidget {
       body: SafeArea(
         child: LayoutBuilder(
           builder: (context, constraints) => SingleChildScrollView(
-            padding: const EdgeInsets.all(24),
+            padding: const EdgeInsets.all(AppSpacing.xxl),
             child: ConstrainedBox(
               constraints: BoxConstraints(minHeight: constraints.maxHeight - 48),
               child: Column(
@@ -55,7 +55,7 @@ class RestrictedFeatureNotice extends StatelessWidget {
                     textAlign: TextAlign.center,
                     style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: AppSpacing.sm),
                   Text(
                     isGuest
                         ? 'This feature is available to registered Esperanza users. Create an account or sign in to continue.'
@@ -91,35 +91,35 @@ class RestrictedFeatureNotice extends StatelessWidget {
   }
 
   List<Widget> _guestActions(BuildContext context) => [
-        AppButton(
-          label: 'Create Account',
-          icon: Icons.person_add_alt_1_rounded,
-          fullWidth: true,
-          size: AppButtonSize.lg,
-          onPressed: () async {
-            await _endGuestAndGoToRoot(context);
-            if (context.mounted) {
-              Navigator.of(context, rootNavigator: true).push(MaterialPageRoute(builder: (_) => const RegisterScreen()));
-            }
-          },
-        ),
-        const SizedBox(height: AppSpacing.sm),
-        AppButton(
-          label: 'Sign In',
-          variant: AppButtonVariant.secondary,
-          fullWidth: true,
-          onPressed: () => _endGuestAndGoToRoot(context),
-        ),
-      ];
+    AppButton(
+      label: 'Create Account',
+      icon: Icons.person_add_alt_1_rounded,
+      fullWidth: true,
+      size: AppButtonSize.lg,
+      onPressed: () async {
+        await _endGuestAndGoToRoot(context);
+        if (context.mounted) {
+          Navigator.of(context, rootNavigator: true).push(MaterialPageRoute(builder: (_) => const RegisterScreen()));
+        }
+      },
+    ),
+    const SizedBox(height: AppSpacing.sm),
+    AppButton(
+      label: 'Sign In',
+      variant: AppButtonVariant.secondary,
+      fullWidth: true,
+      onPressed: () => _endGuestAndGoToRoot(context),
+    ),
+  ];
 
   List<Widget> _unverifiedActions(BuildContext context) => [
-        AppButton(
-          label: 'Continue Verification',
-          icon: Icons.arrow_forward_rounded,
-          iconTrailing: true,
-          fullWidth: true,
-          size: AppButtonSize.lg,
-          onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const RegisterScreen())),
-        ),
-      ];
+    AppButton(
+      label: 'Continue Verification',
+      icon: Icons.arrow_forward_rounded,
+      iconTrailing: true,
+      fullWidth: true,
+      size: AppButtonSize.lg,
+      onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const RegisterScreen())),
+    ),
+  ];
 }
