@@ -5,6 +5,7 @@ import '../../services/citizen_session_service.dart';
 import '../../services/mock_catalog.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_spacing.dart';
+import '../../theme/app_typography.dart';
 import '../../widgets/app_button.dart';
 import '../../widgets/app_dialogs.dart';
 import '../../widgets/app_text_field.dart';
@@ -230,9 +231,21 @@ class _LoginScreenState extends State<LoginScreen> {
                 child: TextButton(
                   onPressed: () =>
                       Navigator.of(context).push(MaterialPageRoute(builder: (_) => const RegisterScreen())),
-                  child: RichText(
-                    text: TextSpan(
-                      style: TextStyle(fontSize: 13, color: Colors.white.withValues(alpha: 0.7)),
+                  // Text.rich (not a bare RichText) so this inherits the
+                  // app's Inter font family from the ambient DefaultTextStyle
+                  // the way every other Text on this screen already does —
+                  // a raw RichText/TextSpan with no fontFamily set doesn't
+                  // pick that up at all and falls back to whatever
+                  // undefined system/engine font the platform resolves on
+                  // its own, which is exactly what rendered as tofu/missing
+                  // glyphs here on some platforms.
+                  child: Text.rich(
+                    TextSpan(
+                      style: TextStyle(
+                        fontFamily: AppTypography.sans,
+                        fontSize: 13,
+                        color: Colors.white.withValues(alpha: 0.7),
+                      ),
                       children: const [
                         TextSpan(text: "Don't have an account? "),
                         TextSpan(
