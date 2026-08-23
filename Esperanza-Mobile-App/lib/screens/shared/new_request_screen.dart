@@ -10,8 +10,10 @@ import '../../theme/app_spacing.dart';
 import '../../widgets/app_button.dart';
 import '../../widgets/app_card.dart';
 import '../../widgets/app_text_field.dart';
+import '../../utils/tulong_application_limit.dart';
+import '../../widgets/app_dialogs.dart';
 import '../../widgets/attachment_picker.dart';
-import 'request_detail_screen.dart';
+import 'my_requests_screen.dart';
 import 'request_submitted_screen.dart';
 
 /// Step 2 of the request wizard: requirements checklist (informational),
@@ -51,13 +53,30 @@ class _NewRequestScreenState extends State<NewRequestScreen> {
       setState(() => _error = 'Please attach at least one requirement document or photo.');
       return;
     }
+
+    final account = context.read<CitizenSessionService>().account!;
+    final requestsService = context.read<RequestsService>();
+
+    if (widget.category == ServiceCategory.tulong &&
+        hasReachedTulongApplicationLimit(requestsService, applicantId: account.id, typeName: widget.item.name)) {
+      final viewRequests = await AppDialogs.confirm(
+        context,
+        title: 'Application Limit Reached',
+        message: 'You have already submitted two applications for this assistance. You cannot submit another '
+            'application for the same assistance at this time.',
+        confirmLabel: 'View My Requests',
+        cancelLabel: 'Close',
+      );
+      if (viewRequests && mounted) {
+        Navigator.of(context).push(MaterialPageRoute(builder: (_) => const MyRequestsScreen()));
+      }
+      return;
+    }
+
     setState(() {
       _submitting = true;
       _error = null;
     });
-
-    final account = context.read<CitizenSessionService>().account!;
-    final requestsService = context.read<RequestsService>();
     await Future.delayed(const Duration(milliseconds: 900)); // simulated network/processing delay
 
     final request = await requestsService.submit(
@@ -69,6 +88,8 @@ class _NewRequestScreenState extends State<NewRequestScreen> {
       purpose: _purposeController.text.trim(),
       expectedDays: widget.item.days,
       attachments: _attachments,
+      requiresPayment: widget.item.fee != 'Free',
+      fee: widget.item.fee,
     );
 
     if (!mounted) return;
@@ -80,9 +101,7 @@ class _NewRequestScreenState extends State<NewRequestScreen> {
           referenceNumber: request.referenceNumber,
           typeName: request.typeName,
           accent: widget.accent,
-          onViewRequest: () => Navigator.of(
-            context,
-          ).pushReplacement(MaterialPageRoute(builder: (_) => RequestDetailScreen(requestId: request.id))),
+          requestId: request.id,
         ),
       ),
     );

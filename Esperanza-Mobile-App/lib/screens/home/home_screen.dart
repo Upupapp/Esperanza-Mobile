@@ -10,6 +10,7 @@ import '../../theme/app_colors.dart';
 import '../../theme/app_spacing.dart';
 import '../../theme/app_status.dart';
 import '../../theme/app_typography.dart';
+import '../../utils/demo_resident_photo.dart';
 import '../../widgets/app_button.dart';
 import '../../widgets/app_card.dart';
 import '../../widgets/empty_state.dart';
@@ -20,6 +21,7 @@ import '../../widgets/parallax_header.dart';
 import '../../widgets/resident_profile_status_card.dart';
 import '../../widgets/section_header.dart';
 import '../../widgets/stat_tile.dart';
+import '../../widgets/service_launcher_menu.dart';
 import '../../widgets/status_chip.dart';
 import '../auth/login_screen.dart';
 import '../auth/register_screen.dart';
@@ -136,7 +138,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           value: '${requests.byCategory(ServiceCategory.dokyu).length}',
                           icon: Icons.description_outlined,
                           color: StatTileColor.brand,
-                          onTap: () => RootShell.jumpTo(context, 1),
+                          onTap: () => RootShell.openService(context, ServiceLauncherTarget.dokyu),
                         ),
                       ),
                       const SizedBox(width: 12),
@@ -146,7 +148,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           value: '${requests.byCategory(ServiceCategory.tulong).length}',
                           icon: Icons.volunteer_activism_outlined,
                           color: StatTileColor.purple,
-                          onTap: () => RootShell.jumpTo(context, 2),
+                          onTap: () => RootShell.openService(context, ServiceLauncherTarget.tulong),
                         ),
                       ),
                     ],
@@ -181,7 +183,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 SectionHeader(
                   title: 'Active Requests',
                   actionLabel: activeRequests.isNotEmpty ? 'View all' : null,
-                  onAction: () => RootShell.jumpTo(context, 1),
+                  onAction: () => RootShell.openService(context, ServiceLauncherTarget.dokyu),
                 ),
                 if (activeRequests.isEmpty)
                   AppCard(
@@ -204,7 +206,7 @@ class _HomeScreenState extends State<HomeScreen> {
               SectionHeader(
                 title: 'Upcoming Events',
                 actionLabel: 'View all',
-                onAction: () => RootShell.jumpTo(context, 3),
+                onAction: () => RootShell.jumpTo(context, 2), // Events — see RootShell's 4-tab index space
               ),
               for (final e in MockCatalog.events.take(2)) EventCard(event: e, compact: true),
             ],
@@ -278,6 +280,7 @@ class _Hero extends StatelessWidget {
   }
 
   Widget _signedInContent(BuildContext context, CitizenAccount account) {
+    final photo = demoProfileImageFor(account);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -289,10 +292,13 @@ class _Hero extends StatelessWidget {
               CircleAvatar(
                 radius: 22,
                 backgroundColor: Colors.white.withValues(alpha: 0.15),
-                child: Text(
-                  account.initials,
-                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
-                ),
+                backgroundImage: photo,
+                child: photo == null
+                    ? Text(
+                        account.initials,
+                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
+                      )
+                    : null,
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -438,8 +444,10 @@ class _RequestPreviewTile extends StatelessWidget {
       child: AppCard(
         padding: const EdgeInsets.all(14),
         onTap: () {
-          final tab = request.category == ServiceCategory.dokyu ? 1 : 2;
-          RootShell.jumpTo(context, tab);
+          final target = request.category == ServiceCategory.dokyu
+              ? ServiceLauncherTarget.dokyu
+              : ServiceLauncherTarget.tulong;
+          RootShell.openService(context, target);
         },
         child: Row(
           children: [

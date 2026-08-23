@@ -3,6 +3,7 @@ import '../../main.dart';
 import '../../services/onboarding_service.dart';
 import '../../theme/app_spacing.dart';
 import '../../theme/app_typography.dart';
+import '../../utils/esperanza_seal.dart';
 import '../../utils/fade_page_route.dart';
 import '../../widgets/app_button.dart';
 
@@ -243,7 +244,7 @@ class _BrandBadge extends StatelessWidget {
             // cap decode to that (x DPR) instead of the full resolution.
             child: ClipOval(
               child: Image.asset(
-                'assets/images/esperanza-seal.png',
+                esperanzaSealAsset,
                 fit: BoxFit.cover,
                 cacheWidth: (26 * MediaQuery.devicePixelRatioOf(context)).round(),
               ),

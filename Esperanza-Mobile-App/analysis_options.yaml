@@ -16,6 +16,12 @@ analyzer:
     # `../core/...` imports intentionally don't resolve inside this
     # project; it's kept only as a source-of-truth reference, not built.
     - 5-icons/**
+    # Reference-only copy of the Servana Client App, kept locally so its
+    # system-design (spacing/motion/haptics/navigation patterns) can be
+    # studied directly — a separate Flutter project with its own
+    # `package:client/...` imports that don't resolve here, and its own
+    # analysis_options.yaml. Never built or shipped as part of Esperanza.
+    - design_reference/**
 
 linter:
   # The lint rules applied to this project can be customized in the

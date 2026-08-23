@@ -3,12 +3,16 @@ import 'package:provider/provider.dart';
 import '../screens/auth/register_screen.dart';
 import '../screens/directory/directory_screen.dart';
 import '../screens/legal/privacy_policy_screen.dart';
+import '../screens/profile/digital_id_screen.dart';
 import '../screens/profile/profile_screen.dart';
 import '../screens/profile/settings_screen.dart';
+import '../screens/shared/my_requests_screen.dart';
+import '../screens/shared/transactions_screen.dart';
 import '../screens/support/help_support_screen.dart';
 import '../services/citizen_session_service.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
+import '../utils/demo_resident_photo.dart';
 import 'app_dialogs.dart';
 
 /// The app's hamburger-menu drawer (Section 2) — hosts Profile and the
@@ -44,6 +48,21 @@ class EsperanzaDrawer extends StatelessWidget {
                       icon: Icons.settings_outlined,
                       label: 'Settings',
                       onTap: () => _push(context, const SettingsScreen()),
+                    ),
+                    _DrawerTile(
+                      icon: Icons.assignment_outlined,
+                      label: 'My Requests',
+                      onTap: () => _push(context, const MyRequestsScreen()),
+                    ),
+                    _DrawerTile(
+                      icon: Icons.receipt_long_outlined,
+                      label: 'Transactions',
+                      onTap: () => _push(context, const TransactionsScreen()),
+                    ),
+                    _DrawerTile(
+                      icon: Icons.badge_outlined,
+                      label: 'Digital ID',
+                      onTap: () => _push(context, const DigitalIdScreen()),
                     ),
                   ] else ...[
                     _DrawerTile(
@@ -120,7 +139,7 @@ class EsperanzaDrawer extends StatelessWidget {
     // `pushAndRemoveUntil(..., (route) => false)` removed _AuthGate from
     // the stack entirely, so any *later* login()/logout() had nothing
     // left to react to, leaving the user stuck on whatever screen was
-    // showing (this was the root cause behind "Ronaldo/Marites no longer
+    // showing (this was the root cause behind "Ronaldo/Cristy no longer
     // opening" when reached via this Sign In / Create Account path).
     nav.popUntil((route) => route.isFirst);
     if (register) {
@@ -136,6 +155,7 @@ class _Header extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final account = session.account;
+    final photo = demoProfileImageFor(account);
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.fromLTRB(20, 28, 20, 20),
@@ -152,12 +172,15 @@ class _Header extends StatelessWidget {
           CircleAvatar(
             radius: 26,
             backgroundColor: Colors.white.withValues(alpha: 0.15),
-            child: account != null
-                ? Text(
-                    account.initials,
-                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 16),
-                  )
-                : const Icon(Icons.person_outline_rounded, color: Colors.white, size: 26),
+            backgroundImage: photo,
+            child: photo != null
+                ? null
+                : (account != null
+                    ? Text(
+                        account.initials,
+                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 16),
+                      )
+                    : const Icon(Icons.person_outline_rounded, color: Colors.white, size: 26)),
           ),
           const SizedBox(height: AppSpacing.md),
           Text(

@@ -5,6 +5,7 @@ import '../../services/resident_profile_service.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_spacing.dart';
 import '../../theme/app_status.dart';
+import '../../utils/demo_resident_photo.dart';
 import '../../widgets/app_card.dart';
 import '../../widgets/app_dialogs.dart';
 import '../../widgets/menu_tile.dart';
@@ -13,6 +14,7 @@ import '../../widgets/verification_status_panel.dart';
 import '../auth/register_screen.dart';
 import '../directory/directory_screen.dart';
 import '../support/help_support_screen.dart';
+import 'digital_id_screen.dart';
 import 'edit_profile_screen.dart';
 import 'resident_profile/resident_profile_overview_screen.dart';
 import 'settings_screen.dart';
@@ -30,6 +32,7 @@ class ProfileScreen extends StatelessWidget {
     final session = context.watch<CitizenSessionService>();
     final account = session.account!;
     final residentProfile = context.watch<ResidentProfileService>().profileFor(account);
+    final photo = demoProfileImageFor(account);
 
     return Scaffold(
       appBar: AppBar(title: const Text('Profile')),
@@ -43,10 +46,13 @@ class ProfileScreen extends StatelessWidget {
                 CircleAvatar(
                   radius: 34,
                   backgroundColor: AppColors.brand50,
-                  child: Text(
-                    account.initials,
-                    style: const TextStyle(fontSize: 21, fontWeight: FontWeight.w700, color: AppColors.brand600),
-                  ),
+                  backgroundImage: photo,
+                  child: photo == null
+                      ? Text(
+                          account.initials,
+                          style: const TextStyle(fontSize: 21, fontWeight: FontWeight.w700, color: AppColors.brand600),
+                        )
+                      : null,
                 ),
                 const SizedBox(height: AppSpacing.md),
                 Text(
@@ -95,6 +101,11 @@ class ProfileScreen extends StatelessWidget {
                 : null,
           ),
           const SizedBox(height: AppSpacing.lg),
+          MenuListTile(
+            icon: Icons.badge_outlined,
+            label: 'Digital ID',
+            onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const DigitalIdScreen())),
+          ),
           ResidentProfileStatusCard(
             profile: residentProfile,
             onTap: () =>

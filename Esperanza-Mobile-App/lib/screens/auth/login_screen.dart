@@ -6,6 +6,7 @@ import '../../services/mock_catalog.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_spacing.dart';
 import '../../theme/app_typography.dart';
+import '../../utils/esperanza_seal.dart';
 import '../../widgets/app_button.dart';
 import '../../widgets/app_dialogs.dart';
 import '../../widgets/app_text_field.dart';
@@ -125,7 +126,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           // px here, so cap decode to that (x DPR) instead
                           // of the full source resolution.
                           child: Image.asset(
-                            'assets/images/esperanza-seal.png',
+                            esperanzaSealAsset,
                             fit: BoxFit.cover,
                             cacheWidth: (84 * MediaQuery.devicePixelRatioOf(context)).round(),
                           ),
@@ -222,6 +223,33 @@ class _LoginScreenState extends State<LoginScreen> {
                         padding: const EdgeInsets.only(bottom: 10),
                         child: DemoAccountCard(account: a, onTap: _loading ? null : () => _quickLogin(a)),
                       ),
+                    ),
+                    // Phase 6 — "One Person, One Account" duplicate demo:
+                    // a second registration using the real Cristy
+                    // Bonghanoy's identity, kept separate from demoAccounts
+                    // above (see MockCatalog.duplicateCristyAccount's own
+                    // doc comment) so it never gets swept up by call sites
+                    // that assume that list is only the two originals.
+                    DemoAccountCard(
+                      account: MockCatalog.duplicateCristyAccount,
+                      label: 'Demo: Duplicate Cristy Account',
+                      onTap: _loading ? null : () => _quickLogin(MockCatalog.duplicateCristyAccount),
+                    ),
+                    const SizedBox(height: 10),
+                    // Unverified + Unverified duplicate demo — both sides
+                    // still Pending Review (see MockCatalog.
+                    // unverifiedDuplicateAccountA's doc comment), kept
+                    // entirely separate from the Cristy scenario above.
+                    DemoAccountCard(
+                      account: MockCatalog.unverifiedDuplicateAccountA,
+                      label: 'Demo: Unverified Duplicate — Account A',
+                      onTap: _loading ? null : () => _quickLogin(MockCatalog.unverifiedDuplicateAccountA),
+                    ),
+                    const SizedBox(height: 10),
+                    DemoAccountCard(
+                      account: MockCatalog.unverifiedDuplicateAccountB,
+                      label: 'Demo: Unverified Duplicate — Account B',
+                      onTap: _loading ? null : () => _quickLogin(MockCatalog.unverifiedDuplicateAccountB),
                     ),
                   ],
                 ),

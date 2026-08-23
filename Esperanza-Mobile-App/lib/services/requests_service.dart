@@ -1,8 +1,12 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:math';
 import '../models/attachment.dart';
+import '../models/receipt.dart';
+import '../models/request_milestones.dart';
 import '../models/service_request.dart';
+import '../theme/app_status.dart';
 
 /// Local, frontend-only "database" for Dokyu + Tulong requests. Persists to
 /// SharedPreferences as JSON so submissions survive app restarts during the
@@ -13,6 +17,18 @@ import '../models/service_request.dart';
 /// processes in ESPERANZA_MOBILE_WEB_ALIGNMENT.md) only touches this file.
 class RequestsService extends ChangeNotifier {
   static const _key = 'esperanza_service_requests';
+
+  /// The verified demo resident's current identity — see
+  /// _seedDemoStatusSimulationsIfNeeded and _migrateStaleDemoIdentity,
+  /// which both reference these rather than duplicating the literals.
+  static const _demoApplicantId = 'ESP-RES-2024-1044';
+  static const _demoApplicantName = 'Cristy Bonghanoy';
+
+  /// The demo identity these six seeded requests were originally created
+  /// under, before the Marites-Ferrer-to-Cristy-Bonghanoy correction — see
+  /// _migrateStaleDemoIdentity's own doc comment.
+  static const _staleDemoApplicantId = 'ESP-RES-2024-1203';
+  static const _staleDemoApplicantName = 'Marites Ferrer';
 
   final List<ServiceRequest> _requests = [];
   bool _loaded = false;
@@ -39,9 +55,65 @@ class RequestsService extends ChangeNotifier {
       final list = (jsonDecode(raw) as List).map((e) => ServiceRequest.fromJson(e)).toList();
       _requests.addAll(list);
     }
-    if (seedDemoData) await _seedDemoStatusSimulationsIfNeeded();
+    if (_migrateStaleDemoIdentity()) await _persist();
+    if (seedDemoData) {
+      await _seedDemoStatusSimulationsIfNeeded();
+      await _seedPaidTransactionDemoIfNeeded();
+    }
     _loaded = true;
     notifyListeners();
+  }
+
+  /// A browser that already had the six demo requests seeded before the
+  /// Marites-Ferrer-to-Cristy-Bonghanoy identity correction has them
+  /// permanently persisted under the old applicant id/name —
+  /// _seedDemoStatusSimulationsIfNeeded's own "already present, skip" guard
+  /// means a source-code fix alone never reaches an existing browser's
+  /// saved copy. Corrects only the affected demo-seeded requests in place
+  /// (and any receipt already generated for one of them), preserving every
+  /// other field — a citizen's own genuinely-submitted requests are never
+  /// touched, since they were never sourced from these stale constants.
+  bool _migrateStaleDemoIdentity() {
+    var changed = false;
+    for (var i = 0; i < _requests.length; i++) {
+      final r = _requests[i];
+      if (!_demoSeedIds.contains(r.id) || r.applicantId != _staleDemoApplicantId) continue;
+      final receipt = r.receipt;
+      _requests[i] = ServiceRequest(
+        id: r.id,
+        referenceNumber: r.referenceNumber,
+        applicantId: _demoApplicantId,
+        applicantName: _demoApplicantName,
+        typeName: r.typeName,
+        category: r.category,
+        office: r.office,
+        purpose: r.purpose,
+        submittedAt: r.submittedAt,
+        status: r.status,
+        statusHistory: r.statusHistory,
+        attachments: r.attachments,
+        citizenRemarks: r.citizenRemarks,
+        adminRemarks: r.adminRemarks,
+        expectedDays: r.expectedDays,
+        formFields: r.formFields,
+        requiresPayment: r.requiresPayment,
+        fee: r.fee,
+        paymentMethod: r.paymentMethod,
+        receipt: receipt != null && receipt.residentName == _staleDemoApplicantName
+            ? Receipt(
+                type: receipt.type,
+                amount: receipt.amount,
+                referenceNumber: receipt.referenceNumber,
+                dateTime: receipt.dateTime,
+                residentName: _demoApplicantName,
+                serviceName: receipt.serviceName,
+                requestReferenceNumber: receipt.requestReferenceNumber,
+              )
+            : receipt,
+      );
+      changed = true;
+    }
+    return changed;
   }
 
   /// Pre-made Dokyu/Tulong requests covering the three primary statuses
@@ -69,8 +141,8 @@ class RequestsService extends ChangeNotifier {
   Future<void> _seedDemoStatusSimulationsIfNeeded() async {
     if (_requests.any((r) => _demoSeedIds.contains(r.id))) return;
 
-    const applicantId = 'ESP-RES-2024-1203'; // Marites Ferrer — verified, has Dokyu/Tulong access.
-    const applicantName = 'Marites Ferrer';
+    const applicantId = _demoApplicantId; // Cristy Bonghanoy — verified, has Dokyu/Tulong access.
+    const applicantName = _demoApplicantName;
     final now = DateTime.now();
     DateTime daysAgo(int d) => now.subtract(Duration(days: d));
 
@@ -85,6 +157,8 @@ class RequestsService extends ChangeNotifier {
       required String finalStatus,
       required String actorRole,
       required String remarks,
+      bool requiresPayment = false,
+      String fee = '',
     }) {
       final submittedAt = daysAgo(5);
       return ServiceRequest(
@@ -109,6 +183,8 @@ class RequestsService extends ChangeNotifier {
         ],
         attachments: const [],
         expectedDays: expectedDays,
+        requiresPayment: requiresPayment,
+        fee: fee,
       );
     }
 
@@ -124,66 +200,215 @@ class RequestsService extends ChangeNotifier {
         finalStatus: 'Approved',
         actorRole: 'Barangay Staff',
         remarks: 'Your Barangay Clearance request has been approved.',
+        requiresPayment: true, // ₱50.00 — see mock_catalog.dart's dokyu_barangay_clearance fee
+        fee: '₱50.00',
       ),
       demo(
         id: 'demo-dokyu-business-permit',
         refSuffix: '02',
         typeName: 'Business Permit (New Application)',
         category: ServiceCategory.dokyu,
-        office: 'BPLO',
+        office: 'Business Permits and Licensing Office',
         expectedDays: '7 working days',
         purpose: 'New business registration',
         finalStatus: 'Pending Review',
-        actorRole: 'BPLO Staff',
+        actorRole: 'Business Permits and Licensing Office Staff',
         remarks: 'Your Business Permit request is still pending.',
+        requiresPayment: true, // ₱500.00 and up — see dokyu_business_new fee
+        fee: '₱500.00 and up (based on capital)',
       ),
       demo(
         id: 'demo-dokyu-certificate-indigency',
         refSuffix: '03',
         typeName: 'Certificate of Indigency',
         category: ServiceCategory.dokyu,
-        office: 'MSWDO',
+        office: 'Municipal Social Welfare and Development Office',
         expectedDays: '2-3 working days',
         purpose: 'Medical Assistance',
         finalStatus: 'Rejected',
-        actorRole: 'MSWDO Staff',
+        actorRole: 'Municipal Social Welfare and Development Office Staff',
         remarks: 'Your Certificate of Indigency request was rejected.',
+        // Free — see dokyu_indigency fee; requiresPayment left false.
       ),
       demo(
         id: 'demo-tulong-medical',
         refSuffix: '04',
         typeName: 'Medical Assistance (AICS)',
         category: ServiceCategory.tulong,
-        office: 'MSWDO',
+        office: 'Municipal Social Welfare and Development Office',
         expectedDays: '3-5 working days',
         purpose: 'Hospital bill assistance',
         finalStatus: 'Pending Review',
-        actorRole: 'MSWDO Staff',
+        actorRole: 'Municipal Social Welfare and Development Office Staff',
         remarks: 'Your Medical Assistance request is still pending.',
+        // Free — see tulong_medical fee; requiresPayment left false.
       ),
       demo(
         id: 'demo-tulong-financial',
         refSuffix: '05',
         typeName: 'Financial Assistance (AICS)',
         category: ServiceCategory.tulong,
-        office: 'MSWDO',
+        office: 'Municipal Social Welfare and Development Office',
         expectedDays: '3-5 working days',
         purpose: 'Social case study assistance',
         finalStatus: 'Approved',
-        actorRole: 'MSWDO Staff',
+        actorRole: 'Municipal Social Welfare and Development Office Staff',
         remarks: 'Your Financial Assistance request has been approved.',
+        // Free — see tulong_financial fee; requiresPayment left false.
       ),
       demo(
         id: 'demo-tulong-educational',
         refSuffix: '06',
         typeName: 'Educational Assistance',
         category: ServiceCategory.tulong,
-        office: "MSWDO / Mayor's Office",
+        office: 'Office of the Municipal Mayor',
         expectedDays: '10-15 working days',
         purpose: 'Tuition and allowance support',
         finalStatus: 'Rejected',
-        actorRole: 'MSWDO Staff',
+        actorRole: 'Office of the Municipal Mayor Staff',
         remarks: 'Your Educational Assistance request was rejected.',
+        // Free — see tulong_educational fee; requiresPayment left false.
+      ),
+    ]);
+    await _persist();
+  }
+
+  /// Three already-Paid demo requests (one per payment method) so the
+  /// Transactions screen has real content to demonstrate immediately,
+  /// without having to manually walk a request through the payment flow
+  /// first. Same request+receipt architecture as a genuinely-simulated
+  /// payment (see advanceMilestone/_generateReceipt) — Transactions has no
+  /// separate data source, so these appear there exactly the same way a
+  /// live-paid request would. Seeded exactly once, guarded by
+  /// [_paidTransactionSeedIds] already being present (same pattern as
+  /// [_seedDemoStatusSimulationsIfNeeded]) — a browser that already has
+  /// these ids never gets them re-added or duplicated, and an existing
+  /// browser that predates this seed (and so doesn't have these ids yet)
+  /// receives them on its next load with no manual storage-clearing
+  /// needed. Services/fees are real catalog entries, never invented — see
+  /// each entry's own comment for its catalog key.
+  static const _paidTransactionSeedIds = [
+    'demo-paid-dokyu-residency-gcash',
+    'demo-paid-dokyu-rpt-maya',
+    'demo-paid-tulong-pension-onsite',
+  ];
+
+  Future<void> _seedPaidTransactionDemoIfNeeded() async {
+    if (_requests.any((r) => _paidTransactionSeedIds.contains(r.id))) return;
+
+    final now = DateTime.now();
+    DateTime daysAgo(int d) => now.subtract(Duration(days: d));
+
+    ServiceRequest paid({
+      required String id,
+      required String refSuffix,
+      required String typeName,
+      required ServiceCategory category,
+      required String office,
+      required String expectedDays,
+      required String purpose,
+      required String fee,
+      required int submittedDaysAgo,
+      required int paidDaysAgo,
+      required String paymentMethod,
+      required ReceiptType receiptType,
+      required String receiptRefDigits,
+    }) {
+      final submittedAt = daysAgo(submittedDaysAgo);
+      final paidAt = daysAgo(paidDaysAgo);
+      final referenceNumber = '${category == ServiceCategory.dokyu ? 'DR' : 'AR'}-${now.year}-DEMO$refSuffix';
+      final receiptPrefix = switch (receiptType) {
+        ReceiptType.gcash => 'GC',
+        ReceiptType.maya => 'MY',
+        ReceiptType.onsite => 'OR',
+      };
+      return ServiceRequest(
+        id: id,
+        referenceNumber: referenceNumber,
+        applicantId: _demoApplicantId,
+        applicantName: _demoApplicantName,
+        typeName: typeName,
+        category: category,
+        office: office,
+        purpose: purpose,
+        submittedAt: submittedAt,
+        status: RequestMilestones.canonicalStatusFor(RequestMilestones.paid).label,
+        statusHistory: [
+          StatusHistoryEntry(
+            status: RequestMilestones.submitted,
+            at: submittedAt,
+            actor: 'Citizen',
+            remarks: 'Request submitted via mobile app.',
+          ),
+          StatusHistoryEntry(
+            status: RequestMilestones.paid,
+            at: paidAt,
+            actor: 'Demo Simulation',
+            remarks: 'Payment confirmed.',
+          ),
+        ],
+        attachments: const [],
+        expectedDays: expectedDays,
+        requiresPayment: true,
+        fee: fee,
+        paymentMethod: paymentMethod,
+        receipt: Receipt(
+          type: receiptType,
+          amount: fee,
+          referenceNumber: '$receiptPrefix-$receiptRefDigits',
+          dateTime: paidAt,
+          residentName: _demoApplicantName,
+          serviceName: typeName,
+          requestReferenceNumber: referenceNumber,
+        ),
+      );
+    }
+
+    _requests.addAll([
+      paid(
+        id: 'demo-paid-dokyu-residency-gcash',
+        refSuffix: '07',
+        typeName: 'Certificate of Residency', // mock_catalog.dart: dokyu_residency
+        category: ServiceCategory.dokyu,
+        office: 'Civil Registrar',
+        expectedDays: '1-2 working days',
+        purpose: 'Proof of Residency',
+        fee: '₱50.00', // dokyu_residency's own configured fee
+        submittedDaysAgo: 10,
+        paidDaysAgo: 9,
+        paymentMethod: 'GCash',
+        receiptType: ReceiptType.gcash,
+        receiptRefDigits: '5820147736',
+      ),
+      paid(
+        id: 'demo-paid-dokyu-rpt-maya',
+        refSuffix: '08',
+        typeName: 'Real Property Tax Clearance', // mock_catalog.dart: dokyu_rpt
+        category: ServiceCategory.dokyu,
+        office: "Treasurer's Office",
+        expectedDays: 'Same day',
+        purpose: 'Loan requirement',
+        fee: '₱100.00', // dokyu_rpt's own configured fee
+        submittedDaysAgo: 8,
+        paidDaysAgo: 7,
+        paymentMethod: 'Maya',
+        receiptType: ReceiptType.maya,
+        receiptRefDigits: '3391208465',
+      ),
+      paid(
+        id: 'demo-paid-tulong-pension-onsite',
+        refSuffix: '09',
+        typeName: 'Social Pension (Indigent Senior Citizen)', // mock_catalog.dart: tulong_pension
+        category: ServiceCategory.tulong,
+        office: 'Office for Senior Citizens Affairs',
+        expectedDays: '5-7 working days',
+        purpose: 'Quarterly pension release processing',
+        fee: '₱100.00', // tulong_pension's own configured processing fee (distinct from its ₱1,000/month assistance amount)
+        submittedDaysAgo: 5,
+        paidDaysAgo: 4,
+        paymentMethod: 'Onsite',
+        receiptType: ReceiptType.onsite,
+        receiptRefDigits: '7714902938',
       ),
     ]);
     await _persist();
@@ -221,6 +446,8 @@ class RequestsService extends ChangeNotifier {
     required String expectedDays,
     required List<Attachment> attachments,
     Map<String, dynamic> formFields = const {},
+    bool requiresPayment = false,
+    String fee = '',
   }) async {
     final now = DateTime.now();
     final request = ServiceRequest(
@@ -245,6 +472,8 @@ class RequestsService extends ChangeNotifier {
       attachments: attachments,
       expectedDays: expectedDays,
       formFields: formFields,
+      requiresPayment: requiresPayment,
+      fee: fee,
     );
     _requests.add(request);
     await _persist();
@@ -257,6 +486,127 @@ class RequestsService extends ChangeNotifier {
     request.status = 'Cancelled';
     request.statusHistory.add(
       StatusHistoryEntry(status: 'Cancelled', at: DateTime.now(), actor: 'Citizen', remarks: 'Cancelled by citizen.'),
+    );
+    await _persist();
+    notifyListeners();
+  }
+
+  /// Whether [requestId] can still advance (i.e. hasn't reached the end of
+  /// its milestone sequence, and isn't Rejected/Cancelled) — drives the
+  /// demo-only "Next Demo Step" control's enabled state.
+  bool canAdvance(String requestId) {
+    final request = _requests.firstWhere((r) => r.id == requestId);
+    final sequence = RequestMilestones.sequenceFor(requiresPayment: request.requiresPayment);
+    final currentIndex = sequence.indexOf(request.statusHistory.last.status);
+    return currentIndex != -1 && currentIndex < sequence.length - 1;
+  }
+
+  /// The milestone this request would move to if advanced right now, or
+  /// null if it's already at the end (or off the normal sequence, e.g.
+  /// Rejected/Cancelled).
+  String? nextMilestone(String requestId) {
+    final request = _requests.firstWhere((r) => r.id == requestId);
+    final sequence = RequestMilestones.sequenceFor(requiresPayment: request.requiresPayment);
+    final currentIndex = sequence.indexOf(request.statusHistory.last.status);
+    if (currentIndex == -1 || currentIndex >= sequence.length - 1) return null;
+    return sequence[currentIndex + 1];
+  }
+
+  /// DEMO-ONLY: manually advances [requestId] to its next milestone (see
+  /// [RequestMilestones]) — this is a frontend simulation control, not
+  /// something a real citizen ever sees; a real deployment's status
+  /// changes would come from the Web Admin / backend instead. No-op if
+  /// already at the end of the sequence. [paymentMethod], when provided,
+  /// is recorded on the request (used when the Waiting for Payment
+  /// milestone is being left behind, i.e. the citizen just chose one).
+  Future<void> advanceMilestone(String requestId, {String? paymentMethod}) async {
+    final request = _requests.firstWhere((r) => r.id == requestId);
+    final next = nextMilestone(requestId);
+    if (next == null) return;
+    if (paymentMethod != null) request.paymentMethod = paymentMethod;
+    if (next == RequestMilestones.receiptGenerated) {
+      request.receipt = _generateReceipt(request);
+    }
+    request.status = RequestMilestones.canonicalStatusFor(next).label;
+    request.statusHistory.add(
+      StatusHistoryEntry(
+        status: next,
+        at: DateTime.now(),
+        actor: 'Demo Simulation',
+        remarks: _demoRemarksFor(next, request),
+      ),
+    );
+    await _persist();
+    notifyListeners();
+  }
+
+  String? _demoRemarksFor(String milestone, ServiceRequest request) {
+    final method = request.paymentMethod;
+    switch (milestone) {
+      case RequestMilestones.waitingForPayment:
+        return 'Please settle the required fee to continue processing.';
+      case RequestMilestones.paymentMethodSelected:
+        return method == 'Onsite'
+            ? 'Payment to be completed at Municipal Office.'
+            : 'Payment method selected: $method (Demo / Simulation).';
+      case RequestMilestones.paymentProcessing:
+        return method == 'Onsite'
+            ? 'Awaiting confirmation of onsite payment.'
+            : 'Verifying payment (Demo / Simulation).';
+      case RequestMilestones.receiptGenerated:
+        return 'Receipt generated. Tap "View Receipt" below to see it.';
+      case RequestMilestones.paid:
+        return 'Payment confirmed.';
+      case RequestMilestones.readyForRelease:
+        return request.category == ServiceCategory.dokyu
+            ? 'Your document is ready for pickup at the issuing office.'
+            : 'Your request is ready for release.';
+      case RequestMilestones.completed:
+        return 'Request completed.';
+      default:
+        return null;
+    }
+  }
+
+  static final _receiptRandom = Random();
+
+  /// Builds this request's own receipt, generating local/demo-only
+  /// transaction values — never a real gateway's reference number, never a
+  /// value copied from a visual reference screenshot. Uses the request's
+  /// own catalog fee/applicant/type/reference number, exactly as
+  /// submitted, never an invented amount.
+  Receipt _generateReceipt(ServiceRequest request) {
+    final type = switch (request.paymentMethod) {
+      'GCash' => ReceiptType.gcash,
+      'Maya' => ReceiptType.maya,
+      _ => ReceiptType.onsite,
+    };
+    final prefix = switch (type) {
+      ReceiptType.gcash => 'GC',
+      ReceiptType.maya => 'MY',
+      ReceiptType.onsite => 'OR',
+    };
+    final digits = List.generate(10, (_) => _receiptRandom.nextInt(10)).join();
+    return Receipt(
+      type: type,
+      amount: request.fee,
+      referenceNumber: '$prefix-$digits',
+      dateTime: DateTime.now(),
+      residentName: request.applicantName,
+      serviceName: request.typeName,
+      requestReferenceNumber: request.referenceNumber,
+    );
+  }
+
+  /// DEMO-ONLY: branches [requestId] straight to Rejected with [reason] —
+  /// a placeholder for what would eventually be an admin-provided reason
+  /// from the Web Admin, not a real rejection decision made here.
+  Future<void> rejectDemo(String requestId, {required String reason}) async {
+    final request = _requests.firstWhere((r) => r.id == requestId);
+    request.status = RequestMilestones.canonicalStatusFor(RequestMilestones.rejected).label;
+    request.adminRemarks = reason;
+    request.statusHistory.add(
+      StatusHistoryEntry(status: RequestMilestones.rejected, at: DateTime.now(), actor: 'Demo Simulation', remarks: reason),
     );
     await _persist();
     notifyListeners();

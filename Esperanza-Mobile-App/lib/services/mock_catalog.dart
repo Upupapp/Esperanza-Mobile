@@ -2,6 +2,7 @@ import '../models/announcement.dart';
 import '../models/catalog_item.dart';
 import '../models/citizen_account.dart';
 import '../models/evacuation_center.dart';
+import '../models/government_id_record.dart';
 import '../models/resident_profile.dart';
 import '../models/service_form_spec.dart';
 
@@ -148,15 +149,15 @@ class MockCatalog {
     CatalogItem(
       key: 'dokyu_indigency',
       name: 'Certificate of Indigency',
-      office: 'MSWDO',
+      office: 'Municipal Social Welfare and Development Office',
       fee: 'Free',
       days: '2-3 working days',
       requirements: [
         'One (1) valid government-issued ID',
         'Barangay Certification of Indigency',
-        'Brief interview / case assessment with MSWDO',
+        'Brief interview / case assessment with the Municipal Social Welfare and Development Office',
       ],
-      process: ['Submit Request', 'MSWDO Interview', 'Case Assessment', 'Release'],
+      process: ['Submit Request', 'Municipal Social Welfare and Development Office Interview', 'Case Assessment', 'Release'],
       icon: 'heart-handshake',
       // Sourced: BRGY.INDIGENCY 2024-1.docx (official).
       formSpec: ServiceFormSpec(
@@ -184,7 +185,7 @@ class MockCatalog {
     CatalogItem(
       key: 'dokyu_business_new',
       name: 'Business Permit (New Application)',
-      office: 'BPLO',
+      office: 'Business Permits and Licensing Office',
       fee: '₱500.00 and up (based on capital)',
       days: '7 working days',
       requirements: [
@@ -214,7 +215,7 @@ class MockCatalog {
     CatalogItem(
       key: 'mcro_live_birth',
       name: 'Certificate of Live Birth (Certified Copy)',
-      office: 'Civil Registrar (MCRO)',
+      office: 'Office of the Municipal Civil Registrar',
       fee: '₱155.00',
       days: '3-5 working days',
       requirements: ['One (1) valid government-issued ID', 'Details of the record being requested'],
@@ -316,7 +317,7 @@ class MockCatalog {
     CatalogItem(
       key: 'dokyu_marriage_license',
       name: 'Application for Marriage License',
-      office: 'Civil Registrar (MCRO)',
+      office: 'Office of the Municipal Civil Registrar',
       fee: '₱300.00',
       days: '10 working days (includes 10-day posting period)',
       requirements: [
@@ -404,7 +405,7 @@ class MockCatalog {
     CatalogItem(
       key: 'dokyu_marriage_certificate_copy',
       name: 'Certified Copy of Marriage Certificate',
-      office: 'Civil Registrar (MCRO)',
+      office: 'Office of the Municipal Civil Registrar',
       fee: '₱155.00',
       days: '3-5 working days',
       requirements: [
@@ -463,7 +464,7 @@ class MockCatalog {
     CatalogItem(
       key: 'dokyu_delayed_birth_registration',
       name: 'Delayed Registration of Birth',
-      office: 'Civil Registrar (MCRO)',
+      office: 'Office of the Municipal Civil Registrar',
       fee: '₱200.00',
       days: '5-7 working days',
       requirements: [
@@ -472,7 +473,12 @@ class MockCatalog {
         'Baptismal Certificate or School Record, if available',
         'Affidavit of two (2) disinterested persons',
       ],
-      process: ['Submit Application', 'MCRO Evaluation', 'Posting (if required)', 'Registration & Release'],
+      process: [
+        'Submit Application',
+        'Office of the Municipal Civil Registrar Evaluation',
+        'Posting (if required)',
+        'Registration & Release',
+      ],
       icon: 'file-text',
       // Sourced: "Affidavit for Delayed Registration of Birth" within MCRO
       // - Certificate of Live Birth.pdf (official — pages 2-3 of that
@@ -501,7 +507,7 @@ class MockCatalog {
     CatalogItem(
       key: 'dokyu_delayed_death_registration',
       name: 'Delayed Registration of Death',
-      office: 'Civil Registrar (MCRO)',
+      office: 'Office of the Municipal Civil Registrar',
       fee: '₱200.00',
       days: '5-7 working days',
       requirements: [
@@ -510,7 +516,12 @@ class MockCatalog {
         'Death records from attending physician/hospital, if available',
         'Affidavit of two (2) disinterested persons',
       ],
-      process: ['Submit Application', 'MCRO Evaluation', 'Posting (if required)', 'Registration & Release'],
+      process: [
+        'Submit Application',
+        'Office of the Municipal Civil Registrar Evaluation',
+        'Posting (if required)',
+        'Registration & Release',
+      ],
       icon: 'file-text',
       // Sourced: "Affidavit for Delayed Registration of Death" within MCRO
       // - Certificate of Death.pdf (official — page 2 of that file; page 1
@@ -552,7 +563,7 @@ class MockCatalog {
     CatalogItem(
       key: 'dokyu_fetal_death',
       name: 'Certificate of Fetal Death',
-      office: 'Civil Registrar (MCRO)',
+      office: 'Office of the Municipal Civil Registrar',
       fee: '₱200.00',
       days: '5-7 working days',
       requirements: [
@@ -561,7 +572,12 @@ class MockCatalog {
         'One (1) valid government-issued ID of the applicant/informant',
         'Affidavit of two (2) disinterested persons (for delayed registration)',
       ],
-      process: ['Submit Application', 'MCRO Evaluation', 'Posting (if required)', 'Registration & Release'],
+      process: [
+        'Submit Application',
+        'Office of the Municipal Civil Registrar Evaluation',
+        'Posting (if required)',
+        'Registration & Release',
+      ],
       icon: 'file-text',
       // Sourced: MCRO - Certificate of Fetal Death.pdf (official, Municipal
       // Form 103A). Page 1's Fetus/Mother/Father/Marriage-of-Parents
@@ -1088,7 +1104,7 @@ class MockCatalog {
     CatalogItem(
       key: 'tulong_medical',
       name: 'Medical Assistance (AICS)',
-      office: 'MSWDO',
+      office: 'Municipal Social Welfare and Development Office',
       fee: 'Free',
       days: '3-5 working days',
       amount: '₱1,000 – ₱150,000 per case',
@@ -1098,13 +1114,18 @@ class MockCatalog {
         'Hospital bill or Statement of Account',
         'Barangay Certificate of Indigency',
       ],
-      process: ['Submit Request', 'MSWDO Assessment', 'Approval', 'Cash / Guarantee Letter Release'],
+      process: [
+        'Submit Request',
+        'Municipal Social Welfare and Development Office Assessment',
+        'Approval',
+        'Cash / Guarantee Letter Release',
+      ],
       icon: 'stethoscope',
     ),
     CatalogItem(
       key: 'tulong_burial',
       name: 'Burial Assistance (AICS)',
-      office: 'MSWDO',
+      office: 'Municipal Social Welfare and Development Office',
       fee: 'Free',
       days: '2-3 working days',
       amount: 'Up to ₱5,000',
@@ -1120,7 +1141,7 @@ class MockCatalog {
     CatalogItem(
       key: 'tulong_educational',
       name: 'Educational Assistance',
-      office: "MSWDO / Mayor's Office",
+      office: 'Office of the Municipal Mayor',
       fee: 'Free',
       days: '10-15 working days',
       amount: 'Tuition + allowance per semester',
@@ -1215,14 +1236,14 @@ class MockCatalog {
     CatalogItem(
       key: 'tulong_financial',
       name: 'Financial Assistance (AICS)',
-      office: 'MSWDO',
+      office: 'Municipal Social Welfare and Development Office',
       fee: 'Free',
       days: '3-5 working days',
       amount: 'Based on social worker assessment',
       requirements: [
         'One (1) valid government-issued ID',
         'Barangay Certificate of Indigency',
-        'Brief interview / social case study with MSWDO',
+        'Brief interview / social case study with the Municipal Social Welfare and Development Office',
       ],
       process: ['Submit Request', 'Social Case Study', 'Approval', 'Release'],
       icon: 'wallet',
@@ -1230,7 +1251,7 @@ class MockCatalog {
     CatalogItem(
       key: 'tulong_food',
       name: 'Food / Relief Assistance',
-      office: 'MSWDO / MDRRMO',
+      office: 'Municipal Disaster Risk Reduction and Management Office',
       fee: 'Free',
       days: '1-2 working days',
       amount: 'Relief goods package',
@@ -1241,7 +1262,7 @@ class MockCatalog {
     CatalogItem(
       key: 'tulong_pension',
       name: 'Social Pension (Indigent Senior Citizen)',
-      office: 'OSCA',
+      office: 'Office for Senior Citizens Affairs',
       fee: '₱100.00',
       days: '5-7 working days',
       amount: '₱1,000/month (₱3,000 per quarter)',
@@ -1250,18 +1271,28 @@ class MockCatalog {
         'Affidavit of no pension, income, or family support',
         'Barangay Certification',
       ],
-      process: ['Submit Requirements', 'OSCA / DSWD Verification', 'Enrollment', 'Quarterly Release'],
+      process: [
+        'Submit Requirements',
+        'Office for Senior Citizens Affairs / DSWD Verification',
+        'Enrollment',
+        'Quarterly Release',
+      ],
       icon: 'users',
     ),
     CatalogItem(
       key: 'tulong_solo_parent',
       name: 'Solo Parent Cash Assistance',
-      office: 'MSWDO',
+      office: 'Municipal Social Welfare and Development Office',
       fee: 'Free',
       days: '3-5 working days',
       amount: 'Cash grant + goods, per assessment',
       requirements: ['Solo Parent ID', 'PSA Birth Certificate(s) of children', 'Barangay Certification'],
-      process: ['Submit Requirements', 'MSWDO Assessment', 'Approval', 'Release'],
+      process: [
+        'Submit Requirements',
+        'Municipal Social Welfare and Development Office Assessment',
+        'Approval',
+        'Release',
+      ],
       icon: 'heart-handshake',
       // Sourced: MSWD - SOLO Parent Application Form.xlsx, DSWD Annex B
       // 2023 (official) — the richest single source found in the audit.
@@ -1382,7 +1413,7 @@ class MockCatalog {
     CatalogItem(
       key: 'tulong_senior_citizen_id',
       name: 'Senior Citizen ID Application (OSCA Membership)',
-      office: 'OSCA',
+      office: 'Office for Senior Citizens Affairs',
       fee: 'Free',
       days: '3-5 working days',
       requirements: [
@@ -1390,7 +1421,7 @@ class MockCatalog {
         '2 recent 1x1 ID photos',
         'Barangay Certification',
       ],
-      process: ['Submit Requirements', 'OSCA Verification', 'Approval', 'ID Release'],
+      process: ['Submit Requirements', 'Office for Senior Citizens Affairs Verification', 'Approval', 'ID Release'],
       icon: 'id-card',
       // Sourced: MSWD - Senior Citizen Application Form.docx, OSCA
       // Membership Application (official). Distinct from the existing
@@ -1467,7 +1498,7 @@ class MockCatalog {
     CatalogItem(
       key: 'tulong_pwd_registration',
       name: 'PWD Registration (PRPWD)',
-      office: 'MSWD / PDAO',
+      office: 'Persons with Disability Affairs Office',
       fee: 'Free',
       days: '5-7 working days',
       requirements: [
@@ -1475,7 +1506,12 @@ class MockCatalog {
         '1x1 ID photo',
         'Barangay Certification',
       ],
-      process: ['Submit Requirements', 'MSWD/PDAO Assessment', 'Approval', 'ID Release'],
+      process: [
+        'Submit Requirements',
+        'Persons with Disability Affairs Office Assessment',
+        'Approval',
+        'ID Release',
+      ],
       icon: 'accessibility',
       // Sourced: MSWD - PRPWD Form 2.pdf, DOH Philippine Registry for
       // Persons with Disability v3.0 (official).
@@ -1569,7 +1605,7 @@ class MockCatalog {
     CatalogItem(
       key: 'tulong_tupad',
       name: 'TUPAD Emergency Employment',
-      office: 'MPESO',
+      office: 'Municipal Public Employment Service Office',
       fee: 'Free',
       days: '5-10 working days',
       amount: 'Minimum wage x days engaged',
@@ -1578,7 +1614,12 @@ class MockCatalog {
         'Barangay Certification of Residency',
         'Certificate of Indigency, if applicable',
       ],
-      process: ['Submit Profile', 'MPESO Screening', 'Approval', 'Deployment & Payout'],
+      process: [
+        'Submit Profile',
+        'Municipal Public Employment Service Office Screening',
+        'Approval',
+        'Deployment & Payout',
+      ],
       icon: 'briefcase',
       // Sourced: MPESO - DOLE TUPAD PROFILE FORM.pdf, TSSD-EFIS03-010
       // (official).
@@ -1661,11 +1702,16 @@ class MockCatalog {
     CatalogItem(
       key: 'tulong_tesda_registration',
       name: 'TESDA Skills Training Registration',
-      office: 'MPESO',
+      office: 'Municipal Public Employment Service Office',
       fee: 'Free',
       days: '3-5 working days',
       requirements: ['Valid government-issued ID or Birth Certificate', '2x2 ID photo'],
-      process: ['Submit Profile', 'MPESO/TESDA Screening', 'Enrollment', 'Training Start'],
+      process: [
+        'Submit Profile',
+        'Municipal Public Employment Service Office / TESDA Screening',
+        'Enrollment',
+        'Training Start',
+      ],
       icon: 'graduation-cap',
       // Sourced: MPESO - TESDA-DPA Form 1 Registration Form (MIS 03-01).pdf
       // (official).
@@ -1755,11 +1801,16 @@ class MockCatalog {
     CatalogItem(
       key: 'tulong_erpat_registration',
       name: "ERPAT Program Registration (Fathers' Empowerment)",
-      office: 'MSWD',
+      office: 'Municipal Social Welfare and Development Office',
       fee: 'Free',
       days: '3-5 working days',
       requirements: ['Valid government-issued ID', 'Barangay Certification'],
-      process: ['Submit Registration', 'MSWD Review', 'Enrollment', 'Program Orientation'],
+      process: [
+        'Submit Registration',
+        'Municipal Social Welfare and Development Office Review',
+        'Enrollment',
+        'Program Orientation',
+      ],
       icon: 'users',
       // Sourced: MSWD - ERPAT FORMS.docx — Registration Form portion only
       // (official); the file's meeting-minutes portions are internal
@@ -2028,6 +2079,7 @@ class MockCatalog {
       media: const PostMedia(path: 'assets/images/News page section.png', type: PostMediaType.image, isAsset: true),
       likes: 89,
       shares: 21,
+      viewCount: 410,
       comments: const [],
     ),
     Announcement(
@@ -2041,9 +2093,10 @@ class MockCatalog {
       media: const PostMedia(path: 'assets/images/esperanza-aerial.jpg', type: PostMediaType.image, isAsset: true),
       likes: 214,
       shares: 18,
+      viewCount: 320,
       comments: [
         PostComment(author: 'Ronaldo Bautista', body: 'Sama-sama tayo dito, Esperanza! 🎉', time: '20 hrs ago'),
-        PostComment(author: 'Marites Ferrer', body: 'Anong oras magsisimula yung trade fair po?', time: '15 hrs ago'),
+        PostComment(author: 'Cristy Bonghanoy', body: 'Anong oras magsisimula yung trade fair po?', time: '15 hrs ago'),
       ],
     ),
     Announcement(
@@ -2056,6 +2109,7 @@ class MockCatalog {
       time: '3 hrs ago',
       likes: 47,
       shares: 4,
+      viewCount: 165,
       comments: [
         PostComment(author: 'Esperanza LGU', body: 'Salamat sa inyong serbisyo, Brgy. Santiago! 👏', time: '2 hrs ago'),
       ],
@@ -2071,6 +2125,7 @@ class MockCatalog {
       media: const PostMedia(path: 'assets/images/rectangle_cityhall.jpg', type: PostMediaType.image, isAsset: true),
       likes: 132,
       shares: 9,
+      viewCount: 290,
       comments: const [],
     ),
     Announcement(
@@ -2083,9 +2138,10 @@ class MockCatalog {
       time: '4 days ago',
       likes: 58,
       shares: 12,
+      viewCount: 210,
       comments: [
         PostComment(
-          author: 'Marites Ferrer',
+          author: 'Cristy Bonghanoy',
           body: 'Noted po, sasabihin ko sa Brgy. Captain namin.',
           time: '3 days ago',
         ),
@@ -2117,23 +2173,175 @@ class MockCatalog {
       // LGU verification is still pending.
       status: 'Pending Review',
     ),
+    // The verified demo account is Cristy Pareja Bonghanoy's actual record
+    // from the Web Admin's own mock data (config/esperanza_citizens.php,
+    // id ESP-RES-2024-1044) — id, name, email, and every resident-fact
+    // field below all come from that same source record, not a fabricated
+    // demo identity. Her matching single-member household lives in
+    // esperanza_constituents.php as HH-2026-104 — no family/household
+    // members beyond herself, so there is nothing to carry into
+    // Family/Household screens.
     CitizenAccount(
-      id: 'ESP-RES-2024-1203',
-      firstName: 'Marites',
-      lastName: 'Ferrer',
-      email: 'marites.ferrer@email.com',
-      mobile: '0917 335 8821',
-      barangay: 'Agoho',
-      purok: 'Purok 1',
-      address: 'Purok 1, Barangay Agoho, Esperanza, Masbate',
-      birthdate: 'March 4, 1985',
+      id: 'ESP-RES-2024-1044',
+      firstName: 'Cristy',
+      lastName: 'Bonghanoy',
+      email: 'cristy.bonghanoy@email.com',
+      mobile: '0919 502 7734',
+      barangay: 'Baras',
+      purok: 'Purok 2',
+      address: 'Purok 2, Barangay Baras, Esperanza, Masbate',
+      birthdate: 'November 29, 1988',
       sex: 'Female',
       civilStatus: 'Married',
-      occupation: 'Farmer',
-      profileCompleteness: 82,
+      occupation: 'Market Vendor',
+      profileCompleteness: 90,
       // Demo account for the "fully verified resident" state — full
       // access to verified-only features (Dokyu/Tulong).
       status: 'Approved',
     ),
   ];
+
+  /// Demo-only "One Person, One Account" duplicate simulation (Phase 6) —
+  /// a second registration using the real Cristy Bonghanoy's identity.
+  /// Deliberately kept OUT of [demoAccounts] rather than appended to it:
+  /// several call sites (this file's own callers, several tests) use
+  /// `demoAccounts.last` to mean "the verified demo account" — appending
+  /// here would silently redirect every one of those to this account
+  /// instead. The Sign In screen wires this up as its own explicitly
+  /// labeled button, never through the generic demo-account list.
+  static final duplicateCristyAccount = CitizenAccount(
+    id: 'ESP-RES-2024-1044-DUP',
+    firstName: 'Cristy',
+    lastName: 'Bonghanoy',
+    email: 'cristy.bonghanoy.dup@email.com',
+    // Same Cristy-derived resident-fact fields as the real Cristy account
+    // above — required so the two look like a genuine identity match; only
+    // the id/email suffix, lower profileCompleteness, and Pending status
+    // distinguish this as the duplicate registration.
+    mobile: '0919 502 7734',
+    barangay: 'Baras',
+    purok: 'Purok 2',
+    address: 'Purok 2, Barangay Baras, Esperanza, Masbate',
+    birthdate: 'November 29, 1988',
+    sex: 'Female',
+    civilStatus: 'Married',
+    occupation: 'Market Vendor',
+    profileCompleteness: 35,
+    // Never becomes 'Approved' in this simulation — see
+    // screens/notifications/duplicate_account_details_screen.dart.
+    // Verification stays blocked regardless of how the duplicate-alert
+    // is resolved.
+    status: 'Pending Review',
+  );
+
+  /// Cristy's one seeded government ID document — the asset placed at
+  /// assets/images/CRISTY DEMO ID.png, read by both the identity/
+  /// verification side of the app and My Government IDs (see
+  /// utils/government_id.dart) so there is exactly one record, never two
+  /// unrelated copies. A PHLPost Postal ID, per the asset itself — a demo
+  /// watermark ("DEMO ID ONLY — NOT A VALID GOVERNMENT IDENTIFICATION") is
+  /// printed directly on the card image.
+  ///
+  /// The card's own printed name reads "Cristy Ann Ferrer" — a leftover
+  /// from before this project's demo identity was corrected to Cristy
+  /// Bonghanoy's real Web Admin record. The date of birth and address
+  /// printed on the card do match Cristy Bonghanoy's actual record
+  /// (November 29, 1988; Purok 2, Barangay Baras) exactly. Per this
+  /// correction's own instructions, no new ID image may be generated — the
+  /// existing asset is used as-is; only a person can supply a replacement
+  /// image with the corrected surname.
+  static const cristyGovernmentId = GovernmentIdRecord(
+    accountId: 'ESP-RES-2024-1044',
+    idType: 'Postal ID (PHLPost)',
+    assetPath: 'assets/images/CRISTY DEMO ID.png',
+    idNumber: 'PRN 100141234567 P',
+    issuingOffice: 'Esperanza',
+  );
+
+  /// Ronaldo's one seeded government ID document — the asset placed at
+  /// assets/images/RONALDO ID DEMO.png, a purpose-built "Esperanza Resident
+  /// ID" card (not a real Philippine ID type, unlike Cristy's Postal ID).
+  /// Every field printed on it — name, resident ID ESP-RES-2024-1102,
+  /// birthdate, address, sex, barangay/purok, civil status, occupation,
+  /// and "PENDING REVIEW" account status — matches his CitizenAccount
+  /// record exactly.
+  static const ronaldoGovernmentId = GovernmentIdRecord(
+    accountId: 'ESP-RES-2024-1102',
+    idType: 'Esperanza Resident ID',
+    assetPath: 'assets/images/RONALDO ID DEMO.png',
+    idNumber: 'ESP-RES-2024-1102',
+    issuingOffice: 'Esperanza',
+  );
+
+  /// Teodoro's one seeded government ID document, shared by both his
+  /// duplicate registrations (see unverifiedDuplicateAccountA/B — same
+  /// resident, same submitted ID) — the asset placed at assets/images/
+  /// THEODORO ID DEMO.png (note the asset's own filename spells his name
+  /// with an "h"; the card image itself correctly prints "Teodoro
+  /// Villaflor", matching the account data). Every other printed field —
+  /// birthdate, sex, civil status, address, occupation, mobile number, and
+  /// "PENDING REVIEW" status — matches the account records exactly, except
+  /// the printed Resident ID Number itself: the card reads
+  /// "ESP-RES-2024-1187", a leftover from before this asset was paired
+  /// with these specific seeded accounts (ESP-RES-2026-2101/-2102). Per
+  /// this project's rule against generating new ID images, the existing
+  /// asset is used as-is.
+  static const theodoroGovernmentId = GovernmentIdRecord(
+    accountId: 'ESP-RES-2026-2101',
+    idType: 'Esperanza Resident ID',
+    assetPath: 'assets/images/THEODORO ID DEMO.png',
+    idNumber: 'ESP-RES-2024-1187',
+    issuingOffice: 'Esperanza',
+  );
+
+  /// A second, independent duplicate-account demo (frontend simulation
+  /// only) — unlike [duplicateCristyAccount] (an existing Verified
+  /// resident's identity gets duplicated), here NEITHER registration has
+  /// reached Verified yet: the same person's identity was registered
+  /// twice while still Pending Review both times. Both accounts stay
+  /// Unverified and Dokyu/Tulong-restricted regardless of which one the
+  /// citizen later chooses to keep — see
+  /// screens/notifications/unverified_duplicate_resolution_screen.dart.
+  /// Kept entirely separate from the Cristy scenario's own accounts/ids/
+  /// notification keys so the two demos never interfere with each other.
+  static final unverifiedDuplicateAccountA = CitizenAccount(
+    id: 'ESP-RES-2026-2101',
+    firstName: 'Teodoro',
+    lastName: 'Villaflor',
+    email: 'teodoro.villaflor@email.com',
+    mobile: '0918 442 1190',
+    barangay: 'Libertad',
+    purok: 'Purok 3',
+    address: 'Purok 3, Barangay Libertad, Esperanza, Masbate',
+    birthdate: 'May 14, 1992',
+    sex: 'Male',
+    civilStatus: 'Single',
+    occupation: 'Tricycle Driver',
+    profileCompleteness: 48,
+    status: 'Pending Review',
+  );
+  static const unverifiedDuplicateAccountACreatedAt = 'July 3, 2026, 9:14 AM';
+
+  static final unverifiedDuplicateAccountB = CitizenAccount(
+    id: 'ESP-RES-2026-2102',
+    firstName: 'Teodoro',
+    lastName: 'Villaflor',
+    // A second registration plausibly uses a slightly different email
+    // than the first attempt (the resident forgot they'd already signed
+    // up), while sharing the same phone/identity details — this is what
+    // makes the two look like a genuine match rather than two unrelated
+    // people who happen to share a name.
+    email: 't.villaflor92@email.com',
+    mobile: '0918 442 1190',
+    barangay: 'Libertad',
+    purok: 'Purok 3',
+    address: 'Purok 3, Barangay Libertad, Esperanza, Masbate',
+    birthdate: 'May 14, 1992',
+    sex: 'Male',
+    civilStatus: 'Single',
+    occupation: 'Tricycle Driver',
+    profileCompleteness: 40,
+    status: 'Pending Review',
+  );
+  static const unverifiedDuplicateAccountBCreatedAt = 'July 19, 2026, 2:47 PM';
 }

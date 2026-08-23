@@ -4,6 +4,8 @@ import '../../models/request_filters.dart';
 import '../../models/service_request.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_spacing.dart';
+import '../../utils/esperanza_seal.dart';
+import '../../utils/office_logo.dart';
 import '../../widgets/app_card.dart';
 import 'new_request_screen.dart';
 import 'service_request_wizard_screen.dart';
@@ -177,7 +179,13 @@ class _DepartmentStep extends StatelessWidget {
         ),
         const SizedBox(height: AppSpacing.xl),
         for (final dept in departments)
-          _StepTile(icon: Icons.apartment_outlined, label: dept, accent: accent, onTap: () => onSelected(dept)),
+          _StepTile(
+            icon: Icons.apartment_outlined,
+            logoAsset: officeLogoAsset(dept),
+            label: dept,
+            accent: accent,
+            onTap: () => onSelected(dept),
+          ),
       ],
     );
   }
@@ -188,7 +196,19 @@ class _StepTile extends StatelessWidget {
   final String label;
   final Color accent;
   final VoidCallback onTap;
-  const _StepTile({required this.icon, required this.label, required this.accent, required this.onTap});
+
+  /// When set, an office logo replaces [icon] inside the same tinted
+  /// container (used for the department/office step only — the
+  /// Barangay/Municipality scope step still uses a plain icon).
+  final String? logoAsset;
+
+  const _StepTile({
+    required this.icon,
+    required this.label,
+    required this.accent,
+    required this.onTap,
+    this.logoAsset,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -202,7 +222,12 @@ class _StepTile extends StatelessWidget {
               width: 42,
               height: 42,
               decoration: BoxDecoration(color: accent.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(12)),
-              child: Icon(icon, color: accent, size: 19),
+              child: logoAsset != null
+                  ? Padding(
+                      padding: const EdgeInsets.all(6),
+                      child: Image.asset(logoAsset!, fit: BoxFit.contain),
+                    )
+                  : Icon(icon, color: accent, size: 19),
             ),
             const SizedBox(width: AppSpacing.md),
             Expanded(
@@ -252,7 +277,14 @@ class _ItemList extends StatelessWidget {
                     color: accent.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: Icon(Icons.description_outlined, color: accent, size: 19),
+                  // The Esperanza municipal seal — every individual Dokyu/
+                  // Tulong service card uses it (no per-document logo
+                  // exists, unlike the office-selection step above, which
+                  // does have some office-specific logos).
+                  child: Padding(
+                    padding: const EdgeInsets.all(6),
+                    child: Image.asset(esperanzaSealAsset, fit: BoxFit.contain),
+                  ),
                 ),
                 const SizedBox(width: AppSpacing.md),
                 Expanded(

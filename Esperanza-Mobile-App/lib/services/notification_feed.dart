@@ -3,9 +3,13 @@ import 'package:provider/provider.dart';
 import '../models/app_notification.dart';
 import '../models/notification_kind.dart';
 import '../models/service_request.dart';
+import '../screens/notifications/duplicate_account_details_screen.dart';
+import '../screens/notifications/unverified_duplicate_resolution_screen.dart';
 import '../screens/profile/resident_profile/resident_profile_overview_screen.dart';
 import '../screens/shared/request_detail_screen.dart';
 import 'citizen_session_service.dart';
+import 'mock_catalog.dart';
+import 'notifications_service.dart';
 import 'requests_service.dart';
 import 'resident_profile_service.dart';
 
@@ -54,6 +58,16 @@ List<AppNotification> buildNotificationFeed(BuildContext context) {
     );
   }
 
+  // Inserted right after the profile reminder — ahead of individual
+  // request-status updates and the illustrative sample content — since a
+  // duplicate-account warning is meant to be noticed quickly, not buried
+  // below a long, growing history of routine status updates.
+  if (account != null) {
+    final duplicateAlerts = context.watch<NotificationsService>();
+    items.addAll(_duplicateAccountNotifications(context, account.id, duplicateAlerts));
+    items.addAll(_unverifiedDuplicateNotifications(context, account.id, duplicateAlerts));
+  }
+
   final requestItems = <(ServiceRequest, StatusHistoryEntry)>[];
   for (final r in requests) {
     for (final h in r.statusHistory) {
@@ -82,6 +96,135 @@ List<AppNotification> buildNotificationFeed(BuildContext context) {
   }
 
   return items;
+}
+
+/// Phase 6 — "One Person, One Account" duplicate-account demo (FRONTEND
+/// SIMULATION ONLY, see duplicate_account_details_screen.dart). Two
+/// alert scenarios ('a'/'b') on the real Cristy Bonghanoy's own account so
+/// both the "Yes, this is me" and "No, this is not me" resolutions can be
+/// demonstrated without resetting the app, plus one informational entry
+/// on the duplicate account itself. Every id is unique and unrelated to
+/// any real request/profile state, so this can never collide with or
+/// affect the notification sources above.
+List<AppNotification> _duplicateAccountNotifications(
+  BuildContext context,
+  String accountId,
+  NotificationsService duplicateAlerts,
+) {
+  const originalId = 'ESP-RES-2024-1044';
+  final duplicateId = MockCatalog.duplicateCristyAccount.id;
+
+  if (accountId == originalId) {
+    return [
+      for (final scenarioId in const ['a', 'b'])
+        _duplicateAlertFor(context, scenarioId, duplicateAlerts),
+    ];
+  }
+
+  if (accountId == duplicateId) {
+    // No resolution choice on this side — see the class doc comment on
+    // DuplicateAccountDetailsScreen for why (only enough information for
+    // the *original* resident to confirm ownership, nothing exposed here).
+    final resolvedAsSameOwner = duplicateAlerts.duplicateResolutionFor('a') == 'confirmed' ||
+        duplicateAlerts.duplicateResolutionFor('b') == 'confirmed';
+    final resolvedAsReported = duplicateAlerts.duplicateResolutionFor('a') == 'reported' ||
+        duplicateAlerts.duplicateResolutionFor('b') == 'reported';
+    return [
+      AppNotification(
+        id: 'duplicate-under-review-status',
+        kind: resolvedAsSameOwner ? NotificationKind.warning : NotificationKind.actionRequired,
+        icon: Icons.person_search_rounded,
+        title: resolvedAsSameOwner
+            ? 'Duplicate / Verification Blocked'
+            : resolvedAsReported
+                ? 'Duplicate Account Flagged for Investigation'
+                : 'Duplicate Account Under Review',
+        body: resolvedAsSameOwner
+            ? 'The original resident confirmed this registration is theirs. Esperanza allows one account per '
+                'resident, so verification cannot continue on this account — sign in with your original account '
+                'instead.'
+            : resolvedAsReported
+                ? 'This registration has been flagged for administrative investigation. Verification remains on '
+                    'hold while it is reviewed.'
+                : 'An existing Esperanza account appears to match the information submitted for this account. '
+                    'Verification is temporarily restricted while the account is reviewed.',
+      ),
+    ];
+  }
+
+  return const [];
+}
+
+/// The Unverified+Unverified duplicate demo — independent of
+/// [_duplicateAccountNotifications] above, see
+/// screens/notifications/unverified_duplicate_resolution_screen.dart.
+List<AppNotification> _unverifiedDuplicateNotifications(
+  BuildContext context,
+  String accountId,
+  NotificationsService duplicateAlerts,
+) {
+  final aId = MockCatalog.unverifiedDuplicateAccountA.id;
+  final bId = MockCatalog.unverifiedDuplicateAccountB.id;
+  if (accountId != aId && accountId != bId) return const [];
+
+  final thisLabel = accountId == aId ? 'A' : 'B';
+  final kept = duplicateAlerts.unverifiedDuplicateKeptAccountId;
+
+  final String title;
+  final String body;
+  final NotificationKind kind;
+  if (kept == null) {
+    title = 'Possible Duplicate Registration Detected';
+    body = 'Two unverified Esperanza registrations appear to contain matching resident information. Choose which '
+        'one to continue using for verification.';
+    kind = NotificationKind.warning;
+  } else if (kept == thisLabel) {
+    title = 'Unverified — Continue Verification';
+    body = 'You chose to continue verification with this account. It is still Pending Review — an LGU officer '
+        'still has to approve it; this did not make it Verified automatically.';
+    kind = NotificationKind.info;
+  } else {
+    title = 'Duplicate Registration — Verification Cancelled';
+    body = 'This registration was marked as a duplicate after the other account was chosen. Its verification has '
+        'been cancelled.';
+    kind = NotificationKind.warning;
+  }
+
+  return [
+    AppNotification(
+      id: 'unverified-duplicate-$thisLabel',
+      kind: kind,
+      icon: Icons.person_search_rounded,
+      title: title,
+      body: body,
+      onTap: () => Navigator.of(context).push(
+        MaterialPageRoute(builder: (_) => const UnverifiedDuplicateResolutionScreen()),
+      ),
+    ),
+  ];
+}
+
+AppNotification _duplicateAlertFor(BuildContext context, String scenarioId, NotificationsService duplicateAlerts) {
+  final resolution = duplicateAlerts.duplicateResolutionFor(scenarioId);
+  final label = scenarioId == 'a' ? 'Scenario A' : 'Scenario B';
+  return AppNotification(
+    id: 'duplicate-alert-$scenarioId',
+    kind: resolution == null ? NotificationKind.warning : NotificationKind.info,
+    icon: Icons.person_search_rounded,
+    title: resolution == null
+        ? 'Possible Duplicate Account Detected'
+        : 'Possible Duplicate Account Detected ($label — Resolved)',
+    body: resolution == null
+        ? 'Another Esperanza account was created using information that appears to match your identity. Please '
+            'confirm whether the account belongs to you.'
+        : resolution == 'confirmed'
+            ? 'You confirmed this duplicate account is yours — it remains blocked from verification. Tap to view details.'
+            : 'You reported this duplicate account does not belong to you — it has been flagged for '
+                'administrative investigation. Tap to view details.',
+    onTap: () => Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => DuplicateAccountDetailsScreen(scenarioId: scenarioId)),
+    ),
+  );
 }
 
 NotificationKind _kindFor(String status) => switch (status) {

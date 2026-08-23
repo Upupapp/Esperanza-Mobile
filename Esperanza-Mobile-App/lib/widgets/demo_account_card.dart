@@ -4,6 +4,7 @@ import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
 import '../theme/app_status.dart';
 import '../theme/app_typography.dart';
+import '../utils/demo_resident_photo.dart';
 
 /// A tappable "quick demo login" row on the login screen. Previously this
 /// was an inline `OutlinedButton.styleFrom(padding: EdgeInsets.symmetric(
@@ -24,7 +25,13 @@ class DemoAccountCard extends StatelessWidget {
   final CitizenAccount account;
   final VoidCallback? onTap;
 
-  const DemoAccountCard({super.key, required this.account, required this.onTap});
+  /// Overrides the primary label (normally [account.fullName]) — used by
+  /// the Phase 6 duplicate-account demo button so it reads as clearly
+  /// distinct from the real Cristy Bonghanoy card rather than showing an
+  /// identical name twice.
+  final String? label;
+
+  const DemoAccountCard({super.key, required this.account, required this.onTap, this.label});
 
   bool get _isVerified => AppStatusX.fromLabel(account.status) == AppStatus.approved;
 
@@ -32,6 +39,7 @@ class DemoAccountCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final badgeColor = _isVerified ? AppColors.emerald700 : AppColors.amber700;
     final badgeBg = _isVerified ? AppColors.emerald50 : AppColors.amber50;
+    final photo = demoProfileImageFor(account);
     return Material(
       color: Colors.white,
       borderRadius: BorderRadius.circular(12),
@@ -50,10 +58,13 @@ class DemoAccountCard extends StatelessWidget {
               CircleAvatar(
                 radius: 16,
                 backgroundColor: AppColors.brand50,
-                child: Text(
-                  account.initials,
-                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.brand600),
-                ),
+                backgroundImage: photo,
+                child: photo == null
+                    ? Text(
+                        account.initials,
+                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.brand600),
+                      )
+                    : null,
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -61,7 +72,7 @@ class DemoAccountCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Text(account.fullName, style: AppTypography.cardTitle),
+                    Text(label ?? account.fullName, style: AppTypography.cardTitle),
                     const SizedBox(height: 2),
                     Text(
                       'Brgy. ${account.barangay}',

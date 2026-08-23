@@ -1,5 +1,5 @@
 // Verifies the new Certified Copy of Marriage Certificate Dokyu service: it
-// appears in the catalog under Civil Registrar (MCRO) right next to the
+// appears in the catalog under Office of the Municipal Civil Registrar right next to the
 // pre-existing Application for Marriage License item, opens the
 // data-driven wizard with the right (lean, lookup-only) step count, and a
 // full fill-through run reaches the same request-submission gate every
@@ -19,7 +19,7 @@ import 'package:esperanza_mobile/services/requests_service.dart';
 import 'package:esperanza_mobile/services/resident_profile_service.dart';
 import 'package:esperanza_mobile/theme/app_colors.dart';
 
-Future<void> _pumpDokyuAsMarites(WidgetTester tester) async {
+Future<void> _pumpDokyuAsCristy(WidgetTester tester) async {
   tester.view.physicalSize = const Size(390, 844);
   tester.view.devicePixelRatio = 1.0;
   addTearDown(tester.view.resetPhysicalSize);
@@ -27,7 +27,7 @@ Future<void> _pumpDokyuAsMarites(WidgetTester tester) async {
 
   SharedPreferences.setMockInitialValues({});
   final session = CitizenSessionService();
-  await session.login(MockCatalog.demoAccounts.last); // Marites — verified
+  await session.login(MockCatalog.demoAccounts.last); // Cristy — verified
   await tester.pumpWidget(
     MultiProvider(
       providers: [
@@ -50,16 +50,20 @@ Future<void> _pumpDokyuAsMarites(WidgetTester tester) async {
 
   await tester.tap(find.text('LGU / Municipality'));
   await tester.pumpAndSettle();
-  await tester.scrollUntilVisible(find.text('Civil Registrar (MCRO)'), 200, scrollable: find.byType(Scrollable).first);
-  await tester.tap(find.text('Civil Registrar (MCRO)'));
+  await tester.scrollUntilVisible(
+    find.text('Office of the Municipal Civil Registrar'),
+    200,
+    scrollable: find.byType(Scrollable).first,
+  );
+  await tester.tap(find.text('Office of the Municipal Civil Registrar'));
   await tester.pumpAndSettle();
 }
 
 void main() {
   testWidgets('appears in Dokyu, positioned next to Application for Marriage License', (tester) async {
-    await _pumpDokyuAsMarites(tester);
+    await _pumpDokyuAsCristy(tester);
 
-    // Both marriage-related MCRO items are on screen together in the same
+    // Both marriage-related Civil Registrar items are on screen together in the same
     // item list, confirming they sit side by side rather than in separate
     // sections.
     expect(find.text('Application for Marriage License'), findsOneWidget);
@@ -73,7 +77,7 @@ void main() {
   });
 
   testWidgets('opens a lean, lookup-only wizard — not the full certificate as a form', (tester) async {
-    await _pumpDokyuAsMarites(tester);
+    await _pumpDokyuAsCristy(tester);
 
     await tester.scrollUntilVisible(
       find.text('Certified Copy of Marriage Certificate'),
@@ -108,7 +112,7 @@ void main() {
   });
 
   testWidgets('required-field validation, date picker, and full fill-through to the attachment gate', (tester) async {
-    await _pumpDokyuAsMarites(tester);
+    await _pumpDokyuAsCristy(tester);
     await tester.scrollUntilVisible(
       find.text('Certified Copy of Marriage Certificate'),
       200,

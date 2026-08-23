@@ -4,6 +4,7 @@ import '../../services/onboarding_service.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_spacing.dart';
 import '../../theme/app_typography.dart';
+import '../../utils/esperanza_seal.dart';
 import '../../utils/fade_page_route.dart';
 import '../onboarding/onboarding_screen.dart';
 
@@ -145,7 +146,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                               // logical px here, so cap decode to that (x
                               // DPR) instead of the full source resolution.
                               child: Image.asset(
-                                'assets/images/esperanza-seal.png',
+                                esperanzaSealAsset,
                                 fit: BoxFit.cover,
                                 cacheWidth: (112 * MediaQuery.devicePixelRatioOf(context)).round(),
                               ),

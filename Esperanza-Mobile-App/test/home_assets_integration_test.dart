@@ -115,12 +115,9 @@ void main() {
     await tester.tap(find.byIcon(Icons.close_rounded), warnIfMissed: false);
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Balita'));
-    await tester.pumpAndSettle();
-    await _dismissPromotionalBanner(tester); // Balita tab's own promotional popup
     await tester.tap(find.text('Events'));
     await tester.pumpAndSettle();
-    await _dismissPromotionalBanner(tester); // Events sub-tab's own promotional popup
+    await _dismissPromotionalBanner(tester); // Events tab's own promotional popup
 
     // The Events ListView only inflates elements near the viewport (a
     // plain ListView(children:...) still lazily builds its Sliver

@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../../models/attachment.dart';
 import '../../models/catalog_item.dart';
+import '../../models/resident_profile.dart';
 import '../../models/service_form_spec.dart';
 import '../../models/service_request.dart';
 import '../../services/citizen_session_service.dart';
@@ -12,13 +13,16 @@ import '../../services/resident_profile_service.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_spacing.dart';
 import '../../utils/age_calculator.dart';
+import '../../utils/tulong_application_limit.dart';
 import '../../widgets/app_button.dart';
 import '../../widgets/app_date_field.dart';
+import '../../widgets/app_dialogs.dart';
 import '../../widgets/app_text_field.dart';
 import '../../widgets/attachment_picker.dart';
 import '../../widgets/form_section.dart';
 import '../../widgets/onboarding_step_indicator.dart';
-import 'request_detail_screen.dart';
+import '../profile/resident_profile/personal_information_screen.dart';
+import 'my_requests_screen.dart';
 import 'request_submitted_screen.dart';
 
 /// "Sir Paul's Required Form Experience" — a data-driven, multi-step
@@ -78,6 +82,20 @@ class _ServiceRequestWizardScreenState extends State<ServiceRequestWizardScreen>
   final Map<String, dynamic> _values = {};
   final Map<String, TextEditingController> _controllers = {};
 
+  // Master Profile — reusable demographic fields (see
+  // docs on the "single source of truth" rule): keys this specific
+  // service's formSpec happens to ask for AND the citizen's Resident
+  // Profile already has an answer for. These render read-only (with an
+  // "Edit Profile" escape hatch) instead of an editable input, so a single
+  // request can never silently drift from the citizen's master record —
+  // see _MasterSourcedField. Keys the profile *doesn't* have yet stay
+  // normally editable and get backfilled into the profile on submit (see
+  // _backfillMasterProfile), rather than left as a one-off, request-only
+  // answer.
+  static const _masterEligibleKeys = {'sex', 'civilStatus', 'occupation', 'educationalAttainment'};
+  Individual? _personal;
+  final Set<String> _prefilledFromProfile = {};
+
   // Requirements & Attachments step.
   final _notesController = TextEditingController();
   final List<Attachment> _attachments = [];
@@ -98,11 +116,22 @@ class _ServiceRequestWizardScreenState extends State<ServiceRequestWizardScreen>
     super.initState();
     final account = context.read<CitizenSessionService>().account;
     if (account != null) {
-      _fullName.text = account.fullName;
-      _contact.text = account.mobile;
-      _email.text = account.email;
-      _purok.text = account.purok == '—' ? '' : account.purok;
-      _barangay = account.barangay;
+      // Sourced from the Resident Profile (the Master Profile's richer,
+      // editable record) rather than the shallower CitizenSessionService
+      // account — editing Personal Information never writes back to that
+      // account object, so reading it directly here would show stale data
+      // once a citizen updates their profile. ResidentProfileService seeds
+      // a fresh profile straight from the account on first-ever access, so
+      // this is never *less* complete than the old source, only ever more
+      // current.
+      final personal = context.read<ResidentProfileService>().profileFor(account).personal;
+      _personal = personal;
+
+      _fullName.text = personal.fullName;
+      _contact.text = personal.mobile;
+      _email.text = personal.email;
+      _purok.text = personal.sitioPurok;
+      _barangay = personal.barangay.isEmpty ? null : personal.barangay;
 
       // Prefill Date of Birth from the citizen's existing Resident Profile
       // (already parsed to a real DateTime there) rather than making them
@@ -111,7 +140,7 @@ class _ServiceRequestWizardScreenState extends State<ServiceRequestWizardScreen>
       // this service actually asks for; 'party1DateOfBirth' covers the
       // Marriage License item, whose first party is assumed to be the
       // applicant.
-      final dob = context.read<ResidentProfileService>().profileFor(account).personal.birthdate;
+      final dob = personal.birthdate;
       if (dob != null) {
         for (final key in const ['dateOfBirth', 'party1DateOfBirth']) {
           if (_serviceSteps.any((s) => s.fields.any((f) => f.key == key))) {
@@ -119,7 +148,40 @@ class _ServiceRequestWizardScreenState extends State<ServiceRequestWizardScreen>
           }
         }
       }
+
+      // Same "single source of truth" treatment for the other reusable
+      // demographic fields already modeled on the Master Profile. Text-
+      // and select-typed fields store their current value differently
+      // (_controllers vs. _values), so both are populated depending on
+      // what this particular field actually is.
+      for (final key in _masterEligibleKeys) {
+        final masterValue = switch (key) {
+          'sex' => personal.sex,
+          'civilStatus' => personal.civilStatus,
+          'occupation' => personal.occupation,
+          'educationalAttainment' => personal.educationalAttainment,
+          _ => '',
+        };
+        if (masterValue.trim().isEmpty) continue;
+        final field = _fieldByKey(key);
+        if (field == null) continue;
+        if (field.type == ServiceFieldType.text) {
+          _controllerFor(key).text = masterValue;
+        } else {
+          _values[key] = masterValue;
+        }
+        _prefilledFromProfile.add(key);
+      }
     }
+  }
+
+  ServiceFormField? _fieldByKey(String key) {
+    for (final s in _serviceSteps) {
+      for (final f in s.fields) {
+        if (f.key == key) return f;
+      }
+    }
+    return null;
   }
 
   @override
@@ -264,6 +326,40 @@ class _ServiceRequestWizardScreenState extends State<ServiceRequestWizardScreen>
     return out;
   }
 
+  /// Writes any master-eligible field the citizen typed fresh in this
+  /// request (i.e. the Master Profile didn't already have it — see
+  /// [_prefilledFromProfile]) back into their Resident Profile, so the next
+  /// applicable request prefills it too instead of asking again. Fields the
+  /// profile already answered are never touched here, and request-specific
+  /// fields (purpose, reasons, etc.) are never candidates at all — only the
+  /// fixed [_masterEligibleKeys] set.
+  Future<void> _backfillMasterProfile(ResidentProfileService profileService, String accountId) async {
+    final personal = _personal;
+    if (personal == null) return;
+    var changed = false;
+    for (final key in _masterEligibleKeys) {
+      if (_prefilledFromProfile.contains(key)) continue;
+      final field = _fieldByKey(key);
+      if (field == null) continue;
+      final value = field.type == ServiceFieldType.text
+          ? _controllers[key]?.text.trim()
+          : _values[key] as String?;
+      if (value == null || value.isEmpty) continue;
+      switch (key) {
+        case 'sex':
+          personal.sex = value;
+        case 'civilStatus':
+          personal.civilStatus = value;
+        case 'occupation':
+          personal.occupation = value;
+        case 'educationalAttainment':
+          personal.educationalAttainment = value;
+      }
+      changed = true;
+    }
+    if (changed) await profileService.backfillPersonalField(accountId, personal);
+  }
+
   String _resolvePurpose() {
     final notes = _notesController.text.trim();
     if (_hasPurposeField) {
@@ -274,14 +370,33 @@ class _ServiceRequestWizardScreenState extends State<ServiceRequestWizardScreen>
   }
 
   Future<void> _submit() async {
+    final account = context.read<CitizenSessionService>().account!;
+    final requestsService = context.read<RequestsService>();
+
+    if (widget.category == ServiceCategory.tulong &&
+        hasReachedTulongApplicationLimit(requestsService, applicantId: account.id, typeName: widget.item.name)) {
+      final viewRequests = await AppDialogs.confirm(
+        context,
+        title: 'Application Limit Reached',
+        message: 'You have already submitted two applications for this assistance. You cannot submit another '
+            'application for the same assistance at this time.',
+        confirmLabel: 'View My Requests',
+        cancelLabel: 'Close',
+      );
+      if (viewRequests && mounted) {
+        Navigator.of(context).push(MaterialPageRoute(builder: (_) => const MyRequestsScreen()));
+      }
+      return;
+    }
+
     setState(() {
       _submitting = true;
       _error = null;
     });
 
-    final account = context.read<CitizenSessionService>().account!;
-    final requestsService = context.read<RequestsService>();
+    final profileService = context.read<ResidentProfileService>();
     await Future.delayed(const Duration(milliseconds: 900)); // simulated network/processing delay
+    await _backfillMasterProfile(profileService, account.id);
 
     final request = await requestsService.submit(
       applicantId: account.id,
@@ -293,6 +408,8 @@ class _ServiceRequestWizardScreenState extends State<ServiceRequestWizardScreen>
       expectedDays: widget.item.days,
       attachments: _attachments,
       formFields: _buildFormFields(),
+      requiresPayment: widget.item.fee != 'Free',
+      fee: widget.item.fee,
     );
 
     if (!mounted) return;
@@ -304,9 +421,7 @@ class _ServiceRequestWizardScreenState extends State<ServiceRequestWizardScreen>
           referenceNumber: request.referenceNumber,
           typeName: request.typeName,
           accent: widget.accent,
-          onViewRequest: () => Navigator.of(
-            context,
-          ).pushReplacement(MaterialPageRoute(builder: (_) => RequestDetailScreen(requestId: request.id))),
+          requestId: request.id,
         ),
       ),
     );
@@ -373,14 +488,22 @@ class _ServiceRequestWizardScreenState extends State<ServiceRequestWizardScreen>
         Container(
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(color: AppColors.brand50, borderRadius: BorderRadius.circular(14)),
-          child: const Row(
+          child: Row(
             children: [
-              Icon(Icons.info_outline_rounded, color: AppColors.brand600, size: 18),
-              SizedBox(width: 10),
-              Expanded(
+              const Icon(Icons.info_outline_rounded, color: AppColors.brand600, size: 18),
+              const SizedBox(width: 10),
+              const Expanded(
                 child: Text(
-                  "We've prefilled this from your account. Update anything that's different for this request.",
+                  "We've prefilled this from your Resident Profile. Changes here only apply to this request — to update your saved profile, use Edit Profile.",
                   style: TextStyle(fontSize: 12, color: AppColors.brand700, height: 1.4),
+                ),
+              ),
+              const SizedBox(width: 6),
+              GestureDetector(
+                onTap: _goToEditProfile,
+                child: const Text(
+                  'Edit Profile',
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.brand700),
                 ),
               ),
             ],
@@ -439,7 +562,18 @@ class _ServiceRequestWizardScreenState extends State<ServiceRequestWizardScreen>
     );
   }
 
+  void _goToEditProfile() {
+    Navigator.of(context).push(MaterialPageRoute(builder: (_) => const PersonalInformationScreen()));
+  }
+
   Widget _buildField(ServiceFormField f) {
+    // Already known on the Master Profile — read-only here, with an
+    // explicit escape hatch, rather than a second editable copy that could
+    // silently drift from the citizen's actual record. See the class-level
+    // Master Profile doc comment.
+    if (_prefilledFromProfile.contains(f.key)) {
+      return _MasterSourcedField(label: f.label, value: _displayValue(f), onEditProfile: _goToEditProfile);
+    }
     switch (f.type) {
       case ServiceFieldType.text:
         return AppTextField(label: f.label, hintText: f.hint, controller: _controllerFor(f.key));
@@ -590,11 +724,18 @@ class _ServiceRequestWizardScreenState extends State<ServiceRequestWizardScreen>
           for (final f in _serviceSteps[i].fields.where(_isFieldVisible))
             // Derived Age never gets its own Edit control — editing it
             // means changing the Date of Birth it's computed from, so only
-            // that field's row is tappable.
+            // that field's row is tappable. Master-Profile-sourced fields
+            // route to "Edit Profile" instead of jumping back a step, same
+            // as their read-only rendering in the field step itself.
             _reviewRow(
               f.label,
               _displayValue(f),
-              onEdit: f.type == ServiceFieldType.derivedAge ? null : () => setState(() => _step = i + 1),
+              onEdit: f.type == ServiceFieldType.derivedAge
+                  ? null
+                  : _prefilledFromProfile.contains(f.key)
+                  ? _goToEditProfile
+                  : () => setState(() => _step = i + 1),
+              editLabel: _prefilledFromProfile.contains(f.key) ? 'Edit Profile' : 'Edit',
             ),
         ],
         _reviewRow(
@@ -615,7 +756,7 @@ class _ServiceRequestWizardScreenState extends State<ServiceRequestWizardScreen>
     );
   }
 
-  Widget _reviewRow(String label, String value, {required VoidCallback? onEdit}) {
+  Widget _reviewRow(String label, String value, {required VoidCallback? onEdit, String editLabel = 'Edit'}) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: Row(
@@ -637,9 +778,9 @@ class _ServiceRequestWizardScreenState extends State<ServiceRequestWizardScreen>
           if (onEdit != null)
             GestureDetector(
               onTap: onEdit,
-              child: const Text(
-                'Edit',
-                style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: AppColors.brand600),
+              child: Text(
+                editLabel,
+                style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: AppColors.brand600),
               ),
             ),
         ],
@@ -684,6 +825,67 @@ class _DerivedAgeField extends StatelessWidget {
               Text(
                 age == null ? 'Select your Date of Birth above first' : '$age years old',
                 style: const TextStyle(fontSize: 14, color: AppColors.textBody, fontWeight: FontWeight.w500),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Read-only display for a field the citizen's Master (Resident) Profile
+/// already answers — Sex, Civil Status, Occupation, Educational Attainment,
+/// etc. Editing it here would create a second, request-only copy that can
+/// silently drift from the citizen's actual record, so it's shown rather
+/// than typed; "Edit Profile" is the one place that value can change, and
+/// that change then applies to every future request too.
+class _MasterSourcedField extends StatelessWidget {
+  final String label;
+  final String value;
+  final VoidCallback onEditProfile;
+
+  const _MasterSourcedField({required this.label, required this.value, required this.onEditProfile});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              label,
+              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: AppColors.slate700),
+            ),
+            GestureDetector(
+              onTap: onEditProfile,
+              child: const Text(
+                'Edit Profile',
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.brand600),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+          decoration: BoxDecoration(
+            color: AppColors.slate100,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: AppColors.border),
+          ),
+          child: Row(
+            children: [
+              const Icon(Icons.lock_outline_rounded, size: 16, color: AppColors.slate400),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  value,
+                  style: const TextStyle(fontSize: 14, color: AppColors.textBody, fontWeight: FontWeight.w500),
+                ),
               ),
             ],
           ),

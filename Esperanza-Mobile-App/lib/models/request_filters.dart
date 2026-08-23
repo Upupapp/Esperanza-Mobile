@@ -6,7 +6,8 @@ import 'service_request.dart';
 /// existing saved requests (SharedPreferences JSON) never need a schema
 /// migration. Matches how Philippine LGU offices are actually named: a
 /// "Barangay Hall" issues barangay-level documents/assistance; every other
-/// office (Treasurer's, MSWDO, Civil Registrar, BPLO, etc.) is a
+/// office (Treasurer's, Municipal Social Welfare and Development Office,
+/// Civil Registrar, Business Permits and Licensing Office, etc.) is a
 /// municipal/LGU-level office.
 enum RequestScope { barangay, lgu }
 

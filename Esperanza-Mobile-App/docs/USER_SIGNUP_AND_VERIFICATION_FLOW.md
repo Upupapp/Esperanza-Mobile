@@ -176,18 +176,18 @@ The universal status system defines `Rejected`, and `VerificationStatusPanel` ha
 No polling, push notification, or admin action exists to change the status. **Not yet implemented**: there is no in-app way (demo or otherwise) to simulate LGU staff approving/rejecting a submission — Ronaldo's account will show "Pending Review" indefinitely in this build. Status is only ever set at two points: registration submission (`Pending Review`) and the two hardcoded demo accounts in `mock_catalog.dart`.
 
 ### Once approved
-If an account's `status` were `'Approved'` (as Marites's demo account is, from the start — not via a live transition), `accessLevel` becomes `AccessLevel.verified` and the user immediately gets full access on the next rebuild — no separate "unlock" action needed, since `AccessGuard` re-evaluates on every `CitizenSessionService` change via `context.watch`.
+If an account's `status` were `'Approved'` (as Cristy's demo account is, from the start — not via a live transition), `accessLevel` becomes `AccessLevel.verified` and the user immediately gets full access on the next rebuild — no separate "unlock" action needed, since `AccessGuard` re-evaluates on every `CitizenSessionService` change via `context.watch`.
 
 ---
 
 ## 3. Verified User
 
-**Demo account: Marites Ferrer** (`marites.ferrer@email.com`, `status: 'Approved'`).
+**Demo account: Cristy Bonghanoy** (`cristy.bonghanoy@email.com`, `status: 'Approved'`).
 
 ### Flow
 
 ```
-Open App → Sign-In Screen → Sign In (or tap Marites Ferrer demo card)
+Open App → Sign-In Screen → Sign In (or tap Cristy Bonghanoy demo card)
    → CitizenSessionService.login(account) → accessLevel = verified
    → Home (signed-in layout) → Full access to Dokyu / Tulong / Balita / Emergency / Profile
 ```
@@ -208,7 +208,7 @@ No. `AccessGuard` only renders `RestrictedFeatureNotice` when the level requirem
 Same shared `RequestListScreen` used by Dokyu, parameterized by `ServiceCategory.tulong` — Active/Done tabs, request tracking, and a **New Request** FAB that opens `ServiceCatalogScreen` (Medical/Burial/Educational/Financial/Food/Pension/Solo Parent assistance types from `MockCatalog.assistanceTypes`).
 
 ### Profile / account information available
-Via the drawer → Profile: avatar/initials, full name, account ID + barangay, a profile-completeness progress bar (`account.profileCompleteness`, e.g. 82% for Marites), an **Edit Profile** button, the `VerificationStatusPanel`, a `ResidentProfileStatusCard` (separate Household & Family completeness — see Section 0), Government Directory, Settings, Help & Support, and Sign Out.
+Via the drawer → Profile: avatar/initials, full name, account ID + barangay, a profile-completeness progress bar (`account.profileCompleteness`, e.g. 82% for Cristy), an **Edit Profile** button, the `VerificationStatusPanel`, a `ResidentProfileStatusCard` (separate Household & Family completeness — see Section 0), Government Directory, Settings, Help & Support, and Sign Out.
 
 ### If account info needs to be updated later
 `EditProfileScreen` (reachable from Profile → "Edit Profile") calls `CitizenSessionService.updateProfile(updated)`, which persists the edited `CitizenAccount` — this does **not** reset `status` back to `Pending Review`/unverified. **Not yet implemented**: there is no "changes require re-verification" rule in the current code; an already-verified user can edit their profile freely without losing verified status. Flag this if the client expects edits to trigger re-review.
@@ -246,7 +246,7 @@ The app uses one universal 14-status vocabulary (`AppStatus`, shared verbatim wi
 | *(no account — Guest)* | Browsing without an account | Register or Sign In | `continueAsGuest()` |
 | **Pending Review** | Registration submitted, awaiting LGU review | None — wait | Registration wizard's `_submitForVerification()`; Ronaldo's demo account |
 | **Under Verification** | LGU staff are actively reviewing details | None — wait | Defined in `AppStatus`/`VerificationStatusPanel`; **not yet implemented** — no path currently sets this on an account |
-| **Approved** ("Verified" in this document) | Full access granted | None — full access | Marites's demo account (hardcoded); not reachable via a live transition |
+| **Approved** ("Verified" in this document) | Full access granted | None — full access | Cristy's demo account (hardcoded); not reachable via a live transition |
 | **Rejected** | Submission needs correction | Resubmit (UI exists; editable resubmission flow **not yet implemented** — see Section 2) | **Not yet implemented** — no account currently reaches this status |
 | **Draft** | Fallback shown only if `account.status` is missing/unrecognized | Continue Registration (label exists; not wired to an action on Profile) | Fallback of `AppStatusX.fromLabel()`, not a real onboarding state |
 
@@ -277,8 +277,8 @@ Statuses named in earlier requirements that **do not exist as separate persisted
 - Emergency is fully accessible (unverified-only gate)
 - Represents: registered, awaiting LGU review
 
-### Marites Ferrer
-- `email: marites.ferrer@email.com`
+### Cristy Bonghanoy
+- `email: cristy.bonghanoy@email.com`
 - `status: 'Approved'` → `AccessLevel.verified`
 - Login screen demo card shows an emerald **"Verified User"** badge
 - Profile shows "Approved," no restrictions anywhere

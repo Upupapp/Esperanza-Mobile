@@ -66,8 +66,13 @@ flutter:
   uses-material-design: true
 
   assets:
-    - assets/images/esperanza-seal.png
-    - assets/images/labangtaytay-seal.png
+    # These two live under images/Logo/ — fixed here (the previous entries
+    # pointed at a non-existent path and were failing the asset bundle
+    # build under `flutter test`) rather than left broken, since the office
+    # logo fallback added below depends on esperanza-seal.png actually
+    # resolving.
+    - assets/images/Logo/esperanza-seal.png
+    - assets/images/Logo/labangtaytay-seal.png
     - assets/images/esperanza-aerial.jpg
     - assets/images/rectangle_cityhall.jpg
     - assets/images/Home_Banner.png
@@ -85,6 +90,18 @@ flutter:
     - assets/images/Balita Tab.png
     - assets/images/Balita tab_Events.png
     - assets/images/Emergency.png
+    - assets/images/Cristy Profile.png
+    - assets/images/CRISTY DEMO ID.png
+    - assets/images/Ronaldo Bautista.png
+    - assets/images/RONALDO ID DEMO.png
+    - assets/images/Theodoro Milaflor.png
+    - assets/images/THEODORO ID DEMO.png
+    - assets/images/Logo/BPLO-removebg-preview.png
+    - assets/images/Logo/logo-peso-removebg-preview.png
+    - assets/images/Logo/mswd-logo-removebg-preview.png
+    - assets/images/Logo/NDRRMO-removebg-preview.png
+    - assets/images/Logo/OSCA-removebg-preview.png
+    - assets/images/Logo/PDAO-removebg-preview.png
 
   # Inter and Lora are bundled as variable fonts (single file, multiple
   # weight entries), matching resources/css/app.css in the Web Admin, which

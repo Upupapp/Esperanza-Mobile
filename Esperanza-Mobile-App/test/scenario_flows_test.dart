@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:esperanza_mobile/main.dart';
+import 'package:esperanza_mobile/widgets/demo_account_card.dart';
 
 /// The default test viewport (800x600) is shorter than a real phone and
 /// cuts off the login screen's demo-account cards below the fold, making
@@ -31,6 +32,21 @@ Future<void> _dismissWelcomeBanner(WidgetTester tester) async {
     await tester.tap(closeButton, warnIfMissed: false);
     await tester.pumpAndSettle();
   }
+}
+
+/// Dokyu/Tulong no longer have their own bottom-nav slots — reaching them
+/// now means tapping the center "+" launcher to open ServiceLauncherMenu,
+/// then tapping the destination inside that menu. Found by its stable key
+/// (`nav-center-action`, set in widgets/esperanza_curved_navbar.dart)
+/// rather than by icon — the "+" is a single always-on circle now (no
+/// separate inactive/active icon states to disambiguate between).
+final _launcherFinder = find.byKey(const ValueKey('nav-center-action'));
+
+Future<void> _openService(WidgetTester tester, String label) async {
+  await tester.tap(_launcherFinder.first, warnIfMissed: false);
+  await tester.pumpAndSettle();
+  await tester.tap(find.text(label));
+  await tester.pumpAndSettle();
 }
 
 void main() {
@@ -60,13 +76,14 @@ void main() {
     // 4. Open public Balita content successfully.
     await tester.tap(find.text('Balita'));
     await tester.pumpAndSettle();
-    expect(find.text('Balita & Events'), findsOneWidget);
+    // Scoped to the AppBar — once Balita is the selected nav tab, the
+    // navbar's own floating active label also reads "Balita".
+    expect(find.descendant(of: find.byType(AppBar), matching: find.text('Balita')), findsOneWidget);
     expect(find.byType(Scaffold), findsWidgets); // real screen, not a notice
     await _dismissWelcomeBanner(tester); // Balita's own promotional popup
 
     // 5. Try a restricted feature (Dokyu).
-    await tester.tap(find.text('Dokyu'));
-    await tester.pumpAndSettle();
+    await _openService(tester, 'Dokyu');
 
     // 6. Confirm the registration/sign-in notice appears, not the real
     // Dokyu screen (which would show "Dokyu Requests" content/FAB).
@@ -89,7 +106,16 @@ void main() {
 
     // 1. Sign in using the Ronaldo Bautista demo account.
     expect(find.text('Ronaldo Bautista'), findsOneWidget);
-    expect(find.text('Unverified User'), findsOneWidget); // demo card label, before even signing in
+    // Scoped to Ronaldo's own card — the Phase 6 duplicate-account demo
+    // card also shows "Unverified User" (she's never verified in that
+    // simulation either), so an unscoped find would match both.
+    expect(
+      find.descendant(
+        of: find.ancestor(of: find.text('Ronaldo Bautista'), matching: find.byType(DemoAccountCard)),
+        matching: find.text('Unverified User'),
+      ),
+      findsOneWidget,
+    );
     await tester.ensureVisible(find.text('Ronaldo Bautista'));
     await tester.tap(find.text('Ronaldo Bautista'));
     await tester.pumpAndSettle();
@@ -109,8 +135,7 @@ void main() {
     await tester.pumpAndSettle();
 
     // 4. Attempt to use a verification-restricted feature (Dokyu).
-    await tester.tap(find.text('Dokyu'));
-    await tester.pumpAndSettle();
+    await _openService(tester, 'Dokyu');
 
     // 5. Confirm prompted to complete verification, NOT treated as a
     // Guest (different message/action than Scenario A).
@@ -128,7 +153,7 @@ void main() {
     expect(find.text('Report an Incident'), findsOneWidget); // real Sakuna content
   });
 
-  testWidgets('Scenario C — Marites Ferrer: fully verified, full access, no guest/verification warnings', (tester) async {
+  testWidgets('Scenario C — Cristy Bonghanoy: fully verified, full access, no guest/verification warnings', (tester) async {
     // Onboarding-complete pre-seeded: these scenarios exercise the normal
     // returning-user flow, not the first-run Onboarding screens — see
     // onboarding_flow_test.dart for that.
@@ -137,11 +162,11 @@ void main() {
     await tester.pumpWidget(const EsperanzaMobileApp());
     await tester.pumpAndSettle();
 
-    // 1. Sign in using the Marites Ferrer demo account.
-    expect(find.text('Marites Ferrer'), findsOneWidget);
+    // 1. Sign in using the Cristy Bonghanoy demo account.
+    expect(find.text('Cristy Bonghanoy'), findsOneWidget);
     expect(find.text('Verified User'), findsOneWidget); // demo card label
-    await tester.ensureVisible(find.text('Marites Ferrer'));
-    await tester.tap(find.text('Marites Ferrer'));
+    await tester.ensureVisible(find.text('Cristy Bonghanoy'));
+    await tester.tap(find.text('Cristy Bonghanoy'));
     await tester.pumpAndSettle();
     await _dismissWelcomeBanner(tester);
 
@@ -156,15 +181,13 @@ void main() {
 
     // 3. Confirm verified-user features (Dokyu, Tulong) are available —
     // real screens render, not RestrictedFeatureNotice.
-    await tester.tap(find.text('Dokyu'));
-    await tester.pumpAndSettle();
+    await _openService(tester, 'Dokyu');
     await _dismissWelcomeBanner(tester); // Dokyu's own promotional popup
     expect(find.text('Dokyu'), findsWidgets); // AppBar title among other things
     expect(find.text('Complete your account verification to access this service.'), findsNothing);
     expect(find.text('This feature is available to registered Esperanza users. Create an account or sign in to continue.'), findsNothing);
 
-    await tester.tap(find.text('Tulong'));
-    await tester.pumpAndSettle();
+    await _openService(tester, 'Tulong');
     await _dismissWelcomeBanner(tester); // Tulong's own promotional popup
     expect(find.text('Tulong'), findsWidgets); // AppBar title — confirms we actually reached Tulong
     expect(find.text('Complete your account verification to access this service.'), findsNothing);
@@ -173,6 +196,6 @@ void main() {
     await tester.tap(find.text('Home'));
     await tester.pumpAndSettle();
     expect(find.textContaining('Welcome, Guest'), findsNothing);
-    expect(find.textContaining('Magandang araw, Marites'), findsOneWidget);
+    expect(find.textContaining('Magandang araw, Cristy'), findsOneWidget);
   });
 }

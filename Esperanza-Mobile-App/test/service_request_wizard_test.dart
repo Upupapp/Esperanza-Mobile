@@ -22,10 +22,10 @@ import 'package:esperanza_mobile/services/resident_profile_service.dart';
 import 'package:esperanza_mobile/theme/app_colors.dart';
 import 'package:esperanza_mobile/widgets/onboarding_step_indicator.dart';
 
-Future<void> _pumpDokyuAsMarites(WidgetTester tester) async {
+Future<void> _pumpDokyuAsCristy(WidgetTester tester) async {
   SharedPreferences.setMockInitialValues({});
   final session = CitizenSessionService();
-  await session.login(MockCatalog.demoAccounts.last); // Marites — verified
+  await session.login(MockCatalog.demoAccounts.last); // Cristy — verified
   await tester.pumpWidget(
     MultiProvider(
       providers: [
@@ -49,7 +49,7 @@ Future<void> _pumpDokyuAsMarites(WidgetTester tester) async {
 
 void main() {
   testWidgets('a sourced item (Barangay Clearance) opens the multi-step wizard, prefilled and step-adaptive', (tester) async {
-    await _pumpDokyuAsMarites(tester);
+    await _pumpDokyuAsCristy(tester);
 
     // Barangay-scoped -> single department (Barangay Hall) -> item list.
     await tester.tap(find.text('Barangay'));
@@ -66,9 +66,9 @@ void main() {
     expect(find.text('Step 1 of 4'), findsOneWidget);
     expect(find.text('Applicant Info'), findsWidgets);
 
-    // Applicant Info is prefilled from the signed-in account (Marites Ferrer).
-    expect(find.widgetWithText(TextField, 'Marites Ferrer'), findsOneWidget);
-    expect(find.text('Agoho'), findsOneWidget); // her barangay, prefilled into the select
+    // Applicant Info is prefilled from the signed-in account (Cristy Bonghanoy).
+    expect(find.widgetWithText(TextField, 'Cristy Bonghanoy'), findsOneWidget);
+    expect(find.text('Baras'), findsOneWidget); // her barangay, prefilled into the select
 
     await tester.tap(find.text('Continue'));
     await tester.pumpAndSettle();
@@ -76,12 +76,12 @@ void main() {
     // Step 2: Clearance Details (sourced from BRGY.CLEARANCE NEW.docx) —
     // the global birthdate/age rule means there is no manual numeric Age
     // field here at all: only a Date of Birth picker plus a read-only,
-    // auto-computed Age display. Marites' Date of Birth already exists in
+    // auto-computed Age display. Cristy' Date of Birth already exists in
     // her Resident Profile, so it's prefilled rather than asking her to
     // re-enter it, and Age is computed from it immediately.
     expect(find.text('Step 2 of 4'), findsOneWidget);
     expect(find.text('Clearance Details'), findsWidgets);
-    expect(find.text('Mar 4, 1985'), findsOneWidget); // her prefilled birthdate
+    expect(find.text('Nov 29, 1988'), findsOneWidget); // her prefilled birthdate
     expect(find.textContaining('years old'), findsOneWidget);
     expect(find.text('Select your Date of Birth above first'), findsNothing);
 
@@ -95,14 +95,14 @@ void main() {
     // Changing the Date of Birth through the real date picker (switched to
     // keyboard-entry mode for a deterministic result) immediately
     // recalculates Age — there is no separate "Edit Age" anywhere.
-    await tester.tap(find.text('Mar 4, 1985'));
+    await tester.tap(find.text('Nov 29, 1988'));
     await tester.pumpAndSettle();
     await tester.tap(find.byIcon(Icons.edit_outlined));
     await tester.pumpAndSettle();
     await tester.enterText(find.byType(TextFormField).last, '12/20/2000');
     await tester.tap(find.text('OK'));
     await tester.pumpAndSettle();
-    expect(find.text('Mar 4, 1985'), findsNothing);
+    expect(find.text('Nov 29, 1988'), findsNothing);
     expect(find.text('Dec 20, 2000'), findsOneWidget);
     expect(find.textContaining('years old'), findsOneWidget);
 
@@ -126,7 +126,7 @@ void main() {
   });
 
   testWidgets('an item with no sourced formSpec (Cedula) still uses the older single-step request screen', (tester) async {
-    await _pumpDokyuAsMarites(tester);
+    await _pumpDokyuAsCristy(tester);
 
     await tester.tap(find.text('LGU / Municipality'));
     await tester.pumpAndSettle();

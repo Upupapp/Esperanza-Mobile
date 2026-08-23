@@ -57,6 +57,20 @@ class ResidentProfileService extends ChangeNotifier {
     await _save(p);
   }
 
+  /// Backfills reusable fields the citizen typed into a Dokyu/Tulong
+  /// request (e.g. Sex, Civil Status, Occupation) that the Master Profile
+  /// didn't have yet — unlike [savePersonal], this never touches
+  /// [ResidentProfile.personalSaved]; that flag reflects only the
+  /// citizen's own explicit "I've completed Personal Information" action
+  /// on PersonalInformationScreen, and an incidental value learned from an
+  /// unrelated request form must never silently mark that section done (or
+  /// undone, if it happened to already be complete).
+  Future<void> backfillPersonalField(String accountId, Individual personal) async {
+    final p = _profiles[accountId]!;
+    p.personal = personal;
+    await _save(p);
+  }
+
   Future<void> saveFamily(
     String accountId, {
     required String familyName,

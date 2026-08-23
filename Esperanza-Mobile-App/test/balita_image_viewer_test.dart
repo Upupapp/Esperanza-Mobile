@@ -1,12 +1,14 @@
 // Functional verification of PostImageViewer — the tap-to-enlarge Balita
 // image overlay — covering Guest gating, Ronaldo's (unverified but
-// signed-in) full engagement, and feed/viewer like-state synchronization.
+// signed-in) engagement also being gated the same way, and feed/viewer
+// like-state synchronization.
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:esperanza_mobile/main.dart';
 import 'package:esperanza_mobile/screens/balita/post_image_viewer.dart';
+import 'package:esperanza_mobile/services/mock_catalog.dart';
 import 'package:esperanza_mobile/widgets/restricted_feature_notice.dart';
 
 void _setPhoneViewport(WidgetTester tester) {
@@ -83,7 +85,10 @@ Future<void> _tapClearOfNavbar(WidgetTester tester, Finder target) async {
 Future<void> _openMangroveViewer(WidgetTester tester) async {
   await tester.tap(find.text('Balita'));
   await tester.pumpAndSettle();
-  expect(find.text('Balita & Events'), findsOneWidget);
+  // Scoped to the AppBar specifically — once Balita is the selected nav
+  // tab, the navbar's own floating active label also reads "Balita", so an
+  // unscoped find.text('Balita') would match both.
+  expect(find.descendant(of: find.byType(AppBar), matching: find.text('Balita')), findsOneWidget);
   // Balita's own promotional popup (PromotionalBannerDialog), shown the
   // first time this tab is opened — dismiss it before interacting with
   // the feed underneath, same as a real user tapping its X.
@@ -160,12 +165,12 @@ void main() {
       await tester.tap(closeInViewer);
       await tester.pumpAndSettle();
       expect(find.byType(PostImageViewer), findsNothing);
-      expect(find.text('Balita & Events'), findsOneWidget);
+      expect(find.descendant(of: find.byType(AppBar), matching: find.text('Balita')), findsOneWidget);
     },
   );
 
   testWidgets(
-    'Ronaldo Bautista (signed in, unverified): not treated as Guest — can React in the viewer, state syncs back to the feed',
+    'Ronaldo Bautista (signed in, unverified): treated the same as Guest — React/Comment/Share are blocked in the viewer, viewing/zooming stays available',
     (tester) async {
       SharedPreferences.setMockInitialValues({'esperanza_onboarding_complete': true});
       _setPhoneViewport(tester);
@@ -178,45 +183,141 @@ void main() {
       await _waitOutSignInToast(tester);
       await _dismissWelcomeBanner(tester);
 
+      // Viewing/zooming the image itself stays available — the gate only
+      // wraps the react/comment/share actions, never opening the viewer.
       await _openMangroveViewer(tester);
+      expect(find.byType(PostImageViewer), findsOneWidget);
 
-      // Starting state: 89 likes, not yet liked by this account.
+      // Starting state: 89 likes, unchanged — an unverified account is
+      // blocked the same as a Guest now (Phase 7 of the Balita access
+      // rules), not treated as merely "signed in".
       expect(find.text('89'), findsOneWidget);
-      expect(find.byIcon(Icons.favorite_border_rounded), findsWidgets);
 
       final likeInViewer = find.descendant(of: find.byType(PostImageViewer), matching: find.text('Like'));
       await tester.ensureVisible(likeInViewer);
       await tester.tap(likeInViewer);
       await tester.pumpAndSettle();
 
-      // No account-required notice for a signed-in (even unverified) user.
-      expect(find.byType(RestrictedFeatureNotice), findsNothing);
-
-      // The like registered immediately in the viewer itself.
-      expect(find.text('90'), findsOneWidget);
-
-      // BalitaService is the single source of truth for both surfaces — close
-      // the viewer and confirm the feed underneath reflects the same "90",
-      // not a viewer-only, throwaway local state that resets on close.
-      final closeInViewer = find.descendant(
-        of: find.byType(PostImageViewer),
-        matching: find.byIcon(Icons.close_rounded),
-      );
-      await tester.ensureVisible(closeInViewer);
-      await tester.tap(closeInViewer);
+      expect(find.byType(RestrictedFeatureNotice), findsOneWidget);
+      // The like count never moved — the action was blocked before it ran.
+      Navigator.of(tester.element(find.byType(RestrictedFeatureNotice))).pop();
       await tester.pumpAndSettle();
-      expect(find.byType(PostImageViewer), findsNothing);
-      expect(find.text('90'), findsOneWidget);
+      expect(find.text('89'), findsOneWidget);
 
-      // Comment sheet reuses the existing CommentsSheet — reopen the viewer
-      // and confirm Comment isn't gated either.
-      await tester.tap(_mangrovePostImage);
-      await tester.pumpAndSettle();
+      // Comment is gated the same way.
       final commentInViewer = find.descendant(of: find.byType(PostImageViewer), matching: find.text('Comment'));
       await tester.ensureVisible(commentInViewer);
       await tester.tap(commentInViewer);
       await tester.pumpAndSettle();
-      expect(find.byType(RestrictedFeatureNotice), findsNothing);
+      expect(find.byType(RestrictedFeatureNotice), findsOneWidget);
     },
   );
+
+  testWidgets('Opening a post tracks a view internally, but no view count is ever shown in the UI', (tester) async {
+    SharedPreferences.setMockInitialValues({'esperanza_onboarding_complete': true});
+    _setPhoneViewport(tester);
+    await tester.pumpWidget(const EsperanzaMobileApp());
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Continue as Guest'));
+    await tester.pumpAndSettle();
+    await _dismissWelcomeBanner(tester);
+
+    final mangrove = MockCatalog.announcements.firstWhere((a) => a.id == 'bal-mangrove-award');
+    final startingViews = mangrove.viewCount;
+
+    await tester.tap(find.text('Balita'));
+    await tester.pumpAndSettle();
+    await _dismissWelcomeBanner(tester);
+    // View count is tracked (see BalitaService.recordView) but must never
+    // be rendered anywhere in the feed or the viewer.
+    expect(find.textContaining('views'), findsNothing);
+
+    await _tapClearOfNavbar(tester, _mangrovePostImage);
+    expect(find.byType(PostImageViewer), findsOneWidget);
+    expect(find.descendant(of: find.byType(PostImageViewer), matching: find.textContaining('views')), findsNothing);
+    expect(mangrove.viewCount, startingViews + 1);
+
+    final closeInViewer = find.descendant(of: find.byType(PostImageViewer), matching: find.byIcon(Icons.close_rounded));
+    await tester.ensureVisible(closeInViewer);
+    await tester.tap(closeInViewer);
+    await tester.pumpAndSettle();
+    expect(find.textContaining('views'), findsNothing);
+  });
+
+  testWidgets(
+    'Verified user: engagement row shows reaction count on the left, comments then shares together on the right',
+    (tester) async {
+      SharedPreferences.setMockInitialValues({'esperanza_onboarding_complete': true});
+      _setPhoneViewport(tester);
+      await tester.pumpWidget(const EsperanzaMobileApp());
+      await tester.pumpAndSettle();
+
+      await tester.ensureVisible(find.text('Cristy Bonghanoy'));
+      await tester.tap(find.text('Cristy Bonghanoy'));
+      await tester.pumpAndSettle();
+      await _waitOutSignInToast(tester);
+      await _dismissWelcomeBanner(tester);
+
+      await tester.tap(find.text('Balita'));
+      await tester.pumpAndSettle();
+      await _dismissWelcomeBanner(tester);
+
+      // 'bal-mangrove-award' has no comments seeded, so it can't show the
+      // comment count — scroll to 'bal-1' (214 likes, 2 comments, 18
+      // shares), which has all three visible metrics at once.
+      await tester.scrollUntilVisible(
+        find.textContaining('Sumali sa buong-munisipyong'),
+        300,
+        scrollable: find.byType(Scrollable).first,
+      );
+      // Left (reaction) vs. right (comments, then shares) placement is
+      // guaranteed by BalitaEngagementRow's own Row/Expanded source rather
+      // than re-measured here by pixel geometry, which proved unreliable
+      // to assert on under this test harness in an earlier pass.
+      expect(find.text('214'), findsOneWidget);
+      expect(find.text('2 comments'), findsOneWidget);
+      expect(find.text('18 shares'), findsOneWidget);
+      expect(find.textContaining('views'), findsNothing);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets('Verified user: commenting in the image viewer increments the visible comment count immediately', (
+    tester,
+  ) async {
+    SharedPreferences.setMockInitialValues({'esperanza_onboarding_complete': true});
+    _setPhoneViewport(tester);
+    await tester.pumpWidget(const EsperanzaMobileApp());
+    await tester.pumpAndSettle();
+
+    await tester.ensureVisible(find.text('Cristy Bonghanoy'));
+    await tester.tap(find.text('Cristy Bonghanoy'));
+    await tester.pumpAndSettle();
+    await _waitOutSignInToast(tester);
+    await _dismissWelcomeBanner(tester);
+
+    // 'bal-mangrove-award' starts with no comments (untouched by any
+    // earlier test in this file — only its viewCount is polluted by
+    // cross-test viewer-opens, which this check doesn't rely on), so the
+    // comment count segment is absent to start, then appears at "1
+    // comment" the moment the first one is submitted.
+    await _openMangroveViewer(tester);
+    expect(find.descendant(of: find.byType(PostImageViewer), matching: find.textContaining('comment')), findsNothing);
+
+    final commentInViewer = find.descendant(of: find.byType(PostImageViewer), matching: find.text('Comment'));
+    await tester.ensureVisible(commentInViewer);
+    await tester.tap(commentInViewer);
+    await tester.pumpAndSettle();
+
+    await tester.enterText(find.byType(TextField), 'Maganda ang balita na ito!');
+    await tester.tap(find.byIcon(Icons.send_rounded));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.descendant(of: find.byType(PostImageViewer), matching: find.text('1 comment')),
+      findsOneWidget,
+    );
+    expect(tester.takeException(), isNull);
+  });
 }

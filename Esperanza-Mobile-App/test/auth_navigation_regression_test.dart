@@ -5,7 +5,7 @@
 // swaps between LoginScreen/RootShell based on CitizenSessionService.
 // Once that root route is gone, any *later* login()/logout() has nothing
 // left listening, so the app gets stuck on whatever screen was showing —
-// this is what made the Ronaldo/Marites demo accounts appear to "stop
+// this is what made the Ronaldo/Cristy demo accounts appear to "stop
 // opening" when reached via Guest -> Sign In, a restricted-feature
 // notice's Sign In button, or a fresh registration's "Continue to App".
 // These tests drive those exact paths end-to-end through the real app.
@@ -23,10 +23,23 @@ void _setPhoneViewport(WidgetTester tester) {
   addTearDown(tester.view.resetDevicePixelRatio);
 }
 
-Future<void> _tapVisible(WidgetTester tester, Finder finder) async {
+Future<void> _tapVisible(WidgetTester tester, Finder finder, {bool warnIfMissed = true}) async {
   await tester.ensureVisible(finder);
-  await tester.tap(finder);
+  await tester.tap(finder, warnIfMissed: warnIfMissed);
   await tester.pumpAndSettle();
+}
+
+/// Dokyu/Tulong no longer have their own bottom-nav slots — reaching them
+/// now means tapping the center "+" launcher to open ServiceLauncherMenu,
+/// then tapping the destination inside that menu. Found by its stable key
+/// (`nav-center-action`, set in widgets/esperanza_curved_navbar.dart)
+/// rather than by icon — the "+" is a single always-on circle now (no
+/// separate inactive/active icon states to disambiguate between).
+final _launcherFinder = find.byKey(const ValueKey('nav-center-action'));
+
+Future<void> _openService(WidgetTester tester, String label) async {
+  await _tapVisible(tester, _launcherFinder.first, warnIfMissed: false);
+  await _tapVisible(tester, find.text(label));
 }
 
 /// Home shows the promotional HomeWelcomeBanner pop-up once per RootShell
@@ -83,7 +96,7 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('Guest -> Dokyu restricted notice -> "Sign In" -> Marites Ferrer reaches Home with full access', (tester) async {
+  testWidgets('Guest -> Dokyu restricted notice -> "Sign In" -> Cristy Bonghanoy reaches Home with full access', (tester) async {
     // Onboarding-complete pre-seeded: these regression cases exercise the
     // normal returning-user flow, not the first-run Onboarding screens —
     // see onboarding_flow_test.dart for that.
@@ -94,21 +107,21 @@ void main() {
 
     await _tapVisible(tester, find.text('Continue as Guest'));
     await _dismissWelcomeBanner(tester);
-    await _tapVisible(tester, find.text('Dokyu'));
+    await _openService(tester, 'Dokyu');
     expect(find.text('Create Account'), findsOneWidget);
 
     await _tapVisible(tester, find.text('Sign In'));
     expect(find.text('Welcome back'), findsOneWidget);
 
-    await _tapVisible(tester, find.text('Marites Ferrer'));
+    await _tapVisible(tester, find.text('Cristy Bonghanoy'));
     await _dismissWelcomeBanner(tester);
     expect(find.text('Welcome back'), findsNothing);
     expect(tester.takeException(), isNull);
 
-    // Now that we're actually in as Marites, verified-only content must
+    // Now that we're actually in as Cristy, verified-only content must
     // be reachable — proves this isn't just "some screen changed" but
     // the real authenticated app.
-    await _tapVisible(tester, find.text('Dokyu'));
+    await _openService(tester, 'Dokyu');
     expect(find.text('This feature is available to registered Esperanza users. Create an account or sign in to continue.'), findsNothing);
   });
 
@@ -129,7 +142,7 @@ void main() {
     // built reactively) or orphan _AuthGate outright.
     await _tapVisible(tester, find.text('Ronaldo Bautista'));
     await _dismissWelcomeBanner(tester);
-    await _tapVisible(tester, find.text('Dokyu')); // verification-gated -> RestrictedFeatureNotice
+    await _openService(tester, 'Dokyu'); // verification-gated -> RestrictedFeatureNotice
     await _tapVisible(tester, find.text('Continue Verification'));
     expect(find.text('Verification Status'), findsOneWidget); // RegisterScreen's AppBar title for this path
 

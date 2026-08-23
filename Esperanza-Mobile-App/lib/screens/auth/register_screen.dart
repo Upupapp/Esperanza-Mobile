@@ -644,7 +644,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
           // of the navigator stack — after which no future login()/
           // logout() has anything left to react to, leaving the app stuck
           // on whatever screen was showing. This was the root cause of
-          // "Ronaldo/Marites no longer opening" after using this button
+          // "Ronaldo/Cristy no longer opening" after using this button
           // or the drawer's Sign In from Guest mode.
           onPressed: () => Navigator.of(context, rootNavigator: true).popUntil((route) => route.isFirst),
         ),

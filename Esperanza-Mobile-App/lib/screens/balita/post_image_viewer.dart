@@ -5,6 +5,7 @@ import '../../services/balita_service.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_spacing.dart';
 import '../../utils/balita_post_actions.dart';
+import '../../widgets/balita_share_sheet.dart';
 import 'post_card.dart';
 
 /// A lightweight full-screen overlay for a single Balita post's image —
@@ -20,6 +21,10 @@ class PostImageViewer extends StatelessWidget {
   const PostImageViewer({super.key, required this.postId});
 
   static void open(BuildContext context, String postId) {
+    // Counted here — the one place a citizen actually opens a post, not
+    // merely scrolls past it in the feed. See BalitaService.recordView's
+    // own doc comment for why this has no per-session dedup.
+    context.read<BalitaService>().recordView(postId);
     Navigator.of(
       context,
     ).push(MaterialPageRoute(fullscreenDialog: true, builder: (_) => PostImageViewer(postId: postId)));
@@ -47,7 +52,6 @@ class PostImageViewer extends StatelessWidget {
     }
 
     final isOfficial = post.isOfficial;
-    final hasEngagement = post.likes > 0 || post.commentCount > 0 || post.shares > 0;
 
     return Scaffold(
       backgroundColor: AppColors.surface,
@@ -140,47 +144,14 @@ class PostImageViewer extends StatelessWidget {
                   ),
                 ),
               const SizedBox(height: 12),
-              if (hasEngagement)
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
-                  child: Row(
-                    children: [
-                      if (post.likes > 0) ...[
-                        Container(
-                          width: 18,
-                          height: 18,
-                          alignment: Alignment.center,
-                          decoration: const BoxDecoration(color: AppColors.rose500, shape: BoxShape.circle),
-                          child: const Icon(Icons.favorite_rounded, size: 11, color: Colors.white),
-                        ),
-                        const SizedBox(width: 6),
-                        Text(
-                          '${post.likes}',
-                          style: const TextStyle(fontSize: 12, color: AppColors.slate500, fontWeight: FontWeight.w500),
-                        ),
-                      ],
-                      const Spacer(),
-                      if (post.commentCount > 0 || post.shares > 0)
-                        Flexible(
-                          child: Text(
-                            [
-                              if (post.commentCount > 0)
-                                '${post.commentCount} comment${post.commentCount == 1 ? '' : 's'}',
-                              if (post.shares > 0) '${post.shares} share${post.shares == 1 ? '' : 's'}',
-                            ].join('  ·  '),
-                            textAlign: TextAlign.right,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(fontSize: 12, color: AppColors.slate500),
-                          ),
-                        ),
-                    ],
-                  ),
-                ),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+                child: BalitaEngagementRow(post: post),
+              ),
               Padding(
                 padding: const EdgeInsets.fromLTRB(8, 8, 8, 4),
                 child: Column(
                   children: [
-                    const Divider(height: 1),
                     Row(
                       children: [
                         Expanded(
@@ -215,7 +186,7 @@ class PostImageViewer extends StatelessWidget {
                             onTap: () => requireAccountForBalita(
                               context,
                               'Sharing Balita posts',
-                              () => shareBalitaPost(context, post!, () => balita.share(post!.id)),
+                              () => BalitaShareSheet.show(context, post!, () => balita.share(post!.id)),
                             ),
                           ),
                         ),

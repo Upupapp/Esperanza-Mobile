@@ -1,4 +1,5 @@
 import 'attachment.dart';
+import 'receipt.dart';
 
 enum ServiceCategory { dokyu, tulong, sakunaIncident }
 
@@ -57,6 +58,28 @@ class ServiceRequest {
   final String expectedDays;
   final Map<String, dynamic> formFields;
 
+  /// Whether this service has a real fee (from the catalog item's own
+  /// `fee` field — never invented here) — decides whether the milestone
+  /// simulation includes payment steps at all. See
+  /// docs on the milestone/payment simulation (frontend-only).
+  final bool requiresPayment;
+
+  /// The catalog item's own fee text (e.g. "₱50.00"), captured at
+  /// submission time — same pattern as [office]/[expectedDays] already
+  /// being a snapshot rather than a live re-lookup. Only meaningful when
+  /// [requiresPayment] is true.
+  final String fee;
+
+  /// 'Onsite' / 'GCash' / 'Maya' once chosen at the Waiting for Payment
+  /// milestone — simulation only, never a real transaction.
+  String? paymentMethod;
+
+  /// Generated once the milestone simulation reaches
+  /// RequestMilestones.receiptGenerated — this request's own permanent
+  /// receipt for the rest of the demo session. Never shared across
+  /// requests; each one that gets paid generates and keeps its own.
+  Receipt? receipt;
+
   ServiceRequest({
     required this.id,
     required this.referenceNumber,
@@ -74,6 +97,10 @@ class ServiceRequest {
     this.adminRemarks,
     required this.expectedDays,
     this.formFields = const {},
+    this.requiresPayment = false,
+    this.fee = '',
+    this.paymentMethod,
+    this.receipt,
   });
 
   Map<String, dynamic> toJson() => {
@@ -93,6 +120,10 @@ class ServiceRequest {
         'adminRemarks': adminRemarks,
         'expectedDays': expectedDays,
         'formFields': formFields,
+        'requiresPayment': requiresPayment,
+        'fee': fee,
+        'paymentMethod': paymentMethod,
+        'receipt': receipt?.toJson(),
       };
 
   factory ServiceRequest.fromJson(Map<String, dynamic> json) => ServiceRequest(
@@ -112,5 +143,11 @@ class ServiceRequest {
         adminRemarks: json['adminRemarks'],
         expectedDays: json['expectedDays'],
         formFields: Map<String, dynamic>.from(json['formFields'] ?? {}),
+        // Defaults false/null so requests persisted before this field
+        // existed still deserialize cleanly.
+        requiresPayment: json['requiresPayment'] ?? false,
+        fee: json['fee'] ?? '',
+        paymentMethod: json['paymentMethod'],
+        receipt: json['receipt'] != null ? Receipt.fromJson(json['receipt']) : null,
       );
 }

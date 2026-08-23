@@ -10,10 +10,21 @@ import 'package:shared_preferences/shared_preferences.dart';
 /// notification IDs the citizen has already seen, same SharedPreferences
 /// persistence pattern as every other local "database" in this app
 /// (RequestsService, BalitaService, etc).
+///
+/// Also carries the Phase 6 duplicate-account demo's resolution state
+/// ('confirmed' / 'reported', keyed by scenario id 'a'/'b') — folded into
+/// this existing service rather than a new provider, since
+/// [NotificationsService] is already threaded through every screen via
+/// `AlertsAction`'s bell icon, so nothing else needs a new provider
+/// registered just to read/react to it.
 class NotificationsService extends ChangeNotifier {
-  static const _key = 'esperanza_read_notification_ids';
+  static const _readKey = 'esperanza_read_notification_ids';
+  static const _duplicateKey = 'esperanza_duplicate_alert_resolutions';
+  static const _unverifiedDuplicateKey = 'esperanza_unverified_duplicate_kept_account';
 
   Set<String> _readIds = {};
+  Map<String, String> _duplicateResolutions = {};
+  String? _unverifiedDuplicateKeptAccountId;
   bool _loaded = false;
 
   bool get loaded => _loaded;
@@ -24,17 +35,26 @@ class NotificationsService extends ChangeNotifier {
 
   Future<void> _restore() async {
     final prefs = await SharedPreferences.getInstance();
-    final raw = prefs.getString(_key);
-    if (raw != null) {
-      _readIds = (jsonDecode(raw) as List).cast<String>().toSet();
+    final rawRead = prefs.getString(_readKey);
+    if (rawRead != null) {
+      _readIds = (jsonDecode(rawRead) as List).cast<String>().toSet();
     }
+    final rawDuplicate = prefs.getString(_duplicateKey);
+    if (rawDuplicate != null) {
+      _duplicateResolutions = Map<String, String>.from(jsonDecode(rawDuplicate) as Map);
+    }
+    _unverifiedDuplicateKeptAccountId = prefs.getString(_unverifiedDuplicateKey);
     _loaded = true;
     notifyListeners();
   }
 
   Future<void> _persist() async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_key, jsonEncode(_readIds.toList()));
+    await prefs.setString(_readKey, jsonEncode(_readIds.toList()));
+    await prefs.setString(_duplicateKey, jsonEncode(_duplicateResolutions));
+    if (_unverifiedDuplicateKeptAccountId != null) {
+      await prefs.setString(_unverifiedDuplicateKey, _unverifiedDuplicateKeptAccountId!);
+    }
   }
 
   bool isRead(String id) => _readIds.contains(id);
@@ -47,6 +67,30 @@ class NotificationsService extends ChangeNotifier {
   Future<void> markRead(String id) async {
     if (_readIds.contains(id)) return;
     _readIds = {..._readIds, id};
+    notifyListeners();
+    await _persist();
+  }
+
+  /// 'confirmed' (Yes, this is me), 'reported' (No, this is not me), or
+  /// null if [scenarioId] hasn't been resolved yet — see
+  /// screens/notifications/duplicate_account_details_screen.dart.
+  String? duplicateResolutionFor(String scenarioId) => _duplicateResolutions[scenarioId];
+
+  Future<void> resolveDuplicateAlert(String scenarioId, String resolution) async {
+    _duplicateResolutions = {..._duplicateResolutions, scenarioId: resolution};
+    notifyListeners();
+    await _persist();
+  }
+
+  /// The Unverified+Unverified duplicate demo's own resolution — 'A', 'B',
+  /// or null if the citizen hasn't chosen which registration to keep yet.
+  /// Independent of [duplicateResolutionFor]/[resolveDuplicateAlert] above
+  /// (the Verified-Cristy scenario's own state) — see
+  /// MockCatalog.unverifiedDuplicateAccountA's doc comment.
+  String? get unverifiedDuplicateKeptAccountId => _unverifiedDuplicateKeptAccountId;
+
+  Future<void> resolveUnverifiedDuplicate(String keptAccountId) async {
+    _unverifiedDuplicateKeptAccountId = keptAccountId;
     notifyListeners();
     await _persist();
   }

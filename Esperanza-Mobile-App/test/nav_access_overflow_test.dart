@@ -18,8 +18,9 @@ import 'package:esperanza_mobile/services/mock_catalog.dart';
 import 'package:esperanza_mobile/services/requests_service.dart';
 import 'package:esperanza_mobile/services/notifications_service.dart';
 import 'package:esperanza_mobile/services/resident_profile_service.dart';
-import 'package:esperanza_mobile/widgets/magnetic_navbar_core.dart';
+import 'package:esperanza_mobile/widgets/esperanza_curved_navbar.dart';
 import 'package:esperanza_mobile/widgets/nav_item_data.dart';
+import 'package:esperanza_mobile/widgets/service_launcher_menu.dart';
 import 'package:esperanza_mobile/widgets/restricted_feature_notice.dart';
 
 void main() {
@@ -71,7 +72,7 @@ void main() {
         expect(tester.takeException(), isNull);
       });
 
-      testWidgets('MagneticNavbarCore (5 tabs) has zero overflow at ${sizeEntry.key}, textScale $textScale', (tester) async {
+      testWidgets('EsperanzaCurvedNavBar (4 tabs) has zero overflow at ${sizeEntry.key}, textScale $textScale', (tester) async {
         SharedPreferences.setMockInitialValues({});
         await pumpAtSize(
           tester,
@@ -80,15 +81,42 @@ void main() {
           MaterialApp(
             home: Scaffold(
               body: const SizedBox(),
-              bottomNavigationBar: MagneticNavbarCore(
-                currentIndex: 3,
-                onTap: (_) {},
-                tabCenterRatios: const [0.1, 0.3, 0.5, 0.7, 0.9],
+              bottomNavigationBar: EsperanzaCurvedNavBar(
+                activeIndex: 3,
+                activeLauncherTarget: null,
+                onTabSelected: (_) {},
+                onCenterPressed: () {},
                 items: const [
                   NavItemData(outlineIcon: Icons.home_outlined, filledIcon: Icons.home_rounded, label: 'Home'),
-                  NavItemData(outlineIcon: Icons.description_outlined, filledIcon: Icons.description_rounded, label: 'Dokyu'),
-                  NavItemData(outlineIcon: Icons.volunteer_activism_outlined, filledIcon: Icons.volunteer_activism_rounded, label: 'Tulong'),
                   NavItemData(outlineIcon: Icons.campaign_outlined, filledIcon: Icons.campaign_rounded, label: 'Balita'),
+                  NavItemData(outlineIcon: Icons.event_outlined, filledIcon: Icons.event_rounded, label: 'Events'),
+                  NavItemData(outlineIcon: Icons.shield_outlined, filledIcon: Icons.shield_rounded, label: 'Emergency'),
+                ],
+              ),
+            ),
+          ),
+        );
+        expect(tester.takeException(), isNull);
+      });
+
+      testWidgets('EsperanzaCurvedNavBar (launcher active) has zero overflow at ${sizeEntry.key}, textScale $textScale', (tester) async {
+        SharedPreferences.setMockInitialValues({});
+        await pumpAtSize(
+          tester,
+          sizeEntry.value,
+          textScale,
+          MaterialApp(
+            home: Scaffold(
+              body: const SizedBox(),
+              bottomNavigationBar: EsperanzaCurvedNavBar(
+                activeIndex: null,
+                activeLauncherTarget: ServiceLauncherTarget.dokyu,
+                onTabSelected: (_) {},
+                onCenterPressed: () {},
+                items: const [
+                  NavItemData(outlineIcon: Icons.home_outlined, filledIcon: Icons.home_rounded, label: 'Home'),
+                  NavItemData(outlineIcon: Icons.campaign_outlined, filledIcon: Icons.campaign_rounded, label: 'Balita'),
+                  NavItemData(outlineIcon: Icons.event_outlined, filledIcon: Icons.event_rounded, label: 'Events'),
                   NavItemData(outlineIcon: Icons.shield_outlined, filledIcon: Icons.shield_rounded, label: 'Emergency'),
                 ],
               ),

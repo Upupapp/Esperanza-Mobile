@@ -6,6 +6,7 @@ import '../../utils/balita_post_actions.dart';
 import '../../utils/cross_platform_image.dart';
 import '../../widgets/app_dialogs.dart';
 import '../../widgets/app_card.dart';
+import '../../widgets/balita_share_sheet.dart';
 import 'comments_sheet.dart';
 import 'post_image_viewer.dart';
 
@@ -32,7 +33,6 @@ class PostCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isOfficial = post.isOfficial;
-    final hasEngagement = post.likes > 0 || post.commentCount > 0 || post.shares > 0;
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
@@ -118,47 +118,7 @@ class PostCard extends StatelessWidget {
               ),
             ],
             const SizedBox(height: 12),
-            if (hasEngagement) ...[
-              Row(
-                children: [
-                  if (post.likes > 0) ...[
-                    Container(
-                      width: 18,
-                      height: 18,
-                      alignment: Alignment.center,
-                      decoration: const BoxDecoration(color: AppColors.rose500, shape: BoxShape.circle),
-                      child: const Icon(Icons.favorite_rounded, size: 11, color: Colors.white),
-                    ),
-                    const SizedBox(width: 6),
-                    Text(
-                      '${post.likes}',
-                      style: const TextStyle(fontSize: 12, color: AppColors.slate500, fontWeight: FontWeight.w500),
-                    ),
-                  ],
-                  const Spacer(),
-                  // Flexible: a Spacer only shrinks itself to make room, it
-                  // doesn't shrink its fixed siblings — a like count on the
-                  // left plus "N comments · N shares" on the right can still
-                  // together exceed the card width at some text scales.
-                  // Combining into one Text + Flexible + ellipsis lets it
-                  // wrap/truncate instead of overflowing.
-                  if (post.commentCount > 0 || post.shares > 0)
-                    Flexible(
-                      child: Text(
-                        [
-                          if (post.commentCount > 0) '${post.commentCount} comment${post.commentCount == 1 ? '' : 's'}',
-                          if (post.shares > 0) '${post.shares} share${post.shares == 1 ? '' : 's'}',
-                        ].join('  ·  '),
-                        textAlign: TextAlign.right,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(fontSize: 12, color: AppColors.slate500),
-                      ),
-                    ),
-                ],
-              ),
-              const SizedBox(height: AppSpacing.sm),
-              const Divider(height: 1),
-            ],
+            BalitaEngagementRow(post: post),
             Row(
               children: [
                 Expanded(
@@ -189,7 +149,7 @@ class PostCard extends StatelessWidget {
                     onTap: () => requireAccountForBalita(
                       context,
                       'Sharing Balita posts',
-                      () => shareBalitaPost(context, post, onShare),
+                      () => BalitaShareSheet.show(context, post, onShare),
                     ),
                   ),
                 ),
@@ -332,6 +292,66 @@ class PostMediaView extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// The engagement summary line under a Balita post — reaction count on the
+/// left, comment count and share count together on the right (Facebook-
+/// style), rather than fixed equal-width columns or a single flowing list.
+/// View count is tracked internally (see [BalitaService.recordView]) but is
+/// intentionally not rendered here. Public — and the single implementation
+/// — so [PostCard] and [PostImageViewer] can never visually drift apart,
+/// per the "same engagement summary everywhere" requirement.
+class BalitaEngagementRow extends StatelessWidget {
+  final Announcement post;
+  const BalitaEngagementRow({super.key, required this.post});
+
+  @override
+  Widget build(BuildContext context) {
+    final hasEngagement = post.likes > 0 || post.commentCount > 0 || post.shares > 0;
+    if (!hasEngagement) return const SizedBox.shrink();
+
+    const style = TextStyle(fontSize: 12, color: AppColors.slate500);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: post.likes > 0
+                  ? Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          width: 18,
+                          height: 18,
+                          alignment: Alignment.center,
+                          decoration: const BoxDecoration(color: AppColors.rose500, shape: BoxShape.circle),
+                          child: const Icon(Icons.favorite_rounded, size: 11, color: Colors.white),
+                        ),
+                        const SizedBox(width: 6),
+                        Text('${post.likes}', style: style.copyWith(fontWeight: FontWeight.w500)),
+                      ],
+                    )
+                  : const SizedBox.shrink(),
+            ),
+            if (post.commentCount > 0 || post.shares > 0)
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (post.commentCount > 0)
+                    Text('${post.commentCount} comment${post.commentCount == 1 ? '' : 's'}', style: style),
+                  if (post.commentCount > 0 && post.shares > 0) const SizedBox(width: 14),
+                  if (post.shares > 0) Text('${post.shares} share${post.shares == 1 ? '' : 's'}', style: style),
+                ],
+              ),
+          ],
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        const Divider(height: 1),
+      ],
     );
   }
 }

@@ -13,13 +13,21 @@ import '../../widgets/app_card.dart';
 import '../../widgets/empty_state.dart';
 import '../../widgets/esperanza_drawer.dart';
 import '../../widgets/filter_bottom_sheet.dart';
-import '../../widgets/nav_style.dart';
 import '../../widgets/new_request_fab.dart';
 import '../../widgets/segmented_tabs.dart';
 import '../../widgets/status_chip.dart';
 import '../home/root_shell.dart';
 import 'request_detail_screen.dart';
 import 'service_catalog_screen.dart';
+
+// This screen's own FAB-clearance constants — not navbar geometry. Pair
+// with `MediaQuery.paddingOf(context).bottom`, which RootShell's
+// `extendBody: true` keeps in sync with whatever the bottom nav bar
+// actually renders (see widgets/esperanza_curved_navbar.dart), so this
+// screen never needs to know the bar's own height, just how much extra
+// breathing room its own floating elements want on top of that.
+const double _kFloatingElementGap = 16.0;
+const double _kFloatingActionButtonHeight = 56.0; // Material's standard extended-FAB footprint.
 
 /// Shared list+tracker screen used by both Dokyu (Document Requests) and
 /// Tulong (Assistance Requests) — same shape as the Web Admin's
@@ -114,11 +122,11 @@ class _RequestListScreenState extends State<RequestListScreen> {
       // `floatingActionButton` would use Scaffold's default endFloat
       // margin measured from the *true* screen edge, landing it behind
       // the navbar. Padding it by the inherited navbar-height MediaQuery
-      // inset (see NavStyle.floatingElementGap's doc comment) plus a
+      // inset (see _kFloatingElementGap's doc comment above) plus a
       // visual gap keeps it clearly above the bar, staying correct across
       // screen sizes/safe-area insets since neither value is hardcoded.
       floatingActionButton: Padding(
-        padding: EdgeInsets.only(bottom: MediaQuery.paddingOf(context).bottom + NavStyle.floatingElementGap),
+        padding: EdgeInsets.only(bottom: MediaQuery.paddingOf(context).bottom + _kFloatingElementGap),
         child: NewRequestFab(
           accent: widget.accent,
           // Dokyu and Tulong's RequestListScreen instances are both mounted
@@ -306,9 +314,9 @@ class _EmptyStateArea extends StatelessWidget {
   Widget build(BuildContext context) {
     final bottomReserve =
         MediaQuery.paddingOf(context).bottom +
-        NavStyle.floatingElementGap +
-        NavStyle.floatingActionButtonHeight +
-        NavStyle.floatingElementGap;
+        _kFloatingElementGap +
+        _kFloatingActionButtonHeight +
+        _kFloatingElementGap;
 
     return LayoutBuilder(
       builder: (context, constraints) {

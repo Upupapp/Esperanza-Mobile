@@ -94,9 +94,22 @@ class _ConfirmSheet extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(title, style: AppTypography.h3),
-            const SizedBox(height: AppSpacing.sm),
-            Text(message, style: const TextStyle(fontSize: 13.5, color: AppColors.slate500, height: 1.4)),
+            // Scrollable rather than sized-to-content: a long message (a
+            // policy explanation, say) would otherwise overflow the sheet
+            // on a short device instead of the actions staying reachable.
+            Flexible(
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(title, style: AppTypography.h3),
+                    const SizedBox(height: AppSpacing.sm),
+                    Text(message, style: const TextStyle(fontSize: 13.5, color: AppColors.slate500, height: 1.4)),
+                  ],
+                ),
+              ),
+            ),
             const SizedBox(height: AppSpacing.xl),
             Row(
               children: [
@@ -142,9 +155,21 @@ class _InfoSheet extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(title, style: AppTypography.h3),
-            const SizedBox(height: AppSpacing.sm),
-            Text(message, style: const TextStyle(fontSize: 13.5, color: AppColors.slate500, height: 1.4)),
+            // Scrollable rather than sized-to-content — see _ConfirmSheet's
+            // matching comment.
+            Flexible(
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(title, style: AppTypography.h3),
+                    const SizedBox(height: AppSpacing.sm),
+                    Text(message, style: const TextStyle(fontSize: 13.5, color: AppColors.slate500, height: 1.4)),
+                  ],
+                ),
+              ),
+            ),
             const SizedBox(height: AppSpacing.xl),
             AppButton(
               label: actionLabel,

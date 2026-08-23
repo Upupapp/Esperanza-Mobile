@@ -29,7 +29,13 @@ class SakunaScreen extends StatelessWidget {
       drawer: const EsperanzaDrawer(),
       appBar: AppBar(title: const Text('Risk Reduction & Emergency'), actions: const [AlertsAction()]),
       body: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
+        // Bottom padding must include the inherited navbar MediaQuery inset
+        // (RootShell's extendBody: true publishes it — see
+        // widgets/esperanza_curved_navbar.dart) on top of the visual
+        // breathing room, or the last evacuation-center card ends up laid
+        // out underneath the floating navbar's bounding box and can't be
+        // scrolled fully into view — same pattern as balita_screen.dart.
+        padding: EdgeInsets.fromLTRB(16, 12, 16, 32 + MediaQuery.paddingOf(context).bottom),
         children: [
           Container(
             padding: const EdgeInsets.all(AppSpacing.lg),

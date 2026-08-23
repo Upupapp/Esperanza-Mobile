@@ -58,16 +58,22 @@ void main() {
     expect(find.text('Which office handles this?'), findsOneWidget);
     // The department list has grown since this test was written (more
     // sourced Tulong services now exist — see docs/DOKYU_TULONG_FORM_AUDIT.md),
-    // so 'OSCA' (sorted last alphabetically) may now be below the fold;
-    // scroll it into view rather than assuming it's on-screen already.
-    await tester.scrollUntilVisible(find.text('OSCA'), 200, scrollable: find.byType(Scrollable).first);
-    expect(find.text('OSCA'), findsOneWidget);
+    // so 'Office for Senior Citizens Affairs' (sorted last alphabetically)
+    // may now be below the fold; scroll it into view rather than assuming
+    // it's on-screen already.
+    await tester.scrollUntilVisible(
+      find.text('Office for Senior Citizens Affairs'),
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
+    expect(find.text('Office for Senior Citizens Affairs'), findsOneWidget);
 
-    await tester.tap(find.text('OSCA'));
+    await tester.tap(find.text('Office for Senior Citizens Affairs'));
     await tester.pumpAndSettle();
 
     expect(find.text('Social Pension (Indigent Senior Citizen)'), findsOneWidget);
-    expect(find.text('Medical Assistance (AICS)'), findsNothing); // MSWDO department
+    // Municipal Social Welfare and Development Office department
+    expect(find.text('Medical Assistance (AICS)'), findsNothing);
     expect(tester.takeException(), isNull);
   });
 }

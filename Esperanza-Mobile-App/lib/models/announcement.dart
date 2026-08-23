@@ -16,6 +16,7 @@ class Announcement {
   int likes;
   bool liked;
   int shares;
+  int viewCount;
   final List<PostComment> comments;
 
   Announcement({
@@ -29,8 +30,18 @@ class Announcement {
     required this.likes,
     this.liked = false,
     this.shares = 0,
+    this.viewCount = 0,
     List<PostComment>? comments,
-  }) : comments = comments ?? [];
+    // Copied rather than assigned directly: several seed posts in
+    // MockCatalog pass `comments: const []` (or a `const [PostComment(...)]`
+    // literal) for a clean declaration, but a const list is immutable at
+    // runtime — BalitaService.addComment's `post.comments.add(...)` would
+    // throw "Cannot add to an unmodifiable list" the moment someone tried
+    // to leave the very first comment on one of those posts. A growable
+    // copy here means the constructor's own contract (comments can always
+    // be appended to) holds regardless of how a caller constructed the
+    // list it passed in.
+  }) : comments = comments != null ? List.of(comments) : [];
 
   bool get isOfficial => official.isNotEmpty;
   int get commentCount => comments.length;
@@ -46,6 +57,7 @@ class Announcement {
         'likes': likes,
         'liked': liked,
         'shares': shares,
+        'viewCount': viewCount,
         'comments': comments.map((c) => c.toJson()).toList(),
       };
 
@@ -60,6 +72,7 @@ class Announcement {
         likes: json['likes'],
         liked: json['liked'] ?? false,
         shares: json['shares'] ?? 0,
+        viewCount: json['viewCount'] ?? 0,
         comments: (json['comments'] as List? ?? []).map((c) => PostComment.fromJson(c)).toList(),
       );
 }

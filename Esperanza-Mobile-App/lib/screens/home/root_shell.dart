@@ -2,36 +2,69 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../models/access_level.dart';
 import '../../services/citizen_session_service.dart';
+import '../../services/mock_catalog.dart';
 import '../../services/notification_feed.dart';
 import '../../services/notifications_service.dart';
 import '../../theme/app_colors.dart';
+import '../../theme/app_haptics.dart';
 import '../../widgets/access_guard.dart';
-import '../../widgets/magnetic_navbar_core.dart';
+import '../../widgets/app_dialogs.dart';
+import '../../widgets/esperanza_curved_navbar.dart';
 import '../../widgets/nav_item_data.dart';
 import '../../widgets/promotional_banner_dialog.dart';
+import '../../widgets/service_launcher_menu.dart';
 import '../balita/balita_screen.dart';
 import '../dokyu/dokyu_screen.dart';
+import '../events/events_screen.dart';
 import '../notifications/notifications_screen.dart';
 import '../sakuna/sakuna_screen.dart';
 import '../tulong/tulong_screen.dart';
 import 'home_screen.dart';
 
-/// Mobile bottom-nav IA: Home / Dokyu / Tulong / Balita / Emergency.
-/// Profile moved into the hamburger drawer (see widgets/esperanza_drawer.dart)
-/// and Alerts moved to a top-right icon on each tab's AppBar — freeing the
-/// two bottom-tab slots Balita and Emergency (Sakuna) now occupy. Dokyu and
-/// Tulong require a Verified account (AccessLevel.verified); Emergency only
+/// Mobile bottom-nav IA: Home / Balita / + / Events / Emergency, laid out
+/// and animated as a direct port of the Servana Client App's curved main
+/// navigation (see widgets/esperanza_curved_navbar.dart's doc comment for
+/// the exact source). Dokyu and Tulong no longer occupy their own permanent
+/// nav slots — the center "+" is a service launcher: tapping it opens
+/// [ServiceLauncherMenu], two floating circular bubbles (Dokyu and Tulong)
+/// attached directly to the navbar, styled like the navbar's own active
+/// bubble rather than a separate panel or sheet.
+/// Profile lives in the hamburger drawer (see widgets/esperanza_drawer.dart)
+/// and Alerts is a top-right icon on each tab's AppBar. Dokyu and Tulong
+/// still require a Verified account (AccessLevel.verified); Emergency only
 /// requires being signed in — withholding emergency/incident reporting
 /// behind LGU verification would be poor public-safety practice, so an
-/// Unverified citizen can still use it. Home and Balita stay open to
+/// Unverified citizen can still use it. Home and Balita/Events stay open to
 /// Guests. See widgets/access_guard.dart for the enforcement.
+///
+/// Two independent index spaces drive this screen: [_navIndex] (0-3, one
+/// per real tab — Home, Balita, Events, Emergency, in that order, matching
+/// [_items] and what [EsperanzaCurvedNavBar] shows as its active slot) and
+/// [_bodyIndex] (0-5, one per actual screen kept alive in the body's
+/// [IndexedStack], since Dokyu and Tulong are still real destinations, just
+/// reached through the launcher rather than a direct tab). Whenever Dokyu
+/// or Tulong is showing, [_navIndex] is null and [_activeLauncherTarget]
+/// holds which one instead — that's the mechanism behind "the center +
+/// area stays visually selected while inside Dokyu/Tulong": the navbar's
+/// cradle tracks the center slot and the "+" circle itself swaps to that
+/// destination's own icon/color, exactly like a tab's active bubble does.
 class RootShell extends StatefulWidget {
   const RootShell({super.key});
 
   static final GlobalKey<_RootShellState> _key = GlobalKey<_RootShellState>();
 
+  /// Switches to one of the four real tabs — Home=0, Balita=1, Events=2,
+  /// Emergency=3, matching [EsperanzaCurvedNavBar]'s slot order.
   static void jumpTo(BuildContext context, int index) {
     _key.currentState?.setTab(index);
+  }
+
+  /// Jumps straight into Dokyu or Tulong without going through the "+"
+  /// menu — for call sites where the citizen already expressed a specific
+  /// choice (e.g. Home's "Dokyu Requests" stat tile), so re-showing the
+  /// picker would just be an extra tap.
+  static void openService(BuildContext context, ServiceLauncherTarget target) {
+    _key.currentState?.openService(target);
   }
 
   @override
@@ -41,46 +74,55 @@ class RootShell extends StatefulWidget {
 }
 
 class _RootShellState extends State<RootShell> {
-  int _index = 0;
+  int? _navIndex = 0;
+  ServiceLauncherTarget? _activeLauncherTarget;
+  int _bodyIndex = 0;
 
+  // Home=0, Balita=1, Events=2, Emergency=3, Dokyu=4, Tulong=5 — see class
+  // doc comment for why this is a separate space from the nav's own index.
   final _screens = const [
     HomeScreen(),
+    BalitaScreen(),
+    EventsScreen(),
+    AccessGuard(required: AccessLevel.unverified, featureName: 'Risk Reduction & Emergency', child: SakunaScreen()),
     AccessGuard(required: AccessLevel.verified, featureName: 'Dokyu (Document Requests)', child: DokyuScreen()),
     AccessGuard(required: AccessLevel.verified, featureName: 'Tulong (Assistance Requests)', child: TulongScreen()),
-    BalitaScreen(),
-    AccessGuard(required: AccessLevel.unverified, featureName: 'Risk Reduction & Emergency', child: SakunaScreen()),
   ];
 
-  // Each non-Home tab's promotional popup (Home's own is offered by
+  // Maps a real nav tab (0-3) to its body page.
+  static const _navToBody = {0: 0, 1: 1, 2: 2, 3: 3};
+
+  // Each body page's promotional popup (Home's own is offered by
   // HomeScreen itself, on its own initState) — centralized here rather
-  // than in each tab's own initState because RootShell's IndexedStack
-  // builds every tab's State immediately at launch to keep them alive
+  // than in each screen's own initState because RootShell's IndexedStack
+  // builds every page's State immediately at launch to keep them alive
   // across switches, so a plain initState in e.g. DokyuScreen would fire
   // long before the citizen ever actually opens Dokyu. RootShell is the
-  // one place that genuinely knows when a tab becomes the active one
-  // (setTab), which is what "first time this tab is opened" actually
-  // means. Kept separate per tab (a Set, not one flag) so closing one
-  // tab's popup never dismisses another's — session-only, resets on a
-  // full relaunch same as every other promotional popup in this app.
-  final _tabBannerOffered = <int>{};
+  // one place that genuinely knows when a page becomes the active one,
+  // which is what "first time this page is opened" actually means. Kept
+  // separate per page (a Set, not one flag) so closing one page's popup
+  // never dismisses another's — session-only, resets on a full relaunch
+  // same as every other promotional popup in this app.
+  final _bannerOffered = <int>{};
 
-  static const _tabBannerAssets = {
-    1: ('assets/images/Dokyu Tab.png', 'Dokyu', AccessLevel.verified),
-    2: ('assets/images/Tulong Tab.png', 'Tulong', AccessLevel.verified),
-    3: ('assets/images/Balita Tab.png', 'Balita', AccessLevel.guest),
-    4: ('assets/images/Emergency.png', 'Emergency', AccessLevel.unverified),
+  static const _bannerAssets = {
+    1: ('assets/images/Balita Tab.png', 'Balita', AccessLevel.guest),
+    2: ('assets/images/Balita tab_Events.png', 'Events', AccessLevel.guest),
+    3: ('assets/images/Emergency.png', 'Emergency', AccessLevel.unverified),
+    4: ('assets/images/Dokyu Tab.png', 'Dokyu', AccessLevel.verified),
+    5: ('assets/images/Tulong Tab.png', 'Tulong', AccessLevel.verified),
   };
 
-  void _maybeShowTabBanner(int index) {
-    final entry = _tabBannerAssets[index];
-    if (entry == null || _tabBannerOffered.contains(index)) return;
+  void _maybeShowBanner(int bodyIndex) {
+    final entry = _bannerAssets[bodyIndex];
+    if (entry == null || _bannerOffered.contains(bodyIndex)) return;
     final (asset, label, required) = entry;
     // Never pop a promotional banner over a RestrictedFeatureNotice — the
     // citizen isn't looking at "the normal screen" in that case, so the
     // popup would be floating over the wrong content entirely. It'll be
     // offered the first time they actually reach the real screen instead.
     if (context.read<CitizenSessionService>().accessLevel.index < required.index) return;
-    _tabBannerOffered.add(index);
+    _bannerOffered.add(bodyIndex);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) PromotionalBannerDialog.show(context, assetPath: asset, label: label);
     });
@@ -88,45 +130,113 @@ class _RootShellState extends State<RootShell> {
 
   static const _items = [
     NavItemData(outlineIcon: Icons.home_outlined, filledIcon: Icons.home_rounded, label: 'Home'),
-    NavItemData(outlineIcon: Icons.description_outlined, filledIcon: Icons.description_rounded, label: 'Dokyu'),
-    NavItemData(outlineIcon: Icons.volunteer_activism_outlined, filledIcon: Icons.volunteer_activism_rounded, label: 'Tulong'),
     NavItemData(outlineIcon: Icons.campaign_outlined, filledIcon: Icons.campaign_rounded, label: 'Balita'),
+    NavItemData(outlineIcon: Icons.event_outlined, filledIcon: Icons.event_rounded, label: 'Events'),
     NavItemData(outlineIcon: Icons.shield_outlined, filledIcon: Icons.shield_rounded, label: 'Emergency'),
   ];
 
-  // Even fifths — same equal-division calibration method as the reference
-  // implementation's 5-destination preset, proportional to the bar's own
-  // width (not fixed pixels), so all five slots stay correctly positioned
-  // at any screen size.
-  static const _tabCenterRatios = [0.1, 0.3, 0.5, 0.7, 0.9];
-
+  /// The nav's own index space (0-3: Home, Balita, Events, Emergency).
   void setTab(int i) {
-    setState(() => _index = i);
-    _maybeShowTabBanner(i);
+    AppHaptics.selection();
+    final body = _navToBody[i]!;
+    setState(() {
+      _navIndex = i;
+      _activeLauncherTarget = null;
+      _bodyIndex = body;
+    });
+    _maybeShowBanner(body);
+  }
+
+  /// Opens (or, if already open, closes) the center "+" launcher's floating
+  /// Dokyu/Tulong bubbles — mirrors how Servana's own Book action never
+  /// selects a tab itself, only opens something; the expansion's own
+  /// choice is what advances state, via [openService]. Tapping the button
+  /// again while it's already expanded toggles it closed instead of
+  /// silently doing nothing.
+  void _openLauncher() {
+    if (ServiceLauncherMenu.isOpen) {
+      ServiceLauncherMenu.dismiss();
+    } else {
+      ServiceLauncherMenu.show(context, onSelect: openService);
+    }
+  }
+
+  /// Both the launcher's bubbles and Home's own "jump straight to
+  /// Dokyu/Tulong" tiles funnel through this one gateway, so the confirmed
+  /// duplicate account (Phase 6 — see MockCatalog.duplicateCristyAccount)
+  /// is intercepted here regardless of entry point, rather than only when
+  /// reached through the "+" — it never becomes Verified in this
+  /// simulation, so it can never legitimately land on Dokyu/Tulong's own
+  /// AccessGuard-gated screen; showing that screen's generic restricted
+  /// notice here would just be confusing given the citizen already knows
+  /// exactly why (a duplicate of their own verified account exists).
+  void openService(ServiceLauncherTarget target) {
+    final session = context.read<CitizenSessionService>();
+    if (session.account?.id == MockCatalog.duplicateCristyAccount.id) {
+      _promptSwitchToVerifiedAccount();
+      return;
+    }
+    AppHaptics.selection();
+    final body = target == ServiceLauncherTarget.dokyu ? 4 : 5;
+    setState(() {
+      _navIndex = null;
+      _activeLauncherTarget = target;
+      _bodyIndex = body;
+    });
+    _maybeShowBanner(body);
+  }
+
+  /// "Go to My Verified Account" switches the frontend session straight to
+  /// the real, verified Cristy and lands on Home — deliberately not
+  /// straight into Dokyu/Tulong, so the account switch itself stays
+  /// legible before the citizen deliberately re-opens the launcher (this
+  /// screen's own class doc explains why that separation matters here).
+  Future<void> _promptSwitchToVerifiedAccount() async {
+    final switchAccount = await AppDialogs.confirm(
+      context,
+      title: 'Use Your Verified Account',
+      message:
+          'This account is a duplicate of an existing verified Esperanza account. You can continue using this '
+          'account for available public features, but Dokyu and Tulong are only available through your verified '
+          'account.',
+      confirmLabel: 'Go to My Verified Account',
+      cancelLabel: 'Not Now',
+    );
+    if (!switchAccount || !mounted) return;
+
+    await context.read<CitizenSessionService>().login(MockCatalog.demoAccounts.last);
+    if (!mounted) return;
+    setState(() {
+      _navIndex = 0;
+      _activeLauncherTarget = null;
+      _bodyIndex = 0;
+    });
+    if (mounted) AppDialogs.toast(context, 'Switched to your verified Esperanza account.');
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      // MagneticNavbarCore reports a tall bounding box (barHeight +
-      // protrusion, for the floating circle's headroom above the pill),
-      // but only paints the small pill/circle within it — everywhere else
-      // in that box is transparent. Without extendBody, Scaffold reserves
-      // that *entire* box as "nav bar territory" and stops body there,
-      // which read as an oversized solid block sitting behind/above the
-      // actual floating pill. extendBody lets body run underneath the full
-      // box instead — exactly Flutter's documented mechanism for a
-      // non-rectangular bottomNavigationBar shape — so real page content
-      // shows through the transparent headroom and only the painted pill
-      // itself is visible, while still auto-adding a matching bottom
-      // MediaQuery inset so body content doesn't sit underneath it.
+      // EsperanzaCurvedNavBar reports a bounding box that is its own bar
+      // height only (matching Servana's own SizedBox — see
+      // widgets/esperanza_curved_navbar.dart); the raised bubble and "+"
+      // overflow above it via the internal Stack's Clip.none. Without
+      // extendBody, Scaffold would still reserve that box as solid "nav bar
+      // territory" and stop body there, which reads as a block behind the
+      // curved surface's transparent corners. extendBody lets body run
+      // underneath instead — Flutter's documented mechanism for a
+      // non-rectangular bottomNavigationBar — while still publishing a
+      // matching bottom MediaQuery inset so body content (e.g. the FAB
+      // clearance math in screens/shared/request_list_screen.dart) doesn't
+      // sit underneath it.
       extendBody: true,
-      body: IndexedStack(index: _index, children: _screens),
-      bottomNavigationBar: MagneticNavbarCore(
+      body: IndexedStack(index: _bodyIndex, children: _screens),
+      bottomNavigationBar: EsperanzaCurvedNavBar(
         items: _items,
-        tabCenterRatios: _tabCenterRatios,
-        currentIndex: _index,
-        onTap: setTab,
+        activeIndex: _navIndex,
+        activeLauncherTarget: _activeLauncherTarget,
+        onTabSelected: setTab,
+        onCenterPressed: _openLauncher,
       ),
     );
   }

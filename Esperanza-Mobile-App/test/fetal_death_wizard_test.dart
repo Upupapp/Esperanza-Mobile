@@ -1,5 +1,5 @@
 // Verifies the new Certificate of Fetal Death Dokyu service: it appears in
-// the catalog under Civil Registrar (MCRO), opens the data-driven wizard
+// the catalog under Office of the Municipal Civil Registrar, opens the data-driven wizard
 // with the right step count/labels, its two conditional fields ("If
 // Multiple Delivery, Fetus Was" and "Attended By") only appear/require
 // input when their trigger field is set to a matching value, and a full
@@ -23,7 +23,7 @@ import 'package:esperanza_mobile/theme/app_colors.dart';
 
 Future<RequestsService> _openFetalDeathWizard(WidgetTester tester) async {
   // The default 800x600 test canvas is unusually wide/short and puts the
-  // MCRO item list's later entries (this service included) at a y-offset
+  // Civil Registrar item list's later entries (this service included) at a y-offset
   // scrollUntilVisible can't reliably resolve a tappable center for — a
   // realistic phone viewport (matching every other functional suite in
   // this app) avoids that edge case entirely.
@@ -34,7 +34,7 @@ Future<RequestsService> _openFetalDeathWizard(WidgetTester tester) async {
 
   SharedPreferences.setMockInitialValues({});
   final session = CitizenSessionService();
-  await session.login(MockCatalog.demoAccounts.last); // Marites — verified
+  await session.login(MockCatalog.demoAccounts.last); // Cristy — verified
   final requests = RequestsService(seedDemoData: false);
   await tester.pumpWidget(
     MultiProvider(
@@ -58,8 +58,12 @@ Future<RequestsService> _openFetalDeathWizard(WidgetTester tester) async {
 
   await tester.tap(find.text('LGU / Municipality'));
   await tester.pumpAndSettle();
-  await tester.scrollUntilVisible(find.text('Civil Registrar (MCRO)'), 200, scrollable: find.byType(Scrollable).first);
-  await tester.tap(find.text('Civil Registrar (MCRO)'));
+  await tester.scrollUntilVisible(
+    find.text('Office of the Municipal Civil Registrar'),
+    200,
+    scrollable: find.byType(Scrollable).first,
+  );
+  await tester.tap(find.text('Office of the Municipal Civil Registrar'));
   await tester.pumpAndSettle();
   await tester.scrollUntilVisible(
     find.text('Certificate of Fetal Death'),

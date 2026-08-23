@@ -30,7 +30,22 @@ Future<void> _dismissWelcomeBanner(WidgetTester tester) async {
   }
 }
 
-Future<void> _pumpSignedInAsMarites(WidgetTester tester, Size size) async {
+/// Dokyu/Tulong no longer have their own bottom-nav slots — reaching them
+/// now means tapping the center "+" launcher to open ServiceLauncherMenu,
+/// then tapping the destination inside that menu. Found by its stable key
+/// (`nav-center-action`, set in widgets/esperanza_curved_navbar.dart)
+/// rather than by icon — the "+" is a single always-on circle now (no
+/// separate inactive/active icon states to disambiguate between).
+final _launcherFinder = find.byKey(const ValueKey('nav-center-action'));
+
+Future<void> _openService(WidgetTester tester, String label) async {
+  await tester.tap(_launcherFinder.first, warnIfMissed: false);
+  await tester.pumpAndSettle();
+  await tester.tap(find.text(label));
+  await tester.pumpAndSettle();
+}
+
+Future<void> _pumpSignedInAsCristy(WidgetTester tester, Size size) async {
   SharedPreferences.setMockInitialValues({});
   tester.view.physicalSize = size;
   tester.view.devicePixelRatio = 1.0;
@@ -38,7 +53,7 @@ Future<void> _pumpSignedInAsMarites(WidgetTester tester, Size size) async {
   addTearDown(tester.view.resetDevicePixelRatio);
 
   final session = CitizenSessionService();
-  await session.login(MockCatalog.demoAccounts.last); // Marites — verified, no requests yet
+  await session.login(MockCatalog.demoAccounts.last); // Cristy — verified, no requests yet
 
   await tester.pumpWidget(
     MultiProvider(
@@ -90,20 +105,18 @@ void main() {
 
   for (final entry in sizes.entries) {
     testWidgets('Dokyu empty state clears the New Request FAB at ${entry.key}', (tester) async {
-      await _pumpSignedInAsMarites(tester, entry.value);
+      await _pumpSignedInAsCristy(tester, entry.value);
 
-      await tester.tap(find.text('Dokyu'));
-      await tester.pumpAndSettle();
+      await _openService(tester, 'Dokyu');
 
       _expectEmptyStateClearsFab(tester);
       expect(tester.takeException(), isNull);
     });
 
     testWidgets('Tulong empty state clears the New Request FAB at ${entry.key}', (tester) async {
-      await _pumpSignedInAsMarites(tester, entry.value);
+      await _pumpSignedInAsCristy(tester, entry.value);
 
-      await tester.tap(find.text('Tulong'));
-      await tester.pumpAndSettle();
+      await _openService(tester, 'Tulong');
 
       _expectEmptyStateClearsFab(tester);
       expect(tester.takeException(), isNull);

@@ -24,6 +24,12 @@ class EventPosterViewer extends StatelessWidget {
       appBar: AppBar(
         backgroundColor: Colors.black,
         foregroundColor: Colors.white,
+        // The app's global AppBarTheme sets an explicit titleTextStyle
+        // (navy, for the normal white app bars everywhere else), which
+        // overrides a local foregroundColor for the title specifically —
+        // icons still follow foregroundColor, but the title needs its own
+        // override here or it renders dark on this black header.
+        titleTextStyle: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w600),
         title: Text(event.title, maxLines: 1, overflow: TextOverflow.ellipsis),
       ),
       body: SafeArea(

@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../models/access_level.dart';
 import '../models/citizen_account.dart';
 import '../theme/app_status.dart';
+import 'mock_catalog.dart';
 
 /// Frontend-only session simulation — the mobile equivalent of the Web
 /// Admin's `Alpine.store('citizenSession')` in resources/js/app.js. No real
@@ -50,11 +51,29 @@ class CitizenSessionService extends ChangeNotifier {
     final raw = prefs.getString(_key);
     if (raw != null) {
       _account = CitizenAccount.fromJson(jsonDecode(raw));
+      final migrated = _migrateStaleDemoIdentity(_account!);
+      if (migrated != null) {
+        _account = migrated;
+        await prefs.setString(_key, jsonEncode(migrated.toJson()));
+      }
     } else {
       _isGuest = prefs.getBool(_guestKey) ?? false;
     }
     _loading = false;
     notifyListeners();
+  }
+
+  /// A browser signed in before the Marites-Ferrer-to-Cristy-Bonghanoy demo
+  /// identity correction has that exact stale [CitizenAccount] snapshot
+  /// persisted (see [login]'s full-object jsonEncode) — a source-code fix
+  /// alone never reaches it, since this only ever reads back whatever was
+  /// saved. Remaps a stale snapshot to the current, correct demo account
+  /// object (by matching its old id) rather than forcing a manual re-login;
+  /// returns null for every other account, which is left untouched.
+  CitizenAccount? _migrateStaleDemoIdentity(CitizenAccount stale) {
+    if (stale.id == 'ESP-RES-2024-1203') return MockCatalog.demoAccounts.last;
+    if (stale.id == 'ESP-RES-2024-1203-DUP') return MockCatalog.duplicateCristyAccount;
+    return null;
   }
 
   Future<void> login(CitizenAccount account) async {

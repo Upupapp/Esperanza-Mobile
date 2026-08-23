@@ -62,4 +62,16 @@ class BalitaService extends ChangeNotifier {
     notifyListeners();
     await _persist();
   }
+
+  /// Called only when a citizen actually opens a post (its image/detail
+  /// viewer) — never merely because the post scrolled into view in the
+  /// feed. Frontend/demo counter only: no per-session unique-view
+  /// deduplication, same as likes/comments/shares elsewhere in this
+  /// service — reopening the same post again increments it again.
+  Future<void> recordView(String postId) async {
+    final post = _posts.firstWhere((p) => p.id == postId);
+    post.viewCount += 1;
+    notifyListeners();
+    await _persist();
+  }
 }
