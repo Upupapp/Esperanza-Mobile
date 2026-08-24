@@ -1,21 +1,27 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../models/attachment.dart';
+import '../../models/catalog_item.dart';
 import '../../models/request_milestones.dart';
 import '../../models/service_request.dart';
+import '../../services/citizen_session_service.dart';
+import '../../services/mock_catalog.dart';
 import '../../services/requests_service.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_haptics.dart';
 import '../../theme/app_spacing.dart';
 import '../../theme/app_status.dart';
 import '../../theme/app_typography.dart';
+import '../../utils/tulong_eligibility.dart';
 import '../../widgets/app_button.dart';
 import '../../widgets/app_card.dart';
 import '../../widgets/app_dialogs.dart';
 import '../../widgets/request_milestone_timeline.dart';
 import '../../widgets/status_chip.dart';
+import 'new_request_screen.dart';
 import 'payment_method_sheet.dart';
 import 'receipt_screen.dart';
+import 'service_request_wizard_screen.dart';
 
 /// Full request detail + status timeline — status/history is always
 /// whatever [RequestsService] currently holds for this request, so a
@@ -74,6 +80,61 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
           'Please review your details and submit the correct information.',
     );
     if (mounted) setState(() => _demoBusy = false);
+  }
+
+  /// "Apply Again" on a Rejected request's own Application Rejected panel —
+  /// reopens a brand-new application for the same catalog item, reusing the
+  /// exact same routing ServiceCatalogScreen's own item list already uses
+  /// (formSpec present -> the wizard, otherwise the older single-step
+  /// screen) rather than a second implementation. For Tulong, this still
+  /// goes through the same eligibility check as opening the item fresh
+  /// would (see utils/tulong_eligibility.dart) — a resident could have a
+  /// second, still-active application for this same assistance even while
+  /// looking at an earlier rejected one, and that must still block here
+  /// exactly as it would from the catalog. Dokyu has no such restriction.
+  /// The rejected request itself is never touched — submitting always
+  /// creates a brand-new ServiceRequest with its own id/reference number
+  /// (see RequestsService.submit).
+  Future<void> _applyAgain(BuildContext context, ServiceRequest request, Color accent) async {
+    final catalog = request.category == ServiceCategory.dokyu ? MockCatalog.documentTypes : MockCatalog.assistanceTypes;
+    CatalogItem? item;
+    for (final i in catalog) {
+      if (i.name == request.typeName) {
+        item = i;
+        break;
+      }
+    }
+    if (item == null) return; // no matching catalog item to reopen against
+
+    if (request.category == ServiceCategory.tulong) {
+      final account = context.read<CitizenSessionService>().account;
+      if (account != null) {
+        final result = tulongEligibilityFor(
+          context.read<RequestsService>(),
+          applicantId: account.id,
+          typeName: item.name,
+        );
+        if (!result.isEligible) {
+          final viewRequest = await showTulongBlockedDialog(context, result);
+          if (viewRequest && context.mounted) {
+            Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => RequestDetailScreen(requestId: result.blockingRequest!.id)),
+            );
+          }
+          return;
+        }
+      }
+    }
+
+    if (!context.mounted) return;
+    final resolvedItem = item;
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => resolvedItem.formSpec != null
+            ? ServiceRequestWizardScreen(category: request.category, item: resolvedItem, accent: accent)
+            : NewRequestScreen(category: request.category, item: resolvedItem, accent: accent),
+      ),
+    );
   }
 
   @override
@@ -141,6 +202,18 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
                 ],
               ),
             ),
+            // Noticeable, but only ever for a genuinely Rejected request
+            // that actually has a reason on file — a seeded/older Rejected
+            // demo request with no adminRemarks set simply doesn't show
+            // this panel, exactly like before this feature existed.
+            if (request.status == 'Rejected' && request.adminRemarks != null) ...[
+              const SizedBox(height: AppSpacing.xl),
+              _RejectedApplicationCard(
+                reason: request.adminRemarks!,
+                guidance: request.rejectionGuidance ?? 'Submit a new ${request.typeName} application.',
+                onApplyAgain: () => _applyAgain(context, request, accent),
+              ),
+            ],
             const SizedBox(height: AppSpacing.xl),
             Text(
               usesMilestones ? 'Request Timeline' : 'Status Timeline',
@@ -253,6 +326,56 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
     AttachmentCategory.video => Icons.videocam_outlined,
     AttachmentCategory.other => Icons.insert_drive_file_outlined,
   };
+}
+
+/// The rejected-request explanation panel — reason, a suggested next step,
+/// and Apply Again. FRONTEND SIMULATION ONLY: the reason/guidance text is
+/// plain seeded/admin-entered data (see RequestsService's demo seed and
+/// RequestDetailScreen._reject), never generated or inferred here.
+class _RejectedApplicationCard extends StatelessWidget {
+  final String reason;
+  final String guidance;
+  final VoidCallback onApplyAgain;
+
+  const _RejectedApplicationCard({required this.reason, required this.guidance, required this.onApplyAgain});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      decoration: BoxDecoration(
+        color: AppColors.rose50,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.rose500.withValues(alpha: 0.35), width: 1.2),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.cancel_outlined, size: 18, color: AppColors.rose700),
+              const SizedBox(width: AppSpacing.sm),
+              const Text(
+                'Application Rejected',
+                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.rose700),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.md),
+          Text(reason, style: const TextStyle(fontSize: 12.5, color: AppColors.slate700, height: 1.45)),
+          const SizedBox(height: AppSpacing.md),
+          const Text(
+            'What you can do:',
+            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.slate700),
+          ),
+          const SizedBox(height: 3),
+          Text(guidance, style: const TextStyle(fontSize: 12.5, color: AppColors.slate600, height: 1.4)),
+          const SizedBox(height: AppSpacing.lg),
+          AppButton(label: 'Apply Again', fullWidth: true, onPressed: onApplyAgain),
+        ],
+      ),
+    );
+  }
 }
 
 /// Clearly demonstration-only controls for manually driving the frontend

@@ -8,6 +8,7 @@
 // environment — Download Receipt is exercised for graceful failure
 // handling, not an actual saved file).
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -140,6 +141,9 @@ void main() {
       expect(find.text('GCash'), findsOneWidget);
       expect(find.text(receipt.amount), findsOneWidget);
       expect(find.text(receipt.referenceNumber), findsOneWidget);
+      // The real bundled GCash logo, not the old color-chip placeholder —
+      // and no overflow from its own source size (see esperanza_receipt.dart).
+      expect(find.byType(SvgPicture), findsOneWidget);
       expect(tester.takeException(), isNull);
     });
 
@@ -158,6 +162,12 @@ void main() {
       expect(find.text('Maya'), findsOneWidget);
       expect(find.text(receipt.amount), findsOneWidget);
       expect(find.text(receipt.referenceNumber), findsOneWidget);
+      // The real bundled Maya logo (a wide wordmark raster), size-capped so
+      // it can't overflow or dominate the row — see esperanza_receipt.dart.
+      final mayaLogo = tester
+          .widgetList<Image>(find.byType(Image))
+          .where((w) => w.image is AssetImage && (w.image as AssetImage).assetName == 'assets/images/Maya_logo.svg.webp');
+      expect(mayaLogo.length, 1);
       expect(tester.takeException(), isNull);
     });
 
@@ -239,6 +249,38 @@ void main() {
       // just "some bytes came back".
       expect(bytes!.take(8).toList(), [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]);
     });
+
+    for (final type in [ReceiptType.gcash, ReceiptType.maya]) {
+      testWidgets(
+        'captureRepaintBoundary also captures the $type payment-mode logo (SvgPicture/webp render into the raster, not just the widget tree)',
+        (tester) async {
+          final key = GlobalKey();
+          final receipt = Receipt(
+            type: type,
+            amount: '₱50.00',
+            referenceNumber: 'OR-1234567890',
+            dateTime: DateTime(2026, 1, 1, 9, 30),
+            residentName: 'Cristy Bonghanoy',
+            serviceName: 'Barangay Clearance',
+            requestReferenceNumber: 'DOC-2026-001',
+          );
+          await tester.pumpWidget(
+            MaterialApp(
+              home: Scaffold(
+                body: RepaintBoundary(key: key, child: EsperanzaReceipt(receipt: receipt)),
+              ),
+            ),
+          );
+          await tester.pumpAndSettle();
+
+          final bytes = await tester.runAsync(() => captureRepaintBoundary(key));
+          expect(bytes, isNotNull);
+          expect(bytes, isNotEmpty);
+          expect(bytes!.take(8).toList(), [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]);
+          expect(tester.takeException(), isNull);
+        },
+      );
+    }
   });
 
   group('Independent per-request receipts', () {

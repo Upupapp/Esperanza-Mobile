@@ -56,6 +56,7 @@ class RequestsService extends ChangeNotifier {
       _requests.addAll(list);
     }
     if (_migrateStaleDemoIdentity()) await _persist();
+    if (_migrateEducationalRejectionReason()) await _persist();
     if (seedDemoData) {
       await _seedDemoStatusSimulationsIfNeeded();
       await _seedPaidTransactionDemoIfNeeded();
@@ -116,6 +117,40 @@ class RequestsService extends ChangeNotifier {
     return changed;
   }
 
+  /// A browser that already had the seeded Educational Assistance demo
+  /// request persisted before its rejection reason/guidance placeholder was
+  /// added (see _seedDemoStatusSimulationsIfNeeded) has it saved with
+  /// adminRemarks/rejectionGuidance still null — the seeding function's own
+  /// "already present, skip" guard means a source-code fix alone never
+  /// reaches that already-persisted copy, same reasoning as
+  /// _migrateStaleDemoIdentity above. Backfills both fields (and the
+  /// matching statusHistory entry's own remarks) in place; a citizen's own
+  /// genuinely-submitted/rejected request is never touched, since this only
+  /// ever matches the one specific seeded id.
+  bool _migrateEducationalRejectionReason() {
+    const reason = 'Submitted school enrollment document could not be verified for the current academic term. '
+        'Please submit an updated Certificate of Enrollment or Registration issued by the school.';
+    const guidance = 'Upload an updated school document and submit a new Educational Assistance application.';
+
+    final index = _requests.indexWhere((r) => r.id == 'demo-tulong-educational');
+    if (index == -1) return false;
+    final r = _requests[index];
+    if (r.adminRemarks != null && r.rejectionGuidance != null) return false;
+
+    r.adminRemarks = reason;
+    r.rejectionGuidance = guidance;
+    final lastIndex = r.statusHistory.length - 1;
+    if (lastIndex >= 0 && r.statusHistory[lastIndex].status == 'Rejected') {
+      r.statusHistory[lastIndex] = StatusHistoryEntry(
+        status: 'Rejected',
+        at: r.statusHistory[lastIndex].at,
+        actor: r.statusHistory[lastIndex].actor,
+        remarks: reason,
+      );
+    }
+    return true;
+  }
+
   /// Pre-made Dokyu/Tulong requests covering the three primary statuses
   /// (Pending Review, Approved, Rejected) so the client can see what each
   /// looks like — request list tile, request detail, and the matching
@@ -159,6 +194,15 @@ class RequestsService extends ChangeNotifier {
       required String remarks,
       bool requiresPayment = false,
       String fee = '',
+      // Only ever set for a seeded Rejected demo request — mirrors what
+      // RequestsService.rejectDemo() itself sets for a live-rejected one
+      // (adminRemarks == the same text as the rejection statusHistory
+      // entry's own remarks), so RequestDetailScreen's Application Rejected
+      // panel renders identically either way. rejectionGuidance is the
+      // panel's optional "what you can do" line — see ServiceRequest's own
+      // doc comment for its fallback when left null.
+      String? adminRemarks,
+      String? rejectionGuidance,
     }) {
       final submittedAt = daysAgo(5);
       return ServiceRequest(
@@ -185,6 +229,8 @@ class RequestsService extends ChangeNotifier {
         expectedDays: expectedDays,
         requiresPayment: requiresPayment,
         fee: fee,
+        adminRemarks: adminRemarks,
+        rejectionGuidance: rejectionGuidance,
       );
     }
 
@@ -266,7 +312,16 @@ class RequestsService extends ChangeNotifier {
         purpose: 'Tuition and allowance support',
         finalStatus: 'Rejected',
         actorRole: 'Office of the Municipal Mayor Staff',
-        remarks: 'Your Educational Assistance request was rejected.',
+        // Placeholder rejection reason for demonstration purposes only —
+        // see RequestDetailScreen's Application Rejected panel, which reads
+        // this straight from adminRemarks (same value as this status
+        // entry's own remarks, matching how a live Reject (Demo) already
+        // sets both).
+        remarks: 'Submitted school enrollment document could not be verified for the current academic term. '
+            'Please submit an updated Certificate of Enrollment or Registration issued by the school.',
+        adminRemarks: 'Submitted school enrollment document could not be verified for the current academic term. '
+            'Please submit an updated Certificate of Enrollment or Registration issued by the school.',
+        rejectionGuidance: 'Upload an updated school document and submit a new Educational Assistance application.',
         // Free — see tulong_educational fee; requiresPayment left false.
       ),
     ]);

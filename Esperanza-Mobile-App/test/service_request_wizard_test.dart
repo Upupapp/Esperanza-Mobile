@@ -15,6 +15,7 @@ import 'package:esperanza_mobile/screens/shared/new_request_screen.dart';
 import 'package:esperanza_mobile/screens/shared/service_catalog_screen.dart';
 import 'package:esperanza_mobile/screens/shared/service_request_wizard_screen.dart';
 import 'package:esperanza_mobile/services/citizen_session_service.dart';
+import 'package:esperanza_mobile/services/master_file_service.dart';
 import 'package:esperanza_mobile/services/mock_catalog.dart';
 import 'package:esperanza_mobile/services/requests_service.dart';
 import 'package:esperanza_mobile/services/notifications_service.dart';
@@ -32,6 +33,7 @@ Future<void> _pumpDokyuAsCristy(WidgetTester tester) async {
         ChangeNotifierProvider<CitizenSessionService>.value(value: session),
         ChangeNotifierProvider(create: (_) => RequestsService(seedDemoData: false)),
         ChangeNotifierProvider(create: (_) => ResidentProfileService()),
+        ChangeNotifierProvider(create: (_) => MasterFileService()),
         ChangeNotifierProvider(create: (_) => NotificationsService()),
       ],
       child: const MaterialApp(
@@ -115,13 +117,20 @@ void main() {
     await tester.tap(find.text('Continue'));
     await tester.pumpAndSettle();
 
-    // Step 3: Requirements & Attachments — no attachment yet, so
-    // Continue must be blocked with the same rule the old NewRequestScreen
-    // enforced.
+    // Step 3: Requirements & Attachments — Dokyu's own per-requirement
+    // uploaders, one per this item's own requirements (no attachment yet
+    // for either), so Continue must identify exactly what's missing rather
+    // than a generic "attach at least one" message.
     expect(find.text('Step 3 of 4'), findsOneWidget);
+    expect(find.text('One (1) valid government-issued ID'), findsOneWidget);
+    expect(find.text('Proof of residency'), findsOneWidget);
+    expect(find.text('Upload Document'), findsNWidgets(2));
     await tester.tap(find.text('Continue'));
     await tester.pumpAndSettle();
-    expect(find.textContaining('attach at least one'), findsOneWidget);
+    expect(
+      find.text('Please attach: One (1) valid government-issued ID, Proof of residency.'),
+      findsOneWidget,
+    );
     expect(tester.takeException(), isNull);
   });
 

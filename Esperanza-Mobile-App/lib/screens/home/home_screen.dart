@@ -280,7 +280,8 @@ class _Hero extends StatelessWidget {
   }
 
   Widget _signedInContent(BuildContext context, CitizenAccount account) {
-    final photo = demoProfileImageFor(account);
+    final personal = context.watch<ResidentProfileService>().profileFor(account).personal;
+    final photo = profileImageFor(account, personal);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [

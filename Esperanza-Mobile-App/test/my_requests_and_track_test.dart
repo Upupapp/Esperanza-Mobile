@@ -1,5 +1,5 @@
 // Coverage for: the new "My Requests" hamburger screen, the Dokyu
-// (unlimited) vs Tulong (max 2 per exact assistance) repeat-request rules,
+// (unlimited) vs Tulong (status-based reapplication) repeat-request rules,
 // and the "Track This Request" fix (it must open the exact
 // just-submitted request, never a stale/wrong one).
 import 'dart:convert';
@@ -16,9 +16,8 @@ import 'package:esperanza_mobile/services/citizen_session_service.dart';
 import 'package:esperanza_mobile/services/mock_catalog.dart';
 import 'package:esperanza_mobile/services/requests_service.dart';
 import 'package:esperanza_mobile/theme/app_colors.dart';
-import 'package:esperanza_mobile/utils/tulong_application_limit.dart';
+import 'package:esperanza_mobile/utils/tulong_eligibility.dart';
 import 'package:esperanza_mobile/widgets/app_button.dart';
-import 'package:esperanza_mobile/widgets/app_dialogs.dart';
 import 'package:esperanza_mobile/widgets/segmented_tabs.dart';
 
 Future<RequestsService> _loaded(WidgetTester tester, {bool seedDemoData = false}) async {
@@ -94,78 +93,146 @@ void main() {
     });
   });
 
-  group('Tulong repeat-application rule — max 2 per exact assistance', () {
-    testWidgets('counts real submitted records: 0 before submitting, 1 after the first, 2 after the second', (
-      tester,
-    ) async {
-      final requests = await _loaded(tester);
-      expect(
-        tulongApplicationCountFor(requests, applicantId: _cristyId, typeName: 'Medical Assistance (AICS)'),
-        0,
-      );
-      await _submitTulong(requests);
-      expect(
-        tulongApplicationCountFor(requests, applicantId: _cristyId, typeName: 'Medical Assistance (AICS)'),
-        1,
-      );
-      expect(hasReachedTulongApplicationLimit(requests, applicantId: _cristyId, typeName: 'Medical Assistance (AICS)'), isFalse);
-      await _submitTulong(requests);
-      expect(
-        tulongApplicationCountFor(requests, applicantId: _cristyId, typeName: 'Medical Assistance (AICS)'),
-        2,
-      );
-      expect(hasReachedTulongApplicationLimit(requests, applicantId: _cristyId, typeName: 'Medical Assistance (AICS)'), isTrue);
-    });
-
-    testWidgets('the limit is per assistance type — 2x Medical Assistance never blocks Educational Assistance', (
-      tester,
-    ) async {
-      final requests = await _loaded(tester);
-      await _submitTulong(requests, typeName: 'Medical Assistance (AICS)');
-      await _submitTulong(requests, typeName: 'Medical Assistance (AICS)');
-      expect(hasReachedTulongApplicationLimit(requests, applicantId: _cristyId, typeName: 'Medical Assistance (AICS)'), isTrue);
-      expect(
-        hasReachedTulongApplicationLimit(requests, applicantId: _cristyId, typeName: 'Educational Assistance'),
-        isFalse,
-      );
-    });
-
-    testWidgets('a Cancelled application does not count toward the limit', (tester) async {
-      final requests = await _loaded(tester);
-      final r1 = await _submitTulong(requests);
-      await _submitTulong(requests);
-      await requests.cancel(r1.id);
-      // One of the two was cancelled — only 1 now counts, so a third
-      // genuine submission must still be allowed.
-      expect(
-        tulongApplicationCountFor(requests, applicantId: _cristyId, typeName: 'Medical Assistance (AICS)'),
-        1,
-      );
-      expect(hasReachedTulongApplicationLimit(requests, applicantId: _cristyId, typeName: 'Medical Assistance (AICS)'), isFalse);
-    });
-
-    testWidgets('the count is scoped per resident — another account applying for the same assistance is separate', (
-      tester,
-    ) async {
-      final requests = await _loaded(tester);
-      await _submitTulong(requests); // Cristy #1
-      await requests.submit(
-        applicantId: 'ESP-RES-2024-1102', // Ronaldo — a different resident entirely
-        applicantName: 'Ronaldo Bautista',
-        typeName: 'Medical Assistance (AICS)',
+  group('Tulong reapplication rule — status-based, per assistance type', () {
+    ServiceRequest tulongRequest({
+      required String id,
+      required String status,
+      String typeName = 'Medical Assistance (AICS)',
+      String applicantId = _cristyId,
+    }) {
+      return ServiceRequest(
+        id: id,
+        referenceNumber: 'AR-2026-$id',
+        applicantId: applicantId,
+        applicantName: _cristyName,
+        typeName: typeName,
         category: ServiceCategory.tulong,
         office: 'Municipal Social Welfare and Development Office',
-        purpose: 'Test purpose',
-        expectedDays: '3-5 working days',
+        purpose: 'Test',
+        submittedAt: DateTime(2026, 1, 1),
+        status: status,
+        statusHistory: [StatusHistoryEntry(status: status, at: DateTime(2026, 1, 1), actor: 'Citizen')],
         attachments: const [],
+        expectedDays: '3-5 working days',
       );
+    }
+
+    testWidgets('Case A — no previous application for this assistance is eligible', (tester) async {
+      final requests = await _loaded(tester);
+      final result = tulongEligibilityFor(requests, applicantId: _cristyId, typeName: 'Medical Assistance (AICS)');
+      expect(result.isEligible, isTrue);
+      expect(result.blockingRequest, isNull);
+    });
+
+    for (final activeStatus in [
+      'Submitted',
+      'Pending Review',
+      'Under Verification',
+      'Assigned',
+      'Processing',
+      'Waiting Requirements',
+      'Approved',
+    ]) {
+      testWidgets('Case B/C — a "$activeStatus" application for this assistance blocks a new one', (tester) async {
+        SharedPreferences.setMockInitialValues({
+          'esperanza_service_requests': jsonEncode([tulongRequest(id: 'r1', status: activeStatus).toJson()]),
+        });
+        final requests = RequestsService(seedDemoData: false);
+        var attempts = 0;
+        while (!requests.loaded) {
+          attempts++;
+          if (attempts > 100) throw StateError('RequestsService never finished loading.');
+          await tester.pump(const Duration(milliseconds: 1));
+        }
+        final result = tulongEligibilityFor(requests, applicantId: _cristyId, typeName: 'Medical Assistance (AICS)');
+        expect(result.isEligible, isFalse);
+        expect(result.blockingRequest?.id, 'r1');
+      });
+    }
+
+    testWidgets('Case C — Completed/Released also block a new application', (tester) async {
+      for (final status in ['Ready for Release', 'Released', 'Completed']) {
+        SharedPreferences.setMockInitialValues({
+          'esperanza_service_requests': jsonEncode([tulongRequest(id: 'r1', status: status).toJson()]),
+        });
+        final requests = RequestsService(seedDemoData: false);
+        var attempts = 0;
+        while (!requests.loaded) {
+          attempts++;
+          if (attempts > 100) throw StateError('RequestsService never finished loading.');
+          await tester.pump(const Duration(milliseconds: 1));
+        }
+        final result = tulongEligibilityFor(requests, applicantId: _cristyId, typeName: 'Medical Assistance (AICS)');
+        expect(result.isEligible, isFalse, reason: 'status=$status');
+        expect(result.status, TulongEligibility.blockedReceived, reason: 'status=$status');
+      }
+    });
+
+    testWidgets('Case D — a Rejected application allows reapplying to the same assistance', (tester) async {
+      SharedPreferences.setMockInitialValues({
+        'esperanza_service_requests': jsonEncode([tulongRequest(id: 'r1', status: 'Rejected').toJson()]),
+      });
+      final requests = RequestsService(seedDemoData: false);
+      var attempts = 0;
+      while (!requests.loaded) {
+        attempts++;
+        if (attempts > 100) throw StateError('RequestsService never finished loading.');
+        await tester.pump(const Duration(milliseconds: 1));
+      }
+      final result = tulongEligibilityFor(requests, applicantId: _cristyId, typeName: 'Medical Assistance (AICS)');
+      expect(result.isEligible, isTrue);
+
+      // Reapplying creates a brand-new request/reference number and never
+      // touches the rejected one, which must remain in history.
+      final reapplied = await _submitTulong(requests);
+      expect(requests.all.any((r) => r.id == 'r1' && r.status == 'Rejected'), isTrue);
+      expect(reapplied.id, isNot('r1'));
+    });
+
+    testWidgets('a Cancelled application also allows reapplying', (tester) async {
+      final requests = await _loaded(tester);
+      final r1 = await _submitTulong(requests);
+      await requests.cancel(r1.id);
+      final result = tulongEligibilityFor(requests, applicantId: _cristyId, typeName: 'Medical Assistance (AICS)');
+      expect(result.isEligible, isTrue);
+    });
+
+    testWidgets('the restriction is per assistance type — an active Medical Assistance never blocks Educational Assistance', (
+      tester,
+    ) async {
+      SharedPreferences.setMockInitialValues({
+        'esperanza_service_requests': jsonEncode([tulongRequest(id: 'r1', status: 'Pending Review').toJson()]),
+      });
+      final requests = RequestsService(seedDemoData: false);
+      var attempts = 0;
+      while (!requests.loaded) {
+        attempts++;
+        if (attempts > 100) throw StateError('RequestsService never finished loading.');
+        await tester.pump(const Duration(milliseconds: 1));
+      }
+      expect(tulongEligibilityFor(requests, applicantId: _cristyId, typeName: 'Medical Assistance (AICS)').isEligible, isFalse);
+      expect(tulongEligibilityFor(requests, applicantId: _cristyId, typeName: 'Educational Assistance').isEligible, isTrue);
+    });
+
+    testWidgets('eligibility is scoped per resident — another account with an active application is separate', (
+      tester,
+    ) async {
+      SharedPreferences.setMockInitialValues({
+        'esperanza_service_requests': jsonEncode([
+          tulongRequest(id: 'r1', status: 'Pending Review', applicantId: 'ESP-RES-2024-1102').toJson(),
+        ]),
+      });
+      final requests = RequestsService(seedDemoData: false);
+      var attempts = 0;
+      while (!requests.loaded) {
+        attempts++;
+        if (attempts > 100) throw StateError('RequestsService never finished loading.');
+        await tester.pump(const Duration(milliseconds: 1));
+      }
+      expect(tulongEligibilityFor(requests, applicantId: _cristyId, typeName: 'Medical Assistance (AICS)').isEligible, isTrue);
       expect(
-        tulongApplicationCountFor(requests, applicantId: _cristyId, typeName: 'Medical Assistance (AICS)'),
-        1,
-      );
-      expect(
-        tulongApplicationCountFor(requests, applicantId: 'ESP-RES-2024-1102', typeName: 'Medical Assistance (AICS)'),
-        1,
+        tulongEligibilityFor(requests, applicantId: 'ESP-RES-2024-1102', typeName: 'Medical Assistance (AICS)').isEligible,
+        isFalse,
       );
     });
   });
@@ -357,12 +424,17 @@ void main() {
     );
   });
 
-  group('Application Limit Reached dialog', () {
-    // Exercises the exact same sequence _submit() in new_request_screen.dart
-    // / service_request_wizard_screen.dart runs once the limit is reached —
-    // AppDialogs.confirm with this title/message/buttons, then a push to
-    // MyRequestsScreen only if "View My Requests" was chosen.
-    Future<void> pumpGate(WidgetTester tester, RequestsService requests, CitizenSessionService session) async {
+  group('Tulong blocked-application dialog', () {
+    // Exercises showTulongBlockedDialog directly — the exact same helper
+    // ServiceCatalogScreen (early detection), NewRequestScreen, and
+    // ServiceRequestWizardScreen all now call once tulongEligibilityFor
+    // reports a block.
+    Future<void> pumpGate(
+      WidgetTester tester,
+      RequestsService requests,
+      CitizenSessionService session, {
+      required String typeName,
+    }) async {
       await tester.pumpWidget(
         MultiProvider(
           providers: [
@@ -375,24 +447,13 @@ void main() {
                 body: Center(
                   child: ElevatedButton(
                     onPressed: () async {
-                      if (!hasReachedTulongApplicationLimit(
-                        requests,
-                        applicantId: _cristyId,
-                        typeName: 'Medical Assistance (AICS)',
-                      )) {
-                        return;
-                      }
-                      final viewRequests = await AppDialogs.confirm(
-                        context,
-                        title: 'Application Limit Reached',
-                        message:
-                            'You have already submitted two applications for this assistance. You cannot submit another '
-                            'application for the same assistance at this time.',
-                        confirmLabel: 'View My Requests',
-                        cancelLabel: 'Close',
-                      );
-                      if (viewRequests && context.mounted) {
-                        Navigator.of(context).push(MaterialPageRoute(builder: (_) => const MyRequestsScreen()));
+                      final result = tulongEligibilityFor(requests, applicantId: _cristyId, typeName: typeName);
+                      if (result.isEligible) return;
+                      final viewRequest = await showTulongBlockedDialog(context, result);
+                      if (viewRequest && context.mounted) {
+                        Navigator.of(context).push(
+                          MaterialPageRoute(builder: (_) => RequestDetailScreen(requestId: result.blockingRequest!.id)),
+                        );
                       }
                     },
                     child: const Text('Attempt Submit'),
@@ -406,65 +467,112 @@ void main() {
       await tester.pumpAndSettle();
     }
 
-    testWidgets('shows the exact required title/message/buttons on a third attempt, and Close just dismisses it', (
+    testWidgets('an active application shows "Active Application Exists" with View Existing Request / Close', (
       tester,
     ) async {
       final requests = await _loaded(tester);
       final session = await _signedInAsCristy(tester);
-      await _submitTulong(requests);
-      await _submitTulong(requests);
+      final active = await _submitTulong(requests); // status: Submitted — active
 
-      await pumpGate(tester, requests, session);
+      await pumpGate(tester, requests, session, typeName: 'Medical Assistance (AICS)');
       await tester.tap(find.text('Attempt Submit'));
       await tester.pumpAndSettle();
 
-      expect(find.text('Application Limit Reached'), findsOneWidget);
+      expect(find.text('Active Application Exists'), findsOneWidget);
+      expect(find.text('You already have an active application for this assistance.'), findsOneWidget);
+      expect(find.text('View Existing Request'), findsOneWidget);
+      expect(find.text('Close'), findsOneWidget);
+
+      await tester.tap(find.text('View Existing Request'));
+      await tester.pumpAndSettle();
+      expect(find.byType(RequestDetailScreen), findsOneWidget);
+      expect(tester.widget<RequestDetailScreen>(find.byType(RequestDetailScreen)).requestId, active.id);
+    });
+
+    testWidgets('an already-received assistance shows "Assistance Already Received" with View Previous Request / Close', (
+      tester,
+    ) async {
+      final approved = ServiceRequest(
+        id: 'req-approved',
+        referenceNumber: 'AR-2026-0001',
+        applicantId: _cristyId,
+        applicantName: _cristyName,
+        typeName: 'Medical Assistance (AICS)',
+        category: ServiceCategory.tulong,
+        office: 'Municipal Social Welfare and Development Office',
+        purpose: 'Test',
+        submittedAt: DateTime(2026, 1, 1),
+        status: 'Approved',
+        statusHistory: [StatusHistoryEntry(status: 'Approved', at: DateTime(2026, 1, 1), actor: 'MSWDO Staff')],
+        attachments: const [],
+        expectedDays: '3-5 working days',
+      );
+      SharedPreferences.setMockInitialValues({
+        'esperanza_service_requests': jsonEncode([approved.toJson()]),
+      });
+      final requests = RequestsService(seedDemoData: false);
+      var attempts = 0;
+      while (!requests.loaded) {
+        attempts++;
+        if (attempts > 100) throw StateError('RequestsService never finished loading.');
+        await tester.pump(const Duration(milliseconds: 1));
+      }
+      final session = await _signedInAsCristy(tester);
+
+      await pumpGate(tester, requests, session, typeName: 'Medical Assistance (AICS)');
+      await tester.tap(find.text('Attempt Submit'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Assistance Already Received'), findsOneWidget);
       expect(
         find.text(
-          'You have already submitted two applications for this assistance. You cannot submit another '
-          'application for the same assistance at this time.',
+          'You have already received this assistance and cannot submit another application for the same '
+          'assistance at this time.',
         ),
         findsOneWidget,
       );
-      expect(find.text('View My Requests'), findsOneWidget);
+      expect(find.text('View Previous Request'), findsOneWidget);
       expect(find.text('Close'), findsOneWidget);
 
       await tester.tap(find.text('Close'));
       await tester.pumpAndSettle();
-      expect(find.text('Application Limit Reached'), findsNothing);
-      expect(find.byType(MyRequestsScreen), findsNothing);
-      // No third application was ever recorded.
-      expect(
-        tulongApplicationCountFor(requests, applicantId: _cristyId, typeName: 'Medical Assistance (AICS)'),
-        2,
+      expect(find.text('Assistance Already Received'), findsNothing);
+      expect(find.byType(RequestDetailScreen), findsNothing);
+    });
+
+    testWidgets('does not gate a rejected-only history — Attempt Submit proceeds with no dialog', (tester) async {
+      final rejected = ServiceRequest(
+        id: 'req-rejected',
+        referenceNumber: 'AR-2026-0002',
+        applicantId: _cristyId,
+        applicantName: _cristyName,
+        typeName: 'Medical Assistance (AICS)',
+        category: ServiceCategory.tulong,
+        office: 'Municipal Social Welfare and Development Office',
+        purpose: 'Test',
+        submittedAt: DateTime(2026, 1, 1),
+        status: 'Rejected',
+        statusHistory: [StatusHistoryEntry(status: 'Rejected', at: DateTime(2026, 1, 1), actor: 'MSWDO Staff')],
+        attachments: const [],
+        expectedDays: '3-5 working days',
       );
-    });
-
-    testWidgets('"View My Requests" opens My Requests and shows the two prior Tulong applications', (tester) async {
-      final requests = await _loaded(tester);
+      SharedPreferences.setMockInitialValues({
+        'esperanza_service_requests': jsonEncode([rejected.toJson()]),
+      });
+      final requests = RequestsService(seedDemoData: false);
+      var attempts = 0;
+      while (!requests.loaded) {
+        attempts++;
+        if (attempts > 100) throw StateError('RequestsService never finished loading.');
+        await tester.pump(const Duration(milliseconds: 1));
+      }
       final session = await _signedInAsCristy(tester);
-      await _submitTulong(requests);
-      await _submitTulong(requests);
 
-      await pumpGate(tester, requests, session);
+      await pumpGate(tester, requests, session, typeName: 'Medical Assistance (AICS)');
       await tester.tap(find.text('Attempt Submit'));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('View My Requests'));
-      await tester.pumpAndSettle();
-
-      expect(find.byType(MyRequestsScreen), findsOneWidget);
-      expect(find.text('Medical Assistance (AICS)'), findsWidgets); // both prior applications preserved
-    });
-
-    testWidgets('does not gate a second, still-allowed application', (tester) async {
-      final requests = await _loaded(tester);
-      final session = await _signedInAsCristy(tester);
-      await _submitTulong(requests); // only 1 so far — the gate must not trigger
-
-      await pumpGate(tester, requests, session);
-      await tester.tap(find.text('Attempt Submit'));
-      await tester.pumpAndSettle();
-      expect(find.text('Application Limit Reached'), findsNothing);
+      expect(find.text('Active Application Exists'), findsNothing);
+      expect(find.text('Assistance Already Received'), findsNothing);
     });
   });
 }

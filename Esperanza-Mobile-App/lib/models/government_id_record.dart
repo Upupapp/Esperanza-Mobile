@@ -1,9 +1,10 @@
-/// A citizen's seeded government-issued ID document — FRONTEND SIMULATION
-/// ONLY, no real ID verification service. One record per resident; the
-/// same record is read from both the identity/verification side of the
-/// app and My Government IDs, rather than either keeping its own copy —
-/// see utils/government_id.dart's [governmentIdFor], the single lookup
-/// both call sites share.
+/// A citizen's seeded government-issued ID document, submitted at
+/// registration/verification time — FRONTEND SIMULATION ONLY, no real ID
+/// verification service. One record per resident, read by Profile >
+/// Personal Information's Submitted Government ID section — see
+/// utils/government_id.dart's [governmentIdFor]. This is a different
+/// concept from the Esperanza Digital ID (screens/profile/
+/// digital_id_screen.dart), which is never built from this record.
 class GovernmentIdRecord {
   final String accountId;
   final String idType;

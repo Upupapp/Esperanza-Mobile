@@ -20,11 +20,13 @@ Map<String, GovernmentIdRecord> get _governmentIdByAccountId => {
 };
 
 /// The one seeded government ID record for [account], or null if none is
-/// seeded for them. The identity/verification display, My Government IDs,
-/// and every unverified account's own "submitted ID" section all call this
-/// rather than each keeping its own copy — see each MockCatalog record's
-/// own doc comment for why a resident with multiple accounts still has
-/// exactly one record.
+/// seeded for them. Profile > Personal Information's own "Submitted
+/// Government ID" section calls this rather than keeping its own copy —
+/// see each MockCatalog record's own doc comment for why a resident with
+/// multiple accounts still has exactly one record. This is the document the
+/// resident *submitted*, a different concept from the Esperanza Digital ID
+/// (see screens/profile/digital_id_screen.dart), which is never built from
+/// this record.
 GovernmentIdRecord? governmentIdFor(CitizenAccount? account) {
   if (account == null) return null;
   return _governmentIdByAccountId[account.id];

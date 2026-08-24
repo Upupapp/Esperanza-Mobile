@@ -15,6 +15,7 @@ import 'package:esperanza_mobile/screens/shared/request_submitted_screen.dart';
 import 'package:esperanza_mobile/screens/shared/service_catalog_screen.dart';
 import 'package:esperanza_mobile/screens/shared/service_request_wizard_screen.dart';
 import 'package:esperanza_mobile/services/citizen_session_service.dart';
+import 'package:esperanza_mobile/services/master_file_service.dart';
 import 'package:esperanza_mobile/services/mock_catalog.dart';
 import 'package:esperanza_mobile/services/notifications_service.dart';
 import 'package:esperanza_mobile/services/requests_service.dart';
@@ -42,6 +43,7 @@ Future<RequestsService> _openFetalDeathWizard(WidgetTester tester) async {
         ChangeNotifierProvider<CitizenSessionService>.value(value: session),
         ChangeNotifierProvider<RequestsService>.value(value: requests),
         ChangeNotifierProvider(create: (_) => ResidentProfileService()),
+        ChangeNotifierProvider(create: (_) => MasterFileService()),
         ChangeNotifierProvider(create: (_) => NotificationsService()),
       ],
       child: const MaterialApp(
@@ -192,15 +194,15 @@ void main() {
     // keyed 'purpose', so the step's free-text field is labeled "Purpose"
     // and is itself required; fill it so the *attachment* gate (what this
     // assertion actually targets) is what's left blocking Continue. Skip
-    // attaching a real file (covered by the shared AttachmentPicker's own
-    // tests) — this suite is about the service's own fields, so it's
-    // enough to confirm the standard "attach something" gate still applies
-    // rather than trying to bypass it.
+    // attaching a real file (covered by RequirementUploader's own tests) —
+    // this suite is about the service's own fields, so it's enough to
+    // confirm Dokyu's per-requirement gate still applies rather than trying
+    // to bypass it.
     expect(find.textContaining('Requirements'), findsWidgets);
     await tester.enterText(find.widgetWithText(TextField, '').first, 'Requesting a copy for PSA registration.');
     await tester.tap(find.text('Continue'));
     await tester.pumpAndSettle();
-    expect(find.textContaining('attach at least one'), findsOneWidget);
+    expect(find.textContaining('Please attach'), findsOneWidget);
 
     expect(tester.takeException(), isNull);
     // No request submitted yet — the attachment gate correctly blocked it.

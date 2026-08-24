@@ -82,6 +82,14 @@ class Individual {
   bool isSoloParent;
   bool isVoter;
   String? photoPath;
+  /// The profile photo's own bytes, base64-encoded — the source of truth
+  /// for display everywhere (see utils/demo_resident_photo.dart's
+  /// [profileImageFor]) since, unlike [photoPath], it round-trips through
+  /// SharedPreferences and survives on Flutter Web (where a picked file's
+  /// path is a blob: URL that's already invalid on the next load). Set only
+  /// via ResidentProfileService.updateProfilePhoto, never by the general
+  /// Personal Information form save.
+  String? photoBytesBase64;
   List<String> documentPaths;
 
   /// Empty for the head of the family; e.g. "Son", "Spouse" for members.
@@ -117,6 +125,7 @@ class Individual {
     this.isSoloParent = false,
     this.isVoter = false,
     this.photoPath,
+    this.photoBytesBase64,
     List<String>? documentPaths,
     this.relationshipToHead = '',
     this.hasEsperanzaAccount = false,
@@ -158,6 +167,7 @@ class Individual {
         'isSoloParent': isSoloParent,
         'isVoter': isVoter,
         'photoPath': photoPath,
+        'photoBytesBase64': photoBytesBase64,
         'documentPaths': documentPaths,
         'relationshipToHead': relationshipToHead,
         'hasEsperanzaAccount': hasEsperanzaAccount,
@@ -188,6 +198,7 @@ class Individual {
         isSoloParent: json['isSoloParent'] ?? false,
         isVoter: json['isVoter'] ?? false,
         photoPath: json['photoPath'],
+        photoBytesBase64: json['photoBytesBase64'],
         documentPaths: (json['documentPaths'] as List?)?.cast<String>() ?? [],
         relationshipToHead: json['relationshipToHead'] ?? '',
         hasEsperanzaAccount: json['hasEsperanzaAccount'] ?? false,
@@ -401,6 +412,13 @@ class ResidentProfile {
   String? correctionMessage;
   DateTime? submittedAt;
   bool joinRequestSent;
+  /// When the citizen last saved a new profile photo through the camera-icon
+  /// flow (see ResidentProfileService.updateProfilePhoto) — null until they
+  /// use that flow for the first time. Deliberately never set by seeding
+  /// (see [ResidentProfile.seedFrom]), so a seeded demo account's existing
+  /// portrait never counts as a previous change and each demo account can
+  /// still demonstrate the flow once.
+  DateTime? lastProfilePhotoChangeAt;
 
   ResidentProfile({
     required this.citizenAccountId,
@@ -418,6 +436,7 @@ class ResidentProfile {
     this.correctionMessage,
     this.submittedAt,
     this.joinRequestSent = false,
+    this.lastProfilePhotoChangeAt,
   }) : familyMembers = familyMembers ?? [];
 
   /// Seeds a brand-new profile from the citizen's existing account so the
@@ -548,7 +567,27 @@ class ResidentProfile {
 
   int get householdResidentCount => 1 + familyMembers.length;
   int get householdFamilyCount => 1 + household.otherFamilies.length;
-  int get documentCount => personal.documentPaths.length + (personal.photoPath != null ? 1 : 0);
+  int get documentCount =>
+      personal.documentPaths.length + ((personal.photoPath != null || personal.photoBytesBase64 != null) ? 1 : 0);
+
+  // ---- Profile photo cooldown ----------------------------------------
+
+  /// 6 months after [lastProfilePhotoChangeAt], or null if the photo has
+  /// never been changed through the camera-icon flow. Calendar-month
+  /// arithmetic (not a fixed day count) so "6 months" means the same thing
+  /// a citizen would expect, not an approximation — `DateTime`'s own
+  /// constructor normalizes an out-of-range day (e.g. Aug 31 + 6mo) into
+  /// the correct following date rather than throwing.
+  DateTime? get nextProfilePhotoChangeAllowedAt {
+    final last = lastProfilePhotoChangeAt;
+    if (last == null) return null;
+    return DateTime(last.year, last.month + 6, last.day, last.hour, last.minute, last.second, last.millisecond, last.microsecond);
+  }
+
+  bool get isProfilePhotoOnCooldown {
+    final next = nextProfilePhotoChangeAllowedAt;
+    return next != null && DateTime.now().isBefore(next);
+  }
 
   /// Derives the Web-Admin-shaped [Family] record from current state —
   /// this is what a future backend integration would actually submit.
@@ -577,6 +616,7 @@ class ResidentProfile {
         'correctionMessage': correctionMessage,
         'submittedAt': submittedAt?.toIso8601String(),
         'joinRequestSent': joinRequestSent,
+        'lastProfilePhotoChangeAt': lastProfilePhotoChangeAt?.toIso8601String(),
       };
 
   factory ResidentProfile.fromJson(Map<String, dynamic> json) => ResidentProfile(
@@ -595,6 +635,8 @@ class ResidentProfile {
         correctionMessage: json['correctionMessage'],
         submittedAt: json['submittedAt'] != null ? DateTime.parse(json['submittedAt']) : null,
         joinRequestSent: json['joinRequestSent'] ?? false,
+        lastProfilePhotoChangeAt:
+            json['lastProfilePhotoChangeAt'] != null ? DateTime.parse(json['lastProfilePhotoChangeAt']) : null,
       );
 }
 

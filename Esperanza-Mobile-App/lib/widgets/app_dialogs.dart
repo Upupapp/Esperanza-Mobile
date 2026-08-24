@@ -48,6 +48,45 @@ class AppDialogs {
     );
   }
 
+  /// Same title/message/actions shape as [confirm], but presented as a
+  /// centered dialog (`showDialog`/`Dialog`) rather than a bottom sheet —
+  /// reserved for the rarer, higher-stakes confirmations (e.g. changing a
+  /// profile photo bound to a 6-month cooldown) that should read as
+  /// distinctly different from routine bottom-sheet confirmations.
+  static Future<bool> centeredConfirm(
+    BuildContext context, {
+    required String title,
+    required String message,
+    String confirmLabel = 'Confirm',
+    String cancelLabel = 'Cancel',
+    bool danger = false,
+  }) async {
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => _CenteredConfirmDialog(
+        title: title,
+        message: message,
+        confirmLabel: confirmLabel,
+        cancelLabel: cancelLabel,
+        danger: danger,
+      ),
+    );
+    return result ?? false;
+  }
+
+  /// Centered single-button counterpart to [info] — see [centeredConfirm].
+  static Future<void> centeredInfo(
+    BuildContext context, {
+    required String title,
+    required String message,
+    String actionLabel = 'OK',
+  }) {
+    return showDialog<void>(
+      context: context,
+      builder: (ctx) => _CenteredInfoDialog(title: title, message: message, actionLabel: actionLabel),
+    );
+  }
+
   static void toast(BuildContext context, String message, {bool success = true}) {
     ScaffoldMessenger.of(context).clearSnackBars();
     ScaffoldMessenger.of(context).showSnackBar(
@@ -129,6 +168,119 @@ class _ConfirmSheet extends StatelessWidget {
                   ),
                 ),
               ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _CenteredConfirmDialog extends StatelessWidget {
+  final String title;
+  final String message;
+  final String confirmLabel;
+  final String cancelLabel;
+  final bool danger;
+
+  const _CenteredConfirmDialog({
+    required this.title,
+    required this.message,
+    required this.confirmLabel,
+    required this.cancelLabel,
+    required this.danger,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      backgroundColor: Colors.transparent,
+      insetPadding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+      child: Container(
+        padding: const EdgeInsets.all(AppSpacing.xl),
+        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20)),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Flexible(
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(title, style: AppTypography.h3),
+                    const SizedBox(height: AppSpacing.sm),
+                    Text(message, style: const TextStyle(fontSize: 13.5, color: AppColors.slate500, height: 1.4)),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: AppSpacing.xl),
+            Row(
+              children: [
+                Expanded(
+                  child: AppButton(
+                    label: cancelLabel,
+                    variant: AppButtonVariant.secondary,
+                    onPressed: () => Navigator.of(context).pop(false),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: AppButton(
+                    label: confirmLabel,
+                    variant: danger ? AppButtonVariant.danger : AppButtonVariant.primary,
+                    onPressed: () => Navigator.of(context).pop(true),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _CenteredInfoDialog extends StatelessWidget {
+  final String title;
+  final String message;
+  final String actionLabel;
+
+  const _CenteredInfoDialog({required this.title, required this.message, required this.actionLabel});
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      backgroundColor: Colors.transparent,
+      insetPadding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+      child: Container(
+        padding: const EdgeInsets.all(AppSpacing.xl),
+        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20)),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Flexible(
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(title, style: AppTypography.h3),
+                    const SizedBox(height: AppSpacing.sm),
+                    Text(message, style: const TextStyle(fontSize: 13.5, color: AppColors.slate500, height: 1.4)),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: AppSpacing.xl),
+            AppButton(
+              label: actionLabel,
+              variant: AppButtonVariant.primary,
+              fullWidth: true,
+              onPressed: () => Navigator.of(context).pop(),
             ),
           ],
         ),

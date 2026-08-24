@@ -3,26 +3,30 @@ import 'package:provider/provider.dart';
 import '../../models/access_level.dart';
 import '../../models/citizen_account.dart';
 import '../../services/citizen_session_service.dart';
+import '../../services/resident_profile_service.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_spacing.dart';
 import '../../theme/app_status.dart';
 import '../../utils/demo_resident_photo.dart';
 import '../../utils/esperanza_seal.dart';
-import '../../utils/government_id.dart';
 import '../../widgets/app_card.dart';
-import 'government_id_viewer.dart';
 
-/// Esperanza Digital ID — a verified resident's own digital ID card, plus
-/// My Government IDs (the seeded document(s) backing that verification).
-/// Both sections read the same single GovernmentIdRecord (see
-/// utils/government_id.dart) — there is no separate copy for either. Only
-/// a verified account gets the actual Digital ID card here; an unverified
+/// Esperanza Digital ID — conceptually a resident's own wallet/viewer for
+/// *official, already-issued* digital government credentials (National ID,
+/// PhilHealth ID, Barangay ID, Senior Citizen ID, PWD ID, and future LGU
+/// credentials), the way eGovPH presents a citizen's own government IDs.
+/// This is a frontend/demo concept only — this project has no real
+/// integration with eGovPH, PhilSys, PhilHealth, or any other government
+/// database.
+///
+/// The physical ID a resident uploads during registration is a *different*
+/// concept — that's evidence submitted for LGU verification, shown at
+/// Profile > Personal Information > Submitted Government ID (see
+/// resident_profile/personal_information_screen.dart), not here. Only a
+/// verified account gets the Esperanza Digital ID card; an unverified
 /// account (including a duplicate registration still Pending Review) sees
-/// an explanatory state instead, never a second verified Esperanza Digital
-/// ID for the same resident — but if that unverified account already has a
-/// submitted ID on file, it's still shown as a "Submitted ID Document"
-/// (pending verification), since submitting an ID and being verified are
-/// two different facts.
+/// an explanatory state instead, never a second verified Digital ID for the
+/// same resident.
 class DigitalIdScreen extends StatelessWidget {
   const DigitalIdScreen({super.key});
 
@@ -40,39 +44,9 @@ class DigitalIdScreen extends StatelessWidget {
           if (isVerified) ...[
             _EsperanzaIdCard(account: account),
             const SizedBox(height: AppSpacing.xl),
-            const Text(
-              'My Government IDs',
-              style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
-            ),
-            const SizedBox(height: 4),
-            const Text(
-              'The document Esperanza LGU verified to issue your Digital ID.',
-              style: TextStyle(fontSize: 12.5, color: AppColors.textMuted),
-            ),
-            const SizedBox(height: AppSpacing.md),
-            _GovernmentIdCard(account: account),
+            const _FutureCredentialsSection(),
           ] else ...[
             _NotYetVerifiedCard(account: account),
-            // Submitting an ID during sign-up and being verified are two
-            // different facts (see utils/government_id.dart) — any
-            // unverified account (Ronaldo, or either Teodoro duplicate
-            // registration) can already have submitted an ID without that
-            // ever implying verification on its own.
-            if (governmentIdFor(account) != null) ...[
-              const SizedBox(height: AppSpacing.xl),
-              const Text(
-                'Submitted ID Document',
-                style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
-              ),
-              const SizedBox(height: 4),
-              const Text(
-                'The identification you submitted during registration. Esperanza LGU has not verified it yet — '
-                'your Esperanza Digital ID is issued once verification is complete.',
-                style: TextStyle(fontSize: 12.5, color: AppColors.textMuted),
-              ),
-              const SizedBox(height: AppSpacing.md),
-              _GovernmentIdCard(account: account),
-            ],
           ],
         ],
       ),
@@ -86,7 +60,8 @@ class _EsperanzaIdCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final photo = demoProfileImageFor(account);
+    final personal = context.watch<ResidentProfileService>().profileFor(account).personal;
+    final photo = profileImageFor(account, personal);
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(20),
@@ -208,68 +183,81 @@ class _EsperanzaIdCard extends StatelessWidget {
   }
 }
 
-class _GovernmentIdCard extends StatelessWidget {
-  final CitizenAccount account;
-  const _GovernmentIdCard({required this.account});
+/// A preview of *other* official digital government credentials this
+/// resident may eventually be able to view here (National ID, PhilHealth,
+/// etc.) — inspired by eGovPH's own credential-wallet UX only. Every row is
+/// a locked placeholder: this project has no real integration with eGovPH,
+/// PhilSys, PhilHealth, or any other government database, and the document
+/// uploaded during registration never appears in this list (see this file's
+/// own class-level doc comment for why those are two different concepts).
+class _FutureCredentialsSection extends StatelessWidget {
+  const _FutureCredentialsSection();
+
+  static const _credentials = [
+    (icon: Icons.badge_outlined, label: 'National ID (PhilSys)'),
+    (icon: Icons.health_and_safety_outlined, label: 'PhilHealth ID'),
+    (icon: Icons.location_city_outlined, label: 'Barangay ID'),
+    (icon: Icons.groups_outlined, label: 'Senior Citizen ID'),
+    (icon: Icons.accessible_outlined, label: 'PWD ID'),
+  ];
 
   @override
   Widget build(BuildContext context) {
-    final record = governmentIdFor(account);
-    if (record == null) {
-      return AppCard(
-        child: Column(
-          children: [
-            const Icon(Icons.badge_outlined, size: 28, color: AppColors.slate400),
-            const SizedBox(height: AppSpacing.sm),
-            const Text(
-              'No government ID on file yet.',
-              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.slate600),
-            ),
-          ],
-        ),
-      );
-    }
-
     return AppCard(
-      padding: EdgeInsets.zero,
-      onTap: () => GovernmentIdViewer.open(context, record),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          ClipRRect(
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-            child: AspectRatio(
-              aspectRatio: 16 / 10,
-              child: Image.asset(record.assetPath, fit: BoxFit.cover),
+          const Text(
+            'Other Government Credentials',
+            style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
+          ),
+          const SizedBox(height: 4),
+          const Text(
+            'Other official government IDs will appear here once available. This is a frontend preview only.',
+            style: TextStyle(fontSize: 12.5, color: AppColors.textMuted),
+          ),
+          const SizedBox(height: AppSpacing.md),
+          for (final c in _credentials) ...[
+            _LockedCredentialRow(icon: c.icon, label: c.label),
+            if (c != _credentials.last) const SizedBox(height: 10),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _LockedCredentialRow extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  const _LockedCredentialRow({required this.icon, required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    return Opacity(
+      opacity: 0.6,
+      child: Row(
+        children: [
+          Container(
+            width: 32,
+            height: 32,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(color: AppColors.slate100, borderRadius: BorderRadius.circular(10)),
+            child: Icon(icon, size: 16, color: AppColors.slate500),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              label,
+              style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
             ),
           ),
-          Padding(
-            padding: const EdgeInsets.all(14),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        record.idType,
-                        style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        'Issued by ${record.issuingOffice}',
-                        style: const TextStyle(fontSize: 12, color: AppColors.textMuted),
-                      ),
-                    ],
-                  ),
-                ),
-                const Text(
-                  'View',
-                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.brand600),
-                ),
-                const SizedBox(width: 2),
-                const Icon(Icons.chevron_right_rounded, size: 16, color: AppColors.brand600),
-              ],
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+            decoration: BoxDecoration(color: AppColors.slate100, borderRadius: BorderRadius.circular(999)),
+            child: const Text(
+              'Coming soon',
+              style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: AppColors.slate500),
             ),
           ),
         ],

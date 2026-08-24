@@ -55,6 +55,16 @@ class ServiceRequest {
   final List<Attachment> attachments;
   String? citizenRemarks;
   String? adminRemarks;
+
+  /// Optional "what you can do about it" hint shown alongside [adminRemarks]
+  /// when a request is Rejected (see RequestDetailScreen's Application
+  /// Rejected panel) — null for every request that doesn't have a specific
+  /// suggested next step, in which case the panel falls back to a generic
+  /// "submit a new application" message built from [typeName] instead.
+  /// Mutable (not final) for the same reason [adminRemarks] is — a stale
+  /// seeded copy from before this field existed gets backfilled in place,
+  /// see RequestsService._migrateEducationalRejectionReason.
+  String? rejectionGuidance;
   final String expectedDays;
   final Map<String, dynamic> formFields;
 
@@ -95,6 +105,7 @@ class ServiceRequest {
     required this.attachments,
     this.citizenRemarks,
     this.adminRemarks,
+    this.rejectionGuidance,
     required this.expectedDays,
     this.formFields = const {},
     this.requiresPayment = false,
@@ -118,6 +129,7 @@ class ServiceRequest {
         'attachments': attachments.map((e) => e.toJson()).toList(),
         'citizenRemarks': citizenRemarks,
         'adminRemarks': adminRemarks,
+        'rejectionGuidance': rejectionGuidance,
         'expectedDays': expectedDays,
         'formFields': formFields,
         'requiresPayment': requiresPayment,
@@ -141,6 +153,7 @@ class ServiceRequest {
         attachments: (json['attachments'] as List).map((e) => Attachment.fromJson(e)).toList(),
         citizenRemarks: json['citizenRemarks'],
         adminRemarks: json['adminRemarks'],
+        rejectionGuidance: json['rejectionGuidance'],
         expectedDays: json['expectedDays'],
         formFields: Map<String, dynamic>.from(json['formFields'] ?? {}),
         // Defaults false/null so requests persisted before this field

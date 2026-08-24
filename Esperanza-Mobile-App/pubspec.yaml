@@ -42,6 +42,7 @@ dependencies:
   intl: ^0.20.3
   url_launcher: ^6.3.2
   share_plus: ^11.0.0
+  flutter_svg: ^2.3.0
 
 dev_dependencies:
   flutter_test:
@@ -96,6 +97,8 @@ flutter:
     - assets/images/RONALDO ID DEMO.png
     - assets/images/Theodoro Milaflor.png
     - assets/images/THEODORO ID DEMO.png
+    - assets/images/gcash_logo.svg
+    - assets/images/Maya_logo.svg.webp
     - assets/images/Logo/BPLO-removebg-preview.png
     - assets/images/Logo/logo-peso-removebg-preview.png
     - assets/images/Logo/mswd-logo-removebg-preview.png

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import '../../models/receipt.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_spacing.dart';
@@ -9,15 +10,12 @@ import '../../utils/esperanza_seal.dart';
 /// design: a citizen who paid via GCash or Maya still receives an
 /// Esperanza municipal receipt, not a wallet-app-styled one. The only
 /// difference between payment methods is the "Mode of Payment" row's label
-/// and badge color (see [_paymentModeLabel]/[_PaymentModeBadge]) — every
-/// other value comes from this request's own [Receipt].
+/// and small brand graphic (see [_paymentModeLabel]/[_PaymentModeBadge]) —
+/// every other value comes from this request's own [Receipt].
 /// FRONTEND SIMULATION ONLY — no real payment/print integration.
 class EsperanzaReceipt extends StatelessWidget {
   final Receipt receipt;
   const EsperanzaReceipt({super.key, required this.receipt});
-
-  static const _gcashBlue = Color(0xFF0072CE);
-  static const _mayaGreen = Color(0xFF00A85A);
 
   @override
   Widget build(BuildContext context) {
@@ -158,11 +156,11 @@ class EsperanzaReceipt extends StatelessWidget {
     );
   }
 
-  /// The one row that differs by payment method — a label plus a small
-  /// color-coded badge (see [_PaymentModeBadge]), never a separate receipt
-  /// theme. GCash/Maya branding is intentionally reduced to this single
-  /// badge + label, not a full logo, so the receipt still reads as an
-  /// Esperanza municipal document first.
+  /// The one row that differs by payment method — a label plus a small,
+  /// size-capped brand graphic (see [_PaymentModeBadge]), never a separate
+  /// receipt theme. GCash/Maya branding stays confined to this single
+  /// badge + label so the receipt still reads as an Esperanza municipal
+  /// document first.
   Widget _modeOfPaymentRow() {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6),
@@ -208,29 +206,39 @@ class EsperanzaReceipt extends StatelessWidget {
       '${d.month}/${d.day}/${d.year} ${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')}';
 }
 
-/// A small color-coded badge standing in for the payment method's logo.
-/// This project has no bundled GCash/Maya brand assets, and reproducing
-/// those trademarked logos isn't appropriate for a demo — brand color plus
-/// a payment glyph gives the same at-a-glance recognition ("blue GCash",
-/// "green Maya") without it. Onsite reuses an Esperanza-appropriate
-/// storefront glyph rather than repeating the seal already shown above.
+/// The small graphic identifying the payment method, next to its text
+/// label. GCash/Maya render their real bundled brand logos
+/// (assets/images/gcash_logo.svg, assets/images/Maya_logo.svg.webp) —
+/// explicitly size-capped (fixed width/height + BoxFit.contain) so their
+/// own large/wide source dimensions can never drive this row's layout,
+/// overflow, stretch, or dominate the receipt, which stays an Esperanza
+/// municipal document first. Onsite keeps its original Esperanza-appropriate
+/// storefront glyph, unchanged, rather than repeating the seal shown above.
 class _PaymentModeBadge extends StatelessWidget {
   final ReceiptType type;
   const _PaymentModeBadge({required this.type});
 
   @override
   Widget build(BuildContext context) {
-    final (color, icon) = switch (type) {
-      ReceiptType.gcash => (EsperanzaReceipt._gcashBlue, Icons.account_balance_wallet_rounded),
-      ReceiptType.maya => (EsperanzaReceipt._mayaGreen, Icons.account_balance_wallet_rounded),
-      ReceiptType.onsite => (AppColors.brand700, Icons.storefront_rounded),
-    };
-    return Container(
-      width: 18,
-      height: 18,
-      alignment: Alignment.center,
-      decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-      child: Icon(icon, size: 11, color: Colors.white),
-    );
+    switch (type) {
+      case ReceiptType.gcash:
+        // gcash_logo.svg's own viewBox is ~135x114 (roughly square) — a
+        // small fixed box keeps it in scale with the text beside it.
+        return SvgPicture.asset('assets/images/gcash_logo.svg', height: 18, width: 20, fit: BoxFit.contain);
+      case ReceiptType.maya:
+        // Maya_logo.svg.webp is a very wide wordmark raster (source is
+        // 3840x1116) — capping both height and width to a small box, with
+        // BoxFit.contain, is what actually keeps it from taking over the
+        // row; height alone would let its width balloon.
+        return Image.asset('assets/images/Maya_logo.svg.webp', height: 14, width: 34, fit: BoxFit.contain);
+      case ReceiptType.onsite:
+        return Container(
+          width: 18,
+          height: 18,
+          alignment: Alignment.center,
+          decoration: const BoxDecoration(color: AppColors.brand700, shape: BoxShape.circle),
+          child: const Icon(Icons.storefront_rounded, size: 11, color: Colors.white),
+        );
+    }
   }
 }

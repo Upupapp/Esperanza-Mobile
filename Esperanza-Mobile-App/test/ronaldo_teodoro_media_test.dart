@@ -79,9 +79,10 @@ void main() {
   });
 
   group('Digital ID screen', () {
-    testWidgets('Ronaldo (Unverified): no Esperanza Digital ID, but My Government IDs / Submitted ID shows his demo ID', (
-      tester,
-    ) async {
+    // The registration-uploaded ID document is a different concept from the
+    // Esperanza Digital ID and is never shown on this screen — see Profile >
+    // Personal Information's own coverage in submitted_government_id_test.dart.
+    testWidgets('Ronaldo (Unverified): no Esperanza Digital ID, and no registration ID document either', (tester) async {
       final session = await _signedInAs(tester, MockCatalog.demoAccounts.first);
       expect(session.account!.firstName, 'Ronaldo');
       expect(session.accessLevel, AccessLevel.unverified);
@@ -91,8 +92,8 @@ void main() {
 
       expect(find.text('Esperanza Digital ID'), findsNothing);
       expect(find.text('Digital ID not yet available'), findsOneWidget);
-      expect(find.text('Submitted ID Document'), findsOneWidget);
-      expect(find.text('Esperanza Resident ID'), findsOneWidget);
+      expect(find.text('Submitted ID Document'), findsNothing);
+      expect(find.text('Esperanza Resident ID'), findsNothing);
       expect(find.byType(AppButton), findsNothing);
 
       // Ronaldo remains Unverified — an uploaded/submitted ID never
@@ -101,40 +102,28 @@ void main() {
       expect(session.accessLevel, AccessLevel.unverified);
     });
 
-    testWidgets('Teodoro Account A (Unverified duplicate): submitted ID shown, no verified Digital ID', (tester) async {
+    testWidgets('Teodoro Account A (Unverified duplicate): no registration ID document, no verified Digital ID', (
+      tester,
+    ) async {
       final session = await _signedInAs(tester, MockCatalog.unverifiedDuplicateAccountA);
       await _pumpDigitalId(tester, session);
 
       expect(find.text('Esperanza Digital ID'), findsNothing);
-      expect(find.text('Submitted ID Document'), findsOneWidget);
-      expect(find.text('Esperanza Resident ID'), findsOneWidget);
+      expect(find.text('Submitted ID Document'), findsNothing);
+      expect(find.text('Esperanza Resident ID'), findsNothing);
       expect(session.account!.status, 'Pending Review');
     });
 
-    testWidgets('Teodoro Account B (Unverified duplicate): same submitted ID, no verified Digital ID', (tester) async {
+    testWidgets('Teodoro Account B (Unverified duplicate): no registration ID document, no verified Digital ID', (
+      tester,
+    ) async {
       final session = await _signedInAs(tester, MockCatalog.unverifiedDuplicateAccountB);
       await _pumpDigitalId(tester, session);
 
       expect(find.text('Esperanza Digital ID'), findsNothing);
-      expect(find.text('Submitted ID Document'), findsOneWidget);
-      expect(find.text('Esperanza Resident ID'), findsOneWidget);
+      expect(find.text('Submitted ID Document'), findsNothing);
+      expect(find.text('Esperanza Resident ID'), findsNothing);
       expect(session.account!.status, 'Pending Review');
-    });
-
-    testWidgets('Ronaldo tapping his submitted ID opens the same viewer Cristy already uses', (tester) async {
-      final session = await _signedInAs(tester, MockCatalog.demoAccounts.first);
-      await _pumpDigitalId(tester, session);
-
-      final scrollable = find.byType(Scrollable).first;
-      tester.state<ScrollableState>(scrollable).position.jumpTo(
-        tester.state<ScrollableState>(scrollable).position.maxScrollExtent,
-      );
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Esperanza Resident ID'));
-      await tester.pumpAndSettle();
-      expect(find.byType(Scaffold), findsWidgets);
-      // The viewer's AppBar title is the record's own idType.
-      expect(find.text('Esperanza Resident ID'), findsWidgets);
     });
   });
 }

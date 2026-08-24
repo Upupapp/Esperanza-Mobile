@@ -1,13 +1,18 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../../models/catalog_item.dart';
 import '../../models/request_filters.dart';
 import '../../models/service_request.dart';
+import '../../services/citizen_session_service.dart';
+import '../../services/requests_service.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_spacing.dart';
 import '../../utils/esperanza_seal.dart';
 import '../../utils/office_logo.dart';
+import '../../utils/tulong_eligibility.dart';
 import '../../widgets/app_card.dart';
 import 'new_request_screen.dart';
+import 'request_detail_screen.dart';
 import 'service_request_wizard_screen.dart';
 
 /// Step 1 of the request wizard — pick a document/assistance type, guided
@@ -250,6 +255,42 @@ class _ItemList extends StatelessWidget {
   final Color accent;
   const _ItemList({required this.category, required this.items, required this.accent});
 
+  /// Tulong's reapplication rule is checked here, before the request screen
+  /// ever opens — the citizen must never fill out an entire application
+  /// only to discover at Submit that it's blocked (see
+  /// utils/tulong_eligibility.dart). Dokyu items open immediately; there is
+  /// no such restriction for Dokyu (the same document may legitimately be
+  /// requested again).
+  Future<void> _open(BuildContext context, CatalogItem item) async {
+    if (category == ServiceCategory.tulong) {
+      final account = context.read<CitizenSessionService>().account;
+      if (account != null) {
+        final result = tulongEligibilityFor(
+          context.read<RequestsService>(),
+          applicantId: account.id,
+          typeName: item.name,
+        );
+        if (!result.isEligible) {
+          final viewRequest = await showTulongBlockedDialog(context, result);
+          if (viewRequest && context.mounted) {
+            Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => RequestDetailScreen(requestId: result.blockingRequest!.id)),
+            );
+          }
+          return;
+        }
+      }
+    }
+    if (!context.mounted) return;
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => item.formSpec != null
+            ? ServiceRequestWizardScreen(category: category, item: item, accent: accent)
+            : NewRequestScreen(category: category, item: item, accent: accent),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return ListView.builder(
@@ -260,13 +301,7 @@ class _ItemList extends StatelessWidget {
         return Padding(
           padding: const EdgeInsets.only(bottom: 10),
           child: AppCard(
-            onTap: () => Navigator.of(context).push(
-              MaterialPageRoute(
-                builder: (_) => item.formSpec != null
-                    ? ServiceRequestWizardScreen(category: category, item: item, accent: accent)
-                    : NewRequestScreen(category: category, item: item, accent: accent),
-              ),
-            ),
+            onTap: () => _open(context, item),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [

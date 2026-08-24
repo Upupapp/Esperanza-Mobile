@@ -71,6 +71,22 @@ class ResidentProfileService extends ChangeNotifier {
     await _save(p);
   }
 
+  /// Immediately persists a new profile photo (or clears it, when
+  /// [photoBytes] is null) — deliberately separate from [savePersonal] so
+  /// the camera-icon flow's own "Save Profile Photo" step never has to wait
+  /// for, or accidentally include, the rest of a possibly half-edited
+  /// Personal Information form. Only a real photo save with
+  /// [startCooldown] true starts the 6-month cooldown (see
+  /// ResidentProfile.isProfilePhotoOnCooldown) — clearing a photo (Remove
+  /// photo) does not, since that isn't "changing to a new photo".
+  Future<void> updateProfilePhoto(String accountId, {required Uint8List? photoBytes, required bool startCooldown}) async {
+    final p = _profiles[accountId]!;
+    p.personal.photoBytesBase64 = photoBytes != null ? base64Encode(photoBytes) : null;
+    p.personal.photoPath = null;
+    if (startCooldown) p.lastProfilePhotoChangeAt = DateTime.now();
+    await _save(p);
+  }
+
   Future<void> saveFamily(
     String accountId, {
     required String familyName,

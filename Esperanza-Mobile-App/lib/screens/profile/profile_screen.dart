@@ -32,7 +32,7 @@ class ProfileScreen extends StatelessWidget {
     final session = context.watch<CitizenSessionService>();
     final account = session.account!;
     final residentProfile = context.watch<ResidentProfileService>().profileFor(account);
-    final photo = demoProfileImageFor(account);
+    final photo = profileImageFor(account, residentProfile.personal);
 
     return Scaffold(
       appBar: AppBar(title: const Text('Profile')),

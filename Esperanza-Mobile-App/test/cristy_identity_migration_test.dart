@@ -15,10 +15,10 @@ import 'package:esperanza_mobile/models/citizen_account.dart';
 import 'package:esperanza_mobile/models/receipt.dart';
 import 'package:esperanza_mobile/models/service_request.dart';
 import 'package:esperanza_mobile/screens/profile/digital_id_screen.dart';
-import 'package:esperanza_mobile/screens/profile/government_id_viewer.dart';
 import 'package:esperanza_mobile/services/citizen_session_service.dart';
 import 'package:esperanza_mobile/services/mock_catalog.dart';
 import 'package:esperanza_mobile/services/requests_service.dart';
+import 'package:esperanza_mobile/services/resident_profile_service.dart';
 import 'package:esperanza_mobile/widgets/app_button.dart';
 
 /// The exact CitizenAccount snapshot a browser would have persisted before
@@ -233,7 +233,7 @@ void main() {
   });
 
   group('Digital ID', () {
-    testWidgets('Verified Cristy sees her Esperanza Digital ID card and government ID document', (tester) async {
+    testWidgets('Verified Cristy sees her Esperanza Digital ID card, not the registration ID document', (tester) async {
       SharedPreferences.setMockInitialValues({});
       final session = CitizenSessionService();
       var attempts = 0;
@@ -245,8 +245,11 @@ void main() {
       await session.login(MockCatalog.demoAccounts.last);
 
       await tester.pumpWidget(
-        ChangeNotifierProvider<CitizenSessionService>.value(
-          value: session,
+        MultiProvider(
+          providers: [
+            ChangeNotifierProvider<CitizenSessionService>.value(value: session),
+            ChangeNotifierProvider<ResidentProfileService>(create: (_) => ResidentProfileService()),
+          ],
           child: const MaterialApp(home: DigitalIdScreen()),
         ),
       );
@@ -255,18 +258,13 @@ void main() {
       expect(find.text('Esperanza Digital ID'), findsOneWidget);
       expect(find.text('Cristy Bonghanoy'), findsOneWidget);
       expect(find.text('ESP-RES-2024-1044'), findsOneWidget);
-      expect(find.text('My Government IDs'), findsOneWidget);
-      expect(find.text('Postal ID (PHLPost)'), findsOneWidget);
+      // The registration-uploaded ID document is a different concept, shown
+      // only at Profile > Personal Information (see
+      // submitted_government_id_test.dart) — never on this screen anymore.
+      expect(find.text('My Government IDs'), findsNothing);
+      expect(find.text('Postal ID (PHLPost)'), findsNothing);
+      expect(find.text('Other Government Credentials'), findsOneWidget);
       expect(tester.takeException(), isNull);
-
-      final scrollable = find.byType(Scrollable).first;
-      tester.state<ScrollableState>(scrollable).position.jumpTo(
-        tester.state<ScrollableState>(scrollable).position.maxScrollExtent,
-      );
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Postal ID (PHLPost)'));
-      await tester.pumpAndSettle();
-      expect(find.byType(GovernmentIdViewer), findsOneWidget);
     });
 
     testWidgets('Duplicate Cristy (still Pending Review) does not get a second verified Digital ID', (tester) async {
@@ -281,8 +279,11 @@ void main() {
       await session.login(MockCatalog.duplicateCristyAccount);
 
       await tester.pumpWidget(
-        ChangeNotifierProvider<CitizenSessionService>.value(
-          value: session,
+        MultiProvider(
+          providers: [
+            ChangeNotifierProvider<CitizenSessionService>.value(value: session),
+            ChangeNotifierProvider<ResidentProfileService>(create: (_) => ResidentProfileService()),
+          ],
           child: const MaterialApp(home: DigitalIdScreen()),
         ),
       );
@@ -292,12 +293,12 @@ void main() {
       expect(find.text('Esperanza Digital ID'), findsNothing);
       expect(find.byType(AppButton), findsNothing);
 
-      // ID submitted = YES, account verification = PENDING — the same
-      // seeded ID she submitted during registration is still shown here
-      // (never a verified Esperanza Digital ID), and that presence alone
-      // must not have flipped her account to Verified.
-      expect(find.text('Submitted ID Document'), findsOneWidget);
-      expect(find.text('Postal ID (PHLPost)'), findsOneWidget);
+      // The registration-uploaded ID document no longer appears on this
+      // screen at all, regardless of Pending Review status — it lives at
+      // Profile > Personal Information instead (see
+      // submitted_government_id_test.dart).
+      expect(find.text('Submitted ID Document'), findsNothing);
+      expect(find.text('Postal ID (PHLPost)'), findsNothing);
       expect(session.account!.status, 'Pending Review');
       expect(session.accessLevel, AccessLevel.unverified);
     });

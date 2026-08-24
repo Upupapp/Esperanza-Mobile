@@ -1,20 +1,26 @@
-import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
+import '../../../models/citizen_account.dart';
+import '../../../models/government_id_record.dart';
 import '../../../models/resident_profile.dart';
 import '../../../services/citizen_session_service.dart';
 import '../../../services/mock_catalog.dart';
 import '../../../services/resident_profile_service.dart';
 import '../../../theme/app_colors.dart';
 import '../../../theme/app_spacing.dart';
-import '../../../utils/cross_platform_image.dart';
+import '../../../utils/demo_resident_photo.dart';
+import '../../../utils/government_id.dart';
 import '../../../utils/protected_action.dart';
 import '../../../widgets/app_button.dart';
+import '../../../widgets/app_card.dart';
 import '../../../widgets/app_date_field.dart';
 import '../../../widgets/app_dialogs.dart';
 import '../../../widgets/app_text_field.dart';
 import '../../../widgets/form_section.dart';
+import '../government_id_viewer.dart';
+import 'profile_photo_preview_screen.dart';
 
 /// Step 1 — Personal Information. Maps conceptually to a Web Admin
 /// Constituents > Individual record for the citizen themself. Pre-filled
@@ -29,6 +35,7 @@ class PersonalInformationScreen extends StatefulWidget {
 }
 
 class _PersonalInformationScreenState extends State<PersonalInformationScreen> {
+  late final CitizenAccount _account;
   late final Individual _original;
   late final TextEditingController _firstName;
   late final TextEditingController _middleName;
@@ -49,13 +56,6 @@ class _PersonalInformationScreenState extends State<PersonalInformationScreen> {
   bool _pwd = false;
   bool _soloParent = false;
   bool _voter = false;
-  String? _photoPath;
-  // In-memory preview bytes, not persisted onto Individual (no backend
-  // exists to re-fetch a real file from) — see Attachment's doc comment
-  // for the same "session-only preview" pattern. `pickedFileImageProvider`
-  // falls back to reading `_photoPath` on native platforms if this is null
-  // (e.g. re-opening this screen without having just picked a new photo).
-  Uint8List? _photoBytes;
   List<String> _documentPaths = [];
 
   bool _saving = false;
@@ -64,8 +64,8 @@ class _PersonalInformationScreenState extends State<PersonalInformationScreen> {
   @override
   void initState() {
     super.initState();
-    final account = context.read<CitizenSessionService>().account!;
-    _original = context.read<ResidentProfileService>().profileFor(account).personal;
+    _account = context.read<CitizenSessionService>().account!;
+    _original = context.read<ResidentProfileService>().profileFor(_account).personal;
     _firstName = TextEditingController(text: _original.firstName);
     _middleName = TextEditingController(text: _original.middleName);
     _lastName = TextEditingController(text: _original.lastName);
@@ -84,7 +84,6 @@ class _PersonalInformationScreenState extends State<PersonalInformationScreen> {
     _pwd = _original.isPWD;
     _soloParent = _original.isSoloParent;
     _voter = _original.isVoter;
-    _photoPath = _original.photoPath;
     _documentPaths = List.of(_original.documentPaths);
   }
 
@@ -106,33 +105,44 @@ class _PersonalInformationScreenState extends State<PersonalInformationScreen> {
     super.dispose();
   }
 
-  Individual _buildUpdated() => Individual(
-    individualId: _original.individualId,
-    firstName: _firstName.text.trim(),
-    middleName: _middleName.text.trim(),
-    lastName: _lastName.text.trim(),
-    suffix: _suffix.text.trim(),
-    sex: _sex ?? '',
-    birthdate: _birthdate,
-    civilStatus: _civilStatus ?? '',
-    mobile: _mobile.text.trim(),
-    email: _email.text.trim(),
-    barangay: _barangay ?? '',
-    sitioPurok: _sitioPurok.text.trim(),
-    completeAddress: _completeAddress.text.trim(),
-    occupation: _occupation.text.trim(),
-    educationalAttainment: _educationalAttainment ?? '',
-    isSeniorCitizen: _senior,
-    isPWD: _pwd,
-    isSoloParent: _soloParent,
-    isVoter: _voter,
-    photoPath: _photoPath,
-    documentPaths: _documentPaths,
-    hasEsperanzaAccount: true,
-    linkedCitizenAccountId: _original.individualId,
-    familyId: _original.familyId,
-    householdId: _original.householdId,
-  );
+  /// The profile photo is deliberately excluded from this form's own save
+  /// cycle — it's set independently and immediately by the camera-icon flow
+  /// (see [_onCameraIconTap] -> ResidentProfileService.updateProfilePhoto),
+  /// so this always carries forward whatever is *currently* persisted
+  /// rather than a stale snapshot from when this screen first opened;
+  /// otherwise saving other, unrelated field edits here could silently
+  /// revert a photo change made moments earlier on this same screen.
+  Individual _buildUpdated() {
+    final currentPhoto = context.read<ResidentProfileService>().profileFor(_account).personal;
+    return Individual(
+      individualId: _original.individualId,
+      firstName: _firstName.text.trim(),
+      middleName: _middleName.text.trim(),
+      lastName: _lastName.text.trim(),
+      suffix: _suffix.text.trim(),
+      sex: _sex ?? '',
+      birthdate: _birthdate,
+      civilStatus: _civilStatus ?? '',
+      mobile: _mobile.text.trim(),
+      email: _email.text.trim(),
+      barangay: _barangay ?? '',
+      sitioPurok: _sitioPurok.text.trim(),
+      completeAddress: _completeAddress.text.trim(),
+      occupation: _occupation.text.trim(),
+      educationalAttainment: _educationalAttainment ?? '',
+      isSeniorCitizen: _senior,
+      isPWD: _pwd,
+      isSoloParent: _soloParent,
+      isVoter: _voter,
+      photoPath: currentPhoto.photoPath,
+      photoBytesBase64: currentPhoto.photoBytesBase64,
+      documentPaths: _documentPaths,
+      hasEsperanzaAccount: true,
+      linkedCitizenAccountId: _original.individualId,
+      familyId: _original.familyId,
+      householdId: _original.householdId,
+    );
+  }
 
   String? _missingFieldError() {
     if (_firstName.text.trim().isEmpty || _lastName.text.trim().isEmpty) {
@@ -171,18 +181,127 @@ class _PersonalInformationScreenState extends State<PersonalInformationScreen> {
     Navigator.of(context).pop();
   }
 
-  Future<void> _pickPhoto() async {
-    final file = await pickImageProtected(context, source: ImageSource.gallery);
-    if (file == null || !mounted) return;
-    // Read bytes up front — on Flutter Web, `file.path` is a blob: URL
-    // that `dart:io`'s `File()` cannot open, so preview must not depend on
-    // it (see cross_platform_image.dart).
-    final bytes = await file.readAsBytes();
-    if (!mounted) return;
-    setState(() {
-      _photoPath = file.path;
-      _photoBytes = bytes;
-    });
+  /// The camera icon's full entry point. Order matters and mirrors the
+  /// spec exactly: cooldown check first (blocks everything below without
+  /// ever touching the camera/gallery), then the "your photo can only
+  /// change every 6 months" confirmation, then source selection, then
+  /// capture/pick + preview — looping back to source selection on
+  /// "Retake"/"Choose Another" — with nothing persisted until the preview
+  /// screen's own "Save Profile Photo" succeeds (see
+  /// ProfilePhotoPreviewScreen). Cancelling or backing out at any step
+  /// leaves the existing photo and the cooldown untouched.
+  Future<void> _onCameraIconTap() async {
+    final profile = context.read<ResidentProfileService>().profileFor(_account);
+    if (profile.isProfilePhotoOnCooldown) {
+      final next = profile.nextProfilePhotoChangeAllowedAt;
+      await AppDialogs.centeredInfo(
+        context,
+        title: 'Profile Photo Change Unavailable',
+        message: 'You recently changed your profile photo. For account identification and consistency, profile '
+            'photos can only be changed once every 6 months.'
+            '${next != null ? '\n\nYou can change your profile photo again on ${DateFormat('MMMM d, y').format(next)}.' : ''}',
+      );
+      return;
+    }
+
+    final proceed = await AppDialogs.centeredConfirm(
+      context,
+      title: 'Change Profile Photo',
+      message: 'Your profile photo can only be changed once every 6 months.\n\n'
+          'For better identification, please use a recent photo taken in a well-lit area with a plain or white '
+          'background. Make sure your full face is clearly visible and avoid filters, sunglasses, masks, or '
+          'anything that may cover your face.',
+      confirmLabel: 'Proceed',
+    );
+    if (!proceed || !mounted) return;
+
+    var source = await _showPhotoSourceSheet();
+    if (source == null || !mounted) return;
+
+    while (true) {
+      final file = await pickImageProtected(context, source: source!);
+      if (file == null || !mounted) return;
+      // Read bytes up front — on Flutter Web, `file.path` is a blob: URL
+      // that `dart:io`'s `File()` cannot open, and bytes are what actually
+      // get persisted (see ResidentProfileService.updateProfilePhoto).
+      final bytes = await file.readAsBytes();
+      if (!mounted) return;
+
+      final saved = await Navigator.of(context).push<bool>(
+        MaterialPageRoute(
+          fullscreenDialog: true,
+          builder: (_) => ProfilePhotoPreviewScreen(bytes: bytes, source: source!),
+        ),
+      );
+      if (!mounted) return;
+
+      if (saved == true) {
+        AppDialogs.toast(context, 'Profile photo updated successfully.');
+        return;
+      }
+      if (saved == false) {
+        // Retake / Choose Another.
+        final nextSource = await _showPhotoSourceSheet();
+        if (nextSource == null || !mounted) return;
+        source = nextSource;
+        continue;
+      }
+      return; // Dismissed (back gesture/app bar back) — nothing changed.
+    }
+  }
+
+  Future<ImageSource?> _showPhotoSourceSheet() {
+    return showModalBottomSheet<ImageSource>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => SafeArea(
+        child: Container(
+          margin: const EdgeInsets.all(AppSpacing.md),
+          child: Material(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            clipBehavior: Clip.antiAlias,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Padding(
+                    padding: EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.md, AppSpacing.lg, AppSpacing.sm),
+                    child: Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        'Change Profile Photo',
+                        style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
+                      ),
+                    ),
+                  ),
+                  _photoSourceOption(ctx, Icons.photo_camera_outlined, 'Take Photo', ImageSource.camera),
+                  _photoSourceOption(ctx, Icons.image_outlined, 'Choose from Gallery', ImageSource.gallery),
+                  const Divider(height: 1),
+                  ListTile(
+                    leading: const Icon(Icons.close_rounded, color: AppColors.rose600),
+                    title: const Text(
+                      'Cancel',
+                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: AppColors.rose600),
+                    ),
+                    onTap: () => Navigator.pop(ctx),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _photoSourceOption(BuildContext context, IconData icon, String label, ImageSource source) {
+    return ListTile(
+      leading: Icon(icon, color: AppColors.brand600),
+      title: Text(label, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
+      onTap: () => Navigator.pop(context, source),
+    );
   }
 
   Future<void> _pickDocument() async {
@@ -203,6 +322,8 @@ class _PersonalInformationScreenState extends State<PersonalInformationScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final governmentId = governmentIdFor(_account);
+    final currentPersonal = context.watch<ResidentProfileService>().profileFor(_account).personal;
     return Scaffold(
       appBar: AppBar(title: const Text('Personal Information')),
       body: SafeArea(
@@ -212,13 +333,14 @@ class _PersonalInformationScreenState extends State<PersonalInformationScreen> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               _PhotoPicker(
-                photoPath: _photoPath,
-                photoBytes: _photoBytes,
-                onPick: _pickPhoto,
-                onRemove: () => setState(() {
-                  _photoPath = null;
-                  _photoBytes = null;
-                }),
+                image: profileImageFor(_account, currentPersonal),
+                hasCustomPhoto: currentPersonal.photoBytesBase64 != null,
+                onCameraTap: _onCameraIconTap,
+                onRemove: () => context.read<ResidentProfileService>().updateProfilePhoto(
+                  _account.id,
+                  photoBytes: null,
+                  startCooldown: false,
+                ),
               ),
               const SizedBox(height: AppSpacing.lg),
               FormSection(
@@ -369,6 +491,28 @@ class _PersonalInformationScreenState extends State<PersonalInformationScreen> {
                   ),
                 ],
               ),
+              // Very end of the page, after every editable field — this is
+              // the physical ID document submitted at registration/
+              // verification time, a different concept from the Esperanza
+              // Digital ID (see screens/profile/digital_id_screen.dart's own
+              // doc comment). It stays visible here regardless of
+              // verification status, since it shows what was submitted, not
+              // something the LGU has issued.
+              if (governmentId != null) ...[
+                const SizedBox(height: AppSpacing.lg),
+                const Text(
+                  'Submitted Government ID',
+                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
+                ),
+                const SizedBox(height: 4),
+                const Text(
+                  'The identification you submitted during registration. This stays on file regardless of your '
+                  'verification status.',
+                  style: TextStyle(fontSize: 12.5, color: AppColors.textMuted),
+                ),
+                const SizedBox(height: AppSpacing.md),
+                _SubmittedGovernmentIdCard(record: governmentId),
+              ],
               if (_error != null) ...[
                 const SizedBox(height: AppSpacing.md),
                 Text(_error!, style: const TextStyle(fontSize: 12.5, color: AppColors.rose600)),
@@ -396,16 +540,25 @@ class _PersonalInformationScreenState extends State<PersonalInformationScreen> {
   }
 }
 
+/// Same circular-avatar-plus-camera-icon UI as before — only what tapping
+/// the camera icon does has changed (see [_PersonalInformationScreenState]
+/// .onCameraTap), no redesign of this section itself. [image] is already
+/// fully resolved (real saved photo, else the seeded demo portrait, else
+/// null) — this widget has no picking/permission logic of its own.
 class _PhotoPicker extends StatelessWidget {
-  final String? photoPath;
-  final Uint8List? photoBytes;
-  final VoidCallback onPick;
+  final ImageProvider? image;
+  final bool hasCustomPhoto;
+  final VoidCallback onCameraTap;
   final VoidCallback onRemove;
-  const _PhotoPicker({required this.photoPath, required this.photoBytes, required this.onPick, required this.onRemove});
+  const _PhotoPicker({
+    required this.image,
+    required this.hasCustomPhoto,
+    required this.onCameraTap,
+    required this.onRemove,
+  });
 
   @override
   Widget build(BuildContext context) {
-    final provider = pickedFileImageProvider(bytes: photoBytes, path: photoPath);
     return Center(
       child: Column(
         children: [
@@ -414,9 +567,9 @@ class _PhotoPicker extends StatelessWidget {
               CircleAvatar(
                 radius: 40,
                 backgroundColor: AppColors.brand50,
-                backgroundImage: provider,
-                onBackgroundImageError: provider != null ? (error, stackTrace) {} : null,
-                child: provider == null
+                backgroundImage: image,
+                onBackgroundImageError: image != null ? (error, stackTrace) {} : null,
+                child: image == null
                     ? const Icon(Icons.person_outline_rounded, size: 34, color: AppColors.brand400)
                     : null,
               ),
@@ -428,7 +581,7 @@ class _PhotoPicker extends StatelessWidget {
                   shape: const CircleBorder(),
                   child: InkWell(
                     customBorder: const CircleBorder(),
-                    onTap: onPick,
+                    onTap: onCameraTap,
                     child: const Padding(
                       padding: EdgeInsets.all(7),
                       child: Icon(Icons.camera_alt_rounded, size: 15, color: Colors.white),
@@ -439,7 +592,7 @@ class _PhotoPicker extends StatelessWidget {
             ],
           ),
           const SizedBox(height: AppSpacing.sm),
-          if (photoPath != null)
+          if (hasCustomPhoto)
             TextButton(
               onPressed: onRemove,
               child: const Text('Remove photo', style: TextStyle(fontSize: 12)),
@@ -519,6 +672,88 @@ class _DocumentTile extends StatelessWidget {
             icon: const Icon(Icons.close_rounded, size: 18, color: AppColors.slate400),
             padding: EdgeInsets.zero,
             constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// The physical government ID document this resident submitted at
+/// registration/verification time — the same single seeded
+/// [GovernmentIdRecord] read by [governmentIdFor], reused here (not
+/// duplicated) and opened in the same [GovernmentIdViewer] used elsewhere.
+/// This is deliberately not "verified"/"unverified" itself — that status
+/// belongs to the account as a whole, not to the document — so this only
+/// ever indicates the document is on file.
+class _SubmittedGovernmentIdCard extends StatelessWidget {
+  final GovernmentIdRecord record;
+  const _SubmittedGovernmentIdCard({required this.record});
+
+  @override
+  Widget build(BuildContext context) {
+    return AppCard(
+      padding: EdgeInsets.zero,
+      onTap: () => GovernmentIdViewer.open(context, record),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          ClipRRect(
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+            child: AspectRatio(
+              aspectRatio: 16 / 10,
+              child: Image.asset(record.assetPath, fit: BoxFit.cover),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(14),
+            // A Column, not a Row-of-two-columns: at extreme narrow widths
+            // combined with a large text scale, a fixed-width trailing
+            // "View ID ›" group next to an Expanded info column overflowed
+            // (large text scale alone can push "View ID" past what's left
+            // once the ID type + "On File" chip claim their own space) —
+            // stacking instead means every line only ever competes for the
+            // card's full width, never a shrunken remainder.
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Wrap(
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  spacing: 6,
+                  runSpacing: 4,
+                  children: [
+                    Text(
+                      record.idType,
+                      style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(color: AppColors.emerald50, borderRadius: BorderRadius.circular(999)),
+                      child: const Text(
+                        'On File',
+                        style: TextStyle(fontSize: 9.5, fontWeight: FontWeight.w700, color: AppColors.emerald700),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  'Issued by ${record.issuingOffice}',
+                  style: const TextStyle(fontSize: 12, color: AppColors.textMuted),
+                ),
+                const SizedBox(height: 8),
+                const Row(
+                  children: [
+                    Text(
+                      'View ID',
+                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.brand600),
+                    ),
+                    SizedBox(width: 2),
+                    Icon(Icons.chevron_right_rounded, size: 16, color: AppColors.brand600),
+                  ],
+                ),
+              ],
+            ),
           ),
         ],
       ),

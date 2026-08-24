@@ -4,16 +4,18 @@ import '../../models/attachment.dart';
 import '../../models/catalog_item.dart';
 import '../../models/service_request.dart';
 import '../../services/citizen_session_service.dart';
+import '../../services/master_file_service.dart';
 import '../../services/requests_service.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_spacing.dart';
+import '../../utils/requirement_document_type.dart';
+import '../../utils/tulong_eligibility.dart';
 import '../../widgets/app_button.dart';
 import '../../widgets/app_card.dart';
 import '../../widgets/app_text_field.dart';
-import '../../utils/tulong_application_limit.dart';
-import '../../widgets/app_dialogs.dart';
 import '../../widgets/attachment_picker.dart';
-import 'my_requests_screen.dart';
+import '../../widgets/requirement_uploader.dart';
+import 'request_detail_screen.dart';
 import 'request_submitted_screen.dart';
 
 /// Step 2 of the request wizard: requirements checklist (informational),
@@ -34,9 +36,21 @@ class NewRequestScreen extends StatefulWidget {
 
 class _NewRequestScreenState extends State<NewRequestScreen> {
   final _purposeController = TextEditingController();
+
+  /// Tulong (and any other non-Dokyu category using this screen) keeps the
+  /// original flat, single-uploader attachment list — unchanged, per this
+  /// change being scoped to Dokyu only.
   final List<Attachment> _attachments = [];
+
+  /// Dokyu only — one entry per requirement, keyed by its own label (unique
+  /// within a single catalog item). See RequirementUploader.
+  late final List<RequirementInfo> _requirementInfos = resolveRequirements(widget.item.requirements);
+  final Map<String, Attachment?> _requirementAttachments = {};
+
   bool _submitting = false;
   String? _error;
+
+  bool get _isDokyu => widget.category == ServiceCategory.dokyu;
 
   @override
   void dispose() {
@@ -44,12 +58,25 @@ class _NewRequestScreenState extends State<NewRequestScreen> {
     super.dispose();
   }
 
+  String? _requirementsError() {
+    final missing = _requirementInfos.where((r) => r.isRequired && _requirementAttachments[r.label] == null).toList();
+    if (missing.isEmpty) return null;
+    if (missing.length == 1) return 'Please attach your ${missing.first.label}.';
+    return 'Please attach: ${missing.map((r) => r.label).join(', ')}.';
+  }
+
   Future<void> _submit() async {
     if (_purposeController.text.trim().isEmpty) {
       setState(() => _error = 'Please describe the purpose of this request.');
       return;
     }
-    if (_attachments.isEmpty) {
+    if (_isDokyu) {
+      final err = _requirementsError();
+      if (err != null) {
+        setState(() => _error = err);
+        return;
+      }
+    } else if (_attachments.isEmpty) {
       setState(() => _error = 'Please attach at least one requirement document or photo.');
       return;
     }
@@ -57,20 +84,17 @@ class _NewRequestScreenState extends State<NewRequestScreen> {
     final account = context.read<CitizenSessionService>().account!;
     final requestsService = context.read<RequestsService>();
 
-    if (widget.category == ServiceCategory.tulong &&
-        hasReachedTulongApplicationLimit(requestsService, applicantId: account.id, typeName: widget.item.name)) {
-      final viewRequests = await AppDialogs.confirm(
-        context,
-        title: 'Application Limit Reached',
-        message: 'You have already submitted two applications for this assistance. You cannot submit another '
-            'application for the same assistance at this time.',
-        confirmLabel: 'View My Requests',
-        cancelLabel: 'Close',
-      );
-      if (viewRequests && mounted) {
-        Navigator.of(context).push(MaterialPageRoute(builder: (_) => const MyRequestsScreen()));
+    if (widget.category == ServiceCategory.tulong) {
+      final result = tulongEligibilityFor(requestsService, applicantId: account.id, typeName: widget.item.name);
+      if (!result.isEligible) {
+        final viewRequest = await showTulongBlockedDialog(context, result);
+        if (viewRequest && mounted) {
+          Navigator.of(context).push(
+            MaterialPageRoute(builder: (_) => RequestDetailScreen(requestId: result.blockingRequest!.id)),
+          );
+        }
+        return;
       }
-      return;
     }
 
     setState(() {
@@ -78,6 +102,8 @@ class _NewRequestScreenState extends State<NewRequestScreen> {
       _error = null;
     });
     await Future.delayed(const Duration(milliseconds: 900)); // simulated network/processing delay
+
+    final attachments = _isDokyu ? _requirementAttachments.values.whereType<Attachment>().toList() : _attachments;
 
     final request = await requestsService.submit(
       applicantId: account.id,
@@ -87,7 +113,7 @@ class _NewRequestScreenState extends State<NewRequestScreen> {
       office: widget.item.office,
       purpose: _purposeController.text.trim(),
       expectedDays: widget.item.days,
-      attachments: _attachments,
+      attachments: attachments,
       requiresPayment: widget.item.fee != 'Free',
       fee: widget.item.fee,
     );
@@ -141,40 +167,46 @@ class _NewRequestScreenState extends State<NewRequestScreen> {
                   ],
                 ),
               ),
-              const SizedBox(height: AppSpacing.lg),
-              AppCard(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Icon(Icons.checklist_rounded, size: 16, color: widget.accent),
-                        const SizedBox(width: AppSpacing.sm),
-                        const Text('Requirements', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
-                      ],
-                    ),
-                    const SizedBox(height: 10),
-                    ...widget.item.requirements.map(
-                      (r) => Padding(
-                        padding: const EdgeInsets.only(bottom: 8),
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Icon(Icons.check_circle_outline_rounded, size: 15, color: AppColors.emerald500),
-                            const SizedBox(width: AppSpacing.sm),
-                            Expanded(
-                              child: Text(
-                                r,
-                                style: const TextStyle(fontSize: 12.5, color: AppColors.slate600, height: 1.3),
+              // Dokyu's own per-requirement uploaders (below) already show
+              // each requirement's label as its own section header, so this
+              // informational checklist would just repeat the same list —
+              // shown only for Tulong, whose attachment UI is unchanged.
+              if (!_isDokyu) ...[
+                const SizedBox(height: AppSpacing.lg),
+                AppCard(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(Icons.checklist_rounded, size: 16, color: widget.accent),
+                          const SizedBox(width: AppSpacing.sm),
+                          const Text('Requirements', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                        ],
+                      ),
+                      const SizedBox(height: 10),
+                      ...widget.item.requirements.map(
+                        (r) => Padding(
+                          padding: const EdgeInsets.only(bottom: 8),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Icon(Icons.check_circle_outline_rounded, size: 15, color: AppColors.emerald500),
+                              const SizedBox(width: AppSpacing.sm),
+                              Expanded(
+                                child: Text(
+                                  r,
+                                  style: const TextStyle(fontSize: 12.5, color: AppColors.slate600, height: 1.3),
+                                ),
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
+              ],
               const SizedBox(height: AppSpacing.lg),
               AppTextField(
                 label: 'Purpose',
@@ -183,22 +215,65 @@ class _NewRequestScreenState extends State<NewRequestScreen> {
                 maxLines: 3,
               ),
               const SizedBox(height: AppSpacing.xl),
-              const Text(
-                'Attach Requirements',
-                style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
-              ),
-              const SizedBox(height: AppSpacing.xs),
-              const Text(
-                'Take a photo or choose a file for each requirement above.',
-                style: TextStyle(fontSize: 12, color: AppColors.textMuted),
-              ),
-              const SizedBox(height: AppSpacing.md),
-              AttachmentPicker(
-                documentTypeLabel: widget.item.name,
-                attachments: _attachments,
-                onAdd: (a) => setState(() => _attachments.add(a)),
-                onRemove: (id) => setState(() => _attachments.removeWhere((a) => a.id == id)),
-              ),
+              if (_isDokyu) ...[
+                const Text(
+                  'Requirements',
+                  style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
+                ),
+                const SizedBox(height: AppSpacing.xs),
+                const Text(
+                  'Attach a document for each requirement below.',
+                  style: TextStyle(fontSize: 12, color: AppColors.textMuted),
+                ),
+                const SizedBox(height: AppSpacing.md),
+                Consumer<MasterFileService>(
+                  builder: (context, masterFile, _) {
+                    final accountId = context.read<CitizenSessionService>().account!.id;
+                    return Column(
+                      children: [
+                        for (final req in _requirementInfos)
+                          RequirementUploader(
+                            requirement: req,
+                            attachment: _requirementAttachments[req.label],
+                            existingMasterDoc: masterFile.findByType(accountId, req.documentType),
+                            onAttachNew: (a) {
+                              setState(() => _requirementAttachments[req.label] = a);
+                              masterFile.saveOrUpdate(
+                                accountId: accountId,
+                                documentType: req.documentType,
+                                label: req.label,
+                                attachment: a,
+                                origin: 'Dokyu',
+                              );
+                            },
+                            onUseExisting: () {
+                              final existing = masterFile.findByType(accountId, req.documentType);
+                              if (existing != null) setState(() => _requirementAttachments[req.label] = existing.attachment);
+                            },
+                            onRemove: () => setState(() => _requirementAttachments[req.label] = null),
+                          ),
+                      ],
+                    );
+                  },
+                ),
+              ] else ...[
+                const Text(
+                  'Attach Requirements',
+                  style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
+                ),
+                const SizedBox(height: AppSpacing.xs),
+                const Text(
+                  'Take a photo or choose a file for each requirement above.',
+                  style: TextStyle(fontSize: 12, color: AppColors.textMuted),
+                ),
+                const SizedBox(height: AppSpacing.md),
+                AttachmentPicker(
+                  documentTypeLabel: widget.item.name,
+                  attachments: _attachments,
+                  onAdd: (a) => setState(() => _attachments.add(a)),
+                  onRemove: (id) => setState(() => _attachments.removeWhere((a) => a.id == id)),
+                ),
+              ],
               if (_error != null) ...[
                 const SizedBox(height: AppSpacing.md),
                 Text(_error!, style: const TextStyle(fontSize: 12.5, color: AppColors.rose600)),

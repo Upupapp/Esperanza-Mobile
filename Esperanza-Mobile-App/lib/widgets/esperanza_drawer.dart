@@ -10,6 +10,7 @@ import '../screens/shared/my_requests_screen.dart';
 import '../screens/shared/transactions_screen.dart';
 import '../screens/support/help_support_screen.dart';
 import '../services/citizen_session_service.dart';
+import '../services/resident_profile_service.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
 import '../utils/demo_resident_photo.dart';
@@ -155,7 +156,8 @@ class _Header extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final account = session.account;
-    final photo = demoProfileImageFor(account);
+    final personal = account != null ? context.watch<ResidentProfileService>().profileFor(account).personal : null;
+    final photo = profileImageFor(account, personal);
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.fromLTRB(20, 28, 20, 20),

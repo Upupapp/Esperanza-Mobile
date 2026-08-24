@@ -2235,8 +2235,8 @@ class MockCatalog {
   );
 
   /// Cristy's one seeded government ID document — the asset placed at
-  /// assets/images/CRISTY DEMO ID.png, read by both the identity/
-  /// verification side of the app and My Government IDs (see
+  /// assets/images/CRISTY DEMO ID.png, read by Profile > Personal
+  /// Information's Submitted Government ID section (see
   /// utils/government_id.dart) so there is exactly one record, never two
   /// unrelated copies. A PHLPost Postal ID, per the asset itself — a demo
   /// watermark ("DEMO ID ONLY — NOT A VALID GOVERNMENT IDENTIFICATION") is

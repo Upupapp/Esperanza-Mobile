@@ -13,6 +13,7 @@ import 'package:esperanza_mobile/models/service_request.dart';
 import 'package:esperanza_mobile/screens/shared/service_catalog_screen.dart';
 import 'package:esperanza_mobile/screens/shared/service_request_wizard_screen.dart';
 import 'package:esperanza_mobile/services/citizen_session_service.dart';
+import 'package:esperanza_mobile/services/master_file_service.dart';
 import 'package:esperanza_mobile/services/mock_catalog.dart';
 import 'package:esperanza_mobile/services/notifications_service.dart';
 import 'package:esperanza_mobile/services/requests_service.dart';
@@ -34,6 +35,7 @@ Future<void> _pumpDokyuAsCristy(WidgetTester tester) async {
         ChangeNotifierProvider<CitizenSessionService>.value(value: session),
         ChangeNotifierProvider(create: (_) => RequestsService(seedDemoData: false)),
         ChangeNotifierProvider(create: (_) => ResidentProfileService()),
+        ChangeNotifierProvider(create: (_) => MasterFileService()),
         ChangeNotifierProvider(create: (_) => NotificationsService()),
       ],
       child: const MaterialApp(
@@ -155,12 +157,12 @@ void main() {
     await tester.pumpAndSettle();
 
     // Requirements & Attachments — fill Purpose, leave attachments empty,
-    // confirm the standard gate still applies.
+    // confirm Dokyu's per-requirement gate still applies.
     expect(find.textContaining('Requirements'), findsWidgets);
     await tester.enterText(find.widgetWithText(TextField, '').first, 'Requesting a copy for PSA registration.');
     await tester.tap(find.text('Continue'));
     await tester.pumpAndSettle();
-    expect(find.textContaining('attach at least one'), findsOneWidget);
+    expect(find.textContaining('Please attach'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 }
