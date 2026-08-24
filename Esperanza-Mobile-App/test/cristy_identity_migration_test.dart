@@ -233,7 +233,7 @@ void main() {
   });
 
   group('Digital ID', () {
-    testWidgets('Verified Cristy sees her Esperanza Digital ID card, not the registration ID document', (tester) async {
+    testWidgets('Verified Cristy sees her Digital ID wallet, not the registration ID document', (tester) async {
       SharedPreferences.setMockInitialValues({});
       final session = CitizenSessionService();
       var attempts = 0;
@@ -255,15 +255,15 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('Esperanza Digital ID'), findsOneWidget);
+      // The seeded wallet — Barangay Resident ID first, PWD ID second.
+      expect(find.text('Barangay Resident ID'), findsOneWidget);
       expect(find.text('Cristy Bonghanoy'), findsOneWidget);
-      expect(find.text('ESP-RES-2024-1044'), findsOneWidget);
+      expect(find.text('1 of 2'), findsOneWidget);
       // The registration-uploaded ID document is a different concept, shown
       // only at Profile > Personal Information (see
       // submitted_government_id_test.dart) — never on this screen anymore.
       expect(find.text('My Government IDs'), findsNothing);
       expect(find.text('Postal ID (PHLPost)'), findsNothing);
-      expect(find.text('Other Government Credentials'), findsOneWidget);
       expect(tester.takeException(), isNull);
     });
 

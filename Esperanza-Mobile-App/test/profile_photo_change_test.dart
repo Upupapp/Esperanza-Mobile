@@ -18,7 +18,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:esperanza_mobile/models/citizen_account.dart';
 import 'package:esperanza_mobile/models/resident_profile.dart';
-import 'package:esperanza_mobile/screens/profile/digital_id_screen.dart';
 import 'package:esperanza_mobile/screens/profile/profile_screen.dart';
 import 'package:esperanza_mobile/screens/profile/resident_profile/personal_information_screen.dart';
 import 'package:esperanza_mobile/services/citizen_session_service.dart';
@@ -304,27 +303,9 @@ void main() {
       expect(tester.takeException(), isNull);
     });
 
-    testWidgets('Digital ID screen shows the saved photo on the Esperanza Digital ID card', (tester) async {
-      final account = MockCatalog.demoAccounts.last;
-      SharedPreferences.setMockInitialValues(_seededPrefs(account, withSavedPhoto: true));
-      final session = await _loginSession(tester, account);
-
-      await tester.pumpWidget(
-        MultiProvider(
-          providers: [
-            ChangeNotifierProvider<CitizenSessionService>.value(value: session),
-            ChangeNotifierProvider<ResidentProfileService>(create: (_) => ResidentProfileService()),
-          ],
-          child: const MaterialApp(home: DigitalIdScreen()),
-        ),
-      );
-      await tester.pumpAndSettle();
-
-      final avatar = tester.widget<CircleAvatar>(find.byType(CircleAvatar).first);
-      final image = avatar.backgroundImage as MemoryImage?;
-      expect(image, isNotNull);
-      expect(image!.bytes, _tinyPngBytes);
-      expect(tester.takeException(), isNull);
-    });
+    // Digital ID's own coverage moved to digital_id_wallet_test.dart — the
+    // screen was redesigned into a credential wallet (Barangay Resident
+    // ID / PWD ID) and no longer shows the resident's own profile photo at
+    // all, so there is nothing left to assert here.
   });
 }

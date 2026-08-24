@@ -1,6 +1,7 @@
 import '../models/announcement.dart';
 import '../models/catalog_item.dart';
 import '../models/citizen_account.dart';
+import '../models/digital_credential.dart';
 import '../models/evacuation_center.dart';
 import '../models/government_id_record.dart';
 import '../models/resident_profile.dart';
@@ -2257,6 +2258,38 @@ class MockCatalog {
     idNumber: 'PRN 100141234567 P',
     issuingOffice: 'Esperanza',
   );
+
+  /// Cristy Bonghanoy's Digital ID wallet — seeded demonstration data only,
+  /// for the VERIFIED Cristy account (ESP-RES-2024-1044) exclusively. Never
+  /// shown to Ronaldo, Teodoro, or any other seeded account, and never
+  /// inferred/derived for a real resident. A different concept entirely
+  /// from [cristyGovernmentId] above — see DigitalCredential's own doc
+  /// comment. Order matters: the Digital ID screen opens on the first
+  /// entry (Barangay Resident ID), per this feature's spec.
+  ///
+  /// No `validUntil` is set for either — neither asset prints an expiry
+  /// date, so none is invented here (see DigitalCredential.validUntil's own
+  /// doc comment).
+  static const cristyDigitalCredentials = <DigitalCredential>[
+    DigitalCredential(
+      id: 'cristy-barangay-resident-id',
+      type: 'barangay_resident_id',
+      displayName: 'Barangay Resident ID',
+      holderName: 'Cristy Bonghanoy',
+      frontAsset: 'assets/images/BarangayID_Front.png',
+      backAsset: 'assets/images/BarangayID_Back.png',
+      issuer: 'Municipality of Esperanza',
+    ),
+    DigitalCredential(
+      id: 'cristy-pwd-id',
+      type: 'pwd_id',
+      displayName: 'PWD ID',
+      holderName: 'Cristy Bonghanoy',
+      frontAsset: 'assets/images/PWD_Front.png',
+      backAsset: 'assets/images/PWD_Back.png',
+      issuer: 'Municipal Social Welfare and Development Office',
+    ),
+  ];
 
   /// Ronaldo's one seeded government ID document — the asset placed at
   /// assets/images/RONALDO ID DEMO.png, a purpose-built "Esperanza Resident
