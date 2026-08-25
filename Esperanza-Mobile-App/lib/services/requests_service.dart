@@ -37,14 +37,37 @@ class RequestsService extends ChangeNotifier {
   /// _seedDemoStatusSimulationsIfNeeded's own doc comment) — tests that
   /// need a pristine/empty or precisely-countable request list pass false
   /// to opt out.
+  ///
+  /// As of the live-demo cleanup, the real running app (see main.dart)
+  /// passes false here — Dokyu/Tulong start clean, with nothing pre-
+  /// submitted, so a client demo isn't showing fake completed history
+  /// before the presenter has done anything. Every existing test keeps
+  /// passing its own explicit value (mostly true) exactly as before, so
+  /// this default only changes behavior for the one real construction site.
   final bool seedDemoData;
+
+  /// True only for the real running app (see main.dart) — permanently
+  /// strips the retired Dokyu/Tulong demo-status-simulation and paid-
+  /// transaction seed records (see [_demoSeedIds]/[_paidTransactionSeedIds])
+  /// from whatever's already persisted in SharedPreferences, once. Removing
+  /// them from the seeding functions alone only affects a fresh install; a
+  /// browser/device that already ran an earlier build with seeding on has
+  /// these nine specific records permanently saved locally.
+  ///
+  /// Left false (the default) for every test — several deliberately
+  /// construct their own [ServiceRequest] fixtures that reuse these exact
+  /// literal ids on purpose (e.g. rejected_application_panel_test.dart's
+  /// Tulong-eligibility-while-blocked scenario), and those must never be
+  /// swept up by this cleanup, which only ever targets the real seeded
+  /// records this app itself used to create.
+  final bool retireLegacyDemoRequestSeeds;
 
   List<ServiceRequest> get all => List.unmodifiable(_requests);
 
   List<ServiceRequest> byCategory(ServiceCategory category) =>
       _requests.where((r) => r.category == category).toList()..sort((a, b) => b.submittedAt.compareTo(a.submittedAt));
 
-  RequestsService({this.seedDemoData = true}) {
+  RequestsService({this.seedDemoData = true, this.retireLegacyDemoRequestSeeds = false}) {
     _restore();
   }
 
@@ -55,14 +78,29 @@ class RequestsService extends ChangeNotifier {
       final list = (jsonDecode(raw) as List).map((e) => ServiceRequest.fromJson(e)).toList();
       _requests.addAll(list);
     }
+    if (retireLegacyDemoRequestSeeds && _removeRetiredDemoRequestSeeds()) await _persist();
     if (_migrateStaleDemoIdentity()) await _persist();
     if (_migrateEducationalRejectionReason()) await _persist();
+    if (_migrateSeniorCitizenIdCategory()) await _persist();
     if (seedDemoData) {
       await _seedDemoStatusSimulationsIfNeeded();
       await _seedPaidTransactionDemoIfNeeded();
     }
     _loaded = true;
     notifyListeners();
+  }
+
+  /// Removes exactly the nine known Dokyu/Tulong demo seed ids (see
+  /// [_demoSeedIds]/[_paidTransactionSeedIds]) from whatever's already
+  /// persisted — never a citizen's own genuinely-submitted request, which
+  /// is always assigned a `req-<timestamp>` id (see [submit]) and can never
+  /// collide with one of these literal seed ids. Idempotent: once these
+  /// nine ids are gone from local storage, later launches simply find
+  /// nothing left to remove.
+  bool _removeRetiredDemoRequestSeeds() {
+    final before = _requests.length;
+    _requests.removeWhere((r) => _demoSeedIds.contains(r.id) || _paidTransactionSeedIds.contains(r.id));
+    return _requests.length != before;
   }
 
   /// A browser that already had the six demo requests seeded before the
@@ -111,6 +149,55 @@ class RequestsService extends ChangeNotifier {
                 requestReferenceNumber: receipt.requestReferenceNumber,
               )
             : receipt,
+      );
+      changed = true;
+    }
+    return changed;
+  }
+
+  /// Senior Citizen ID Application (OSCA Membership) moved from Tulong to
+  /// Dokyu — it's an ID/membership registration, not an assistance/benefit
+  /// program (see mock_catalog.dart's dokyu_senior_citizen_id doc comment
+  /// for why, and how it differs from the genuinely-Tulong Social Pension
+  /// item). A device that already has a resident's own real Senior Citizen
+  /// ID request persisted under the old Tulong category gets it corrected
+  /// here, in place — reference number, attachments, status/history, and
+  /// every other field carry over completely unchanged; only [category]
+  /// itself moves to Dokyu, so My Requests / Request Detail / Track This
+  /// Request keep working exactly as before, now consistently filed
+  /// alongside the service's own new location. Matched by [typeName]
+  /// rather than an id, since — unlike the demo-seed migrations above —
+  /// this must also catch a citizen's own genuinely-submitted request, not
+  /// just a seeded one.
+  static const _seniorCitizenIdTypeName = 'Senior Citizen ID Application (OSCA Membership)';
+
+  bool _migrateSeniorCitizenIdCategory() {
+    var changed = false;
+    for (var i = 0; i < _requests.length; i++) {
+      final r = _requests[i];
+      if (r.typeName != _seniorCitizenIdTypeName || r.category != ServiceCategory.tulong) continue;
+      _requests[i] = ServiceRequest(
+        id: r.id,
+        referenceNumber: r.referenceNumber,
+        applicantId: r.applicantId,
+        applicantName: r.applicantName,
+        typeName: r.typeName,
+        category: ServiceCategory.dokyu,
+        office: r.office,
+        purpose: r.purpose,
+        submittedAt: r.submittedAt,
+        status: r.status,
+        statusHistory: r.statusHistory,
+        attachments: r.attachments,
+        citizenRemarks: r.citizenRemarks,
+        adminRemarks: r.adminRemarks,
+        rejectionGuidance: r.rejectionGuidance,
+        expectedDays: r.expectedDays,
+        formFields: r.formFields,
+        requiresPayment: r.requiresPayment,
+        fee: r.fee,
+        paymentMethod: r.paymentMethod,
+        receipt: r.receipt,
       );
       changed = true;
     }

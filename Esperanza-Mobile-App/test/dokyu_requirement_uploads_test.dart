@@ -128,8 +128,10 @@ void main() {
         'Cedula',
       ]) {
         expect(find.text(label), findsOneWidget);
+        // Requirement-specific button label, not a generic "Upload
+        // Document" — see RequirementUploader's own _UploadPrompt.
+        expect(find.text('Upload $label'), findsOneWidget);
       }
-      expect(find.text('Upload Document'), findsNWidgets(5));
       // The old generic single-uploader affordance must be gone for Dokyu.
       expect(find.text('Add photo or document'), findsNothing);
       expect(find.byType(AttachmentPicker), findsNothing);
@@ -173,8 +175,10 @@ void main() {
       expect(find.text('Use Existing Document'), findsOneWidget);
       expect(find.text('Upload New Document'), findsOneWidget);
       // Every other requirement (no match for their own document type) still
-      // shows the plain upload prompt.
-      expect(find.text('Upload Document'), findsNWidgets(4));
+      // shows its own plain, requirement-specific upload prompt.
+      for (final label in ['Barangay Business Clearance', 'Locational / Zoning Clearance', 'Sanitary Permit', 'Cedula']) {
+        expect(find.text('Upload $label'), findsOneWidget);
+      }
     });
 
     testWidgets('"Use Existing Document" attaches it locally and creates no duplicate Master File entry', (

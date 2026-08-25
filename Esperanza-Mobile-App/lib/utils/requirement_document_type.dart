@@ -9,6 +9,8 @@
 /// or extend the canonical-document mapping later.
 library;
 
+import '../models/attachment.dart';
+
 /// One catalog requirement, resolved — [label] is exactly the catalog's own
 /// text (shown to the citizen unchanged); [documentType] is the stable key
 /// used to look up/save a matching document in the resident's Master File
@@ -21,15 +23,59 @@ class RequirementInfo {
   final String documentType;
   final bool isRequired;
 
-  const RequirementInfo({required this.label, required this.documentType, required this.isRequired});
+  /// False for a requirement line that isn't actually something the
+  /// resident uploads — see [_isNotResidentUploaded]'s own doc comment.
+  /// Still shown in the requirements list (the catalog's own wording is
+  /// never hidden), just never rendered with an upload control, and never
+  /// counted as "missing" by submission validation.
+  final bool requiresUpload;
+
+  const RequirementInfo({
+    required this.label,
+    required this.documentType,
+    required this.isRequired,
+    this.requiresUpload = true,
+  });
 }
 
-List<RequirementInfo> resolveRequirements(List<String> requirements) =>
-    requirements.map((label) => RequirementInfo(label: label, documentType: documentTypeFor(label), isRequired: !_isOptionalPhrasing(label))).toList();
+List<RequirementInfo> resolveRequirements(List<String> requirements) => requirements
+    .map(
+      (label) => RequirementInfo(
+        label: label,
+        documentType: documentTypeFor(label),
+        isRequired: !_isOptionalPhrasing(label),
+        requiresUpload: !_isNotResidentUploaded(label),
+      ),
+    )
+    .toList();
 
 final _optionalPhrasing = RegExp(r'if applicable|if available|if any', caseSensitive: false);
 
 bool _isOptionalPhrasing(String label) => _optionalPhrasing.hasMatch(label);
+
+/// Two distinct reasons a catalog requirement line is never something a
+/// resident attaches a file for, found during the Dokyu/Tulong requirement-
+/// upload standardization audit:
+///
+/// 1. An internal LGU staff/office process, not a document at all — e.g.
+///    "Brief interview / social case study with the Municipal Social
+///    Welfare and Development Office" (dokyu_indigency, tulong_financial).
+///    Forcing an upload button here would ask citizens to submit a file for
+///    something municipal staff actually conducts.
+/// 2. Descriptive/identifying information about the record being
+///    requested — e.g. "Details of the record being requested" (mcro_live_
+///    birth, dokyu_marriage_certificate_copy) — not a physical document,
+///    and where a formSpec exists, already captured there as real text
+///    fields (see dokyu_marriage_certificate_copy's husbandFullName/
+///    wifeFullName/dateOfMarriage). Adding an "upload" card for a sentence
+///    of prose would be nonsensical; the free-text Purpose field is where
+///    this belongs when no formSpec captures it.
+final _notResidentUploadedPhrasing = RegExp(
+  r'brief interview|case study|case assessment|details of the record being requested',
+  caseSensitive: false,
+);
+
+bool _isNotResidentUploaded(String label) => _notResidentUploadedPhrasing.hasMatch(label);
 
 /// The same physical document is asked for, worded almost identically, by
 /// many different services (a valid ID above all) — matched here so a
@@ -63,3 +109,27 @@ String _slugify(String label) {
       .replaceAll(RegExp(r'^_+|_+$'), '');
   return cleaned.isEmpty ? 'document' : cleaned;
 }
+
+/// Copies [source] (a resident's existing Master File document, offered via
+/// "Use Existing Document" — see widgets/requirement_uploader.dart) onto a
+/// *different* requirement slot, re-tagging [Attachment.documentTypeLabel]
+/// to [requirementLabel] rather than leaving whatever label it was
+/// originally uploaded under. The same document type can be worded
+/// differently across services (e.g. "One (1) valid government-issued ID"
+/// vs. "Valid Government-Issued ID") — without this, a reused attachment on
+/// a submitted request could carry a stale label that doesn't match the
+/// requirement it was actually used to satisfy here, breaking the
+/// permanent requirement<->attachment mapping a later Web Admin needs (see
+/// this feature's own requirement-mapping guarantee). Every other field is
+/// the real, unmodified file — this never re-encodes or duplicates it.
+Attachment attachmentForReuse(Attachment source, {required String requirementLabel}) => Attachment(
+  id: source.id,
+  fileName: source.fileName,
+  category: source.category,
+  sizeBytes: source.sizeBytes,
+  localPath: source.localPath,
+  bytes: source.bytes,
+  remoteUrl: source.remoteUrl,
+  addedAt: source.addedAt,
+  documentTypeLabel: requirementLabel,
+);

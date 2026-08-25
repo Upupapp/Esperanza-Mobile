@@ -13,7 +13,6 @@ import '../../utils/tulong_eligibility.dart';
 import '../../widgets/app_button.dart';
 import '../../widgets/app_card.dart';
 import '../../widgets/app_text_field.dart';
-import '../../widgets/attachment_picker.dart';
 import '../../widgets/requirement_uploader.dart';
 import 'request_detail_screen.dart';
 import 'request_submitted_screen.dart';
@@ -37,20 +36,16 @@ class NewRequestScreen extends StatefulWidget {
 class _NewRequestScreenState extends State<NewRequestScreen> {
   final _purposeController = TextEditingController();
 
-  /// Tulong (and any other non-Dokyu category using this screen) keeps the
-  /// original flat, single-uploader attachment list — unchanged, per this
-  /// change being scoped to Dokyu only.
-  final List<Attachment> _attachments = [];
-
-  /// Dokyu only — one entry per requirement, keyed by its own label (unique
-  /// within a single catalog item). See RequirementUploader.
+  /// One entry per requirement, keyed by its own label (unique within a
+  /// single catalog item) — every Dokyu and Tulong service uses this same
+  /// per-requirement architecture (see RequirementUploader and the Dokyu +
+  /// Tulong requirement-upload standardization pass); there is no separate
+  /// flat/generic attachment list anymore.
   late final List<RequirementInfo> _requirementInfos = resolveRequirements(widget.item.requirements);
   final Map<String, Attachment?> _requirementAttachments = {};
 
   bool _submitting = false;
   String? _error;
-
-  bool get _isDokyu => widget.category == ServiceCategory.dokyu;
 
   @override
   void dispose() {
@@ -59,7 +54,12 @@ class _NewRequestScreenState extends State<NewRequestScreen> {
   }
 
   String? _requirementsError() {
-    final missing = _requirementInfos.where((r) => r.isRequired && _requirementAttachments[r.label] == null).toList();
+    // requiresUpload excludes a requirement that isn't something the
+    // resident attaches a file for (a staff/office process, or descriptive
+    // text already captured elsewhere) — see RequirementInfo.requiresUpload.
+    final missing = _requirementInfos
+        .where((r) => r.isRequired && r.requiresUpload && _requirementAttachments[r.label] == null)
+        .toList();
     if (missing.isEmpty) return null;
     if (missing.length == 1) return 'Please attach your ${missing.first.label}.';
     return 'Please attach: ${missing.map((r) => r.label).join(', ')}.';
@@ -70,14 +70,9 @@ class _NewRequestScreenState extends State<NewRequestScreen> {
       setState(() => _error = 'Please describe the purpose of this request.');
       return;
     }
-    if (_isDokyu) {
-      final err = _requirementsError();
-      if (err != null) {
-        setState(() => _error = err);
-        return;
-      }
-    } else if (_attachments.isEmpty) {
-      setState(() => _error = 'Please attach at least one requirement document or photo.');
+    final err = _requirementsError();
+    if (err != null) {
+      setState(() => _error = err);
       return;
     }
 
@@ -103,7 +98,7 @@ class _NewRequestScreenState extends State<NewRequestScreen> {
     });
     await Future.delayed(const Duration(milliseconds: 900)); // simulated network/processing delay
 
-    final attachments = _isDokyu ? _requirementAttachments.values.whereType<Attachment>().toList() : _attachments;
+    final attachments = _requirementAttachments.values.whereType<Attachment>().toList();
 
     final request = await requestsService.submit(
       applicantId: account.id,
@@ -167,46 +162,6 @@ class _NewRequestScreenState extends State<NewRequestScreen> {
                   ],
                 ),
               ),
-              // Dokyu's own per-requirement uploaders (below) already show
-              // each requirement's label as its own section header, so this
-              // informational checklist would just repeat the same list —
-              // shown only for Tulong, whose attachment UI is unchanged.
-              if (!_isDokyu) ...[
-                const SizedBox(height: AppSpacing.lg),
-                AppCard(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Icon(Icons.checklist_rounded, size: 16, color: widget.accent),
-                          const SizedBox(width: AppSpacing.sm),
-                          const Text('Requirements', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
-                        ],
-                      ),
-                      const SizedBox(height: 10),
-                      ...widget.item.requirements.map(
-                        (r) => Padding(
-                          padding: const EdgeInsets.only(bottom: 8),
-                          child: Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Icon(Icons.check_circle_outline_rounded, size: 15, color: AppColors.emerald500),
-                              const SizedBox(width: AppSpacing.sm),
-                              Expanded(
-                                child: Text(
-                                  r,
-                                  style: const TextStyle(fontSize: 12.5, color: AppColors.slate600, height: 1.3),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
               const SizedBox(height: AppSpacing.lg),
               AppTextField(
                 label: 'Purpose',
@@ -215,65 +170,53 @@ class _NewRequestScreenState extends State<NewRequestScreen> {
                 maxLines: 3,
               ),
               const SizedBox(height: AppSpacing.xl),
-              if (_isDokyu) ...[
-                const Text(
-                  'Requirements',
-                  style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
-                ),
-                const SizedBox(height: AppSpacing.xs),
-                const Text(
-                  'Attach a document for each requirement below.',
-                  style: TextStyle(fontSize: 12, color: AppColors.textMuted),
-                ),
-                const SizedBox(height: AppSpacing.md),
-                Consumer<MasterFileService>(
-                  builder: (context, masterFile, _) {
-                    final accountId = context.read<CitizenSessionService>().account!.id;
-                    return Column(
-                      children: [
-                        for (final req in _requirementInfos)
-                          RequirementUploader(
-                            requirement: req,
-                            attachment: _requirementAttachments[req.label],
-                            existingMasterDoc: masterFile.findByType(accountId, req.documentType),
-                            onAttachNew: (a) {
-                              setState(() => _requirementAttachments[req.label] = a);
-                              masterFile.saveOrUpdate(
-                                accountId: accountId,
-                                documentType: req.documentType,
-                                label: req.label,
-                                attachment: a,
-                                origin: 'Dokyu',
+              const Text(
+                'Requirements',
+                style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
+              ),
+              const SizedBox(height: AppSpacing.xs),
+              const Text(
+                'Attach a document for each requirement below.',
+                style: TextStyle(fontSize: 12, color: AppColors.textMuted),
+              ),
+              const SizedBox(height: AppSpacing.md),
+              Consumer<MasterFileService>(
+                builder: (context, masterFile, _) {
+                  final accountId = context.read<CitizenSessionService>().account!.id;
+                  return Column(
+                    children: [
+                      for (final req in _requirementInfos)
+                        RequirementUploader(
+                          requirement: req,
+                          attachment: _requirementAttachments[req.label],
+                          accent: widget.accent,
+                          existingMasterDoc: masterFile.findByType(accountId, req.documentType),
+                          onAttachNew: (a) {
+                            setState(() => _requirementAttachments[req.label] = a);
+                            masterFile.saveOrUpdate(
+                              accountId: accountId,
+                              documentType: req.documentType,
+                              label: req.label,
+                              attachment: a,
+                              origin: widget.category == ServiceCategory.dokyu ? 'Dokyu' : 'Tulong',
+                              serviceName: widget.item.name,
+                            );
+                          },
+                          onUseExisting: () {
+                            final existing = masterFile.findByType(accountId, req.documentType);
+                            if (existing != null) {
+                              setState(
+                                () => _requirementAttachments[req.label] =
+                                    attachmentForReuse(existing.attachment, requirementLabel: req.label),
                               );
-                            },
-                            onUseExisting: () {
-                              final existing = masterFile.findByType(accountId, req.documentType);
-                              if (existing != null) setState(() => _requirementAttachments[req.label] = existing.attachment);
-                            },
-                            onRemove: () => setState(() => _requirementAttachments[req.label] = null),
-                          ),
-                      ],
-                    );
-                  },
-                ),
-              ] else ...[
-                const Text(
-                  'Attach Requirements',
-                  style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
-                ),
-                const SizedBox(height: AppSpacing.xs),
-                const Text(
-                  'Take a photo or choose a file for each requirement above.',
-                  style: TextStyle(fontSize: 12, color: AppColors.textMuted),
-                ),
-                const SizedBox(height: AppSpacing.md),
-                AttachmentPicker(
-                  documentTypeLabel: widget.item.name,
-                  attachments: _attachments,
-                  onAdd: (a) => setState(() => _attachments.add(a)),
-                  onRemove: (id) => setState(() => _attachments.removeWhere((a) => a.id == id)),
-                ),
-              ],
+                            }
+                          },
+                          onRemove: () => setState(() => _requirementAttachments[req.label] = null),
+                        ),
+                    ],
+                  );
+                },
+              ),
               if (_error != null) ...[
                 const SizedBox(height: AppSpacing.md),
                 Text(_error!, style: const TextStyle(fontSize: 12.5, color: AppColors.rose600)),

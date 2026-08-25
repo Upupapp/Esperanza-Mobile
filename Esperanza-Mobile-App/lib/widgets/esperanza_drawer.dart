@@ -6,6 +6,7 @@ import '../screens/legal/privacy_policy_screen.dart';
 import '../screens/profile/digital_id_screen.dart';
 import '../screens/profile/profile_screen.dart';
 import '../screens/profile/settings_screen.dart';
+import '../screens/shared/documents_uploaded_screen.dart';
 import '../screens/shared/my_requests_screen.dart';
 import '../screens/shared/transactions_screen.dart';
 import '../screens/support/help_support_screen.dart';
@@ -64,6 +65,11 @@ class EsperanzaDrawer extends StatelessWidget {
                       icon: Icons.badge_outlined,
                       label: 'Digital ID',
                       onTap: () => _push(context, const DigitalIdScreen()),
+                    ),
+                    _DrawerTile(
+                      icon: Icons.folder_open_outlined,
+                      label: 'Documents Uploaded',
+                      onTap: () => _push(context, const DocumentsUploadedScreen()),
                     ),
                   ] else ...[
                     _DrawerTile(

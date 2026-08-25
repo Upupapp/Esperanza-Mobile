@@ -44,7 +44,12 @@ Future<void> _pumpWallet(WidgetTester tester, CitizenSessionService session, {Si
 
 bool _hasAssetImage(WidgetTester tester, String assetPath) {
   return tester.widgetList<Image>(find.byType(Image)).any((img) {
-    final provider = img.image;
+    // _CredentialFace now decodes at display size via cacheWidth, which
+    // wraps the AssetImage in a ResizeImage — unwrap it here so this still
+    // matches on the underlying asset name (see demo_resident_photo.dart's
+    // own doc comment for the same pattern used elsewhere in this suite).
+    var provider = img.image;
+    if (provider is ResizeImage) provider = provider.imageProvider;
     return provider is AssetImage && provider.assetName == assetPath;
   });
 }

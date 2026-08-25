@@ -12,6 +12,12 @@ import '../models/resident_profile.dart';
 class ResidentProfileService extends ChangeNotifier {
   static const _key = 'esperanza_resident_profiles';
 
+  /// The verified demo resident whose Master Profile is aligned to her real
+  /// Web Admin Educational Assistance record — see
+  /// _applyCristyMasterProfileAlignment. Same id RequestsService already
+  /// uses for its own Cristy-specific seeding.
+  static const _cristyVerifiedAccountId = 'ESP-RES-2024-1044';
+
   Map<String, ResidentProfile> _profiles = {};
   bool _loaded = false;
 
@@ -28,6 +34,8 @@ class ResidentProfileService extends ChangeNotifier {
       final map = jsonDecode(raw) as Map<String, dynamic>;
       _profiles = map.map((k, v) => MapEntry(k, ResidentProfile.fromJson(v)));
     }
+    final cristy = _profiles[_cristyVerifiedAccountId];
+    if (cristy != null && _applyCristyMasterProfileAlignment(cristy)) await _persist();
     _loaded = true;
     notifyListeners();
   }
@@ -38,9 +46,103 @@ class ResidentProfileService extends ChangeNotifier {
   }
 
   /// Returns the profile for this citizen, creating (and persisting) a
-  /// freshly-seeded one on first access.
+  /// freshly-seeded one on first access. Cristy's own freshly-seeded
+  /// profile additionally gets her Master Profile alignment applied right
+  /// away (see _applyCristyMasterProfileAlignment) — otherwise a device
+  /// that had never opened her profile before this correction would seed a
+  /// profile from her (already-corrected) CitizenAccount birthdate but
+  /// still be missing the family members / school / family-background
+  /// fields that only this alignment step adds.
   ResidentProfile profileFor(CitizenAccount account) {
-    return _profiles.putIfAbsent(account.id, () => ResidentProfile.seedFrom(account));
+    return _profiles.putIfAbsent(account.id, () {
+      final profile = ResidentProfile.seedFrom(account);
+      if (account.id == _cristyVerifiedAccountId) _applyCristyMasterProfileAlignment(profile);
+      return profile;
+    });
+  }
+
+  /// The Web-Admin-sourced correction for Cristy Bonghanoy's
+  /// (ESP-RES-2024-1044) resident-fact data — her seeded profile originally
+  /// carried a placeholder birthdate (Nov 29, 1988) and no family members;
+  /// her real Web Admin Educational Assistance record is now this project's
+  /// source of truth (see mock_catalog.dart's CitizenAccount doc comment).
+  /// Applied both to a brand-new profile (see [profileFor]'s seeding
+  /// closure above) and, as a migration, to a profile a device already
+  /// persisted under the old placeholder values (see [_restore]) —
+  /// idempotent either way via the per-field equality checks below, and
+  /// only ever invoked for Cristy's own specific account id, never applied
+  /// generically to another resident's real data. Returns whether anything
+  /// actually changed, so callers only persist when needed.
+  bool _applyCristyMasterProfileAlignment(ResidentProfile p) {
+    var changed = false;
+    final personal = p.personal;
+
+    void setPersonal(String current, String next, void Function(String) apply) {
+      if (current != next) {
+        apply(next);
+        changed = true;
+      }
+    }
+
+    final correctBirthdate = DateTime(2001, 1, 13);
+    if (personal.birthdate != correctBirthdate) {
+      personal.birthdate = correctBirthdate;
+      changed = true;
+    }
+    setPersonal(personal.civilStatus, 'Married', (v) => personal.civilStatus = v);
+    setPersonal(personal.placeOfBirth, 'Milagros, Masbate', (v) => personal.placeOfBirth = v);
+    setPersonal(personal.schoolName, 'Masbate National Comprehensive High School', (v) => personal.schoolName = v);
+    setPersonal(personal.yearOrGradeLevel, '2nd Year College', (v) => personal.yearOrGradeLevel = v);
+    setPersonal(personal.degreeProgramOrCourse, 'BS Education', (v) => personal.degreeProgramOrCourse = v);
+    setPersonal(personal.lastSchoolAverageGrade, '90', (v) => personal.lastSchoolAverageGrade = v);
+    setPersonal(
+      personal.communityInvolvement,
+      'Member of the church youth ministry.',
+      (v) => personal.communityInvolvement = v,
+    );
+    setPersonal(
+      personal.postGraduationPlans,
+      'Plans to apply for government service after graduation.',
+      (v) => personal.postGraduationPlans = v,
+    );
+
+    if (p.household.monthlyIncome != '₱9,718') {
+      p.household.monthlyIncome = '₱9,718';
+      changed = true;
+    }
+
+    if (!p.familyMembers.any((m) => m.relationshipToHead == 'Father')) {
+      p.familyMembers = [
+        ...p.familyMembers,
+        Individual(
+          individualId: 'IND-$_cristyVerifiedAccountId-FATHER',
+          firstName: 'Ramon',
+          lastName: 'Cristy',
+          relationshipToHead: 'Father',
+          occupation: 'Construction Worker',
+          familyId: p.familyId,
+          householdId: p.householdId,
+        ),
+      ];
+      changed = true;
+    }
+    if (!p.familyMembers.any((m) => m.relationshipToHead == 'Mother')) {
+      p.familyMembers = [
+        ...p.familyMembers,
+        Individual(
+          individualId: 'IND-$_cristyVerifiedAccountId-MOTHER',
+          firstName: 'Corazon',
+          lastName: 'Cristy',
+          relationshipToHead: 'Mother',
+          occupation: 'Sari-Sari Store Vendor',
+          familyId: p.familyId,
+          householdId: p.householdId,
+        ),
+      ];
+      changed = true;
+    }
+
+    return changed;
   }
 
   Future<void> _save(ResidentProfile p) async {

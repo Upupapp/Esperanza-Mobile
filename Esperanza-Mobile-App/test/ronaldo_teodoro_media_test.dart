@@ -16,6 +16,14 @@ import 'package:esperanza_mobile/utils/demo_resident_photo.dart';
 import 'package:esperanza_mobile/utils/government_id.dart';
 import 'package:esperanza_mobile/widgets/app_button.dart';
 
+/// demoProfileImageFor now wraps every portrait in a `ResizeImage` (decode
+/// at avatar size, not the source's full multi-megapixel resolution — see
+/// that function's own doc comment) — unwrap it here so these tests can
+/// still assert on the underlying asset name.
+AssetImage _unwrapAssetImage(ImageProvider? provider) {
+  return provider is ResizeImage ? provider.imageProvider as AssetImage : provider as AssetImage;
+}
+
 Future<CitizenSessionService> _signedInAs(WidgetTester tester, CitizenAccount account) async {
   SharedPreferences.setMockInitialValues({});
   final session = CitizenSessionService();
@@ -41,8 +49,8 @@ void main() {
     test('Ronaldo has his own profile photo and government ID, distinct from Cristy and Teodoro', () {
       final ronaldo = MockCatalog.demoAccounts.first;
       expect(ronaldo.firstName, 'Ronaldo');
-      final photo = demoProfileImageFor(ronaldo) as AssetImage?;
-      expect(photo?.assetName, ronaldoProfilePhotoAsset);
+      final photo = _unwrapAssetImage(demoProfileImageFor(ronaldo));
+      expect(photo.assetName, ronaldoProfilePhotoAsset);
       expect(ronaldoProfilePhotoAsset, 'assets/images/Ronaldo Bautista.png');
 
       final id = governmentIdFor(ronaldo);
@@ -56,10 +64,10 @@ void main() {
       final b = MockCatalog.unverifiedDuplicateAccountB;
       expect(a.id, isNot(b.id)); // distinct accounts internally
 
-      final photoA = demoProfileImageFor(a) as AssetImage?;
-      final photoB = demoProfileImageFor(b) as AssetImage?;
-      expect(photoA?.assetName, theodoroProfilePhotoAsset);
-      expect(photoB?.assetName, theodoroProfilePhotoAsset);
+      final photoA = _unwrapAssetImage(demoProfileImageFor(a));
+      final photoB = _unwrapAssetImage(demoProfileImageFor(b));
+      expect(photoA.assetName, theodoroProfilePhotoAsset);
+      expect(photoB.assetName, theodoroProfilePhotoAsset);
       expect(theodoroProfilePhotoAsset, 'assets/images/Theodoro Milaflor.png');
 
       final idA = governmentIdFor(a);
@@ -71,9 +79,9 @@ void main() {
 
     test('an unrelated account (Cristy) never resolves to Ronaldo or Teodoro assets', () {
       final cristy = MockCatalog.demoAccounts.last;
-      final photo = demoProfileImageFor(cristy) as AssetImage?;
-      expect(photo?.assetName, isNot(ronaldoProfilePhotoAsset));
-      expect(photo?.assetName, isNot(theodoroProfilePhotoAsset));
+      final photo = _unwrapAssetImage(demoProfileImageFor(cristy));
+      expect(photo.assetName, isNot(ronaldoProfilePhotoAsset));
+      expect(photo.assetName, isNot(theodoroProfilePhotoAsset));
       expect(governmentIdFor(cristy)!.assetPath, isNot('assets/images/RONALDO ID DEMO.png'));
     });
   });

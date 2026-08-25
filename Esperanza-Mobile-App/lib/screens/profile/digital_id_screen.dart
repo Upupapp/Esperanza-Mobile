@@ -63,7 +63,16 @@ class _DigitalIdWallet extends StatefulWidget {
 
 class _DigitalIdWalletState extends State<_DigitalIdWallet> with TickerProviderStateMixin {
   static const _aspectRatio = 1.58; // matches the seeded ID assets' own ~1573x1000 proportions
-  static const _peekVisible = 22.0;
+  static const _peekVisible = 20.0;
+
+  // A resting stacked-behind credential renders at this fraction of the
+  // active card's size/opacity — a compact wallet-deck edge, never a
+  // second full-size, fully-readable ID directly behind the active one.
+  // Both interpolate up to 1.0 as a drag brings that card toward becoming
+  // active, so it visibly "rises and grows" into place rather than
+  // popping in at full size the instant it's committed.
+  static const _peekRestScale = 0.90;
+  static const _peekRestOpacity = 0.5;
 
   int _activeIndex = 0;
   double _dragOffset = 0;
@@ -216,9 +225,8 @@ class _DigitalIdWalletState extends State<_DigitalIdWallet> with TickerProviderS
                   onVerticalDragEnd: (d) => _onDragEnd(d, step),
                   child: Stack(
                     children: [
-                      if (_previous != null)
-                        _peekCard(_previous!, cardWidth, cardHeight, -step + _currentOffset),
-                      if (_next != null) _peekCard(_next!, cardWidth, cardHeight, step + _currentOffset),
+                      if (_previous != null) _peekCard(_previous!, cardWidth, cardHeight, step, isNext: false),
+                      if (_next != null) _peekCard(_next!, cardWidth, cardHeight, step, isNext: true),
                       _activeCard(cardWidth, cardHeight),
                     ],
                   ),
@@ -253,45 +261,75 @@ class _DigitalIdWalletState extends State<_DigitalIdWallet> with TickerProviderS
     );
   }
 
-  Widget _peekCard(DigitalCredential credential, double width, double height, double offsetY) {
-    return Transform.translate(
-      offset: Offset(0, offsetY),
+  /// A stacked-behind credential — rendered small and dim at rest (a
+  /// compact deck edge, per this feature's own "never a second full-size
+  /// readable ID" requirement), growing/rising toward full size and
+  /// opacity as a drag brings it toward becoming the active card. [isNext]
+  /// selects which half of the drag range (up vs. down) drives it.
+  Widget _peekCard(DigitalCredential credential, double width, double height, double step, {required bool isNext}) {
+    final rawProgress = isNext ? (-_currentOffset / step) : (_currentOffset / step);
+    final progress = rawProgress.clamp(0.0, 1.0);
+    final scale = _peekRestScale + (1 - _peekRestScale) * progress;
+    final opacity = _peekRestOpacity + (1 - _peekRestOpacity) * progress;
+    // At rest (progress 0) this sits just below/above the active card,
+    // showing only its own top/bottom `_peekVisible` px; as progress -> 1
+    // it rises/descends toward y=0, arriving exactly as the active card
+    // finishes departing so the handoff reads as one continuous motion.
+    final restY = height - _peekVisible;
+    final y = isNext ? restY * (1 - progress) : -restY * (1 - progress);
+    final scaledWidth = width * scale;
+    final scaledHeight = height * scale;
+
+    return Positioned(
+      top: y,
+      left: (width - scaledWidth) / 2,
       child: Opacity(
-        opacity: 0.82,
-        child: _CredentialFace(credential: credential, width: width, height: height, front: true),
+        opacity: opacity,
+        child: _CredentialFace(
+          credential: credential,
+          width: scaledWidth,
+          height: scaledHeight,
+          front: true,
+          elevated: false,
+        ),
       ),
     );
   }
 
   Widget _activeCard(double width, double height) {
-    return Transform.translate(
-      offset: Offset(0, _currentOffset),
-      child: Semantics(
-        label:
-            '${_active.displayName}, ${_showingBack ? 'back' : 'front'} side. '
-            'Double tap to flip. Swipe up or down for other credentials.',
-        button: true,
-        child: GestureDetector(
-          behavior: HitTestBehavior.opaque,
-          onTap: _toggleFlip,
-          child: AnimatedBuilder(
-            animation: _flipController,
-            builder: (context, child) {
-              final t = _flipController.value;
-              final isBack = t >= 0.5;
-              // Standard card-flip recipe: on the back half, subtract pi so
-              // the back face lands right-way-round instead of mirrored —
-              // text on the back must read normally, never backwards.
-              final angle = isBack ? (t - 1) * math.pi : t * math.pi;
-              final matrix = Matrix4.identity()
-                ..setEntry(3, 2, 0.0012)
-                ..rotateY(angle);
-              return Transform(
-                alignment: Alignment.center,
-                transform: matrix,
-                child: _CredentialFace(credential: _active, width: width, height: height, front: !isBack),
-              );
-            },
+    return Positioned(
+      top: 0,
+      left: 0,
+      child: Transform.translate(
+        offset: Offset(0, _currentOffset),
+        child: Semantics(
+          label:
+              '${_active.displayName}, ${_showingBack ? 'back' : 'front'} side. '
+              'Double tap to flip. Swipe up or down for other credentials.',
+          button: true,
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: _toggleFlip,
+            child: AnimatedBuilder(
+              animation: _flipController,
+              builder: (context, child) {
+                final t = _flipController.value;
+                final isBack = t >= 0.5;
+                // Standard card-flip recipe: on the back half, subtract pi
+                // so the back face lands right-way-round instead of
+                // mirrored — text on the back must read normally, never
+                // backwards.
+                final angle = isBack ? (t - 1) * math.pi : t * math.pi;
+                final matrix = Matrix4.identity()
+                  ..setEntry(3, 2, 0.0012)
+                  ..rotateY(angle);
+                return Transform(
+                  alignment: Alignment.center,
+                  transform: matrix,
+                  child: _CredentialFace(credential: _active, width: width, height: height, front: !isBack),
+                );
+              },
+            ),
           ),
         ),
       ),
@@ -302,22 +340,45 @@ class _DigitalIdWalletState extends State<_DigitalIdWallet> with TickerProviderS
 /// Renders one face (front or back) of a credential inside a fixed-size,
 /// rounded, shadowed card — `BoxFit.contain` so the ID's own printed
 /// information is never cropped, stretched, or otherwise distorted
-/// regardless of a given asset's exact pixel aspect ratio.
+/// regardless of a given asset's exact pixel aspect ratio. Decodes at the
+/// size it's actually displayed at (`cacheWidth`, DPR-aware) rather than
+/// the source's full ~1.6-2MB resolution — these seeded ID assets are
+/// large enough that decoding every one at native resolution just to show
+/// it at wallet/peek size is a real memory cost, multiplied by however
+/// many credentials a resident's wallet eventually holds. Only
+/// [_CredentialFullScreenViewer] intentionally skips this, since reading
+/// the ID full-quality is the entire point there.
 class _CredentialFace extends StatelessWidget {
   final DigitalCredential credential;
   final double width;
   final double height;
   final bool front;
 
-  const _CredentialFace({required this.credential, required this.width, required this.height, required this.front});
+  /// False for a stacked-behind peek card — a visibly lighter shadow than
+  /// the active card's, reinforcing the depth cue without an expensive
+  /// blur difference (both are the same cheap BoxShadow list, just a
+  /// smaller one).
+  final bool elevated;
+
+  const _CredentialFace({
+    required this.credential,
+    required this.width,
+    required this.height,
+    required this.front,
+    this.elevated = true,
+  });
 
   @override
   Widget build(BuildContext context) {
     final asset = front ? credential.frontAsset : credential.backAsset;
+    final dpr = MediaQuery.devicePixelRatioOf(context);
     return Container(
       width: width,
       height: height,
-      decoration: BoxDecoration(borderRadius: BorderRadius.circular(16), boxShadow: AppShadows.float),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: elevated ? AppShadows.float : AppShadows.card,
+      ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(16),
         child: Container(
@@ -327,6 +388,12 @@ class _CredentialFace extends StatelessWidget {
             width: width,
             height: height,
             fit: BoxFit.contain,
+            // Only the width is capped — contain already preserves the
+            // source's own aspect ratio, so letting height follow from
+            // that (rather than also pinning cacheHeight, which could
+            // mismatch the true aspect ratio and force a second resize)
+            // is what actually keeps this sharp.
+            cacheWidth: (width * dpr).round().clamp(1, 4000),
             errorBuilder: (context, error, stack) => Container(
               color: AppColors.slate100,
               alignment: Alignment.center,

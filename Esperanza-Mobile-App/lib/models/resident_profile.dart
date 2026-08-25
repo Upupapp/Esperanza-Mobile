@@ -77,6 +77,23 @@ class Individual {
   String completeAddress;
   String occupation;
   String educationalAttainment;
+
+  /// Reusable Educational-Assistance-sourced student facts — see
+  /// ServiceRequestWizardScreen's own prefill block, which reads these the
+  /// same way Date of Birth is already prefilled (a starting value in an
+  /// otherwise-editable field, not the stricter locked/_MasterSourcedField
+  /// treatment, since Personal Information has no dedicated UI for these
+  /// yet). Field names match their ServiceFormField.key counterparts in
+  /// mock_catalog.dart's tulong_educational/tulong_solo_parent formSpecs
+  /// exactly, so the prefill lookup is a direct 1:1 mapping.
+  String placeOfBirth;
+  String schoolName;
+  String yearOrGradeLevel;
+  String degreeProgramOrCourse;
+  String lastSchoolAverageGrade;
+  String communityInvolvement;
+  String postGraduationPlans;
+
   bool isSeniorCitizen;
   bool isPWD;
   bool isSoloParent;
@@ -120,6 +137,13 @@ class Individual {
     this.completeAddress = '',
     this.occupation = '',
     this.educationalAttainment = '',
+    this.placeOfBirth = '',
+    this.schoolName = '',
+    this.yearOrGradeLevel = '',
+    this.degreeProgramOrCourse = '',
+    this.lastSchoolAverageGrade = '',
+    this.communityInvolvement = '',
+    this.postGraduationPlans = '',
     this.isSeniorCitizen = false,
     this.isPWD = false,
     this.isSoloParent = false,
@@ -162,6 +186,13 @@ class Individual {
         'completeAddress': completeAddress,
         'occupation': occupation,
         'educationalAttainment': educationalAttainment,
+        'placeOfBirth': placeOfBirth,
+        'schoolName': schoolName,
+        'yearOrGradeLevel': yearOrGradeLevel,
+        'degreeProgramOrCourse': degreeProgramOrCourse,
+        'lastSchoolAverageGrade': lastSchoolAverageGrade,
+        'communityInvolvement': communityInvolvement,
+        'postGraduationPlans': postGraduationPlans,
         'isSeniorCitizen': isSeniorCitizen,
         'isPWD': isPWD,
         'isSoloParent': isSoloParent,
@@ -193,6 +224,13 @@ class Individual {
         completeAddress: json['completeAddress'] ?? '',
         occupation: json['occupation'] ?? '',
         educationalAttainment: json['educationalAttainment'] ?? '',
+        placeOfBirth: json['placeOfBirth'] ?? '',
+        schoolName: json['schoolName'] ?? '',
+        yearOrGradeLevel: json['yearOrGradeLevel'] ?? '',
+        degreeProgramOrCourse: json['degreeProgramOrCourse'] ?? '',
+        lastSchoolAverageGrade: json['lastSchoolAverageGrade'] ?? '',
+        communityInvolvement: json['communityInvolvement'] ?? '',
+        postGraduationPlans: json['postGraduationPlans'] ?? '',
         isSeniorCitizen: json['isSeniorCitizen'] ?? false,
         isPWD: json['isPWD'] ?? false,
         isSoloParent: json['isSoloParent'] ?? false,
@@ -326,6 +364,15 @@ class Household {
   String toiletFacility;
   String electricitySource;
   bool hasInternetAccess;
+
+  /// Household-level economic fact — currently sourced only from an
+  /// Educational Assistance application's "Parents' Monthly Income" (see
+  /// ServiceRequestWizardScreen's own prefill block and
+  /// ResidentProfileService's Cristy alignment migration), stored
+  /// pre-formatted (e.g. "₱9,718") the same way ServiceRequest.fee already
+  /// stores its own currency strings pre-formatted rather than as a raw
+  /// number. Empty for every profile with nothing on file yet.
+  String monthlyIncome;
   List<String> familyIds;
   List<SimpleFamilyRef> otherFamilies;
   final String source;
@@ -342,6 +389,7 @@ class Household {
     this.toiletFacility = '',
     this.electricitySource = '',
     this.hasInternetAccess = false,
+    this.monthlyIncome = '',
     List<String>? familyIds,
     List<SimpleFamilyRef>? otherFamilies,
     this.source = RecordSource.mobileApp,
@@ -359,6 +407,7 @@ class Household {
         'waterSource': waterSource,
         'toiletFacility': toiletFacility,
         'electricitySource': electricitySource,
+        'monthlyIncome': monthlyIncome,
         'hasInternetAccess': hasInternetAccess,
         'familyIds': familyIds,
         'otherFamilies': otherFamilies.map((f) => f.toJson()).toList(),
@@ -377,6 +426,7 @@ class Household {
         toiletFacility: json['toiletFacility'] ?? '',
         electricitySource: json['electricitySource'] ?? '',
         hasInternetAccess: json['hasInternetAccess'] ?? false,
+        monthlyIncome: json['monthlyIncome'] ?? '',
         familyIds: (json['familyIds'] as List?)?.cast<String>() ?? [],
         otherFamilies: (json['otherFamilies'] as List? ?? []).map((f) => SimpleFamilyRef.fromJson(f)).toList(),
         source: json['source'] ?? RecordSource.mobileApp,
@@ -651,8 +701,16 @@ class ResidentProfileOptions {
   static const educationalAttainment = [
     'No Formal Education', 'Elementary', 'High School', 'Senior High School', 'Vocational', 'College', 'Post Graduate',
   ];
+  // 'Father'/'Mother' (rather than reusing the generic 'Parent' already
+  // below) so the Cristy Master Profile alignment's seeded family members
+  // can carry the same specific relationship labels the Web Admin source
+  // data uses — see ResidentProfileService's Cristy alignment migration.
+  // Both must be real options here, not just free text a screen happens to
+  // display: FamilyMemberFormSheet's edit dropdown asserts its current
+  // value is one of these, so a relationship missing from this list would
+  // crash that sheet the moment someone opens Edit on one of those members.
   static const relationshipToHead = [
-    'Spouse', 'Son', 'Daughter', 'Parent', 'Sibling', 'Grandchild', 'Other Relative', 'Non-Relative',
+    'Spouse', 'Son', 'Daughter', 'Father', 'Mother', 'Parent', 'Sibling', 'Grandchild', 'Other Relative', 'Non-Relative',
   ];
   static const housingOwnership = ['Owned', 'Renting', 'Rent-Free with Consent', 'Informal Settler'];
   static const housingType = ['Concrete', 'Semi-Concrete', 'Wood', 'Mixed / Light Materials'];

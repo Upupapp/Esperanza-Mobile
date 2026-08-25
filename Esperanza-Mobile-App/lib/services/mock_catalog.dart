@@ -315,6 +315,102 @@ class MockCatalog {
         ],
       ),
     ),
+    // Moved here from Tulong (assistanceTypes) — this is an ID/membership
+    // registration, not an assistance/benefit program (unlike e.g. Social
+    // Pension, a genuine cash-benefit item that correctly stays in
+    // Tulong), so it belongs in Dokyu alongside this project's other
+    // resident identification/registration services. Reclassification
+    // only — form fields, requirements, and behavior are byte-for-byte
+    // unchanged from before the move; key renamed dokyu_* to match this
+    // module's own naming convention (RequestsService has a matching
+    // migration for any already-persisted request submitted before this
+    // move, under the old Tulong category — see
+    // _migrateSeniorCitizenIdCategory).
+    CatalogItem(
+      key: 'dokyu_senior_citizen_id',
+      name: 'Senior Citizen ID Application (OSCA Membership)',
+      office: 'Office for Senior Citizens Affairs',
+      fee: 'Free',
+      days: '3-5 working days',
+      requirements: [
+        'PSA Birth Certificate or valid ID showing birthdate',
+        '2 recent 1x1 ID photos',
+        'Barangay Certification',
+      ],
+      process: ['Submit Requirements', 'Office for Senior Citizens Affairs Verification', 'Approval', 'ID Release'],
+      icon: 'id-card',
+      // Sourced: MSWD - Senior Citizen Application Form.docx, OSCA
+      // Membership Application (official). Distinct from the existing
+      // Social Pension item, which is a cash-benefit program, not plain
+      // membership/ID registration.
+      formSpec: ServiceFormSpec(
+        steps: [
+          ServiceFormStep(
+            label: 'Personal Information',
+            fields: [
+              ServiceFormField(key: 'dateOfBirth', label: 'Date of Birth', type: ServiceFieldType.date),
+              ServiceFormField(key: 'placeOfBirth', label: 'Place of Birth', type: ServiceFieldType.text),
+              ServiceFormField(key: 'sex', label: 'Sex', type: ServiceFieldType.select, options: ['Male', 'Female']),
+              ServiceFormField(
+                key: 'civilStatus',
+                label: 'Civil Status',
+                type: ServiceFieldType.select,
+                options: ['Single', 'Married', 'Widowed', 'Separated'],
+              ),
+              ServiceFormField(
+                key: 'educationalAttainment',
+                label: 'Educational Attainment',
+                type: ServiceFieldType.select,
+                options: ['None', 'Elementary', 'High School', 'Vocational', 'College', 'Post Graduate'],
+              ),
+              ServiceFormField(
+                key: 'presentOccupation',
+                label: 'Present Occupation',
+                type: ServiceFieldType.text,
+                required: false,
+              ),
+              ServiceFormField(
+                key: 'annualIncome',
+                label: 'Annual Income (₱)',
+                type: ServiceFieldType.number,
+                required: false,
+              ),
+              ServiceFormField(
+                key: 'receivingPension',
+                label: 'Currently Receiving a Pension',
+                type: ServiceFieldType.checkbox,
+                required: false,
+              ),
+              ServiceFormField(
+                key: 'philsysIdNumber',
+                label: 'PhilSys ID Number',
+                type: ServiceFieldType.text,
+                required: false,
+              ),
+            ],
+          ),
+          ServiceFormStep(
+            label: "Government Service Record",
+            description: 'Fill in if you previously worked in government.',
+            fields: [
+              ServiceFormField(
+                key: 'lastGovtOffice',
+                label: 'Last Government Office',
+                type: ServiceFieldType.text,
+                required: false,
+              ),
+              ServiceFormField(
+                key: 'lastGovtPosition',
+                label: 'Position',
+                type: ServiceFieldType.text,
+                required: false,
+              ),
+              ServiceFormField(key: 'lastGovtYear', label: 'Year', type: ServiceFieldType.text, required: false),
+            ],
+          ),
+        ],
+      ),
+    ),
     CatalogItem(
       key: 'dokyu_marriage_license',
       name: 'Application for Marriage License',
@@ -1146,11 +1242,19 @@ class MockCatalog {
       fee: 'Free',
       days: '10-15 working days',
       amount: 'Tuition + allowance per semester',
+      // Aligned exactly to the Web Admin's own Educational Assistance
+      // requirement list (Cristy Master Profile alignment pass) — three
+      // requirements, each with its own upload area (see
+      // ServiceRequestWizardScreen's _usesRequirementUploaders). 'Valid
+      // Government-Issued ID' and 'Barangay Certificate of Indigency' use
+      // wording already recognized/shared elsewhere in the catalog (see
+      // utils/requirement_document_type.dart's documentTypeFor), so a
+      // document uploaded once here can be offered for reuse on other
+      // services that ask for the same document, and vice versa.
       requirements: [
         'Certificate of Enrollment',
-        'Report Card (GWA 80 and above)',
-        'Certificate of Indigency',
-        'Barangay Residency Certificate',
+        'Valid Government-Issued ID',
+        'Barangay Certificate of Indigency',
       ],
       process: ['Submit Requirements', 'Scholarship Committee Review', 'Approval', 'Disbursement'],
       icon: 'graduation-cap',
@@ -1166,6 +1270,13 @@ class MockCatalog {
             label: 'Student Information',
             fields: [
               ServiceFormField(key: 'dateOfBirth', label: 'Date of Birth', type: ServiceFieldType.date),
+              ServiceFormField(
+                key: 'age',
+                label: 'Age',
+                type: ServiceFieldType.derivedAge,
+                required: false,
+                derivedFromKey: 'dateOfBirth',
+              ),
               ServiceFormField(key: 'placeOfBirth', label: 'Place of Birth', type: ServiceFieldType.text),
               ServiceFormField(
                 key: 'civilStatus',
@@ -1406,91 +1517,6 @@ class MockCatalog {
                 label: 'Emergency Contact Number',
                 type: ServiceFieldType.text,
               ),
-            ],
-          ),
-        ],
-      ),
-    ),
-    CatalogItem(
-      key: 'tulong_senior_citizen_id',
-      name: 'Senior Citizen ID Application (OSCA Membership)',
-      office: 'Office for Senior Citizens Affairs',
-      fee: 'Free',
-      days: '3-5 working days',
-      requirements: [
-        'PSA Birth Certificate or valid ID showing birthdate',
-        '2 recent 1x1 ID photos',
-        'Barangay Certification',
-      ],
-      process: ['Submit Requirements', 'Office for Senior Citizens Affairs Verification', 'Approval', 'ID Release'],
-      icon: 'id-card',
-      // Sourced: MSWD - Senior Citizen Application Form.docx, OSCA
-      // Membership Application (official). Distinct from the existing
-      // Social Pension item, which is a cash-benefit program, not plain
-      // membership/ID registration.
-      formSpec: ServiceFormSpec(
-        steps: [
-          ServiceFormStep(
-            label: 'Personal Information',
-            fields: [
-              ServiceFormField(key: 'dateOfBirth', label: 'Date of Birth', type: ServiceFieldType.date),
-              ServiceFormField(key: 'placeOfBirth', label: 'Place of Birth', type: ServiceFieldType.text),
-              ServiceFormField(key: 'sex', label: 'Sex', type: ServiceFieldType.select, options: ['Male', 'Female']),
-              ServiceFormField(
-                key: 'civilStatus',
-                label: 'Civil Status',
-                type: ServiceFieldType.select,
-                options: ['Single', 'Married', 'Widowed', 'Separated'],
-              ),
-              ServiceFormField(
-                key: 'educationalAttainment',
-                label: 'Educational Attainment',
-                type: ServiceFieldType.select,
-                options: ['None', 'Elementary', 'High School', 'Vocational', 'College', 'Post Graduate'],
-              ),
-              ServiceFormField(
-                key: 'presentOccupation',
-                label: 'Present Occupation',
-                type: ServiceFieldType.text,
-                required: false,
-              ),
-              ServiceFormField(
-                key: 'annualIncome',
-                label: 'Annual Income (₱)',
-                type: ServiceFieldType.number,
-                required: false,
-              ),
-              ServiceFormField(
-                key: 'receivingPension',
-                label: 'Currently Receiving a Pension',
-                type: ServiceFieldType.checkbox,
-                required: false,
-              ),
-              ServiceFormField(
-                key: 'philsysIdNumber',
-                label: 'PhilSys ID Number',
-                type: ServiceFieldType.text,
-                required: false,
-              ),
-            ],
-          ),
-          ServiceFormStep(
-            label: "Government Service Record",
-            description: 'Fill in if you previously worked in government.',
-            fields: [
-              ServiceFormField(
-                key: 'lastGovtOffice',
-                label: 'Last Government Office',
-                type: ServiceFieldType.text,
-                required: false,
-              ),
-              ServiceFormField(
-                key: 'lastGovtPosition',
-                label: 'Position',
-                type: ServiceFieldType.text,
-                required: false,
-              ),
-              ServiceFormField(key: 'lastGovtYear', label: 'Year', type: ServiceFieldType.text, required: false),
             ],
           ),
         ],
@@ -2182,6 +2208,17 @@ class MockCatalog {
     // esperanza_constituents.php as HH-2026-104 — no family/household
     // members beyond herself, so there is nothing to carry into
     // Family/Household screens.
+    //
+    // Birthdate corrected Jan 13, 2001 (was Nov 29, 1988) to align with the
+    // Web Admin's own Educational Assistance record for Cristy Pareja
+    // Bonghanoy — see ResidentProfileService's Cristy Master Profile
+    // alignment migration, which also corrects any device that already
+    // persisted the old value. NOTE: the seeded Digital ID wallet images
+    // (BarangayID_Front.png / PWD_Front.png) and the submitted government
+    // ID image (CRISTY DEMO ID.png) still print "November 29, 1988" — per
+    // this project's rule against generating new ID images, those assets
+    // are left untouched; this is a known, reported printed-vs-profile
+    // mismatch, not an oversight (see this alignment pass's own report).
     CitizenAccount(
       id: 'ESP-RES-2024-1044',
       firstName: 'Cristy',
@@ -2191,7 +2228,7 @@ class MockCatalog {
       barangay: 'Baras',
       purok: 'Purok 2',
       address: 'Purok 2, Barangay Baras, Esperanza, Masbate',
-      birthdate: 'November 29, 1988',
+      birthdate: 'January 13, 2001',
       sex: 'Female',
       civilStatus: 'Married',
       occupation: 'Market Vendor',
@@ -2223,7 +2260,7 @@ class MockCatalog {
     barangay: 'Baras',
     purok: 'Purok 2',
     address: 'Purok 2, Barangay Baras, Esperanza, Masbate',
-    birthdate: 'November 29, 1988',
+    birthdate: 'January 13, 2001',
     sex: 'Female',
     civilStatus: 'Married',
     occupation: 'Market Vendor',
@@ -2245,12 +2282,15 @@ class MockCatalog {
   ///
   /// The card's own printed name reads "Cristy Ann Ferrer" — a leftover
   /// from before this project's demo identity was corrected to Cristy
-  /// Bonghanoy's real Web Admin record. The date of birth and address
-  /// printed on the card do match Cristy Bonghanoy's actual record
-  /// (November 29, 1988; Purok 2, Barangay Baras) exactly. Per this
-  /// correction's own instructions, no new ID image may be generated — the
-  /// existing asset is used as-is; only a person can supply a replacement
-  /// image with the corrected surname.
+  /// Bonghanoy's real Web Admin record. The printed address (Purok 2,
+  /// Barangay Baras) still matches exactly, but the printed date of birth
+  /// (November 29, 1988) is now STALE — the Master Profile alignment pass
+  /// corrected Cristy's actual birthdate to January 13, 2001 (her real Web
+  /// Admin Educational Assistance record), and per this project's rule
+  /// against generating new ID images, this asset was intentionally left
+  /// untouched. This is a known, reported printed-vs-profile mismatch (see
+  /// that alignment pass's own report), not an oversight; only a person can
+  /// supply a replacement image with the corrected name/birthdate.
   static const cristyGovernmentId = GovernmentIdRecord(
     accountId: 'ESP-RES-2024-1044',
     idType: 'Postal ID (PHLPost)',
@@ -2270,6 +2310,17 @@ class MockCatalog {
   /// No `validUntil` is set for either — neither asset prints an expiry
   /// date, so none is invented here (see DigitalCredential.validUntil's own
   /// doc comment).
+  ///
+  /// Both card images also print "NOV 29, 1988" as Date of Birth (and
+  /// "Barangay Libertad" as address, a separate, pre-existing mismatch from
+  /// before this alignment pass) — now stale against the corrected Master
+  /// Profile birthdate (January 13, 2001). Neither [DigitalCredential]
+  /// itself nor this screen's own info panel has a structured DOB field
+  /// (see that class's fields), so nothing in the app's own UI text
+  /// contradicts the corrected profile — only the baked-in card artwork
+  /// does. Per this project's rule against generating new ID images, both
+  /// assets are left untouched; this is a known, reported mismatch (see
+  /// this alignment pass's own report), not an oversight.
   static const cristyDigitalCredentials = <DigitalCredential>[
     DigitalCredential(
       id: 'cristy-barangay-resident-id',

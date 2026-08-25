@@ -8,10 +8,11 @@ import '../utils/cross_platform_image.dart';
 import '../utils/protected_action.dart';
 import '../utils/requirement_document_type.dart';
 
-/// One requirement's own upload section — Dokyu's per-requirement
-/// attachment architecture (see docs on the "each requirement gets its own
-/// uploader" change). Reuses the app's existing camera/gallery/document
-/// permission handling (`pickImageProtected`/`pickDocumentProtected` from
+/// One requirement's own upload section — the standard per-requirement
+/// attachment architecture shared by every Dokyu and Tulong service (see
+/// docs on the "each requirement gets its own uploader" change). Reuses the
+/// app's existing camera/gallery/document permission handling
+/// (`pickImageProtected`/`pickDocumentProtected` from
 /// utils/protected_action.dart) rather than a new implementation, and never
 /// touches the resident's Master File itself — the parent screen owns that
 /// (via [onAttachNew]/[onUseExisting]) so this widget stays a pure,
@@ -19,6 +20,14 @@ import '../utils/requirement_document_type.dart';
 class RequirementUploader extends StatelessWidget {
   final RequirementInfo requirement;
   final Attachment? attachment;
+
+  /// The calling module's own identity color (Esperanza blue for Dokyu,
+  /// purple for Tulong) — used for the upload prompt and the "Replace"
+  /// action, so both modules share this widget's structure/behavior
+  /// without becoming visually identical. Status colors (emerald for an
+  /// existing-document offer, rose for Remove) stay fixed regardless of
+  /// module, since those represent outcome, not brand identity.
+  final Color accent;
 
   /// The resident's existing Master File document for this requirement's
   /// document type, if any — null when there's nothing to offer for reuse.
@@ -42,6 +51,7 @@ class RequirementUploader extends StatelessWidget {
     super.key,
     required this.requirement,
     required this.attachment,
+    required this.accent,
     required this.existingMasterDoc,
     required this.onAttachNew,
     required this.onUseExisting,
@@ -132,8 +142,16 @@ class RequirementUploader extends StatelessWidget {
             ],
           ),
           const SizedBox(height: AppSpacing.sm),
-          if (attachment != null)
-            _AttachedTile(attachment: attachment!, onView: () => _openViewer(context), onReplace: () => _pickNew(context), onRemove: onRemove)
+          if (!requirement.requiresUpload)
+            const _StaffProcessNote()
+          else if (attachment != null)
+            _AttachedTile(
+              attachment: attachment!,
+              accent: accent,
+              onView: () => _openViewer(context),
+              onReplace: () => _pickNew(context),
+              onRemove: onRemove,
+            )
           else if (existingMasterDoc != null)
             _ExistingDocumentPrompt(
               masterDoc: existingMasterDoc!,
@@ -141,7 +159,7 @@ class RequirementUploader extends StatelessWidget {
               onUploadNew: () => _pickNew(context),
             )
           else
-            _UploadPrompt(onTap: () => _pickNew(context)),
+            _UploadPrompt(label: requirement.label, accent: accent, onTap: () => _pickNew(context)),
         ],
       ),
     );
@@ -216,8 +234,10 @@ class _UploadSourceSheet extends StatelessWidget {
 }
 
 class _UploadPrompt extends StatelessWidget {
+  final String label;
+  final Color accent;
   final VoidCallback onTap;
-  const _UploadPrompt({required this.onTap});
+  const _UploadPrompt({required this.label, required this.accent, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -226,20 +246,25 @@ class _UploadPrompt extends StatelessWidget {
       borderRadius: BorderRadius.circular(12),
       child: Container(
         width: double.infinity,
-        padding: const EdgeInsets.symmetric(vertical: 16),
+        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 10),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: AppColors.brand200),
-          color: AppColors.brand50,
+          border: Border.all(color: accent.withValues(alpha: 0.35)),
+          color: accent.withValues(alpha: 0.08),
         ),
-        child: const Column(
+        child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.upload_file_outlined, color: AppColors.brand500, size: 20),
-            SizedBox(height: 4),
+            Icon(Icons.upload_file_outlined, color: accent, size: 20),
+            const SizedBox(height: 4),
+            // Requirement-specific, not a generic "Upload Document" — see
+            // this widget's own doc comment. No maxLines/overflow set, so a
+            // long requirement name wraps onto a second line instead of
+            // being truncated or overflowing.
             Text(
-              'Upload Document',
-              style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: AppColors.brand600),
+              'Upload $label',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: accent),
             ),
           ],
         ),
@@ -276,9 +301,16 @@ class _ExistingDocumentPrompt extends StatelessWidget {
             children: [
               Icon(Icons.folder_copy_outlined, size: 15, color: AppColors.emerald700),
               SizedBox(width: 6),
-              Text(
-                'Existing document found',
-                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.emerald700),
+              // Flexible — this card's available width was previously only
+              // ever exercised inside NewRequestScreen (Dokyu); reusing the
+              // same per-requirement uploaders inside
+              // ServiceRequestWizardScreen's own (slightly narrower) page
+              // padding overflowed this unwrapped Text on the right.
+              Flexible(
+                child: Text(
+                  'Existing document found',
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.emerald700),
+                ),
               ),
             ],
           ),
@@ -323,11 +355,18 @@ class _ExistingDocumentPrompt extends StatelessWidget {
 /// / Replace / Remove.
 class _AttachedTile extends StatelessWidget {
   final Attachment attachment;
+  final Color accent;
   final VoidCallback onView;
   final VoidCallback onReplace;
   final VoidCallback onRemove;
 
-  const _AttachedTile({required this.attachment, required this.onView, required this.onReplace, required this.onRemove});
+  const _AttachedTile({
+    required this.attachment,
+    required this.accent,
+    required this.onView,
+    required this.onReplace,
+    required this.onRemove,
+  });
 
   ({Color bg, Color fg, IconData icon}) get _style => switch (attachment.category) {
     AttachmentCategory.image => (bg: AppColors.brand50, fg: AppColors.brand500, icon: Icons.image_outlined),
@@ -385,9 +424,9 @@ class _AttachedTile extends StatelessWidget {
           const SizedBox(height: 8),
           Row(
             children: [
-              if (isImage) _actionButton('View', onView),
+              if (isImage) _actionButton('View', onView, color: accent),
               if (isImage) const SizedBox(width: 14),
-              _actionButton('Replace', onReplace),
+              _actionButton('Replace', onReplace, color: accent),
               const SizedBox(width: 14),
               _actionButton('Remove', onRemove, color: AppColors.rose600),
             ],
@@ -397,13 +436,50 @@ class _AttachedTile extends StatelessWidget {
     );
   }
 
-  Widget _actionButton(String label, VoidCallback onTap, {Color color = AppColors.brand600}) {
+  Widget _actionButton(String label, VoidCallback onTap, {required Color color}) {
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(6),
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 2),
         child: Text(label, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: color)),
+      ),
+    );
+  }
+}
+
+/// Shown instead of an upload control for a requirement that isn't
+/// something the resident attaches a file for — see RequirementInfo
+/// .requiresUpload's own doc comment for the two cases this covers
+/// (an internal staff/office process, or descriptive record-identifying
+/// text already captured elsewhere). Still names the requirement in its
+/// own card above this note (never hidden), just never offers a button
+/// that would ask the resident to upload something nobody expects them to.
+class _StaffProcessNote extends StatelessWidget {
+  const _StaffProcessNote();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+      decoration: BoxDecoration(
+        color: AppColors.slate50,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(Icons.info_outline_rounded, size: 16, color: AppColors.slate400),
+          const SizedBox(width: 8),
+          const Expanded(
+            child: Text(
+              'Handled by our staff during processing — no document to upload here.',
+              style: TextStyle(fontSize: 12, color: AppColors.textMuted, height: 1.35),
+            ),
+          ),
+        ],
       ),
     );
   }

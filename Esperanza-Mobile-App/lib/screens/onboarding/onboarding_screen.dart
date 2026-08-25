@@ -290,7 +290,19 @@ class _OnboardingPage extends StatelessWidget {
     return Stack(
       fit: StackFit.expand,
       children: [
-        Image.asset(data.imagePath, fit: BoxFit.cover, cacheWidth: cacheWidth),
+        // BoxFit.contain, not cover: this artwork's own aspect ratio
+        // (~0.62-0.67, source ~1023x1537) is noticeably wider/shorter than
+        // a real phone's (commonly ~0.45-0.48 — e.g. a Pixel emulator).
+        // Covering a narrower target than the source crops the image's own
+        // *width* to fill the extra height, which — since the messaging is
+        // baked directly into the artwork rather than a separate text
+        // layer — was cutting real content off the left/right edges on an
+        // actual Android emulator/device even though it looked fine on a
+        // wider desktop-web preview window. Contain guarantees the whole
+        // composition is always visible (letterboxed onto this screen's
+        // own white background when the aspect ratio doesn't match
+        // exactly) instead of ever cropping it.
+        Image.asset(data.imagePath, fit: BoxFit.contain, cacheWidth: cacheWidth),
         // Soft top/bottom scrims so the brand badge/Skip and the page
         // dots/Next button stay readable regardless of what's directly
         // behind them in the artwork, without covering the middle of the

@@ -27,6 +27,15 @@ class MasterFileDocument {
   /// Information', or 'Manual'. Display-only, never used for matching.
   final String origin;
 
+  /// The specific catalog service/application this was uploaded through
+  /// (e.g. "Barangay Clearance", "Educational Assistance") — distinct from
+  /// [origin], which only ever names the broader module. Null for a
+  /// document with no single originating service (e.g. uploaded directly
+  /// through Personal Information). See the Documents Uploaded screen,
+  /// which shows both "Source module" and "Related service/application" as
+  /// separate fields.
+  final String? serviceName;
+
   const MasterFileDocument({
     required this.id,
     required this.documentType,
@@ -34,6 +43,7 @@ class MasterFileDocument {
     required this.attachment,
     required this.uploadedAt,
     required this.origin,
+    this.serviceName,
   });
 
   Map<String, dynamic> toJson() => {
@@ -43,6 +53,7 @@ class MasterFileDocument {
         'attachment': attachment.toJson(),
         'uploadedAt': uploadedAt.toIso8601String(),
         'origin': origin,
+        'serviceName': serviceName,
       };
 
   factory MasterFileDocument.fromJson(Map<String, dynamic> json) => MasterFileDocument(
@@ -52,5 +63,6 @@ class MasterFileDocument {
         attachment: Attachment.fromJson(json['attachment']),
         uploadedAt: DateTime.parse(json['uploadedAt']),
         origin: json['origin'] ?? 'Manual',
+        serviceName: json['serviceName'],
       );
 }

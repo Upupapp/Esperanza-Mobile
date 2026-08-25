@@ -83,7 +83,7 @@ void main() {
     // re-enter it, and Age is computed from it immediately.
     expect(find.text('Step 2 of 4'), findsOneWidget);
     expect(find.text('Clearance Details'), findsWidgets);
-    expect(find.text('Nov 29, 1988'), findsOneWidget); // her prefilled birthdate
+    expect(find.text('Jan 13, 2001'), findsOneWidget); // her prefilled birthdate
     expect(find.textContaining('years old'), findsOneWidget);
     expect(find.text('Select your Date of Birth above first'), findsNothing);
 
@@ -97,14 +97,14 @@ void main() {
     // Changing the Date of Birth through the real date picker (switched to
     // keyboard-entry mode for a deterministic result) immediately
     // recalculates Age — there is no separate "Edit Age" anywhere.
-    await tester.tap(find.text('Nov 29, 1988'));
+    await tester.tap(find.text('Jan 13, 2001'));
     await tester.pumpAndSettle();
     await tester.tap(find.byIcon(Icons.edit_outlined));
     await tester.pumpAndSettle();
     await tester.enterText(find.byType(TextFormField).last, '12/20/2000');
     await tester.tap(find.text('OK'));
     await tester.pumpAndSettle();
-    expect(find.text('Nov 29, 1988'), findsNothing);
+    expect(find.text('Jan 13, 2001'), findsNothing);
     expect(find.text('Dec 20, 2000'), findsOneWidget);
     expect(find.textContaining('years old'), findsOneWidget);
 
@@ -124,7 +124,9 @@ void main() {
     expect(find.text('Step 3 of 4'), findsOneWidget);
     expect(find.text('One (1) valid government-issued ID'), findsOneWidget);
     expect(find.text('Proof of residency'), findsOneWidget);
-    expect(find.text('Upload Document'), findsNWidgets(2));
+    // Requirement-specific button label, not a generic "Upload Document".
+    expect(find.text('Upload One (1) valid government-issued ID'), findsOneWidget);
+    expect(find.text('Upload Proof of residency'), findsOneWidget);
     await tester.tap(find.text('Continue'));
     await tester.pumpAndSettle();
     expect(
@@ -144,6 +146,12 @@ void main() {
     // below the fold — scroll it into view rather than assuming it's
     // on-screen already.
     await tester.scrollUntilVisible(find.text("Treasurer's Office"), 200, scrollable: find.byType(Scrollable).first);
+    // ensureVisible on top of scrollUntilVisible — the department list grew
+    // by one more entry (Office for Senior Citizens Affairs moved here
+    // from Tulong), so the delta-based scroll above can land this item
+    // just outside this test's own (default, unusually short) viewport.
+    await tester.ensureVisible(find.text("Treasurer's Office"));
+    await tester.pumpAndSettle();
     await tester.tap(find.text("Treasurer's Office"));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Cedula (Community Tax Certificate)'));

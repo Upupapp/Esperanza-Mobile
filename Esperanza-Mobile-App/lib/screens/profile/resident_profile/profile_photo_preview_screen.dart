@@ -29,6 +29,13 @@ class ProfilePhotoPreviewScreen extends StatefulWidget {
 class _ProfilePhotoPreviewScreenState extends State<ProfilePhotoPreviewScreen> {
   bool _saving = false;
 
+  // A camera capture/gallery pick can be several MB at several-thousand-px
+  // resolution — decoding all of that just to paint a 192-logical-px
+  // preview circle wastes memory for no visible gain. The full-resolution
+  // `widget.bytes` are still what gets saved/persisted below; only this
+  // preview's own decode is capped.
+  static const _previewDiameter = 192.0;
+
   Future<void> _save() async {
     setState(() => _saving = true);
     final accountId = context.read<CitizenSessionService>().account!.id;
@@ -51,7 +58,15 @@ class _ProfilePhotoPreviewScreenState extends State<ProfilePhotoPreviewScreen> {
           child: Column(
             children: [
               const Spacer(),
-              CircleAvatar(radius: 96, backgroundColor: AppColors.brand50, backgroundImage: MemoryImage(widget.bytes)),
+              CircleAvatar(
+                radius: 96,
+                backgroundColor: AppColors.brand50,
+                backgroundImage: ResizeImage.resizeIfNeeded(
+                  (_previewDiameter * MediaQuery.devicePixelRatioOf(context)).round(),
+                  null,
+                  MemoryImage(widget.bytes),
+                ),
+              ),
               const SizedBox(height: AppSpacing.lg),
               const Text(
                 'This is how your profile photo will look. Make sure your full face is clearly visible before saving.',

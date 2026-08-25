@@ -35,6 +35,14 @@ final Uint8List _tinyPngBytes = base64Decode(
 );
 final String _tinyPngBase64 = base64Encode(_tinyPngBytes);
 
+/// profileImageFor/demoProfileImageFor now wrap every avatar in a
+/// `ResizeImage` (decode at avatar size, not full source resolution — see
+/// those functions' own doc comments) — unwrap it here so these tests can
+/// still assert on the underlying provider.
+T _unwrapImage<T extends ImageProvider>(ImageProvider? provider) {
+  return provider is ResizeImage ? provider.imageProvider as T : provider as T;
+}
+
 /// Pre-seeds `esperanza_resident_profiles` with a freshly-seeded profile
 /// for [account], optionally with an existing saved photo / cooldown
 /// timestamp — the exact JSON shape ResidentProfileService itself
@@ -90,16 +98,15 @@ void main() {
     test('a seeded demo account with no saved photo resolves to its demo portrait', () {
       final cristy = MockCatalog.demoAccounts.last;
       final profile = ResidentProfile.seedFrom(cristy);
-      final image = profileImageFor(cristy, profile.personal) as AssetImage?;
-      expect(image?.assetName, 'assets/images/Cristy Profile.png');
+      final image = _unwrapImage<AssetImage>(profileImageFor(cristy, profile.personal));
+      expect(image.assetName, 'assets/images/Cristy Profile.png');
     });
 
     test('a saved custom photo takes priority over the seeded demo portrait', () {
       final cristy = MockCatalog.demoAccounts.last;
       final profile = ResidentProfile.seedFrom(cristy)..personal.photoBytesBase64 = _tinyPngBase64;
-      final image = profileImageFor(cristy, profile.personal) as MemoryImage?;
-      expect(image, isNotNull);
-      expect(image!.bytes, _tinyPngBytes);
+      final image = _unwrapImage<MemoryImage>(profileImageFor(cristy, profile.personal));
+      expect(image.bytes, _tinyPngBytes);
     });
 
     test('null account resolves to null (initials fallback)', () {
@@ -297,9 +304,8 @@ void main() {
       await tester.pumpAndSettle();
 
       final avatar = tester.widget<CircleAvatar>(find.byType(CircleAvatar).first);
-      final image = avatar.backgroundImage as MemoryImage?;
-      expect(image, isNotNull);
-      expect(image!.bytes, _tinyPngBytes);
+      final image = _unwrapImage<MemoryImage>(avatar.backgroundImage);
+      expect(image.bytes, _tinyPngBytes);
       expect(tester.takeException(), isNull);
     });
 

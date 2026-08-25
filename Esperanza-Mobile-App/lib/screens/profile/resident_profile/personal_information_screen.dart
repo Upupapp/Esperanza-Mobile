@@ -10,6 +10,7 @@ import '../../../services/mock_catalog.dart';
 import '../../../services/resident_profile_service.dart';
 import '../../../theme/app_colors.dart';
 import '../../../theme/app_spacing.dart';
+import '../../../utils/age_calculator.dart';
 import '../../../utils/demo_resident_photo.dart';
 import '../../../utils/government_id.dart';
 import '../../../utils/protected_action.dart';
@@ -390,6 +391,13 @@ class _PersonalInformationScreenState extends State<PersonalInformationScreen> {
                       ),
                     ],
                   ),
+                  // Read-only/calculated, never a second, independently-
+                  // typeable value — Birthdate above is the only source of
+                  // truth (see utils/age_calculator.dart). Recomputed from
+                  // the real current date on every build, so it stays
+                  // correct as time passes rather than freezing at whatever
+                  // it was when this screen first opened.
+                  _ReadOnlyAgeField(birthdate: _birthdate),
                   AppSelectField<String>(
                     label: 'Civil status',
                     value: _civilStatus,
@@ -605,6 +613,54 @@ class _PhotoPicker extends StatelessWidget {
   }
 }
 
+/// "N years old", calculated live from Birthdate — same read-only visual
+/// language as the wizard's own _DerivedAgeField
+/// (service_request_wizard_screen.dart), so a resident sees the identical
+/// "locked, computed" treatment for Age everywhere it appears in the app.
+/// Never a text input: entering a birthdate above is the only way this
+/// value ever changes.
+class _ReadOnlyAgeField extends StatelessWidget {
+  final DateTime? birthdate;
+  const _ReadOnlyAgeField({required this.birthdate});
+
+  @override
+  Widget build(BuildContext context) {
+    final birthdate = this.birthdate;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text('Age', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: AppColors.slate700)),
+        const SizedBox(height: AppSpacing.sm),
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+          decoration: BoxDecoration(
+            color: AppColors.slate100,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: AppColors.border),
+          ),
+          child: Row(
+            children: [
+              const Icon(Icons.cake_outlined, size: 17, color: AppColors.slate400),
+              const SizedBox(width: 10),
+              // Expanded — at extreme narrow widths combined with a large
+              // text scale, an unwrapped Text here overflowed the Row on
+              // the right (this is the same fix _MasterSourcedField's own
+              // value Text already has, just missing on this newer field).
+              Expanded(
+                child: Text(
+                  birthdate == null ? 'Select your Birthdate above first' : '${calculateAge(birthdate)} years old',
+                  style: const TextStyle(fontSize: 14, color: AppColors.textBody, fontWeight: FontWeight.w500),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 class _ClassificationSwitch extends StatelessWidget {
   final String label;
   final bool value;
@@ -702,7 +758,16 @@ class _SubmittedGovernmentIdCard extends StatelessWidget {
             borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
             child: AspectRatio(
               aspectRatio: 16 / 10,
-              child: Image.asset(record.assetPath, fit: BoxFit.cover),
+              // This card preview is card-width, not full document
+              // resolution — the seeded ID assets are ~2MB photos, so
+              // decode at the card's own width instead of native size.
+              // GovernmentIdViewer (opened on tap) shows the real,
+              // full-resolution, zoomable document.
+              child: Image.asset(
+                record.assetPath,
+                fit: BoxFit.cover,
+                cacheWidth: (MediaQuery.sizeOf(context).width * MediaQuery.devicePixelRatioOf(context)).round(),
+              ),
             ),
           ),
           Padding(

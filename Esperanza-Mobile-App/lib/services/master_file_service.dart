@@ -71,6 +71,7 @@ class MasterFileService extends ChangeNotifier {
     required String label,
     required Attachment attachment,
     required String origin,
+    String? serviceName,
   }) async {
     final existing = _byAccount[accountId] ?? [];
     final doc = MasterFileDocument(
@@ -80,6 +81,7 @@ class MasterFileService extends ChangeNotifier {
       attachment: attachment,
       uploadedAt: DateTime.now(),
       origin: origin,
+      serviceName: serviceName,
     );
     _byAccount[accountId] = [...existing.where((d) => d.documentType != documentType), doc];
     notifyListeners();

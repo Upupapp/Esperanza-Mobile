@@ -26,12 +26,23 @@ const _profilePhotoAssetByAccountId = {
   'ESP-RES-2026-2102': theodoroProfilePhotoAsset,
 };
 
+/// Every avatar call site shows a photo at a small size (a CircleAvatar of
+/// radius 40 at most, i.e. an 80-logical-px circle) — capping decode width
+/// here once, centrally, means every one of those sites gets a cheap
+/// resized image automatically rather than each holding the source's own
+/// full-resolution decode (these seeded portraits are ~2MB/multi-megapixel
+/// photos; a real uploaded photo can be just as large). Comfortably above
+/// the largest current avatar usage x a high device pixel ratio, without
+/// needing every call site to know or pass its own display size.
+const int _avatarDecodeWidth = 240;
+
 /// The seeded portrait to show for [account], or null for every other
 /// account (which should keep showing its initials, exactly as before).
 ImageProvider? demoProfileImageFor(CitizenAccount? account) {
   if (account == null) return null;
   final asset = _profilePhotoAssetByAccountId[account.id];
-  return asset == null ? null : AssetImage(asset);
+  if (asset == null) return null;
+  return ResizeImage.resizeIfNeeded(_avatarDecodeWidth, null, AssetImage(asset));
 }
 
 /// Every avatar call site's actual entry point: a citizen's own saved
@@ -45,7 +56,7 @@ ImageProvider? profileImageFor(CitizenAccount? account, Individual? personal) {
   final b64 = personal?.photoBytesBase64;
   if (b64 != null && b64.isNotEmpty) {
     try {
-      return MemoryImage(base64Decode(b64));
+      return ResizeImage.resizeIfNeeded(_avatarDecodeWidth, null, MemoryImage(base64Decode(b64)));
     } catch (_) {
       // Corrupt/undecodable — fall through to the seeded portrait below
       // rather than crash the avatar.

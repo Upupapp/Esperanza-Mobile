@@ -24,7 +24,16 @@ class EsperanzaMobileApp extends StatelessWidget {
     return MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => CitizenSessionService()),
-        ChangeNotifierProvider(create: (_) => RequestsService()),
+        // seedDemoData: false — the live-demo cleanup: Dokyu/Tulong start
+        // with nothing pre-submitted, so the presenter's own live
+        // submissions are the first thing that ever appears there.
+        // retireLegacyDemoRequestSeeds: true — also strips the nine
+        // pre-existing seeded Dokyu/Tulong demo requests from any
+        // browser/device that already persisted them under an earlier
+        // build (see RequestsService's own doc comments on both flags).
+        ChangeNotifierProvider(
+          create: (_) => RequestsService(seedDemoData: false, retireLegacyDemoRequestSeeds: true),
+        ),
         ChangeNotifierProvider(create: (_) => BalitaService()),
         ChangeNotifierProvider(create: (_) => ResidentProfileService()),
         ChangeNotifierProvider(create: (_) => MasterFileService()),

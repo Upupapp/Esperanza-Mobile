@@ -57,6 +57,13 @@ Future<void> _pumpDokyuAsCristy(WidgetTester tester) async {
     200,
     scrollable: find.byType(Scrollable).first,
   );
+  // ensureVisible on top of scrollUntilVisible — the department list grew
+  // by one entry (Office for Senior Citizens Affairs moved here from
+  // Tulong), so the delta-based scroll above can land this item just
+  // outside the tappable viewport; ensureVisible resolves the exact
+  // scroll offset needed instead of a fixed-size nudge.
+  await tester.ensureVisible(find.text('Office of the Municipal Civil Registrar'));
+  await tester.pumpAndSettle();
   await tester.tap(find.text('Office of the Municipal Civil Registrar'));
   await tester.pumpAndSettle();
 }
