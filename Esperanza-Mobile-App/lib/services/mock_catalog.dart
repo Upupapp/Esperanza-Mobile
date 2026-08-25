@@ -358,6 +358,8 @@ class MockCatalog {
           ),
         ],
       ),
+      demoDefaults: {'confirmFirstTime': true},
+      demoPurpose: 'First time jobseeker certificate for a part-time job application.',
     ),
     // Moved here from Tulong (assistanceTypes) — this is an ID/membership
     // registration, not an assistance/benefit program (unlike e.g. Social
@@ -601,6 +603,17 @@ class MockCatalog {
           ),
         ],
       ),
+      demoDefaults: {
+        'husbandFullName': 'Jerome Villaruel',
+        'wifeFullName': 'Cristy Pareja Bonghanoy',
+        // ISO date string — CatalogItem's demoDefaults must stay a const
+        // map (documentTypes/assistanceTypes are const lists), and
+        // DateTime has no const constructor. Parsed back to DateTime by
+        // ServiceRequestWizardScreen's own demoDefaults application.
+        'dateOfMarriage': '2022-06-18',
+        'placeOfMarriage': 'Esperanza, Masbate',
+      },
+      demoPurpose: 'Requesting a certified copy of my own marriage certificate for a bank requirement.',
     ),
     CatalogItem(
       key: 'dokyu_delayed_birth_registration',
@@ -1126,6 +1139,19 @@ class MockCatalog {
           ),
         ],
       ),
+      demoDefaults: {
+        'petName': 'Bantay',
+        'species': 'Dog',
+        'breed': 'Aspin (Asong Pinoy)',
+        'colorMarkings': 'Brown with white chest patch',
+        'gender': 'Male',
+        'dobOrApproxAge': 'Approximately 2 years old',
+        'spayedNeutered': 'No',
+        'ownerAddress': 'Purok 2, Barangay Baras, Esperanza, Masbate',
+        'emergencyContactName': 'Corazon Cristy',
+        'emergencyContactNumber': '0921 456 7890',
+      },
+      demoPurpose: "Registering our family's dog with the Municipal Agriculture Office.",
     ),
     CatalogItem(
       key: 'dokyu_locational_clearance',
@@ -1238,6 +1264,18 @@ class MockCatalog {
           ),
         ],
       ),
+      demoDefaults: {
+        'applicantType': 'Individual',
+        'natureOfApplication': 'Improvement / Renovation',
+        'projectTitle': 'Home Renovation - Bonghanoy Residence',
+        'projectLocation': 'Purok 2, Barangay Baras, Esperanza, Masbate',
+        'floorArea': '45',
+        'lotArea': '120',
+        'titleNumber': 'OCT-2019-00456',
+        'rightOverLand': 'Owner',
+        'zoningClassification': <String>{'Residential'},
+      },
+      demoPurpose: 'Locational clearance for a home renovation project.',
     ),
   ];
 
@@ -1786,6 +1824,16 @@ class MockCatalog {
           ),
         ],
       ),
+      demoDefaults: {
+        'typeOfWorker': 'Underemployed',
+        'specificBeneficiaryType': 'Vendor / Self-Employed',
+        'spouseName': 'Jerome Villaruel',
+        'monthlyIncome': '9718',
+        'numberOfDependents': '0',
+        'highestEducationalAttainment': 'College',
+        'intentionToAvailSkillsTraining': true,
+      },
+      demoPurpose: 'Applying for emergency employment assistance to help with household income.',
     ),
     CatalogItem(
       key: 'tulong_tesda_registration',
@@ -1885,6 +1933,15 @@ class MockCatalog {
           ),
         ],
       ),
+      demoDefaults: {
+        'nationality': 'Filipino',
+        'employmentStatusBeforeTraining': 'Unemployed',
+        'educationalAttainmentBeforeTraining': 'College',
+        'learnerClassification': <String>{'Student'},
+        'courseOrQualification': 'Bookkeeping NC III',
+        'scholarshipPackage': 'TWSP',
+      },
+      demoPurpose: 'Registering for TESDA skills training to complement my education.',
     ),
     CatalogItem(
       key: 'tulong_erpat_registration',

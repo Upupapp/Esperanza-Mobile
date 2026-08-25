@@ -274,6 +274,11 @@ class _ServiceRequestWizardScreenState extends State<ServiceRequestWizardScreen>
                 _controllerFor(entry.key).text = entry.value as String;
               }
             case ServiceFieldType.date:
+              // demoDefaults stores dates as an ISO string, not a DateTime
+              // literal — CatalogItem.demoDefaults must stay a const map
+              // (documentTypes/assistanceTypes are const lists) and
+              // DateTime has no const constructor.
+              _values.putIfAbsent(entry.key, () => DateTime.parse(entry.value as String));
             case ServiceFieldType.select:
             case ServiceFieldType.multiselect:
             case ServiceFieldType.checkbox:

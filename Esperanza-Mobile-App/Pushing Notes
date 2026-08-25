@@ -1,11 +1,12 @@
-git pull origin main --allow-unrelated-histories
+cd "C:\Users\ASUS TUF\Desktop\Esperanza\Esperanza-Mobile-App"
 
 git status
+git remote -v
 
 git add .
-
 git status
 
 git commit -m "Update Esperanza mobile app"
 
+git pull --rebase origin main
 git push origin main

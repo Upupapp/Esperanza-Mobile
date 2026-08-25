@@ -120,7 +120,7 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('required-field validation, date picker, and full fill-through to the attachment gate', (tester) async {
+  testWidgets('demo prefill (Cristy), editability, and full fill-through to the attachment gate', (tester) async {
     await _pumpDokyuAsCristy(tester);
     await tester.scrollUntilVisible(
       find.text('Certified Copy of Marriage Certificate'),
@@ -133,40 +133,36 @@ void main() {
     await tester.tap(find.text('Continue')); // Applicant Info (prefilled) -> Marriage Record Information
     await tester.pumpAndSettle();
 
-    // Blocked — nothing filled yet.
-    await tester.tap(find.text('Continue'));
-    await tester.pumpAndSettle();
-    expect(find.textContaining('Please complete'), findsOneWidget);
+    // All 4 required fields are already prefilled for Cristy (see
+    // CatalogItem.demoDefaults on dokyu_marriage_certificate_copy) — no
+    // "Please complete" block on a fresh Continue, unlike before this
+    // service had demo prefill.
+    expect(find.text('Jerome Villaruel'), findsOneWidget);
+    expect(find.text('Cristy Pareja Bonghanoy'), findsOneWidget);
+    expect(find.text('Jun 18, 2022'), findsOneWidget); // dateOfMarriage, parsed from the ISO demoDefault
+    expect(find.text('Esperanza, Masbate'), findsOneWidget);
 
-    final fields = find.byType(TextField);
-    await tester.enterText(fields.at(0), 'Juan Dela Cruz');
-    await tester.enterText(fields.at(1), 'Maria Santos');
-    // Date of Marriage — real date picker, switched to keyboard-entry for
-    // a deterministic result.
-    await tester.tap(find.text('Select date'), warnIfMissed: false);
+    // Still a normal editable value, not locked — change the date through
+    // the real date picker (switched to keyboard-entry for a
+    // deterministic result).
+    await tester.tap(find.text('Jun 18, 2022'));
     await tester.pumpAndSettle();
     await tester.tap(find.byIcon(Icons.edit_outlined));
     await tester.pumpAndSettle();
     await tester.enterText(find.byType(TextFormField).last, '06/12/2010');
     await tester.tap(find.text('OK'));
     await tester.pumpAndSettle();
+    expect(find.text('Jun 18, 2022'), findsNothing);
     expect(find.text('Jun 12, 2010'), findsOneWidget);
-
-    // find.byType(TextField) also matches AppDateField's internal
-    // TextFormField, so the order here is: husbandFullName(0),
-    // wifeFullName(1), dateOfMarriage's internal field(2),
-    // placeOfMarriage(3). Registry Number/Number of Copies stay optional
-    // and are left blank.
-    final fieldsAfterDate = find.byType(TextField);
-    await tester.enterText(fieldsAfterDate.at(3), 'Poblacion, Esperanza, Masbate');
 
     await tester.tap(find.text('Continue'));
     await tester.pumpAndSettle();
 
-    // Requirements & Attachments — fill Purpose, leave attachments empty,
-    // confirm Dokyu's per-requirement gate still applies.
+    // Requirements & Attachments — Purpose is already prefilled too
+    // (demoPurpose); attachments are still left for the resident to
+    // upload live, so Dokyu's per-requirement gate still applies.
     expect(find.textContaining('Requirements'), findsWidgets);
-    await tester.enterText(find.widgetWithText(TextField, '').first, 'Requesting a copy for PSA registration.');
+    expect(find.textContaining('Requesting a certified copy'), findsOneWidget);
     await tester.tap(find.text('Continue'));
     await tester.pumpAndSettle();
     expect(find.textContaining('Please attach'), findsOneWidget);
