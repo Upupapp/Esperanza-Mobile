@@ -107,13 +107,10 @@ void main() {
         // Applicant Info -> Indigency Details -> Requirements.
         await tester.tap(find.widgetWithText(AppButton, 'Continue'));
         await tester.pumpAndSettle();
-        // Purpose is a required select on this step — pick any option so
-        // Continue isn't blocked; this test's own focus is the Requirements
-        // step, not this unrelated field.
-        await tester.tap(find.text('Select Purpose'), warnIfMissed: false);
-        await tester.pumpAndSettle();
-        await tester.tap(find.text('Medical Assistance').last);
-        await tester.pumpAndSettle();
+        // Purpose is a required select on this step, already prefilled for
+        // the verified demo resident (Cristy) via CatalogItem.demoDefaults
+        // — this test's own focus is the Requirements step, not this
+        // unrelated field, so it's left as-is rather than re-picked.
         await tester.tap(find.widgetWithText(AppButton, 'Continue'));
         await tester.pumpAndSettle();
 
@@ -240,8 +237,10 @@ void main() {
         await tester.tap(find.widgetWithText(AppButton, 'Continue'));
         await tester.pumpAndSettle();
         // Clearance Details: Date of Birth already prefilled from her
-        // Resident Profile; pick a Purpose so this step doesn't block.
-        await tester.tap(find.text('Select Purpose'), warnIfMissed: false);
+        // Resident Profile; Purpose is already prefilled too (Cristy's own
+        // demoDefaults default to Local Employment) — swap it for a
+        // different option to prove it's still a normal editable value.
+        await tester.tap(find.text('Local Employment'));
         await tester.pumpAndSettle();
         await tester.tap(find.text('Proof of Residency').last);
         await tester.pumpAndSettle();

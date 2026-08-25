@@ -53,6 +53,13 @@ class ServiceRequestWizardScreen extends StatefulWidget {
 }
 
 class _ServiceRequestWizardScreenState extends State<ServiceRequestWizardScreen> {
+  /// The primary demo resident — same id ResidentProfileService and
+  /// RequestsService already use for their own Cristy-specific logic. Only
+  /// her forms get [CatalogItem.demoDefaults]/[CatalogItem.demoPurpose]
+  /// applied; a different verified resident's form stays exactly as
+  /// blank/Master-Profile-only as before.
+  static const _cristyVerifiedAccountId = 'ESP-RES-2024-1044';
+
   List<ServiceFormStep> get _serviceSteps => widget.item.formSpec!.steps;
   int get _requirementsStep => _serviceSteps.length + 1;
   int get _reviewStep => _serviceSteps.length + 2;
@@ -244,6 +251,40 @@ class _ServiceRequestWizardScreenState extends State<ServiceRequestWizardScreen>
       if (income.trim().isNotEmpty && _fieldByKey('parentsMonthlyIncome') != null) {
         final digitsOnly = income.replaceAll(RegExp(r'[^0-9]'), '');
         if (digitsOnly.isNotEmpty) _controllerFor('parentsMonthlyIncome').text = digitsOnly;
+      }
+
+      // Service-specific demo answers (see mock_catalog.dart's own
+      // CatalogItem.demoDefaults doc comment) — realistic starting values
+      // for fields no Master Profile mechanism above already covers (e.g.
+      // Purpose selects, business details, confirmation checkboxes), so
+      // the primary demo resident's forms open ready for a live
+      // presentation instead of blank. Every field this touches remains a
+      // normal, editable value — nothing here locks or validates
+      // differently. Gated to Cristy specifically (the account these
+      // values were written for), not every verified resident.
+      if (account.id == _cristyVerifiedAccountId) {
+        for (final entry in widget.item.demoDefaults.entries) {
+          final field = _fieldByKey(entry.key);
+          if (field == null) continue;
+          switch (field.type) {
+            case ServiceFieldType.text:
+            case ServiceFieldType.textarea:
+            case ServiceFieldType.number:
+              if (_controllerFor(entry.key).text.isEmpty) {
+                _controllerFor(entry.key).text = entry.value as String;
+              }
+            case ServiceFieldType.date:
+            case ServiceFieldType.select:
+            case ServiceFieldType.multiselect:
+            case ServiceFieldType.checkbox:
+              _values.putIfAbsent(entry.key, () => entry.value);
+            case ServiceFieldType.derivedAge:
+              break; // never independently set — always derived
+          }
+        }
+        if (widget.item.demoPurpose != null && _notesController.text.isEmpty) {
+          _notesController.text = widget.item.demoPurpose!;
+        }
       }
     }
   }

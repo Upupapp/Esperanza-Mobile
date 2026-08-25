@@ -753,4 +753,62 @@ class RequestsService extends ChangeNotifier {
     await _persist();
     notifyListeners();
   }
+
+  /// DEMO-ONLY: the Web Admin "Needs More Documents" / "Waiting
+  /// Requirements" action — distinct from [rejectDemo]. Unlike a rejection,
+  /// this never ends the request: it stays active, [requirementLabel] is
+  /// flagged for a targeted re-upload (see [ServiceRequest.flaggedRequirementLabel]
+  /// and RequestDetailScreen's re-upload panel), and the request resumes its
+  /// normal milestone sequence once [resolveAdditionalDocuments] is called —
+  /// see A15/A16 of the Mobile <-> Web Admin final alignment pass.
+  Future<void> flagAdditionalDocuments(
+    String requestId, {
+    required String requirementLabel,
+    required String reason,
+  }) async {
+    final request = _requests.firstWhere((r) => r.id == requestId);
+    request.status = AppStatus.waitingRequirements.label;
+    request.adminRemarks = reason;
+    request.flaggedRequirementLabel = requirementLabel;
+    request.statusHistory.add(
+      StatusHistoryEntry(
+        status: AppStatus.waitingRequirements.label,
+        at: DateTime.now(),
+        actor: 'Demo Simulation',
+        remarks: reason,
+      ),
+    );
+    await _persist();
+    notifyListeners();
+  }
+
+  /// The resident resubmitted the one requirement flagged by
+  /// [flagAdditionalDocuments] — replaces the matching attachment (by
+  /// [Attachment.documentTypeLabel], falling back to appending if none was
+  /// previously attached), clears the flag, and re-enters the normal
+  /// sequence at Under Verification (the same stage a genuine resubmission
+  /// would be re-reviewed from).
+  Future<void> resolveAdditionalDocuments(String requestId, {required Attachment newAttachment}) async {
+    final request = _requests.firstWhere((r) => r.id == requestId);
+    final flagged = request.flaggedRequirementLabel;
+    if (flagged == null) return;
+    final index = request.attachments.indexWhere((a) => a.documentTypeLabel == flagged);
+    if (index != -1) {
+      request.attachments[index] = newAttachment;
+    } else {
+      request.attachments.add(newAttachment);
+    }
+    request.flaggedRequirementLabel = null;
+    request.status = RequestMilestones.underVerification;
+    request.statusHistory.add(
+      StatusHistoryEntry(
+        status: RequestMilestones.underVerification,
+        at: DateTime.now(),
+        actor: 'Citizen',
+        remarks: 'Updated document resubmitted for review.',
+      ),
+    );
+    await _persist();
+    notifyListeners();
+  }
 }

@@ -4,6 +4,7 @@ import '../models/service_request.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_motion.dart';
 import '../theme/app_spacing.dart';
+import '../theme/app_status.dart';
 
 /// The richer Dokyu/Tulong milestone timeline (Phase 5 — frontend
 /// simulation only, see docs). Unlike the plain "history so far" list this
@@ -23,6 +24,36 @@ class RequestMilestoneTimeline extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isRejected = request.statusHistory.last.status == RequestMilestones.rejected;
+    // Only the "admin flagged one requirement" simulation sets
+    // flaggedRequirementLabel — the payment sub-steps also canonicalize to
+    // this same 'Waiting Requirements' label but never set it, so this
+    // never misfires for a request that's just waiting on payment.
+    final isAwaitingDocs = request.status == AppStatus.waitingRequirements.label && request.flaggedRequirementLabel != null;
+
+    if (isAwaitingDocs) {
+      // Same reasoning as isRejected below — this can branch off from any
+      // point in the sequence, so walk the real recorded order rather than
+      // the fixed one. Unlike Rejected, this isn't terminal: once resolved,
+      // the request re-enters the normal sequence at Under Verification and
+      // this branch stops applying on the next rebuild.
+      final entries = request.statusHistory;
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          for (int i = 0; i < entries.length; i++)
+            _MilestoneRow(
+              label: entries[i].status,
+              state: entries[i].status == AppStatus.waitingRequirements.label
+                  ? _MilestoneState.needsAction
+                  : _MilestoneState.done,
+              timestamp: entries[i].at,
+              remarks: entries[i].status == AppStatus.waitingRequirements.label ? null : entries[i].remarks,
+              isLast: i == entries.length - 1,
+              accent: accent,
+            ),
+        ],
+      );
+    }
 
     if (isRejected) {
       // Every entry actually recorded (everything reached before the
@@ -92,7 +123,7 @@ class RequestMilestoneTimeline extends StatelessWidget {
   }
 }
 
-enum _MilestoneState { done, current, future, rejected }
+enum _MilestoneState { done, current, future, rejected, needsAction }
 
 class _MilestoneRow extends StatelessWidget {
   final String label;
@@ -118,10 +149,12 @@ class _MilestoneRow extends StatelessWidget {
       _MilestoneState.current => accent,
       _MilestoneState.future => AppColors.slate300,
       _MilestoneState.rejected => AppColors.rose600,
+      _MilestoneState.needsAction => AppColors.orange500,
     };
     final labelStyle = switch (state) {
       _MilestoneState.future => const TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: AppColors.slate400),
       _MilestoneState.rejected => const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.rose700),
+      _MilestoneState.needsAction => const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.orange700),
       _ => TextStyle(
           fontSize: 13,
           fontWeight: state == _MilestoneState.current ? FontWeight.w700 : FontWeight.w600,

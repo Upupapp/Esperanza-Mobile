@@ -180,9 +180,13 @@ void main() {
 
       final request = requests.all.firstWhere((r) => r.id == 'demo-tulong-financial');
       expect(request.status, 'Rejected');
-      expect(request.adminRemarks, contains('did not match the information shown on your valid ID'));
+      // Financial Assistance (AICS) has its own realistic, service-specific
+      // rejection reason (CatalogItem.demoRejectionReason — see the Mobile
+      // <-> Web Admin final alignment pass) rather than the generic
+      // ID-mismatch fallback other services without one still use.
+      expect(request.adminRemarks, contains('social case study'));
       expect(find.text('Reason for Rejection'), findsOneWidget);
-      expect(find.textContaining('did not match the information shown on your valid ID'), findsWidgets);
+      expect(find.textContaining('social case study'), findsWidgets);
       // No demo controls remain once terminal.
       expect(find.widgetWithText(AppButton, 'Next Demo Step'), findsNothing);
       expect(find.text('Reject Request (Demo)'), findsNothing);

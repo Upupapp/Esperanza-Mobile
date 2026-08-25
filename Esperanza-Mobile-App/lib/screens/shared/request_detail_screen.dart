@@ -17,7 +17,9 @@ import '../../widgets/app_button.dart';
 import '../../widgets/app_card.dart';
 import '../../widgets/app_dialogs.dart';
 import '../../widgets/request_milestone_timeline.dart';
+import '../../widgets/requirement_uploader.dart';
 import '../../widgets/status_chip.dart';
+import '../../utils/requirement_document_type.dart';
 import 'new_request_screen.dart';
 import 'payment_method_sheet.dart';
 import 'receipt_screen.dart';
@@ -62,7 +64,23 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
     if (mounted) setState(() => _demoBusy = false);
   }
 
-  Future<void> _reject(RequestsService service) async {
+  /// Prefers the requested service's own [CatalogItem.demoRejectionReason]
+  /// (a realistic, service-specific reason — see A15 of the Mobile <-> Web
+  /// Admin final alignment pass) and falls back to a generic-but-still-
+  /// realistic ID-mismatch reason for any service that doesn't have one,
+  /// so every Dokyu/Tulong request type keeps a working reject simulation.
+  String _rejectionReasonFor(ServiceRequest request) {
+    final catalog = request.category == ServiceCategory.dokyu ? MockCatalog.documentTypes : MockCatalog.assistanceTypes;
+    for (final item in catalog) {
+      if (item.name == request.typeName && item.demoRejectionReason != null) {
+        return item.demoRejectionReason!;
+      }
+    }
+    return 'The information you submitted did not match the information shown on your valid ID. '
+        'Please review your details and submit the correct information.';
+  }
+
+  Future<void> _reject(RequestsService service, ServiceRequest request) async {
     final ok = await AppDialogs.confirm(
       context,
       title: 'Reject this request? (Demo)',
@@ -73,12 +91,54 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
     if (!ok || !mounted) return;
     setState(() => _demoBusy = true);
     AppHaptics.warning();
-    await service.rejectDemo(
-      widget.requestId,
-      reason:
-          'The information you submitted did not match the information shown on your valid ID. '
-          'Please review your details and submit the correct information.',
+    await service.rejectDemo(widget.requestId, reason: _rejectionReasonFor(request));
+    if (mounted) setState(() => _demoBusy = false);
+  }
+
+  /// The first genuinely-uploadable requirement for this request's own
+  /// catalog item (skipping staff/office-process lines — see
+  /// RequirementInfo.requiresUpload) — the one a live demo of "Needs More
+  /// Documents" flags, so the walkthrough is deterministic and repeatable
+  /// across every Dokyu/Tulong service without a separate per-service
+  /// config. Null only if the item somehow has no uploadable requirement at
+  /// all (none currently do).
+  RequirementInfo? _flaggableRequirementFor(ServiceRequest request) {
+    final catalog = request.category == ServiceCategory.dokyu ? MockCatalog.documentTypes : MockCatalog.assistanceTypes;
+    for (final item in catalog) {
+      if (item.name != request.typeName) continue;
+      final requirements = resolveRequirements(item.requirements);
+      for (final r in requirements) {
+        if (r.requiresUpload) return r;
+      }
+    }
+    return null;
+  }
+
+  Future<void> _flagAdditionalDocuments(RequestsService service, ServiceRequest request) async {
+    final requirement = _flaggableRequirementFor(request);
+    if (requirement == null) return;
+    final ok = await AppDialogs.confirm(
+      context,
+      title: 'Request additional documents? (Demo)',
+      message: 'This simulates an admin flagging "${requirement.label}" as needing a new upload. The request stays '
+          'active — it is not rejected.',
+      confirmLabel: 'Flag Document (Demo)',
     );
+    if (!ok || !mounted) return;
+    setState(() => _demoBusy = true);
+    AppHaptics.warning();
+    await service.flagAdditionalDocuments(
+      widget.requestId,
+      requirementLabel: requirement.label,
+      reason: 'The submitted "${requirement.label}" could not be verified. Please upload a clearer or updated copy.',
+    );
+    if (mounted) setState(() => _demoBusy = false);
+  }
+
+  Future<void> _resolveAdditionalDocuments(RequestsService service, Attachment newAttachment) async {
+    setState(() => _demoBusy = true);
+    AppHaptics.success();
+    await service.resolveAdditionalDocuments(widget.requestId, newAttachment: newAttachment);
     if (mounted) setState(() => _demoBusy = false);
   }
 
@@ -214,6 +274,27 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
                 onApplyAgain: () => _applyAgain(context, request, accent),
               ),
             ],
+            // Distinct from Rejected above — the request is still active,
+            // not terminal. Only ever shown for the specific "admin flagged
+            // one requirement" simulation (flaggedRequirementLabel set), not
+            // every 'Waiting Requirements' status (the payment sub-steps
+            // also canonicalize to that same label but never set this
+            // field) — see ServiceRequest.flaggedRequirementLabel.
+            if (request.status == 'Waiting Requirements' && request.flaggedRequirementLabel != null) ...[
+              const SizedBox(height: AppSpacing.xl),
+              _AdditionalDocumentsCard(
+                reason: request.adminRemarks ?? 'Please provide an updated copy of the flagged requirement.',
+                requirement: RequirementInfo(
+                  label: request.flaggedRequirementLabel!,
+                  documentType: documentTypeFor(request.flaggedRequirementLabel!),
+                  isRequired: true,
+                ),
+                currentAttachment: _attachmentFor(request, request.flaggedRequirementLabel!),
+                accent: accent,
+                busy: _demoBusy,
+                onResubmit: (a) => _resolveAdditionalDocuments(service, a),
+              ),
+            ],
             const SizedBox(height: AppSpacing.xl),
             Text(
               usesMilestones ? 'Request Timeline' : 'Status Timeline',
@@ -241,7 +322,10 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
                 busy: _demoBusy,
                 accent: accent,
                 onAdvance: () => _advance(service, request, accent),
-                onReject: () => _reject(service),
+                onReject: () => _reject(service, request),
+                onFlagDocs: _flaggableRequirementFor(request) != null
+                    ? () => _flagAdditionalDocuments(service, request)
+                    : null,
               ),
             ],
             const SizedBox(height: AppSpacing.xl),
@@ -316,6 +400,13 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
     );
   }
 
+  Attachment? _attachmentFor(ServiceRequest request, String requirementLabel) {
+    for (final a in request.attachments) {
+      if (a.documentTypeLabel == requirementLabel) return a;
+    }
+    return null;
+  }
+
   String _fmtFull(DateTime d) =>
       '${d.month}/${d.day}/${d.year} at ${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')}';
 
@@ -378,6 +469,83 @@ class _RejectedApplicationCard extends StatelessWidget {
   }
 }
 
+/// Distinct from [_RejectedApplicationCard] — the request is still active,
+/// not terminal. Shows the admin's reason plus a [RequirementUploader] for
+/// the one flagged requirement, so the resident replaces exactly that
+/// document (never the whole application) and nothing else on the request
+/// is touched. Orange/warning-styled, never red, so it never reads as a
+/// rejection.
+class _AdditionalDocumentsCard extends StatelessWidget {
+  final String reason;
+  final RequirementInfo requirement;
+  final Attachment? currentAttachment;
+  final Color accent;
+  final bool busy;
+  final ValueChanged<Attachment> onResubmit;
+
+  const _AdditionalDocumentsCard({
+    required this.reason,
+    required this.requirement,
+    required this.currentAttachment,
+    required this.accent,
+    required this.busy,
+    required this.onResubmit,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      decoration: BoxDecoration(
+        color: AppColors.orange50,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.orange500.withValues(alpha: 0.35), width: 1.2),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.warning_amber_rounded, size: 18, color: AppColors.orange700),
+              const SizedBox(width: AppSpacing.sm),
+              const Expanded(
+                child: Text(
+                  'Additional Document Needed',
+                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.orange700),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.md),
+          Text(reason, style: const TextStyle(fontSize: 12.5, color: AppColors.slate700, height: 1.45)),
+          const SizedBox(height: AppSpacing.sm),
+          const Text(
+            'This is still an active request, not a rejection — upload a replacement below and it will go back for '
+            'review automatically.',
+            style: TextStyle(fontSize: 11.5, color: AppColors.slate500, height: 1.4),
+          ),
+          const SizedBox(height: AppSpacing.md),
+          Opacity(
+            opacity: busy ? 0.6 : 1,
+            child: IgnorePointer(
+              ignoring: busy,
+              child: RequirementUploader(
+                requirement: requirement,
+                attachment: currentAttachment,
+                accent: accent,
+                existingMasterDoc: null,
+                onAttachNew: onResubmit,
+                onUseExisting: () {},
+                onRemove: () {},
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 /// Clearly demonstration-only controls for manually driving the frontend
 /// milestone simulation — deliberately styled to read as "not a normal
 /// resident action" (dashed amber border, a "DEMO" tag) so a citizen using
@@ -391,12 +559,18 @@ class _DemoControlsCard extends StatelessWidget {
   final VoidCallback onAdvance;
   final VoidCallback onReject;
 
+  /// Null when this request's catalog item has no genuinely-uploadable
+  /// requirement to flag (none currently lack one) — omits the button
+  /// entirely rather than showing it disabled.
+  final VoidCallback? onFlagDocs;
+
   const _DemoControlsCard({
     required this.nextMilestone,
     required this.busy,
     required this.accent,
     required this.onAdvance,
     required this.onReject,
+    required this.onFlagDocs,
   });
 
   @override
@@ -439,6 +613,17 @@ class _DemoControlsCard extends StatelessWidget {
             loading: busy,
             onPressed: busy ? null : onAdvance,
           ),
+          if (onFlagDocs != null) ...[
+            const SizedBox(height: AppSpacing.sm),
+            TextButton(
+              onPressed: busy ? null : onFlagDocs,
+              style: TextButton.styleFrom(foregroundColor: AppColors.orange700),
+              child: const Text(
+                'Request Additional Documents (Demo)',
+                style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600),
+              ),
+            ),
+          ],
           const SizedBox(height: AppSpacing.sm),
           TextButton(
             onPressed: busy ? null : onReject,

@@ -68,6 +68,10 @@ class MockCatalog {
       ],
       process: ['Submit Request', 'Compute Tax Due', 'Pay Fee', 'Release'],
       icon: 'receipt',
+      demoPurpose: 'Community Tax Certificate needed for a bank transaction requirement.',
+      demoRejectionReason:
+          'The declared income used to compute your Community Tax could not be verified against your '
+          'submitted Certificate of Employment. Please submit an updated proof of income.',
     ),
     CatalogItem(
       key: 'dokyu_barangay_clearance',
@@ -102,6 +106,10 @@ class MockCatalog {
           ),
         ],
       ),
+      demoDefaults: {'purpose': 'Local Employment'},
+      demoRejectionReason:
+          'Your Proof of Residency document could not be verified against Barangay Baras records. Please '
+          'submit an updated utility bill or lease contract showing your current address.',
     ),
     CatalogItem(
       key: 'dokyu_residency',
@@ -146,6 +154,10 @@ class MockCatalog {
           ),
         ],
       ),
+      demoDefaults: {'residencyType': 'Permanent Resident', 'purpose': 'Bank Requirement'},
+      demoRejectionReason:
+          'The Barangay Clearance you attached has already expired. Please secure a current Barangay '
+          'Clearance and resubmit your request.',
     ),
     CatalogItem(
       key: 'dokyu_indigency',
@@ -182,6 +194,11 @@ class MockCatalog {
           ),
         ],
       ),
+      demoDefaults: {'purpose': 'Educational Assistance (e.g. Scholarship)'},
+      demoRejectionReason:
+          'The Municipal Social Welfare and Development Office interview/case assessment found your '
+          'household income above the indigency threshold for this certification. You may reapply if your '
+          'circumstances change.',
     ),
     CatalogItem(
       key: 'dokyu_business_new',
@@ -198,6 +215,11 @@ class MockCatalog {
       ],
       process: ['Submit Requirements', 'Zoning & Fire Inspection', 'Assessment & Payment', 'Release'],
       icon: 'store',
+      demoPurpose: "New business permit application for the family's sari-sari store in Barangay Baras.",
+      demoRejectionReason:
+          'Your Locational/Zoning Clearance and Sanitary Permit could not be verified during the zoning and '
+          'fire inspection. Please coordinate with the Business Permits and Licensing Office to schedule a '
+          're-inspection.',
     ),
     CatalogItem(
       key: 'dokyu_rpt',
@@ -212,6 +234,10 @@ class MockCatalog {
       ],
       process: ['Submit Request', 'Verify Tax Records', 'Settle Balance (if any)', 'Release'],
       icon: 'landmark',
+      demoPurpose: 'Tax clearance for the family property in Barangay Baras, required for a loan application.',
+      demoRejectionReason:
+          'Our records show an outstanding Real Property Tax balance for this property. Please settle the '
+          "balance at the Treasurer's Office before a clearance can be issued.",
     ),
     CatalogItem(
       key: 'mcro_live_birth',
@@ -222,6 +248,10 @@ class MockCatalog {
       requirements: ['One (1) valid government-issued ID', 'Details of the record being requested'],
       process: ['Submit Request', 'Records Verification', 'Payment', 'Release'],
       icon: 'file-text',
+      demoPurpose: 'Certified true copy of my own birth certificate for a school scholarship application.',
+      demoRejectionReason:
+          'The record details you provided did not match the civil registry entry on file. Please verify '
+          'the exact registered name and date, then resubmit your request.',
     ),
     CatalogItem(
       key: 'dokyu_barangay_business_clearance',
@@ -254,6 +284,16 @@ class MockCatalog {
           ),
         ],
       ),
+      demoDefaults: {
+        'businessName': "Bonghanoy's Sari-Sari Store",
+        'businessNature': 'Retail - Sari-Sari Store',
+        'yearsOperating': '3',
+        'capitalAmount': '15000',
+      },
+      demoPurpose: "Barangay business clearance for the family's sari-sari store renewal.",
+      demoRejectionReason:
+          'The proof of business location you submitted could not be verified against the barangay '
+          'records for this address. Please submit an updated lease contract or land title.',
     ),
     CatalogItem(
       key: 'dokyu_barangay_certification',
@@ -281,6 +321,10 @@ class MockCatalog {
           ),
         ],
       ),
+      demoDefaults: {'purpose': 'Proof of residency in Barangay Baras for a school scholarship application.'},
+      demoRejectionReason:
+          'The stated purpose requires supporting documentation that was not included with your request. '
+          'Please attach the required supporting document and resubmit.',
     ),
     CatalogItem(
       key: 'dokyu_first_time_jobseeker',
@@ -1218,6 +1262,10 @@ class MockCatalog {
         'Cash / Guarantee Letter Release',
       ],
       icon: 'stethoscope',
+      demoPurpose: "Medical assistance for my mother's hospital bill at Masbate Provincial Hospital.",
+      demoRejectionReason:
+          'The Medical Abstract you submitted has already expired. Please secure an updated Medical '
+          'Abstract or Statement of Account from the hospital and resubmit.',
     ),
     CatalogItem(
       key: 'tulong_burial',
@@ -1344,6 +1392,10 @@ class MockCatalog {
           ),
         ],
       ),
+      demoPurpose: 'Educational assistance to support continuing studies.',
+      demoRejectionReason:
+          'Your Certificate of Enrollment does not match the current academic term. Please secure an '
+          'updated Certificate of Enrollment for the present school year and resubmit.',
     ),
     CatalogItem(
       key: 'tulong_financial',
@@ -1359,6 +1411,11 @@ class MockCatalog {
       ],
       process: ['Submit Request', 'Social Case Study', 'Approval', 'Release'],
       icon: 'wallet',
+      demoPurpose: "Financial assistance for the family's living expenses following reduced household income.",
+      demoRejectionReason:
+          'The social case study found an active source of household income that was not disclosed in '
+          'your request. Please coordinate with the Municipal Social Welfare and Development Office to '
+          'clarify your household situation.',
     ),
     CatalogItem(
       key: 'tulong_food',
@@ -1370,6 +1427,10 @@ class MockCatalog {
       requirements: ['Barangay Certification', 'One (1) valid government-issued ID'],
       process: ['Submit Request', 'Barangay Verification', 'Approval', 'Distribution'],
       icon: 'package',
+      demoPurpose: 'Relief goods request for the household in Barangay Baras.',
+      demoRejectionReason:
+          'Your household has already received a relief goods package for the current distribution cycle. '
+          'Please wait for the next scheduled distribution.',
     ),
     CatalogItem(
       key: 'tulong_pension',

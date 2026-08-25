@@ -87,12 +87,12 @@ void main() {
     expect(find.textContaining('years old'), findsOneWidget);
     expect(find.text('Select your Date of Birth above first'), findsNothing);
 
-    // Continue is not blocked by Date of Birth (already filled) — only the
-    // still-empty Purpose is required, proving Age was never a separately
-    // validated field.
-    await tester.tap(find.text('Continue'));
-    await tester.pumpAndSettle();
-    expect(find.text('Please complete "Purpose".'), findsOneWidget);
+    // Purpose is already prefilled for the verified demo resident (Cristy)
+    // via CatalogItem.demoDefaults — see the Mobile <-> Web Admin final
+    // alignment pass — so Continue is not blocked here at all; Date of
+    // Birth was never a separately validated field either.
+    expect(find.text('Local Employment'), findsOneWidget);
+    expect(find.text('Select Purpose'), findsNothing);
 
     // Changing the Date of Birth through the real date picker (switched to
     // keyboard-entry mode for a deterministic result) immediately
@@ -108,8 +108,9 @@ void main() {
     expect(find.text('Dec 20, 2000'), findsOneWidget);
     expect(find.textContaining('years old'), findsOneWidget);
 
-    // Fill Purpose via the select dropdown.
-    await tester.tap(find.text('Select Purpose'), warnIfMissed: false);
+    // The prefilled Purpose is a normal editable value, not a locked
+    // default — change it via the select dropdown.
+    await tester.tap(find.text('Local Employment'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Proof of Residency').last);
     await tester.pumpAndSettle();

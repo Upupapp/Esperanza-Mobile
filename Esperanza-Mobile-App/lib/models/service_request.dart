@@ -65,6 +65,16 @@ class ServiceRequest {
   /// seeded copy from before this field existed gets backfilled in place,
   /// see RequestsService._migrateEducationalRejectionReason.
   String? rejectionGuidance;
+
+  /// Non-null exactly while [status] is 'Waiting Requirements' *because* an
+  /// admin flagged one specific requirement as needing a new upload (see
+  /// RequestsService.flagAdditionalDocuments) — distinct from the payment
+  /// sub-steps, which also canonicalize to 'Waiting Requirements' but never
+  /// set this field. Holds the exact requirement label (matches
+  /// Attachment.documentTypeLabel) so RequestDetailScreen can show a
+  /// re-upload control for that one requirement only. Cleared by
+  /// RequestsService.resolveAdditionalDocuments once the resident resubmits.
+  String? flaggedRequirementLabel;
   final String expectedDays;
   final Map<String, dynamic> formFields;
 
@@ -102,17 +112,18 @@ class ServiceRequest {
     required this.submittedAt,
     required this.status,
     required this.statusHistory,
-    required this.attachments,
+    required List<Attachment> attachments,
     this.citizenRemarks,
     this.adminRemarks,
     this.rejectionGuidance,
+    this.flaggedRequirementLabel,
     required this.expectedDays,
     this.formFields = const {},
     this.requiresPayment = false,
     this.fee = '',
     this.paymentMethod,
     this.receipt,
-  });
+  }) : attachments = List<Attachment>.of(attachments);
 
   Map<String, dynamic> toJson() => {
         'id': id,
@@ -130,6 +141,7 @@ class ServiceRequest {
         'citizenRemarks': citizenRemarks,
         'adminRemarks': adminRemarks,
         'rejectionGuidance': rejectionGuidance,
+        'flaggedRequirementLabel': flaggedRequirementLabel,
         'expectedDays': expectedDays,
         'formFields': formFields,
         'requiresPayment': requiresPayment,
@@ -154,6 +166,7 @@ class ServiceRequest {
         citizenRemarks: json['citizenRemarks'],
         adminRemarks: json['adminRemarks'],
         rejectionGuidance: json['rejectionGuidance'],
+        flaggedRequirementLabel: json['flaggedRequirementLabel'],
         expectedDays: json['expectedDays'],
         formFields: Map<String, dynamic>.from(json['formFields'] ?? {}),
         // Defaults false/null so requests persisted before this field
