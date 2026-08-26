@@ -143,8 +143,8 @@ void main() {
       final requests = await _pumpBusinessPermit(tester, masterFile: mf);
 
       await tester.enterText(find.byType(TextField).first, 'New business registration');
-      await tester.ensureVisible(find.text('Submit Request'));
-      await tester.tap(find.text('Submit Request'));
+      await tester.ensureVisible(find.text('Continue to Payment'));
+      await tester.tap(find.text('Continue to Payment'));
       await tester.pumpAndSettle();
 
       expect(
@@ -228,8 +228,8 @@ void main() {
       expect(find.text('cedula_2026.jpg'), findsOneWidget);
 
       await tester.enterText(find.byType(TextField).first, 'New business registration');
-      await tester.ensureVisible(find.text('Submit Request'));
-      await tester.tap(find.text('Submit Request'));
+      await tester.ensureVisible(find.text('Continue to Payment'));
+      await tester.tap(find.text('Continue to Payment'));
       await tester.pumpAndSettle();
 
       // Cedula is satisfied (reused) — only the other 4 are still missing.

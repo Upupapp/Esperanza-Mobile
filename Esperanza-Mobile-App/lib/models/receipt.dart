@@ -1,11 +1,22 @@
-/// A generated receipt for one paid request — FRONTEND SIMULATION ONLY,
-/// see [ReceiptType]'s own doc comment. Generated once, at the moment a
-/// request's milestone simulation reaches [RequestMilestones.
-/// receiptGenerated] (see RequestsService.advanceMilestone), and then
-/// persisted on that request's own [Receipt] field for the rest of the
-/// demo session — each request keeps its own, independent of any other
-/// request's receipt.
-enum ReceiptType { gcash, maya, onsite }
+/// A generated receipt for one Dokyu request — FRONTEND SIMULATION ONLY,
+/// see [ReceiptType]'s own doc comment. Generated once, synchronously,
+/// the moment RequestsService.submit() creates the request — payment (when
+/// the service has a real fee) happens during the application flow itself,
+/// before the request exists, never as a later tracking milestone — and
+/// then persisted on that request's own [Receipt] field for the rest of
+/// the demo session. Tulong requests never get one (assistance
+/// applications have no receipt concept).
+enum ReceiptType {
+  gcash,
+  maya,
+  onsite,
+
+  /// A Free Dokyu service — still generates a formality/claim-stub
+  /// receipt (so "Documents Uploaded"/Transactions/View Receipt keep
+  /// working uniformly for every Dokyu request), but never with an
+  /// invented monetary amount.
+  free,
+}
 
 class Receipt {
   final ReceiptType type;

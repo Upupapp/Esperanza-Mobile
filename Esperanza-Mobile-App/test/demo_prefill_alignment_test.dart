@@ -141,7 +141,7 @@ void main() {
   }
 
   group('demoDefaults / demoPurpose — Cristy only, always editable', () {
-    testWidgets('Barangay Clearance: purpose defaults to Local Employment and is freely editable', (tester) async {
+    testWidgets('Barangay Clearance: purpose defaults to Proof of Residency and is freely editable', (tester) async {
       SharedPreferences.setMockInitialValues({});
       final mf = await _readyMasterFile(tester);
       await mf.saveOrUpdate(
@@ -170,17 +170,19 @@ void main() {
       await tester.tap(find.widgetWithText(AppButton, 'Continue')); // Applicant Info -> Clearance Details
       await tester.pumpAndSettle();
 
-      expect(find.text('Local Employment'), findsOneWidget);
+      // Web Admin's own record for Cristy: Purpose defaults to Proof of
+      // Residency, not Local Employment.
+      expect(find.text('Proof of Residency'), findsOneWidget);
 
       // Edit: open the dropdown and pick a different option — this must
       // change ONLY this in-progress request, never any stored profile
       // data (Purpose isn't a Master Profile field at all).
-      await tester.tap(find.text('Local Employment'));
+      await tester.tap(find.text('Proof of Residency'));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Travel Abroad').last);
       await tester.pumpAndSettle();
 
-      expect(find.text('Local Employment'), findsNothing);
+      expect(find.text('Proof of Residency'), findsNothing);
       expect(find.text('Travel Abroad'), findsOneWidget);
 
       await tester.tap(find.widgetWithText(AppButton, 'Continue')); // -> Requirements & Attachments
@@ -194,7 +196,15 @@ void main() {
 
       await tester.tap(find.widgetWithText(AppButton, 'Continue')); // -> Review & Submit
       await tester.pumpAndSettle();
-      await tester.tap(find.widgetWithText(AppButton, 'Submit Request'));
+
+      // Barangay Clearance has a real configured fee, so Review leads to a
+      // Payment Method step before submission (see the Mobile-only final
+      // request-flow correction pass) — never straight to "Submit Request".
+      await tester.tap(find.widgetWithText(AppButton, 'Continue')); // -> Payment Method
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Pay at Municipal Office'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(AppButton, 'Confirm Payment'));
       await tester.pumpAndSettle();
 
       final submitted = requests.all.last;
@@ -294,7 +304,14 @@ void main() {
 
       await tester.tap(find.widgetWithText(AppButton, 'Continue')); // -> Review & Submit
       await tester.pumpAndSettle();
-      await tester.tap(find.widgetWithText(AppButton, 'Submit Request'));
+
+      // Barangay Business Clearance has a real configured fee too — same
+      // Payment Method step before submission.
+      await tester.tap(find.widgetWithText(AppButton, 'Continue')); // -> Payment Method
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Pay at Municipal Office'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(AppButton, 'Confirm Payment'));
       await tester.pumpAndSettle();
 
       final submitted = requests.all.last;
@@ -314,16 +331,13 @@ void main() {
         category: ServiceCategory.dokyu,
       );
 
-      expect(find.text('Community Tax Certificate needed for a bank transaction requirement.'), findsOneWidget);
+      expect(find.text('For submission as a government transaction requirement.'), findsOneWidget);
 
-      final purposeField = find.widgetWithText(
-        TextField,
-        'Community Tax Certificate needed for a bank transaction requirement.',
-      );
+      final purposeField = find.widgetWithText(TextField, 'For submission as a government transaction requirement.');
       await tester.enterText(purposeField, 'Cedula needed for NBI clearance application.');
       await tester.pumpAndSettle();
 
-      expect(find.text('Community Tax Certificate needed for a bank transaction requirement.'), findsNothing);
+      expect(find.text('For submission as a government transaction requirement.'), findsNothing);
       expect(find.text('Cedula needed for NBI clearance application.'), findsOneWidget);
       expect(tester.takeException(), isNull);
     });

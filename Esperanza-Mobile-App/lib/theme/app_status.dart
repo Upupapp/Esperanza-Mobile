@@ -7,6 +7,24 @@ import 'app_colors.dart';
 /// verbatim across Web Admin and Mobile; never invent new status labels
 /// (see CLAUDE.md's "Universal status system" and
 /// ESPERANZA_MOBILE_WEB_ALIGNMENT.md Section 4).
+///
+/// [underReview] is a deliberate, explicitly-authorized exception (Mobile-
+/// only final request-flow correction pass): the citizen-facing Mobile
+/// tracking timeline uses it instead of the Web Admin's "Waiting
+/// Requirements", because it's what a citizen actually needs to understand.
+/// Web Admin itself is untouched and keeps its own original vocabulary —
+/// this is additive only, never a replacement for the values above, so
+/// nothing already keyed to the rest (Web-Admin-parity contexts) is
+/// affected.
+///
+/// [readyForRelease]'s own label was updated to "Mark to Release" (see the
+/// status-terminology correction pass) to match the Web Admin's CURRENT
+/// wording (its own badge.blade.php/CLAUDE.md status list — "Mark to
+/// Release" replaced the older "Ready for Release" there); the enum
+/// identifier is kept as-is since it's never shown to a user, only `.label`
+/// is. [readyForPickup] (a since-retired Mobile-only label distinct from
+/// this) has been removed — Dokyu/Tulong tracking uses [readyForRelease]
+/// directly now, so the two are no longer needed side by side.
 enum AppStatus {
   draft,
   submitted,
@@ -22,6 +40,7 @@ enum AppStatus {
   completed,
   cancelled,
   archived,
+  underReview,
 }
 
 class StatusStyle {
@@ -44,11 +63,12 @@ extension AppStatusX on AppStatus {
     AppStatus.waitingRequirements => 'Waiting Requirements',
     AppStatus.approved => 'Approved',
     AppStatus.rejected => 'Rejected',
-    AppStatus.readyForRelease => 'Ready for Release',
+    AppStatus.readyForRelease => 'Mark to Release',
     AppStatus.released => 'Released',
     AppStatus.completed => 'Completed',
     AppStatus.cancelled => 'Cancelled',
     AppStatus.archived => 'Archived',
+    AppStatus.underReview => 'Under Review',
   };
 
   StatusStyle get style => switch (this) {
@@ -66,6 +86,9 @@ extension AppStatusX on AppStatus {
     AppStatus.completed => const StatusStyle(AppColors.green50, AppColors.green700, AppColors.green500),
     AppStatus.cancelled => const StatusStyle(AppColors.slate100, AppColors.slate500, AppColors.slate400),
     AppStatus.archived => const StatusStyle(AppColors.slate100, AppColors.slate400, AppColors.slate300),
+    // Same meaning/coloring as waitingRequirements — "needs attention, not
+    // rejected, not done" — just the Mobile-specific label above it.
+    AppStatus.underReview => const StatusStyle(AppColors.orange50, AppColors.orange700, AppColors.orange500),
   };
 
   /// Whether this status represents a finished/terminal state — mirrors the

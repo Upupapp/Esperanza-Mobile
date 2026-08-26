@@ -6,7 +6,7 @@ import '../models/attachment.dart';
 import '../models/receipt.dart';
 import '../models/request_milestones.dart';
 import '../models/service_request.dart';
-import '../theme/app_status.dart';
+import '../theme/app_status.dart'; // AppStatusX.label, used on RequestMilestones.canonicalStatusFor()'s return value
 
 /// Local, frontend-only "database" for Dokyu + Tulong requests. Persists to
 /// SharedPreferences as JSON so submissions survive app restarts during the
@@ -82,6 +82,7 @@ class RequestsService extends ChangeNotifier {
     if (_migrateStaleDemoIdentity()) await _persist();
     if (_migrateEducationalRejectionReason()) await _persist();
     if (_migrateSeniorCitizenIdCategory()) await _persist();
+    if (_migrateObsoleteTrackingLabels()) await _persist();
     if (seedDemoData) {
       await _seedDemoStatusSimulationsIfNeeded();
       await _seedPaidTransactionDemoIfNeeded();
@@ -238,19 +239,91 @@ class RequestsService extends ChangeNotifier {
     return true;
   }
 
-  /// Pre-made Dokyu/Tulong requests covering the three primary statuses
-  /// (Pending Review, Approved, Rejected) so the client can see what each
-  /// looks like — request list tile, request detail, and the matching
-  /// notification (via the same statusHistory-derived feed every other
-  /// request notification already comes from, see notification_feed.dart)
-  /// — without submitting anything first. Seeded exactly once, guarded by
-  /// [_demoSeedIds] already being present, so relaunching the app or a
-  /// hot-reload never re-adds or duplicates them, and any requests the
-  /// citizen has actually submitted are never touched. "Pending" in the
-  /// task sense maps to this app's real, existing "Pending Review" status
-  /// (see AppStatus) rather than inventing a new label — the universal
-  /// status system's exact 14 names are shared verbatim with the Web
-  /// Admin and must never gain a duplicate/ambiguous one.
+  /// Mobile-only final request-flow correction pass: a device that already
+  /// persisted requests using a retired tracking label (Pending Review,
+  /// Processing, Waiting for Payment, Payment Method Selected, Payment
+  /// Processing, Receipt Generated, Paid, Ready for Release, Ready for Pick
+  /// Up, Completed, Waiting Requirements) gets them converted in place to
+  /// the new simplified citizen lifecycle — never wiped, never duplicated,
+  /// no other field touched. Applied to both a request's current
+  /// [ServiceRequest.status] and every recorded [StatusHistoryEntry] (so the
+  /// timeline never shows a stage name that no longer exists), then
+  /// collapses any consecutive duplicate history entries the remapping
+  /// itself produced (e.g. the old Pending Review -> Under Verification ->
+  /// Processing chain all collapsing onto a single Under Verification
+  /// entry), keeping an old request's timeline exactly as tidy as a
+  /// freshly-submitted one's — see A29's "avoid a huge vertical timeline
+  /// caused by obsolete stages."
+  ///
+  /// 'Ready for Pick Up' and 'Completed' were themselves only briefly the
+  /// live Dokyu/Tulong labels (before the status-terminology correction
+  /// pass retired them in favor of the Web Admin's own current wording) —
+  /// included here for the same reason as the older Web-Admin-parity labels
+  /// above: nothing already persisted under them should ever show a stage
+  /// name this build no longer recognizes.
+  static const _obsoleteStatusMigration = <String, String>{
+    'Pending Review': RequestMilestones.underVerification,
+    'Processing': RequestMilestones.underVerification,
+    'Waiting for Payment': RequestMilestones.approved,
+    'Payment Method Selected': RequestMilestones.approved,
+    'Payment Processing': RequestMilestones.approved,
+    'Receipt Generated': RequestMilestones.approved,
+    'Paid': RequestMilestones.approved,
+    'Ready for Release': RequestMilestones.markToRelease,
+    'Ready for Pick Up': RequestMilestones.markToRelease,
+    'Completed': RequestMilestones.released,
+    // The earlier "admin flagged a document" simulation used this Web-
+    // Admin-shared label; the Mobile-only tracking timeline now uses
+    // "Under Review" instead (same meaning, citizen-facing wording).
+    'Waiting Requirements': RequestMilestones.underReview,
+  };
+
+  bool _migrateObsoleteTrackingLabels() {
+    var changed = false;
+    for (final r in _requests) {
+      if (r.category == ServiceCategory.sakunaIncident) continue; // never used milestones
+      final newStatus = _obsoleteStatusMigration[r.status];
+      if (newStatus != null) {
+        r.status = newStatus;
+        changed = true;
+      }
+      for (var i = 0; i < r.statusHistory.length; i++) {
+        final entry = r.statusHistory[i];
+        final mapped = _obsoleteStatusMigration[entry.status];
+        if (mapped == null) continue;
+        r.statusHistory[i] = StatusHistoryEntry(
+          status: mapped,
+          at: entry.at,
+          actor: entry.actor,
+          remarks: entry.remarks,
+        );
+        changed = true;
+      }
+      final collapsed = <StatusHistoryEntry>[];
+      for (final entry in r.statusHistory) {
+        if (collapsed.isNotEmpty && collapsed.last.status == entry.status) continue;
+        collapsed.add(entry);
+      }
+      if (collapsed.length != r.statusHistory.length) {
+        r.statusHistory
+          ..clear()
+          ..addAll(collapsed);
+        changed = true;
+      }
+    }
+    return changed;
+  }
+
+  /// Pre-made Dokyu/Tulong requests covering the three primary tracking
+  /// outcomes (Under Verification, Approved, Rejected — see
+  /// RequestMilestones) so the client can see what each looks like —
+  /// request list tile, request detail, and the matching notification (via
+  /// the same statusHistory-derived feed every other request notification
+  /// already comes from, see notification_feed.dart) — without submitting
+  /// anything first. Seeded exactly once, guarded by [_demoSeedIds] already
+  /// being present, so relaunching the app or a hot-reload never re-adds or
+  /// duplicates them, and any requests the citizen has actually submitted
+  /// are never touched.
   static const _demoSeedIds = [
     'demo-dokyu-barangay-clearance',
     'demo-dokyu-business-permit',
@@ -292,7 +365,7 @@ class RequestsService extends ChangeNotifier {
       String? rejectionGuidance,
     }) {
       final submittedAt = daysAgo(5);
-      return ServiceRequest(
+      final request = ServiceRequest(
         id: id,
         referenceNumber: '${category == ServiceCategory.dokyu ? 'DR' : 'AR'}-${now.year}-DEMO$refSuffix',
         applicantId: applicantId,
@@ -319,6 +392,15 @@ class RequestsService extends ChangeNotifier {
         adminRemarks: adminRemarks,
         rejectionGuidance: rejectionGuidance,
       );
+      // Every Dokyu request gets a receipt at submission time now (see
+      // RequestsService.submit) — these seeded demo rows mirror that so
+      // "View Receipt" behaves consistently even for pre-made content.
+      if (category == ServiceCategory.dokyu) {
+        final method = requiresPayment ? 'GCash' : null;
+        request.paymentMethod = method;
+        request.receipt = _generateReceiptFor(request, paymentMethod: method);
+      }
+      return request;
     }
 
     _requests.addAll([
@@ -344,9 +426,9 @@ class RequestsService extends ChangeNotifier {
         office: 'Business Permits and Licensing Office',
         expectedDays: '7 working days',
         purpose: 'New business registration',
-        finalStatus: 'Pending Review',
+        finalStatus: 'Under Verification',
         actorRole: 'Business Permits and Licensing Office Staff',
-        remarks: 'Your Business Permit request is still pending.',
+        remarks: 'Your Business Permit request is being verified.',
         requiresPayment: true, // ₱500.00 and up — see dokyu_business_new fee
         fee: '₱500.00 and up (based on capital)',
       ),
@@ -371,9 +453,9 @@ class RequestsService extends ChangeNotifier {
         office: 'Municipal Social Welfare and Development Office',
         expectedDays: '3-5 working days',
         purpose: 'Hospital bill assistance',
-        finalStatus: 'Pending Review',
+        finalStatus: 'Under Verification',
         actorRole: 'Municipal Social Welfare and Development Office Staff',
-        remarks: 'Your Medical Assistance request is still pending.',
+        remarks: 'Your Medical Assistance request is being verified.',
         // Free — see tulong_medical fee; requiresPayment left false.
       ),
       demo(
@@ -417,23 +499,17 @@ class RequestsService extends ChangeNotifier {
 
   /// Three already-Paid demo requests (one per payment method) so the
   /// Transactions screen has real content to demonstrate immediately,
-  /// without having to manually walk a request through the payment flow
-  /// first. Same request+receipt architecture as a genuinely-simulated
-  /// payment (see advanceMilestone/_generateReceipt) — Transactions has no
-  /// separate data source, so these appear there exactly the same way a
-  /// live-paid request would. Seeded exactly once, guarded by
+  /// without having to manually walk a request through an application's
+  /// own Payment Method step first. Same request+receipt architecture as a
+  /// genuinely-submitted paid Dokyu request (see [submit]/
+  /// [_generateReceiptFor]) — Transactions has no separate data source, so
+  /// these appear there exactly the same way a live one would. Dokyu only —
+  /// Tulong never has a payment method or receipt (assistance applications
+  /// have no receipt concept; see the Mobile-only final request-flow
+  /// correction pass). Seeded exactly once, guarded by
   /// [_paidTransactionSeedIds] already being present (same pattern as
-  /// [_seedDemoStatusSimulationsIfNeeded]) — a browser that already has
-  /// these ids never gets them re-added or duplicated, and an existing
-  /// browser that predates this seed (and so doesn't have these ids yet)
-  /// receives them on its next load with no manual storage-clearing
-  /// needed. Services/fees are real catalog entries, never invented — see
-  /// each entry's own comment for its catalog key.
-  static const _paidTransactionSeedIds = [
-    'demo-paid-dokyu-residency-gcash',
-    'demo-paid-dokyu-rpt-maya',
-    'demo-paid-tulong-pension-onsite',
-  ];
+  /// [_seedDemoStatusSimulationsIfNeeded]).
+  static const _paidTransactionSeedIds = ['demo-paid-dokyu-residency-gcash', 'demo-paid-dokyu-rpt-maya'];
 
   Future<void> _seedPaidTransactionDemoIfNeeded() async {
     if (_requests.any((r) => _paidTransactionSeedIds.contains(r.id))) return;
@@ -445,24 +521,22 @@ class RequestsService extends ChangeNotifier {
       required String id,
       required String refSuffix,
       required String typeName,
-      required ServiceCategory category,
       required String office,
       required String expectedDays,
       required String purpose,
       required String fee,
       required int submittedDaysAgo,
-      required int paidDaysAgo,
       required String paymentMethod,
       required ReceiptType receiptType,
       required String receiptRefDigits,
     }) {
       final submittedAt = daysAgo(submittedDaysAgo);
-      final paidAt = daysAgo(paidDaysAgo);
-      final referenceNumber = '${category == ServiceCategory.dokyu ? 'DR' : 'AR'}-${now.year}-DEMO$refSuffix';
+      final referenceNumber = 'DR-${now.year}-DEMO$refSuffix';
       final receiptPrefix = switch (receiptType) {
         ReceiptType.gcash => 'GC',
         ReceiptType.maya => 'MY',
         ReceiptType.onsite => 'OR',
+        ReceiptType.free => 'FR',
       };
       return ServiceRequest(
         id: id,
@@ -470,11 +544,11 @@ class RequestsService extends ChangeNotifier {
         applicantId: _demoApplicantId,
         applicantName: _demoApplicantName,
         typeName: typeName,
-        category: category,
+        category: ServiceCategory.dokyu,
         office: office,
         purpose: purpose,
         submittedAt: submittedAt,
-        status: RequestMilestones.canonicalStatusFor(RequestMilestones.paid).label,
+        status: RequestMilestones.approved,
         statusHistory: [
           StatusHistoryEntry(
             status: RequestMilestones.submitted,
@@ -483,10 +557,10 @@ class RequestsService extends ChangeNotifier {
             remarks: 'Request submitted via mobile app.',
           ),
           StatusHistoryEntry(
-            status: RequestMilestones.paid,
-            at: paidAt,
+            status: RequestMilestones.approved,
+            at: daysAgo(submittedDaysAgo - 1),
             actor: 'Demo Simulation',
-            remarks: 'Payment confirmed.',
+            remarks: 'Your request has been approved.',
           ),
         ],
         attachments: const [],
@@ -498,7 +572,7 @@ class RequestsService extends ChangeNotifier {
           type: receiptType,
           amount: fee,
           referenceNumber: '$receiptPrefix-$receiptRefDigits',
-          dateTime: paidAt,
+          dateTime: submittedAt,
           residentName: _demoApplicantName,
           serviceName: typeName,
           requestReferenceNumber: referenceNumber,
@@ -511,13 +585,11 @@ class RequestsService extends ChangeNotifier {
         id: 'demo-paid-dokyu-residency-gcash',
         refSuffix: '07',
         typeName: 'Certificate of Residency', // mock_catalog.dart: dokyu_residency
-        category: ServiceCategory.dokyu,
         office: 'Civil Registrar',
         expectedDays: '1-2 working days',
         purpose: 'Proof of Residency',
         fee: '₱50.00', // dokyu_residency's own configured fee
         submittedDaysAgo: 10,
-        paidDaysAgo: 9,
         paymentMethod: 'GCash',
         receiptType: ReceiptType.gcash,
         receiptRefDigits: '5820147736',
@@ -526,31 +598,14 @@ class RequestsService extends ChangeNotifier {
         id: 'demo-paid-dokyu-rpt-maya',
         refSuffix: '08',
         typeName: 'Real Property Tax Clearance', // mock_catalog.dart: dokyu_rpt
-        category: ServiceCategory.dokyu,
         office: "Treasurer's Office",
         expectedDays: 'Same day',
         purpose: 'Loan requirement',
         fee: '₱100.00', // dokyu_rpt's own configured fee
         submittedDaysAgo: 8,
-        paidDaysAgo: 7,
         paymentMethod: 'Maya',
         receiptType: ReceiptType.maya,
         receiptRefDigits: '3391208465',
-      ),
-      paid(
-        id: 'demo-paid-tulong-pension-onsite',
-        refSuffix: '09',
-        typeName: 'Social Pension (Indigent Senior Citizen)', // mock_catalog.dart: tulong_pension
-        category: ServiceCategory.tulong,
-        office: 'Office for Senior Citizens Affairs',
-        expectedDays: '5-7 working days',
-        purpose: 'Quarterly pension release processing',
-        fee: '₱100.00', // tulong_pension's own configured processing fee (distinct from its ₱1,000/month assistance amount)
-        submittedDaysAgo: 5,
-        paidDaysAgo: 4,
-        paymentMethod: 'Onsite',
-        receiptType: ReceiptType.onsite,
-        receiptRefDigits: '7714902938',
       ),
     ]);
     await _persist();
@@ -578,6 +633,16 @@ class RequestsService extends ChangeNotifier {
   /// Action -> Web Admin Destination" flow documented per-process in the
   /// alignment doc. Starts at "Submitted"; a citizen-only initial status
   /// history entry is recorded immediately.
+  ///
+  /// [paymentMethod] ('GCash'/'Maya'/'Onsite') is passed only by a paid
+  /// Dokyu service's own Payment Method application step — payment now
+  /// happens as part of submitting the application itself, never as a
+  /// later tracking milestone (see RequestMilestones' own doc comment), so
+  /// there is exactly one call site per completed application and never a
+  /// second, payment-only request. Every Dokyu request (paid or free) gets
+  /// a [Receipt] generated synchronously right here, in the same call that
+  /// creates the request — Tulong requests never get one (assistance
+  /// applications have no receipt concept).
   Future<ServiceRequest> submit({
     required String applicantId,
     required String applicantName,
@@ -590,10 +655,18 @@ class RequestsService extends ChangeNotifier {
     Map<String, dynamic> formFields = const {},
     bool requiresPayment = false,
     String fee = '',
+    String? paymentMethod,
   }) async {
     final now = DateTime.now();
     final request = ServiceRequest(
-      id: 'req-${now.microsecondsSinceEpoch}',
+      // The current request count is folded in alongside the timestamp —
+      // two submissions made in quick succession (e.g. a presenter
+      // submitting several demo requests back-to-back) can land on the same
+      // DateTime.now() value on some platforms/clock resolutions, which
+      // would otherwise produce a duplicate id and silently merge two
+      // distinct requests under one identity (see the matching fix on
+      // FlaggedRequirement's own id generation).
+      id: 'req-${_requests.length}-${now.microsecondsSinceEpoch}',
       referenceNumber: _generateReference(category),
       applicantId: applicantId,
       applicantName: applicantName,
@@ -617,6 +690,10 @@ class RequestsService extends ChangeNotifier {
       requiresPayment: requiresPayment,
       fee: fee,
     );
+    if (category == ServiceCategory.dokyu) {
+      request.paymentMethod = paymentMethod;
+      request.receipt = _generateReceiptFor(request, paymentMethod: paymentMethod);
+    }
     _requests.add(request);
     await _persist();
     notifyListeners();
@@ -633,42 +710,39 @@ class RequestsService extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Whether [requestId] can still advance (i.e. hasn't reached the end of
-  /// its milestone sequence, and isn't Rejected/Cancelled) — drives the
-  /// demo-only "Next Demo Step" control's enabled state.
+  /// Whether [requestId] can still advance along the primary lifecycle
+  /// (i.e. hasn't reached Completed, and isn't Rejected/Cancelled/Under
+  /// Review) — drives the demo-only "Next Demo Step" control's enabled
+  /// state. Under Review is deliberately excluded: it's a branch the
+  /// citizen leaves via resubmission (see [resolveUnderReview]/
+  /// [resumeVerification]), never via the linear advance control.
   bool canAdvance(String requestId) {
     final request = _requests.firstWhere((r) => r.id == requestId);
-    final sequence = RequestMilestones.sequenceFor(requiresPayment: request.requiresPayment);
-    final currentIndex = sequence.indexOf(request.statusHistory.last.status);
-    return currentIndex != -1 && currentIndex < sequence.length - 1;
+    final currentIndex = RequestMilestones.sequence.indexOf(request.statusHistory.last.status);
+    return currentIndex != -1 && currentIndex < RequestMilestones.sequence.length - 1;
   }
 
   /// The milestone this request would move to if advanced right now, or
   /// null if it's already at the end (or off the normal sequence, e.g.
-  /// Rejected/Cancelled).
+  /// Rejected/Under Review/Cancelled).
   String? nextMilestone(String requestId) {
     final request = _requests.firstWhere((r) => r.id == requestId);
-    final sequence = RequestMilestones.sequenceFor(requiresPayment: request.requiresPayment);
-    final currentIndex = sequence.indexOf(request.statusHistory.last.status);
-    if (currentIndex == -1 || currentIndex >= sequence.length - 1) return null;
-    return sequence[currentIndex + 1];
+    final currentIndex = RequestMilestones.sequence.indexOf(request.statusHistory.last.status);
+    if (currentIndex == -1 || currentIndex >= RequestMilestones.sequence.length - 1) return null;
+    return RequestMilestones.sequence[currentIndex + 1];
   }
 
   /// DEMO-ONLY: manually advances [requestId] to its next milestone (see
   /// [RequestMilestones]) — this is a frontend simulation control, not
   /// something a real citizen ever sees; a real deployment's status
   /// changes would come from the Web Admin / backend instead. No-op if
-  /// already at the end of the sequence. [paymentMethod], when provided,
-  /// is recorded on the request (used when the Waiting for Payment
-  /// milestone is being left behind, i.e. the citizen just chose one).
-  Future<void> advanceMilestone(String requestId, {String? paymentMethod}) async {
+  /// already at the end of the sequence. Payment/receipt no longer happen
+  /// here — they're already settled by the time a request exists at all
+  /// (see [submit]) — so this only ever walks the plain 5-stage lifecycle.
+  Future<void> advanceMilestone(String requestId) async {
     final request = _requests.firstWhere((r) => r.id == requestId);
     final next = nextMilestone(requestId);
     if (next == null) return;
-    if (paymentMethod != null) request.paymentMethod = paymentMethod;
-    if (next == RequestMilestones.receiptGenerated) {
-      request.receipt = _generateReceipt(request);
-    }
     request.status = RequestMilestones.canonicalStatusFor(next).label;
     request.statusHistory.add(
       StatusHistoryEntry(
@@ -683,28 +757,19 @@ class RequestsService extends ChangeNotifier {
   }
 
   String? _demoRemarksFor(String milestone, ServiceRequest request) {
-    final method = request.paymentMethod;
     switch (milestone) {
-      case RequestMilestones.waitingForPayment:
-        return 'Please settle the required fee to continue processing.';
-      case RequestMilestones.paymentMethodSelected:
-        return method == 'Onsite'
-            ? 'Payment to be completed at Municipal Office.'
-            : 'Payment method selected: $method (Demo / Simulation).';
-      case RequestMilestones.paymentProcessing:
-        return method == 'Onsite'
-            ? 'Awaiting confirmation of onsite payment.'
-            : 'Verifying payment (Demo / Simulation).';
-      case RequestMilestones.receiptGenerated:
-        return 'Receipt generated. Tap "View Receipt" below to see it.';
-      case RequestMilestones.paid:
-        return 'Payment confirmed.';
-      case RequestMilestones.readyForRelease:
+      case RequestMilestones.underVerification:
+        return 'Your request is now being verified by our staff.';
+      case RequestMilestones.approved:
+        return 'Your request has been approved.';
+      case RequestMilestones.markToRelease:
         return request.category == ServiceCategory.dokyu
-            ? 'Your document is ready for pickup at the issuing office.'
-            : 'Your request is ready for release.';
-      case RequestMilestones.completed:
-        return 'Request completed.';
+            ? 'Your document has been marked for release at the issuing office.'
+            : 'Your request has been marked for release.';
+      case RequestMilestones.released:
+        return request.category == ServiceCategory.dokyu
+            ? 'Your document has been released.'
+            : 'Your request has been released.';
       default:
         return null;
     }
@@ -712,13 +777,30 @@ class RequestsService extends ChangeNotifier {
 
   static final _receiptRandom = Random();
 
-  /// Builds this request's own receipt, generating local/demo-only
+  /// Builds this Dokyu request's own receipt, generating local/demo-only
   /// transaction values — never a real gateway's reference number, never a
   /// value copied from a visual reference screenshot. Uses the request's
   /// own catalog fee/applicant/type/reference number, exactly as
-  /// submitted, never an invented amount.
-  Receipt _generateReceipt(ServiceRequest request) {
-    final type = switch (request.paymentMethod) {
+  /// submitted, never an invented amount. [paymentMethod] is null exactly
+  /// when [ServiceRequest.requiresPayment] is false (a Free service) —
+  /// that combination generates a no-amount formality receipt instead of a
+  /// paid one; a paid service always has a non-null [paymentMethod] by the
+  /// time this is called, since the wizard's Payment Method step requires
+  /// choosing one before submitting.
+  Receipt _generateReceiptFor(ServiceRequest request, {String? paymentMethod}) {
+    if (!request.requiresPayment) {
+      final digits = List.generate(10, (_) => _receiptRandom.nextInt(10)).join();
+      return Receipt(
+        type: ReceiptType.free,
+        amount: 'Free',
+        referenceNumber: 'FR-$digits',
+        dateTime: DateTime.now(),
+        residentName: request.applicantName,
+        serviceName: request.typeName,
+        requestReferenceNumber: request.referenceNumber,
+      );
+    }
+    final type = switch (paymentMethod) {
       'GCash' => ReceiptType.gcash,
       'Maya' => ReceiptType.maya,
       _ => ReceiptType.onsite,
@@ -727,6 +809,7 @@ class RequestsService extends ChangeNotifier {
       ReceiptType.gcash => 'GC',
       ReceiptType.maya => 'MY',
       ReceiptType.onsite => 'OR',
+      ReceiptType.free => 'FR',
     };
     final digits = List.generate(10, (_) => _receiptRandom.nextInt(10)).join();
     return Receipt(
@@ -754,58 +837,164 @@ class RequestsService extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// DEMO-ONLY: the Web Admin "Needs More Documents" / "Waiting
-  /// Requirements" action — distinct from [rejectDemo]. Unlike a rejection,
-  /// this never ends the request: it stays active, [requirementLabel] is
-  /// flagged for a targeted re-upload (see [ServiceRequest.flaggedRequirementLabel]
-  /// and RequestDetailScreen's re-upload panel), and the request resumes its
-  /// normal milestone sequence once [resolveAdditionalDocuments] is called —
-  /// see A15/A16 of the Mobile <-> Web Admin final alignment pass.
+  /// DEMO-ONLY: the Web Admin "Flagged for Replacement" action — distinct
+  /// from [rejectDemo]. Unlike a rejection, this never ends the request: it
+  /// stays active, branches to Under Review with [requirementLabel] added to
+  /// [ServiceRequest.flaggedRequirements] as a new, unresolved entry (see
+  /// that field's own doc comment) for a targeted re-upload — never
+  /// replacing/clearing any requirement already flagged, so calling this
+  /// again for a *different* requirement while already Under Review is how
+  /// more than one requirement ends up flagged at once. Resolved one
+  /// requirement at a time via [replaceFlaggedRequirement]; the request only
+  /// leaves Under Review once the citizen explicitly calls
+  /// [resubmitApplication] — replacing a document alone never resubmits.
   Future<void> flagAdditionalDocuments(
     String requestId, {
     required String requirementLabel,
     required String reason,
   }) async {
     final request = _requests.firstWhere((r) => r.id == requestId);
-    request.status = AppStatus.waitingRequirements.label;
+    final now = DateTime.now();
+    request.status = RequestMilestones.underReview;
     request.adminRemarks = reason;
-    request.flaggedRequirementLabel = requirementLabel;
+    request.flaggedRequirements.add(
+      // The list's own current length is folded in alongside the
+      // timestamp — two calls in quick succession (e.g. flagging a second
+      // requirement right after the first, as the "multiple flagged
+      // documents" demo does) can land on the same DateTime.now() value on
+      // some platforms/clock resolutions, which would otherwise produce a
+      // duplicate id (and a duplicate GlobalKey crash in the corrections
+      // UI, which keys each card by this id).
+      FlaggedRequirement(
+        id: '$requestId-${request.flaggedRequirements.length}-${now.microsecondsSinceEpoch}',
+        requirementLabel: requirementLabel,
+        reason: reason,
+        flaggedAt: now,
+      ),
+    );
+    request.statusHistory.add(
+      StatusHistoryEntry(status: RequestMilestones.underReview, at: now, actor: 'Demo Simulation', remarks: reason),
+    );
+    await _persist();
+    notifyListeners();
+  }
+
+  /// DEMO-ONLY: the Web Admin "Needs Manual Verification" action — also
+  /// branches to Under Review, same as [flagAdditionalDocuments], but with
+  /// no specific requirement flagged: nothing the citizen needs to do,
+  /// just a plain-language explanation that staff need more time. Never
+  /// presented as Rejected. Resolved by [resumeVerification], not a
+  /// citizen re-upload.
+  ///
+  /// The Request Detail screen's own "Needs Manual Verification (Demo)"
+  /// trigger button was removed (targeted UI + demo control cleanup pass) —
+  /// this method and its resolution UI ([_ManualVerificationCard]/"Continue
+  /// Verification (Demo)" in request_detail_screen.dart) are kept intact as
+  /// legitimate lifecycle logic, still exercised directly by
+  /// request_milestone_simulation_test.dart.
+  Future<void> flagManualVerification(String requestId, {required String reason}) async {
+    final request = _requests.firstWhere((r) => r.id == requestId);
+    request.status = RequestMilestones.underReview;
+    request.adminRemarks = reason;
+    request.statusHistory.add(
+      StatusHistoryEntry(status: RequestMilestones.underReview, at: DateTime.now(), actor: 'Demo Simulation', remarks: reason),
+    );
+    await _persist();
+    notifyListeners();
+  }
+
+  /// The resident replaced the document for exactly one requirement flagged
+  /// by [flagAdditionalDocuments] (matched by [flaggedId], the specific
+  /// [FlaggedRequirement.id] — never "whichever is flagged", since more than
+  /// one can be at once) — replaces the matching attachment (by
+  /// [Attachment.documentTypeLabel], falling back to appending if none was
+  /// previously attached) and marks that one entry resolved. Deliberately
+  /// does NOT touch [ServiceRequest.status] or add any status-history entry:
+  /// replacing a document is not the same as resubmitting the application
+  /// (see [resubmitApplication]) — a citizen can replace several flagged
+  /// documents one at a time before finally resubmitting once. No-op if
+  /// [flaggedId] doesn't match any still-unresolved entry (e.g. it was
+  /// already resolved, or belongs to a different request) — guards a stale
+  /// notification's action from acting twice.
+  Future<void> replaceFlaggedRequirement(
+    String requestId, {
+    required String flaggedId,
+    required Attachment newAttachment,
+  }) async {
+    final request = _requests.firstWhere((r) => r.id == requestId);
+    FlaggedRequirement? flagged;
+    for (final f in request.flaggedRequirements) {
+      if (f.id == flaggedId && !f.isResolved) {
+        flagged = f;
+        break;
+      }
+    }
+    if (flagged == null) return;
+    final resolvedFlag = flagged;
+    final index = request.attachments.indexWhere((a) => a.documentTypeLabel == resolvedFlag.requirementLabel);
+    if (index != -1) {
+      request.attachments[index] = newAttachment;
+    } else {
+      request.attachments.add(newAttachment);
+    }
+    resolvedFlag.resolvedAt = DateTime.now();
+    await _persist();
+    notifyListeners();
+  }
+
+  /// The resident explicitly resubmits the whole application once every
+  /// currently-flagged requirement has been replaced (see
+  /// [replaceFlaggedRequirement]) — the one and only way Under Review moves
+  /// forward for the flagged-requirement flavor (contrast
+  /// [resumeVerification], which resolves the no-specific-requirement
+  /// "Needs Manual Verification" flavor instead). No-op if the request isn't
+  /// Under Review, or if any flagged requirement is still unresolved —
+  /// mirrors the "Resubmit Application" button's own disabled state, so a
+  /// stale/duplicate call can never skip ahead. Records a citizen
+  /// "Resubmitted" event, then re-enters the sequence at Under Verification
+  /// (re-verification) — from there the request can loop back to Under
+  /// Review again (if flagged afresh), or continue on to Approved, exactly
+  /// like a first-time review.
+  Future<void> resubmitApplication(String requestId) async {
+    final request = _requests.firstWhere((r) => r.id == requestId);
+    if (request.status != RequestMilestones.underReview) return;
+    if (request.flaggedRequirements.any((f) => !f.isResolved)) return;
     request.statusHistory.add(
       StatusHistoryEntry(
-        status: AppStatus.waitingRequirements.label,
+        status: 'Resubmitted',
+        at: DateTime.now(),
+        actor: 'Citizen',
+        remarks: 'Application resubmitted for review.',
+      ),
+    );
+    request.status = RequestMilestones.underVerification;
+    request.statusHistory.add(
+      StatusHistoryEntry(
+        status: RequestMilestones.underVerification,
         at: DateTime.now(),
         actor: 'Demo Simulation',
-        remarks: reason,
+        remarks: 'Re-verifying the resubmitted application.',
       ),
     );
     await _persist();
     notifyListeners();
   }
 
-  /// The resident resubmitted the one requirement flagged by
-  /// [flagAdditionalDocuments] — replaces the matching attachment (by
-  /// [Attachment.documentTypeLabel], falling back to appending if none was
-  /// previously attached), clears the flag, and re-enters the normal
-  /// sequence at Under Verification (the same stage a genuine resubmission
-  /// would be re-reviewed from).
-  Future<void> resolveAdditionalDocuments(String requestId, {required Attachment newAttachment}) async {
+  /// DEMO-ONLY: resolves the "Needs Manual Verification" flavor of Under
+  /// Review (see [flagManualVerification]) — staff finished the extra
+  /// check, no citizen action was needed, so this goes straight back to
+  /// Under Verification without a "Resubmitted" entry (nothing was
+  /// resubmitted).
+  Future<void> resumeVerification(String requestId) async {
     final request = _requests.firstWhere((r) => r.id == requestId);
-    final flagged = request.flaggedRequirementLabel;
-    if (flagged == null) return;
-    final index = request.attachments.indexWhere((a) => a.documentTypeLabel == flagged);
-    if (index != -1) {
-      request.attachments[index] = newAttachment;
-    } else {
-      request.attachments.add(newAttachment);
-    }
-    request.flaggedRequirementLabel = null;
+    if (request.status != RequestMilestones.underReview) return;
     request.status = RequestMilestones.underVerification;
     request.statusHistory.add(
       StatusHistoryEntry(
         status: RequestMilestones.underVerification,
         at: DateTime.now(),
-        actor: 'Citizen',
-        remarks: 'Updated document resubmitted for review.',
+        actor: 'Demo Simulation',
+        remarks: 'Manual verification complete — continuing review.',
       ),
     );
     await _persist();

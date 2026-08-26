@@ -31,7 +31,7 @@ import 'package:esperanza_mobile/utils/age_calculator.dart';
 import 'package:esperanza_mobile/widgets/app_button.dart';
 
 const _cristyId = 'ESP-RES-2024-1044';
-final _cristyDob = DateTime(2001, 1, 13);
+final _cristyDob = DateTime(2001, 3, 15);
 
 Attachment _fakeAttachment(String fileName, {AttachmentCategory category = AttachmentCategory.pdf}) {
   return Attachment(
@@ -91,7 +91,11 @@ void main() {
       final personal = profile.personal;
 
       expect(personal.birthdate, _cristyDob);
-      expect(personal.civilStatus, 'Married');
+      expect(personal.civilStatus, 'Single');
+      expect(personal.occupation, 'Student');
+      expect(personal.educationalAttainment, 'Senior High School'); // closest valid option to "...Graduate"
+      expect(personal.email, isEmpty); // "not on file" per the Web Admin record
+      expect(personal.isFourPsBeneficiary, isTrue);
       expect(personal.placeOfBirth, 'Milagros, Masbate');
       expect(personal.schoolName, 'Masbate National Comprehensive High School');
       expect(personal.yearOrGradeLevel, '2nd Year College');
@@ -102,15 +106,25 @@ void main() {
       expect(profile.household.monthlyIncome, '₱9,718');
 
       final father = profile.familyMembers.firstWhere((m) => m.relationshipToHead == 'Father');
-      expect(father.fullName, 'Ramon Cristy');
+      expect(father.fullName, 'Ramon Bonghanoy');
       expect(father.occupation, 'Construction Worker');
 
       final mother = profile.familyMembers.firstWhere((m) => m.relationshipToHead == 'Mother');
-      expect(mother.fullName, 'Corazon Cristy');
+      expect(mother.fullName, 'Corazon Bonghanoy');
       expect(mother.occupation, 'Sari-Sari Store Vendor');
+      expect(mother.maidenName, 'Pareja');
 
       // Head of Family is untouched — still Cristy herself.
       expect(profile.headIndividualId, _cristyId);
+
+      // Her Web Admin Constituents record's exact Household/Family ids —
+      // not the generic hash-derived scheme every other account seeds with.
+      expect(profile.householdId, 'HH-2026-104');
+      expect(profile.familyId, 'FAM-2026-104');
+
+      expect(profile.emergencyContactName, 'Roberto Pareja');
+      expect(profile.emergencyContactRelationship, 'Brother');
+      expect(profile.emergencyContactNumber, '0919 502 7735');
     });
 
     testWidgets("Ronaldo's profile is completely unaffected by Cristy's alignment", (tester) async {
@@ -170,13 +184,29 @@ void main() {
       final migrated = profiles.profileFor(session.account!);
 
       expect(migrated.personal.birthdate, _cristyDob);
+      expect(migrated.personal.civilStatus, 'Single');
+      // Occupation is now itself a Web-Admin-sourced correction target too
+      // (an old "Market Vendor" placeholder is explicitly superseded by
+      // "Student" — see this correction's own report), so unlike the
+      // fields checked below it is NOT preserved from the stale device.
+      expect(migrated.personal.occupation, 'Student');
+      expect(migrated.personal.educationalAttainment, 'Senior High School');
+      expect(migrated.personal.isFourPsBeneficiary, isTrue);
       expect(migrated.personal.placeOfBirth, 'Milagros, Masbate');
       expect(migrated.household.monthlyIncome, '₱9,718');
       expect(migrated.familyMembers.any((m) => m.relationshipToHead == 'Father'), isTrue);
       expect(migrated.familyMembers.any((m) => m.relationshipToHead == 'Mother'), isTrue);
+      expect(
+        migrated.familyMembers.firstWhere((m) => m.relationshipToHead == 'Mother').maidenName,
+        'Pareja',
+      );
+      expect(migrated.emergencyContactName, 'Roberto Pareja');
+      expect(migrated.emergencyContactRelationship, 'Brother');
+      expect(migrated.emergencyContactNumber, '0919 502 7735');
 
-      // Genuinely pre-existing data is preserved exactly, not reset.
-      expect(migrated.personal.occupation, 'Market Vendor');
+      // Genuinely unrelated pre-existing data (never touched by this
+      // alignment) is preserved exactly, not reset.
+      expect(migrated.personal.mobile, '0919 502 7734');
       expect(migrated.personalSaved, isTrue);
       expect(migrated.familySaved, isTrue);
 
@@ -199,11 +229,88 @@ void main() {
 
       expect(profile.personal.birthdate, _cristyDob);
       expect(profile.familyMembers.length, 2);
+      expect(profile.householdId, 'HH-2026-104');
+      expect(profile.familyId, 'FAM-2026-104');
     });
+
+    testWidgets(
+      'a device whose Household/Family ids predate the Web Admin sync (old hash-derived scheme) is corrected on '
+      'load, without duplicating or losing family members',
+      (tester) async {
+        // The old generic hash-derived scheme every account still uses for
+        // ResidentProfile.seedFrom — deliberately NOT HH-2026-104/
+        // FAM-2026-104, to prove the migration actually rewrites a
+        // mismatched id rather than happening to already match.
+        const staleHouseholdId = 'HH-2026-741';
+        const staleFamilyId = 'FAM-2026-741';
+        final staleProfile = ResidentProfile(
+          citizenAccountId: _cristyId,
+          personal: Individual(
+            individualId: _cristyId,
+            firstName: 'Cristy',
+            lastName: 'Bonghanoy',
+            sex: 'Female',
+            birthdate: _cristyDob,
+            civilStatus: 'Single',
+            mobile: '0919 502 7734',
+            barangay: 'Baras',
+            sitioPurok: 'Purok 2',
+            completeAddress: 'Purok 2, Barangay Baras, Esperanza, Masbate',
+            occupation: 'Student',
+            householdId: staleHouseholdId,
+          ),
+          familyMembers: [
+            Individual(
+              individualId: 'IND-$_cristyId-FATHER',
+              firstName: 'Ramon',
+              lastName: 'Bonghanoy',
+              relationshipToHead: 'Father',
+              occupation: 'Construction Worker',
+              familyId: staleFamilyId,
+              householdId: staleHouseholdId,
+            ),
+          ],
+          familyName: 'Bonghanoy Family',
+          headIndividualId: _cristyId,
+          familyId: staleFamilyId,
+          householdId: staleHouseholdId,
+          household: Household(householdId: staleHouseholdId, barangay: 'Baras', familyIds: [staleFamilyId]),
+          personalSaved: true,
+          familySaved: true,
+        );
+        SharedPreferences.setMockInitialValues({
+          'esperanza_resident_profiles': jsonEncode({_cristyId: staleProfile.toJson()}),
+        });
+
+        final profiles = await _readyProfiles(tester);
+        final session = await _signedInAsCristy(tester);
+        final migrated = profiles.profileFor(session.account!);
+
+        expect(migrated.householdId, 'HH-2026-104');
+        expect(migrated.familyId, 'FAM-2026-104');
+        expect(migrated.household.householdId, 'HH-2026-104');
+        expect(migrated.household.familyIds, ['FAM-2026-104']);
+        // Mother gets added (was never on this stale device); Father is
+        // corrected in place, never duplicated.
+        expect(migrated.familyMembers.length, 2);
+        final father = migrated.familyMembers.firstWhere((m) => m.relationshipToHead == 'Father');
+        expect(father.familyId, 'FAM-2026-104');
+        expect(father.householdId, 'HH-2026-104');
+        final mother = migrated.familyMembers.firstWhere((m) => m.relationshipToHead == 'Mother');
+        expect(mother.familyId, 'FAM-2026-104');
+        expect(mother.householdId, 'HH-2026-104');
+
+        // Re-persisted, not just corrected in memory.
+        final prefs = await SharedPreferences.getInstance();
+        final resaved = jsonDecode(prefs.getString('esperanza_resident_profiles')!) as Map<String, dynamic>;
+        expect(resaved[_cristyId]['householdId'], 'HH-2026-104');
+        expect(resaved[_cristyId]['familyId'], 'FAM-2026-104');
+      },
+    );
   });
 
   group('Personal Information — Age', () {
-    testWidgets('shows Age calculated live from the corrected Jan 13, 2001 birthdate, and Civil Status Married', (
+    testWidgets('shows Age calculated live from the corrected March 15, 2001 birthdate, and Civil Status Single', (
       tester,
     ) async {
       SharedPreferences.setMockInitialValues({});
@@ -219,19 +326,33 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('Jan 13, 2001'), findsOneWidget);
+      expect(find.text('Mar 15, 2001'), findsOneWidget);
       expect(find.text('Age'), findsOneWidget);
       final expectedAge = calculateAge(_cristyDob);
       expect(find.text('$expectedAge years old'), findsOneWidget);
-      expect(find.text('Married'), findsWidgets);
+      expect(find.text('Single'), findsWidgets);
+      expect(find.text('Student'), findsWidgets);
+      expect(find.text('Senior High School'), findsOneWidget);
+      expect(find.text('4Ps Beneficiary'), findsOneWidget);
       expect(tester.takeException(), isNull);
     });
   });
 
   group('Family Information', () {
-    testWidgets('shows Ramon Cristy (Father) and Corazon Cristy (Mother); the empty-state message is gone', (
+    testWidgets('shows Ramon Bonghanoy (Father) and Corazon Bonghanoy (Mother); the empty-state message is gone', (
       tester,
     ) async {
+      // The default test canvas is too short to fit this screen's now-
+      // longer Family Details section (Family ID/Household ID/Mother's
+      // Maiden Name/Emergency Contact — see the Cristy Master Profile Web
+      // Admin sync) plus the family member tiles below it within a Sliver
+      // list's own build/cache extent — a realistic phone viewport keeps
+      // everything reachable, same pattern used throughout this suite.
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
       SharedPreferences.setMockInitialValues({});
       final session = await _signedInAsCristy(tester);
       await tester.pumpWidget(
@@ -245,9 +366,21 @@ void main() {
       );
       await tester.pumpAndSettle();
 
+      // The family member tiles sit below the (now longer) Family Details
+      // section — a Sliver list only builds elements within the current
+      // viewport plus cache extent, so scroll to the bottom to bring both
+      // tiles into the built range before asserting on them (same
+      // reasoning already documented in receipt_system_test.dart's own
+      // _scrollToTopAndTap).
+      final scrollable = find.byType(Scrollable).first;
+      tester.state<ScrollableState>(scrollable).position.jumpTo(
+        tester.state<ScrollableState>(scrollable).position.maxScrollExtent,
+      );
+      await tester.pumpAndSettle();
+
       expect(find.textContaining('No family members added yet'), findsNothing);
-      expect(find.text('Ramon Cristy'), findsOneWidget);
-      expect(find.text('Corazon Cristy'), findsOneWidget);
+      expect(find.text('Ramon Bonghanoy'), findsOneWidget);
+      expect(find.text('Corazon Bonghanoy'), findsOneWidget);
       // _MemberTile's own subtitle line shows relationship + age + account
       // status only (not occupation — see that widget's subtitleParts) —
       // occupation itself is verified against the underlying data directly
@@ -257,9 +390,14 @@ void main() {
       expect(tester.takeException(), isNull);
     });
 
-    testWidgets('editing Ramon Cristy opens the sheet without crashing (Father/Mother are valid dropdown options)', (
+    testWidgets('editing Ramon Bonghanoy opens the sheet without crashing (Father/Mother are valid dropdown options)', (
       tester,
     ) async {
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
       SharedPreferences.setMockInitialValues({});
       final session = await _signedInAsCristy(tester);
       await tester.pumpWidget(
@@ -273,7 +411,7 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Ramon Cristy'));
+      await tester.tap(find.text('Ramon Bonghanoy'));
       await tester.pumpAndSettle();
 
       expect(find.text('Edit Family Member'), findsOneWidget);
@@ -327,11 +465,11 @@ void main() {
       await tester.tap(find.widgetWithText(AppButton, 'Continue')); // Applicant Info -> Student Information
       await tester.pumpAndSettle();
 
-      expect(find.text('Jan 13, 2001'), findsOneWidget);
+      expect(find.text('Mar 15, 2001'), findsOneWidget);
       final expectedAge = calculateAge(_cristyDob);
       expect(find.textContaining('$expectedAge years old'), findsOneWidget);
       expect(find.text('Milagros, Masbate'), findsOneWidget);
-      expect(find.text('Married'), findsWidgets);
+      expect(find.text('Single'), findsWidgets);
       expect(find.text('Masbate National Comprehensive High School'), findsOneWidget);
       expect(find.text('2nd Year College'), findsOneWidget);
       expect(find.text('BS Education'), findsOneWidget);
@@ -341,9 +479,9 @@ void main() {
       await tester.tap(find.widgetWithText(AppButton, 'Continue')); // -> Family Background
       await tester.pumpAndSettle();
 
-      expect(find.text('Ramon Cristy'), findsOneWidget);
+      expect(find.text('Ramon Bonghanoy'), findsOneWidget);
       expect(find.text('Construction Worker'), findsOneWidget);
-      expect(find.text('Corazon Cristy'), findsOneWidget);
+      expect(find.text('Corazon Bonghanoy'), findsOneWidget);
       expect(find.text('Sari-Sari Store Vendor'), findsOneWidget);
       expect(find.text('9718'), findsOneWidget); // plain digits, not "₱9,718"
       expect(tester.takeException(), isNull);

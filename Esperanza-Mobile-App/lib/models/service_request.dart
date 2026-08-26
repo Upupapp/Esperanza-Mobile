@@ -3,6 +3,54 @@ import 'receipt.dart';
 
 enum ServiceCategory { dokyu, tulong, sakunaIncident }
 
+/// One "Flagged for Replacement" event on a single requirement — created by
+/// [RequestsService.flagAdditionalDocuments] and never mutated except to set
+/// [resolvedAt] once the citizen replaces that exact document (see
+/// [RequestsService.replaceFlaggedRequirement]). Kept in
+/// [ServiceRequest.flaggedRequirements] permanently (never removed) so:
+/// - a still-unresolved entry ([isResolved] false) drives the correction UI
+///   and the "Application Needs Correction" notification for that
+///   requirement, keyed by [id] so it never regenerates a duplicate
+///   notification just because the app reopened;
+/// - a resolved entry stays as read-only history (its own notification, if
+///   already seen, simply stops offering a replacement action);
+/// - flagging the *same* requirement again later (a new verification cycle)
+///   creates a brand-new entry with its own [id]/[flaggedAt], which is
+///   exactly what makes that a genuinely new, unread notification.
+class FlaggedRequirement {
+  final String id;
+  final String requirementLabel;
+  final String reason;
+  final DateTime flaggedAt;
+  DateTime? resolvedAt;
+
+  FlaggedRequirement({
+    required this.id,
+    required this.requirementLabel,
+    required this.reason,
+    required this.flaggedAt,
+    this.resolvedAt,
+  });
+
+  bool get isResolved => resolvedAt != null;
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'requirementLabel': requirementLabel,
+        'reason': reason,
+        'flaggedAt': flaggedAt.toIso8601String(),
+        'resolvedAt': resolvedAt?.toIso8601String(),
+      };
+
+  factory FlaggedRequirement.fromJson(Map<String, dynamic> json) => FlaggedRequirement(
+        id: json['id'],
+        requirementLabel: json['requirementLabel'],
+        reason: json['reason'],
+        flaggedAt: DateTime.parse(json['flaggedAt']),
+        resolvedAt: json['resolvedAt'] != null ? DateTime.parse(json['resolvedAt']) : null,
+      );
+}
+
 /// One entry in a request's audit trail — what the Web Admin's "Admin
 /// Actions" produce and what the mobile app's "Mobile Reflection" reads.
 /// See ESPERANZA_MOBILE_WEB_ALIGNMENT.md Section 3 (Flow Matrix).
@@ -66,15 +114,17 @@ class ServiceRequest {
   /// see RequestsService._migrateEducationalRejectionReason.
   String? rejectionGuidance;
 
-  /// Non-null exactly while [status] is 'Waiting Requirements' *because* an
-  /// admin flagged one specific requirement as needing a new upload (see
-  /// RequestsService.flagAdditionalDocuments) — distinct from the payment
-  /// sub-steps, which also canonicalize to 'Waiting Requirements' but never
-  /// set this field. Holds the exact requirement label (matches
-  /// Attachment.documentTypeLabel) so RequestDetailScreen can show a
-  /// re-upload control for that one requirement only. Cleared by
-  /// RequestsService.resolveAdditionalDocuments once the resident resubmits.
-  String? flaggedRequirementLabel;
+  /// Every "Flagged for Replacement" event ever recorded on this request
+  /// (see [FlaggedRequirement]'s own doc comment) — supports more than one
+  /// requirement being flagged at once (see
+  /// RequestsService.flagAdditionalDocuments), and is never cleared/removed,
+  /// only ever appended to or marked resolved, so it doubles as this
+  /// request's own correction history. An entry with [FlaggedRequirement.
+  /// isResolved] false is still awaiting a citizen re-upload; the request is
+  /// Under Review with at least one unresolved entry here, or Under Review
+  /// with this list either empty or fully resolved (the "Needs Manual
+  /// Verification" flavor — see RequestsService.flagManualVerification).
+  final List<FlaggedRequirement> flaggedRequirements;
   final String expectedDays;
   final Map<String, dynamic> formFields;
 
@@ -116,14 +166,15 @@ class ServiceRequest {
     this.citizenRemarks,
     this.adminRemarks,
     this.rejectionGuidance,
-    this.flaggedRequirementLabel,
+    List<FlaggedRequirement>? flaggedRequirements,
     required this.expectedDays,
     this.formFields = const {},
     this.requiresPayment = false,
     this.fee = '',
     this.paymentMethod,
     this.receipt,
-  }) : attachments = List<Attachment>.of(attachments);
+  }) : attachments = List<Attachment>.of(attachments),
+       flaggedRequirements = List<FlaggedRequirement>.of(flaggedRequirements ?? const []);
 
   Map<String, dynamic> toJson() => {
         'id': id,
@@ -141,7 +192,7 @@ class ServiceRequest {
         'citizenRemarks': citizenRemarks,
         'adminRemarks': adminRemarks,
         'rejectionGuidance': rejectionGuidance,
-        'flaggedRequirementLabel': flaggedRequirementLabel,
+        'flaggedRequirements': flaggedRequirements.map((f) => f.toJson()).toList(),
         'expectedDays': expectedDays,
         'formFields': formFields,
         'requiresPayment': requiresPayment,
@@ -166,7 +217,22 @@ class ServiceRequest {
         citizenRemarks: json['citizenRemarks'],
         adminRemarks: json['adminRemarks'],
         rejectionGuidance: json['rejectionGuidance'],
-        flaggedRequirementLabel: json['flaggedRequirementLabel'],
+        // Backward-compatible with the older single-flag shape
+        // ('flaggedRequirementLabel', a plain string) for any request
+        // already persisted locally before this became a list — migrated
+        // in place as a single unresolved entry rather than lost.
+        flaggedRequirements: json['flaggedRequirements'] != null
+            ? (json['flaggedRequirements'] as List).map((e) => FlaggedRequirement.fromJson(e)).toList()
+            : json['flaggedRequirementLabel'] != null
+                ? [
+                    FlaggedRequirement(
+                      id: '${json['id']}-legacy-flag',
+                      requirementLabel: json['flaggedRequirementLabel'],
+                      reason: json['adminRemarks'] ?? 'Please provide an updated copy of the flagged requirement.',
+                      flaggedAt: DateTime.parse(json['submittedAt']),
+                    ),
+                  ]
+                : const [],
         expectedDays: json['expectedDays'],
         formFields: Map<String, dynamic>.from(json['formFields'] ?? {}),
         // Defaults false/null so requests persisted before this field

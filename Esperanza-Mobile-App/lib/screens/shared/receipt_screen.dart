@@ -15,9 +15,18 @@ import '../../widgets/receipts/esperanza_receipt.dart';
 /// Payment" row, never the overall layout) and wraps it in a
 /// [RepaintBoundary] so "Download Receipt" exports exactly what's shown,
 /// not a separately-built export layout.
+///
+/// [onDone] is provided only right after a fresh submission (see
+/// ServiceRequestWizardScreen/NewRequestScreen's own post-payment/post-
+/// submit navigation) — it shows a "Done" action alongside "Download
+/// Receipt" that hands off to the exact newly-created request's own
+/// Request Detail / tracker. Left null when this screen is reached from
+/// "View Receipt" on an already-tracked request instead, where there's no
+/// "next" to go to.
 class ReceiptScreen extends StatefulWidget {
   final Receipt receipt;
-  const ReceiptScreen({super.key, required this.receipt});
+  final VoidCallback? onDone;
+  const ReceiptScreen({super.key, required this.receipt, this.onDone});
 
   @override
   State<ReceiptScreen> createState() => _ReceiptScreenState();
@@ -68,12 +77,22 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
         top: false,
         child: Padding(
           padding: const EdgeInsets.fromLTRB(AppSpacing.xl, AppSpacing.md, AppSpacing.xl, AppSpacing.md),
-          child: AppButton(
-            label: 'Download Receipt',
-            icon: Icons.download_rounded,
-            fullWidth: true,
-            loading: _downloading,
-            onPressed: _downloading ? null : _download,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              AppButton(
+                label: 'Download Receipt',
+                icon: Icons.download_rounded,
+                variant: widget.onDone != null ? AppButtonVariant.secondary : AppButtonVariant.primary,
+                fullWidth: true,
+                loading: _downloading,
+                onPressed: _downloading ? null : _download,
+              ),
+              if (widget.onDone != null) ...[
+                const SizedBox(height: AppSpacing.sm),
+                AppButton(label: 'Done', fullWidth: true, onPressed: widget.onDone),
+              ],
+            ],
           ),
         ),
       ),

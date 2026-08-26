@@ -57,6 +57,7 @@ class _PersonalInformationScreenState extends State<PersonalInformationScreen> {
   bool _pwd = false;
   bool _soloParent = false;
   bool _voter = false;
+  bool _fourPs = false;
   List<String> _documentPaths = [];
 
   bool _saving = false;
@@ -85,6 +86,7 @@ class _PersonalInformationScreenState extends State<PersonalInformationScreen> {
     _pwd = _original.isPWD;
     _soloParent = _original.isSoloParent;
     _voter = _original.isVoter;
+    _fourPs = _original.isFourPsBeneficiary;
     _documentPaths = List.of(_original.documentPaths);
   }
 
@@ -135,6 +137,7 @@ class _PersonalInformationScreenState extends State<PersonalInformationScreen> {
       isPWD: _pwd,
       isSoloParent: _soloParent,
       isVoter: _voter,
+      isFourPsBeneficiary: _fourPs,
       photoPath: currentPhoto.photoPath,
       photoBytesBase64: currentPhoto.photoBytesBase64,
       documentPaths: _documentPaths,
@@ -479,6 +482,11 @@ class _PersonalInformationScreenState extends State<PersonalInformationScreen> {
                     label: 'Registered Voter',
                     value: _voter,
                     onChanged: (v) => setState(() => _voter = v),
+                  ),
+                  _ClassificationSwitch(
+                    label: '4Ps Beneficiary',
+                    value: _fourPs,
+                    onChanged: (v) => setState(() => _fourPs = v),
                   ),
                 ],
               ),

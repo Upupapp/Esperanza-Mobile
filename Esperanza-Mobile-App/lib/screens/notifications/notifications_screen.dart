@@ -126,15 +126,31 @@ class _NotificationTile extends StatelessWidget {
                   ],
                   if (n.actionLabel != null) ...[
                     const SizedBox(height: AppSpacing.sm),
-                    Row(
-                      children: [
-                        Text(
-                          n.actionLabel!,
-                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: n.kind.foreground),
-                        ),
-                        const SizedBox(width: AppSpacing.xs),
-                        Icon(Icons.arrow_forward_rounded, size: 13, color: n.kind.foreground),
-                      ],
+                    // A separate tap target only when this notification has
+                    // a genuinely distinct action destination (see
+                    // AppNotification.onAction's own doc comment) — every
+                    // other notification keeps this row purely decorative,
+                    // exactly as before, since the whole card already goes
+                    // to the one place this label describes.
+                    GestureDetector(
+                      behavior: n.onAction != null ? HitTestBehavior.opaque : HitTestBehavior.deferToChild,
+                      onTap: n.onAction == null
+                          ? null
+                          : () {
+                              context.read<NotificationsService>().markRead(n.id);
+                              n.onAction!();
+                            },
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            n.actionLabel!,
+                            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: n.kind.foreground),
+                          ),
+                          const SizedBox(width: AppSpacing.xs),
+                          Icon(Icons.arrow_forward_rounded, size: 13, color: n.kind.foreground),
+                        ],
+                      ),
                     ),
                   ],
                 ],

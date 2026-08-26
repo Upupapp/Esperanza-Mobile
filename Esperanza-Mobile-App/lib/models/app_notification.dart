@@ -15,14 +15,39 @@ class AppNotification {
   final VoidCallback? onTap;
   final String? actionLabel;
 
+  /// When this notification actually happened — the single source of truth
+  /// for ordering the whole feed newest-first (see
+  /// notification_feed.dart's own final sort). Every source supplies a real
+  /// value: a genuine event uses its own timestamp (a status-history entry's
+  /// `at`, a [FlaggedRequirement.flaggedAt]); an evergreen/contextual
+  /// reminder with no real event (profile completion, a duplicate-account
+  /// alert) uses a fixed, deliberately old sentinel so it naturally sorts
+  /// below anything that actually happened, without being hardcoded to a
+  /// specific position in the list; illustrative sample content computes a
+  /// timestamp matching its own displayed relative-time text ("1 hr ago"
+  /// etc.) so it sorts consistently with what it claims.
+  final DateTime at;
+
+  /// A second, distinct destination for [actionLabel] — when set, tapping
+  /// the action text/arrow calls this instead of [onTap] (which the rest of
+  /// the card still uses). Every existing notification leaves this null, so
+  /// the action label stays exactly what it always was: a description of
+  /// where the whole card already leads. Only a request-correction
+  /// notification (see notification_feed.dart) sets both: [onTap] opens the
+  /// request in general, [onAction] jumps straight to the one flagged
+  /// requirement's own replacement uploader.
+  final VoidCallback? onAction;
+
   const AppNotification({
     required this.id,
     required this.kind,
     required this.icon,
     required this.title,
     required this.body,
+    required this.at,
     this.time,
     this.onTap,
     this.actionLabel,
+    this.onAction,
   });
 }

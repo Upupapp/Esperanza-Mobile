@@ -97,8 +97,9 @@ void main() {
     expect(find.byType(ServiceRequestWizardScreen), findsOneWidget);
     // Applicant Info -> Fetal Information -> Mother's Information ->
     // Father's Information -> Supporting Information -> Requirements ->
-    // Review & Submit = 7 steps.
-    expect(find.text('Step 1 of 7'), findsOneWidget);
+    // Review -> Payment (this service has a real ₱200.00 fee — see the
+    // Mobile-only final request-flow correction pass) = 8 steps.
+    expect(find.text('Step 1 of 8'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
@@ -106,7 +107,7 @@ void main() {
     await _openFetalDeathWizard(tester);
     await _continue(tester); // Applicant Info (prefilled) -> Fetal Information
 
-    expect(find.text('Step 2 of 7'), findsOneWidget);
+    expect(find.text('Step 2 of 8'), findsOneWidget);
     expect(find.text('Fetal Information'), findsWidgets);
 
     // Hidden by default — Type of Delivery hasn't been set yet.

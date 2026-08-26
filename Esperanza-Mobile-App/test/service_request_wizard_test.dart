@@ -63,9 +63,11 @@ void main() {
     expect(find.byType(NewRequestScreen), findsNothing);
 
     // Step count/labels are data-driven from this item's formSpec: Applicant
-    // Info -> Clearance Details -> Requirements -> Review & Submit (4
-    // steps), not the fixed 6-step Registration template.
-    expect(find.text('Step 1 of 4'), findsOneWidget);
+    // Info -> Clearance Details -> Requirements -> Review -> Payment (this
+    // service has a real ₱50.00 fee — see the Mobile-only final request-
+    // flow correction pass) = 5 steps, not the fixed 6-step Registration
+    // template.
+    expect(find.text('Step 1 of 5'), findsOneWidget);
     expect(find.text('Applicant Info'), findsWidgets);
 
     // Applicant Info is prefilled from the signed-in account (Cristy Bonghanoy).
@@ -81,9 +83,9 @@ void main() {
     // auto-computed Age display. Cristy' Date of Birth already exists in
     // her Resident Profile, so it's prefilled rather than asking her to
     // re-enter it, and Age is computed from it immediately.
-    expect(find.text('Step 2 of 4'), findsOneWidget);
+    expect(find.text('Step 2 of 5'), findsOneWidget);
     expect(find.text('Clearance Details'), findsWidgets);
-    expect(find.text('Jan 13, 2001'), findsOneWidget); // her prefilled birthdate
+    expect(find.text('Mar 15, 2001'), findsOneWidget); // her prefilled birthdate
     expect(find.textContaining('years old'), findsOneWidget);
     expect(find.text('Select your Date of Birth above first'), findsNothing);
 
@@ -91,28 +93,28 @@ void main() {
     // via CatalogItem.demoDefaults — see the Mobile <-> Web Admin final
     // alignment pass — so Continue is not blocked here at all; Date of
     // Birth was never a separately validated field either.
-    expect(find.text('Local Employment'), findsOneWidget);
+    expect(find.text('Proof of Residency'), findsOneWidget);
     expect(find.text('Select Purpose'), findsNothing);
 
     // Changing the Date of Birth through the real date picker (switched to
     // keyboard-entry mode for a deterministic result) immediately
     // recalculates Age — there is no separate "Edit Age" anywhere.
-    await tester.tap(find.text('Jan 13, 2001'));
+    await tester.tap(find.text('Mar 15, 2001'));
     await tester.pumpAndSettle();
     await tester.tap(find.byIcon(Icons.edit_outlined));
     await tester.pumpAndSettle();
     await tester.enterText(find.byType(TextFormField).last, '12/20/2000');
     await tester.tap(find.text('OK'));
     await tester.pumpAndSettle();
-    expect(find.text('Jan 13, 2001'), findsNothing);
+    expect(find.text('Mar 15, 2001'), findsNothing);
     expect(find.text('Dec 20, 2000'), findsOneWidget);
     expect(find.textContaining('years old'), findsOneWidget);
 
     // The prefilled Purpose is a normal editable value, not a locked
     // default — change it via the select dropdown.
-    await tester.tap(find.text('Local Employment'));
+    await tester.tap(find.text('Proof of Residency'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Proof of Residency').last);
+    await tester.tap(find.text('Local Employment').last);
     await tester.pumpAndSettle();
 
     await tester.tap(find.text('Continue'));
@@ -122,7 +124,7 @@ void main() {
     // uploaders, one per this item's own requirements (no attachment yet
     // for either), so Continue must identify exactly what's missing rather
     // than a generic "attach at least one" message.
-    expect(find.text('Step 3 of 4'), findsOneWidget);
+    expect(find.text('Step 3 of 5'), findsOneWidget);
     expect(find.text('One (1) valid government-issued ID'), findsOneWidget);
     expect(find.text('Proof of residency'), findsOneWidget);
     // Requirement-specific button label, not a generic "Upload Document".

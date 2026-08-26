@@ -88,14 +88,14 @@ class EsperanzaReceipt extends StatelessWidget {
                         alignment: Alignment.center,
                         padding: const EdgeInsets.symmetric(vertical: 8),
                         decoration: BoxDecoration(
-                          color: AppColors.emerald50,
+                          color: _badgeColors.$1,
                           borderRadius: BorderRadius.circular(999),
-                          border: Border.all(color: AppColors.emerald500.withValues(alpha: 0.4)),
+                          border: Border.all(color: _badgeColors.$2.withValues(alpha: 0.4)),
                         ),
-                        child: const Text(
-                          'PAID',
+                        child: Text(
+                          _badgeLabel,
                           style: TextStyle(
-                            color: AppColors.emerald700,
+                            color: _badgeColors.$2,
                             fontSize: 15,
                             fontWeight: FontWeight.w800,
                             letterSpacing: 2,
@@ -106,7 +106,7 @@ class EsperanzaReceipt extends StatelessWidget {
                       _row('Resident Name', receipt.residentName),
                       _row('Service', receipt.serviceName),
                       _row('Request Reference No.', receipt.requestReferenceNumber),
-                      _row('Amount Paid', receipt.amount, emphasize: true),
+                      _row(_amountLabel, receipt.amount, emphasize: true),
                       _modeOfPaymentRow(),
                       _row('Date & Time', _fmt(receipt.dateTime)),
                       const SizedBox(height: AppSpacing.sm),
@@ -200,6 +200,30 @@ class EsperanzaReceipt extends StatelessWidget {
     ReceiptType.gcash => 'GCash',
     ReceiptType.maya => 'Maya',
     ReceiptType.onsite => 'Onsite — Municipal Office',
+    ReceiptType.free => 'No Payment Required',
+  };
+
+  /// GCash/Maya genuinely completed a (simulated) digital payment, so the
+  /// badge/amount row can honestly say "Paid". Onsite hasn't paid anything
+  /// yet — the fee is settled in person later — so it must never claim
+  /// "Paid" or present the fee as already collected (that's the whole
+  /// point of the Onsite receipt rule). Free has nothing to pay at all.
+  String get _badgeLabel => switch (receipt.type) {
+    ReceiptType.gcash || ReceiptType.maya => 'PAID',
+    ReceiptType.onsite => 'DUE ONSITE',
+    ReceiptType.free => 'RECEIVED',
+  };
+
+  (Color, Color) get _badgeColors => switch (receipt.type) {
+    ReceiptType.gcash || ReceiptType.maya => (AppColors.emerald50, AppColors.emerald700),
+    ReceiptType.onsite => (AppColors.amber50, AppColors.amber700),
+    ReceiptType.free => (AppColors.emerald50, AppColors.emerald700),
+  };
+
+  String get _amountLabel => switch (receipt.type) {
+    ReceiptType.gcash || ReceiptType.maya => 'Amount Paid',
+    ReceiptType.onsite => 'Amount Due',
+    ReceiptType.free => 'Amount',
   };
 
   String _fmt(DateTime d) =>
@@ -238,6 +262,14 @@ class _PaymentModeBadge extends StatelessWidget {
           alignment: Alignment.center,
           decoration: const BoxDecoration(color: AppColors.brand700, shape: BoxShape.circle),
           child: const Icon(Icons.storefront_rounded, size: 11, color: Colors.white),
+        );
+      case ReceiptType.free:
+        return Container(
+          width: 18,
+          height: 18,
+          alignment: Alignment.center,
+          decoration: const BoxDecoration(color: AppColors.emerald500, shape: BoxShape.circle),
+          child: const Icon(Icons.check_rounded, size: 12, color: Colors.white),
         );
     }
   }

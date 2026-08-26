@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../models/request_milestones.dart';
 import '../models/service_request.dart';
 import '../services/requests_service.dart';
 import '../widgets/app_dialogs.dart';
@@ -25,8 +26,9 @@ enum TulongEligibility {
   /// being released/completed yet).
   blockedActive,
 
-  /// This assistance was already fully received — Ready for Release,
-  /// Released, or Completed.
+  /// This assistance was already fully received — Mark to Release or
+  /// Released (see the status-terminology correction pass — Mobile now uses
+  /// the Web Admin's own exact wording for these two stages).
   blockedReceived,
 }
 
@@ -42,7 +44,7 @@ class TulongEligibilityResult {
   bool get isEligible => status == TulongEligibility.eligible;
 }
 
-const _successfulTulongStatuses = {'Approved', 'Ready for Release', 'Released', 'Completed'};
+const _successfulTulongStatuses = {'Approved', RequestMilestones.markToRelease, RequestMilestones.released};
 const _reapplicableTulongStatuses = {'Rejected', 'Cancelled'};
 
 /// Whether [applicantId] may currently apply for the Tulong assistance

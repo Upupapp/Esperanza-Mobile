@@ -360,7 +360,15 @@ class _RequestTile extends StatelessWidget {
                     style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
                   ),
                 ),
-                StatusChip(status: AppStatusX.fromLabel(request.status), small: true),
+                const SizedBox(width: 6),
+                // Flexible, not a bare fixed-size child: a longer status
+                // label ("Under Verification") plus a longer typeName
+                // together can exceed a narrow phone's card width, and a
+                // non-flex StatusChip here reports its own unconstrained
+                // natural width to this Row regardless of the internal
+                // wrapping StatusChip already does for itself — see
+                // StatusChip's own doc comment on the same class of bug.
+                Flexible(child: StatusChip(status: AppStatusX.fromLabel(request.status), small: true)),
               ],
             ),
             const SizedBox(height: 6),

@@ -109,12 +109,16 @@ void main() {
       await tester.tap(find.widgetWithText(AppButton, 'Continue')); // Applicant Info -> Marriage Record Information
       await tester.pumpAndSettle();
 
-      expect(find.text('Jerome Villaruel'), findsOneWidget);
-      expect(find.text('Cristy Pareja Bonghanoy'), findsOneWidget);
+      // Reframed as a request for her PARENTS' marriage certificate, not
+      // her own — she's Single, so 'her own marriage' was inconsistent.
+      // Ramon & Corazon Bonghanoy are already-established facts about her
+      // (see Family Information), married safely before her own birth.
+      expect(find.text('Ramon Bonghanoy'), findsOneWidget);
+      expect(find.text('Corazon Bonghanoy'), findsOneWidget);
       expect(find.text('Esperanza, Masbate'), findsOneWidget);
-      // ISO string '2022-06-18' from demoDefaults, parsed via DateTime.parse
+      // ISO string '1999-05-10' from demoDefaults, parsed via DateTime.parse
       // by the wizard and formatted by AppDateField as "MMM d, y".
-      expect(find.text('Jun 18, 2022'), findsOneWidget);
+      expect(find.text('May 10, 1999'), findsOneWidget);
       expect(tester.takeException(), isNull);
     });
 
@@ -134,7 +138,14 @@ void main() {
       await tester.tap(find.widgetWithText(AppButton, 'Continue')); // -> Owner & Emergency Contact
       await tester.pumpAndSettle();
       expect(find.text('Purok 2, Barangay Baras, Esperanza, Masbate'), findsOneWidget);
-      expect(find.text('Corazon Cristy'), findsOneWidget);
+      // Sourced from ResidentProfile's own Emergency Contact fields (see
+      // ServiceRequestWizardScreen's generic Master-Profile prefill) —
+      // 'Corazon Cristy' was a stale, service-specific placeholder using
+      // the pre-correction surname bug; this form's own emergencyContact*
+      // fields now reuse the same real, editable contact shown on Family
+      // Information instead of inventing a separate one.
+      expect(find.text('Roberto Pareja'), findsOneWidget);
+      expect(find.text('0919 502 7735'), findsOneWidget);
       expect(tester.takeException(), isNull);
     });
 
@@ -148,8 +159,8 @@ void main() {
 
       await tester.tap(find.widgetWithText(AppButton, 'Continue')); // -> Project Details
       await tester.pumpAndSettle();
-      expect(find.text('Improvement / Renovation'), findsOneWidget);
-      expect(find.text('Home Renovation - Bonghanoy Residence'), findsOneWidget);
+      expect(find.text('New Development'), findsOneWidget);
+      expect(find.text('Proposed Residential Structure - Bonghanoy Residence'), findsOneWidget);
 
       await tester.tap(find.widgetWithText(AppButton, 'Continue')); // -> Lot Information
       await tester.pumpAndSettle();
@@ -169,11 +180,20 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('Filipino'), findsOneWidget);
       expect(find.text('Unemployed'), findsOneWidget);
-      expect(find.text('College'), findsOneWidget);
+      // 'High School', not the stale 'College' this field used before —
+      // still not 'Senior High School' (her actual Highest Education):
+      // this field's own option list predates the K-12 Senior High tier
+      // and has no such option at all, so 'High School' is the closest
+      // valid, non-crashing approximation (see mock_catalog.dart's own
+      // comment on this exact field).
+      expect(find.text('High School'), findsOneWidget);
 
       await tester.tap(find.widgetWithText(AppButton, 'Continue')); // -> Learner Classification
       await tester.pumpAndSettle();
       expect(find.text('Student'), findsWidgets);
+      // A real, true fact already on her Resident Master Profile (4Ps
+      // Beneficiary), not fabricated.
+      expect(find.text('4Ps Beneficiary'), findsOneWidget);
 
       await tester.tap(find.widgetWithText(AppButton, 'Continue')); // -> Training Preference
       await tester.pumpAndSettle();
@@ -193,8 +213,16 @@ void main() {
 
       await tester.tap(find.widgetWithText(AppButton, 'Continue')); // -> Personal & Household Information
       await tester.pumpAndSettle();
-      expect(find.text('Jerome Villaruel'), findsOneWidget); // reused spouse name, same as the marriage cert copy
+      // spouseName is deliberately left blank — Cristy's Civil Status is
+      // Single, so a spouse's name here would contradict that same fact
+      // (this field previously, inconsistently, prefilled 'Jerome
+      // Villaruel' regardless of civil status).
+      expect(find.text('Jerome Villaruel'), findsNothing);
       expect(find.text('9718'), findsOneWidget);
+      // 'High School', not the stale 'College' this field used before —
+      // this field's own option list has no Senior High tier at all (see
+      // mock_catalog.dart's own comment on this exact field).
+      expect(find.text('High School'), findsOneWidget);
       expect(tester.takeException(), isNull);
     });
 
@@ -207,7 +235,7 @@ void main() {
       await tester.tap(find.widgetWithText(AppButton, 'Continue')); // -> Applicant Details
       await tester.pumpAndSettle();
 
-      expect(find.text('Jan 13, 2001'), findsOneWidget);
+      expect(find.text('Mar 15, 2001'), findsOneWidget);
       // The checkbox itself is asserted end-to-end (via submitted
       // formFields) in the group below — Checkbox has no distinguishing
       // visible text for a "checked" state to assert against directly.

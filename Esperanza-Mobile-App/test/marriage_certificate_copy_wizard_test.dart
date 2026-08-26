@@ -98,14 +98,16 @@ void main() {
 
     expect(find.byType(ServiceRequestWizardScreen), findsOneWidget);
     // Applicant Info -> Marriage Record Information -> Requirements ->
-    // Review & Submit = 4 steps, not a giant multi-step replica of the
-    // certificate's full Husband/Wife/parents/witnesses/registrar layout.
-    expect(find.text('Step 1 of 4'), findsOneWidget);
+    // Review -> Payment (this service has a real ₱155.00 fee — see the
+    // Mobile-only final request-flow correction pass) = 5 steps, not a
+    // giant multi-step replica of the certificate's full
+    // Husband/Wife/parents/witnesses/registrar layout.
+    expect(find.text('Step 1 of 5'), findsOneWidget);
 
     await tester.tap(find.text('Continue'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Step 2 of 4'), findsOneWidget);
+    expect(find.text('Step 2 of 5'), findsOneWidget);
     expect(find.text('Marriage Record Information'), findsWidgets);
     expect(find.text("Husband's Full Name"), findsOneWidget);
     expect(find.text("Wife's Full Name"), findsOneWidget);
@@ -136,23 +138,25 @@ void main() {
     // All 4 required fields are already prefilled for Cristy (see
     // CatalogItem.demoDefaults on dokyu_marriage_certificate_copy) — no
     // "Please complete" block on a fresh Continue, unlike before this
-    // service had demo prefill.
-    expect(find.text('Jerome Villaruel'), findsOneWidget);
-    expect(find.text('Cristy Pareja Bonghanoy'), findsOneWidget);
-    expect(find.text('Jun 18, 2022'), findsOneWidget); // dateOfMarriage, parsed from the ISO demoDefault
+    // service had demo prefill. Reframed as a request for her PARENTS'
+    // marriage certificate (she's Single, so "her own marriage" would be
+    // inconsistent) — Ramon & Corazon Bonghanoy, married before her birth.
+    expect(find.text('Ramon Bonghanoy'), findsOneWidget);
+    expect(find.text('Corazon Bonghanoy'), findsOneWidget);
+    expect(find.text('May 10, 1999'), findsOneWidget); // dateOfMarriage, parsed from the ISO demoDefault
     expect(find.text('Esperanza, Masbate'), findsOneWidget);
 
     // Still a normal editable value, not locked — change the date through
     // the real date picker (switched to keyboard-entry for a
     // deterministic result).
-    await tester.tap(find.text('Jun 18, 2022'));
+    await tester.tap(find.text('May 10, 1999'));
     await tester.pumpAndSettle();
     await tester.tap(find.byIcon(Icons.edit_outlined));
     await tester.pumpAndSettle();
     await tester.enterText(find.byType(TextFormField).last, '06/12/2010');
     await tester.tap(find.text('OK'));
     await tester.pumpAndSettle();
-    expect(find.text('Jun 18, 2022'), findsNothing);
+    expect(find.text('May 10, 1999'), findsNothing);
     expect(find.text('Jun 12, 2010'), findsOneWidget);
 
     await tester.tap(find.text('Continue'));
@@ -162,7 +166,7 @@ void main() {
     // (demoPurpose); attachments are still left for the resident to
     // upload live, so Dokyu's per-requirement gate still applies.
     expect(find.textContaining('Requirements'), findsWidgets);
-    expect(find.textContaining('Requesting a certified copy'), findsOneWidget);
+    expect(find.textContaining('For submission as proof of civil status'), findsOneWidget);
     await tester.tap(find.text('Continue'));
     await tester.pumpAndSettle();
     expect(find.textContaining('Please attach'), findsOneWidget);

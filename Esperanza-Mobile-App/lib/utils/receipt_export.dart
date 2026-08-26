@@ -25,6 +25,7 @@ String receiptFilename(Receipt receipt) {
     ReceiptType.gcash => 'GCash',
     ReceiptType.maya => 'Maya',
     ReceiptType.onsite => 'Onsite',
+    ReceiptType.free => 'Free',
   };
   final service = _sanitize(receipt.serviceName);
   final ref = _sanitize(receipt.requestReferenceNumber);

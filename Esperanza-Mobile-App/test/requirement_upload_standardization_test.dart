@@ -14,8 +14,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:esperanza_mobile/models/attachment.dart';
 import 'package:esperanza_mobile/models/service_request.dart';
 import 'package:esperanza_mobile/screens/shared/new_request_screen.dart';
+import 'package:esperanza_mobile/screens/shared/receipt_screen.dart';
 import 'package:esperanza_mobile/screens/shared/request_detail_screen.dart';
-import 'package:esperanza_mobile/screens/shared/request_submitted_screen.dart';
 import 'package:esperanza_mobile/screens/shared/service_request_wizard_screen.dart';
 import 'package:esperanza_mobile/services/citizen_session_service.dart';
 import 'package:esperanza_mobile/services/master_file_service.dart';
@@ -238,11 +238,12 @@ void main() {
         await tester.pumpAndSettle();
         // Clearance Details: Date of Birth already prefilled from her
         // Resident Profile; Purpose is already prefilled too (Cristy's own
-        // demoDefaults default to Local Employment) — swap it for a
-        // different option to prove it's still a normal editable value.
-        await tester.tap(find.text('Local Employment'));
+        // demoDefaults default to Proof of Residency, matching Web Admin's
+        // own submitted request for her) — swap it for a different option
+        // to prove it's still a normal editable value.
+        await tester.tap(find.text('Proof of Residency'));
         await tester.pumpAndSettle();
-        await tester.tap(find.text('Proof of Residency').last);
+        await tester.tap(find.text('Local Employment').last);
         await tester.pumpAndSettle();
         await tester.tap(find.widgetWithText(AppButton, 'Continue'));
         await tester.pumpAndSettle();
@@ -272,10 +273,22 @@ void main() {
 
         await tester.tap(find.widgetWithText(AppButton, 'Continue')); // -> Review & Submit
         await tester.pumpAndSettle();
-        await tester.tap(find.widgetWithText(AppButton, 'Submit Request'));
+
+        // Barangay Clearance has a real configured fee, so Review leads to
+        // a Payment Method step before submission (see the Mobile-only
+        // final request-flow correction pass).
+        await tester.tap(find.widgetWithText(AppButton, 'Continue')); // -> Payment Method
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Pay at Municipal Office'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.widgetWithText(AppButton, 'Confirm Payment'));
         await tester.pumpAndSettle();
 
-        expect(find.byType(RequestSubmittedScreen), findsOneWidget);
+        // Every Dokyu request now lands on the receipt screen first (a
+        // receipt is generated at submission time, paid or free — see
+        // RequestsService.submit), not the older generic Request Submitted
+        // screen.
+        expect(find.byType(ReceiptScreen), findsOneWidget);
         final submitted = requests.all.single;
         expect(submitted.typeName, 'Barangay Clearance');
         expect(submitted.attachments.length, 2);
@@ -286,7 +299,10 @@ void main() {
           {'One (1) valid government-issued ID', 'Proof of residency'},
         );
 
-        await tester.tap(find.text('Track This Request'));
+        // "Done" navigates straight to the exact newly created request's
+        // own tracker — reusing the existing Request Detail/Track Request
+        // screen, never a duplicate system.
+        await tester.tap(find.widgetWithText(AppButton, 'Done'));
         await tester.pumpAndSettle();
 
         expect(find.byType(RequestDetailScreen), findsOneWidget);

@@ -13,7 +13,9 @@ import '../../utils/tulong_eligibility.dart';
 import '../../widgets/app_button.dart';
 import '../../widgets/app_card.dart';
 import '../../widgets/app_text_field.dart';
+import '../../widgets/payment_method_tile.dart';
 import '../../widgets/requirement_uploader.dart';
+import 'receipt_screen.dart';
 import 'request_detail_screen.dart';
 import 'request_submitted_screen.dart';
 
@@ -22,6 +24,13 @@ import 'request_submitted_screen.dart';
 /// and requires at least one attachment before allowing submission —
 /// "validate the fields... allow attachments... show confirmation" per
 /// Section 5 of the alignment doc.
+///
+/// A Dokyu service with a real configured fee gets a second "phase" after
+/// the form — Payment Method — before the request is actually created;
+/// Tulong and Free Dokyu services submit directly from the form (see the
+/// Mobile-only final request-flow correction pass: payment now happens
+/// during the application/submission flow itself, before a request
+/// exists, never as a later tracking milestone).
 class NewRequestScreen extends StatefulWidget {
   final ServiceCategory category;
   final CatalogItem item;
@@ -46,6 +55,13 @@ class _NewRequestScreenState extends State<NewRequestScreen> {
 
   bool _submitting = false;
   String? _error;
+
+  bool get _isPaidDokyu => widget.category == ServiceCategory.dokyu && widget.item.fee != 'Free';
+
+  /// False = the form itself; true = the Payment Method phase shown after
+  /// it, only ever reachable for [_isPaidDokyu].
+  bool _showingPayment = false;
+  String? _paymentMethod;
 
   /// The primary demo resident — same id used by ResidentProfileService,
   /// RequestsService, and ServiceRequestWizardScreen's own equivalent
@@ -85,7 +101,12 @@ class _NewRequestScreenState extends State<NewRequestScreen> {
     return 'Please attach: ${missing.map((r) => r.label).join(', ')}.';
   }
 
-  Future<void> _submit() async {
+  /// The form's own "Continue"/"Submit Request" button — for a paid Dokyu
+  /// service this only ever moves to the Payment Method phase; the actual
+  /// request is created exactly once, from [_confirmAndSubmit], never
+  /// here, so navigating Back from Payment and changing methods can never
+  /// produce a duplicate.
+  void _continueFromForm() {
     if (_purposeController.text.trim().isEmpty) {
       setState(() => _error = 'Please describe the purpose of this request.');
       return;
@@ -95,7 +116,25 @@ class _NewRequestScreenState extends State<NewRequestScreen> {
       setState(() => _error = err);
       return;
     }
+    if (_isPaidDokyu) {
+      setState(() {
+        _error = null;
+        _showingPayment = true;
+      });
+      return;
+    }
+    _submit();
+  }
 
+  void _confirmPayment() {
+    if (_paymentMethod == null) {
+      setState(() => _error = 'Please choose a payment method.');
+      return;
+    }
+    _submit();
+  }
+
+  Future<void> _submit() async {
     final account = context.read<CitizenSessionService>().account!;
     final requestsService = context.read<RequestsService>();
 
@@ -131,10 +170,32 @@ class _NewRequestScreenState extends State<NewRequestScreen> {
       attachments: attachments,
       requiresPayment: widget.item.fee != 'Free',
       fee: widget.item.fee,
+      paymentMethod: _isPaidDokyu ? _paymentMethod : null,
     );
 
     if (!mounted) return;
     setState(() => _submitting = false);
+
+    // Every Dokyu request (paid or free) gets a receipt at submission time
+    // now (see RequestsService.submit) — Tulong never does, so it keeps
+    // going straight to the existing Request Submitted screen.
+    if (widget.category == ServiceCategory.dokyu) {
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(
+          // routeContext, not this screen's own `context` — by the time
+          // "Done" is actually tapped, pushReplacement has already
+          // unmounted this screen, so capturing `context` here would throw
+          // "This widget has been unmounted" the moment onDone runs.
+          builder: (routeContext) => ReceiptScreen(
+            receipt: request.receipt!,
+            onDone: () => Navigator.of(routeContext).pushReplacement(
+              MaterialPageRoute(builder: (_) => RequestDetailScreen(requestId: request.id)),
+            ),
+          ),
+        ),
+      );
+      return;
+    }
 
     Navigator.of(context).pushReplacement(
       MaterialPageRoute(
@@ -151,109 +212,181 @@ class _NewRequestScreenState extends State<NewRequestScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(widget.item.name)),
+      appBar: AppBar(
+        title: Text(widget.item.name),
+        leading: _showingPayment
+            ? IconButton(
+                icon: const Icon(Icons.arrow_back_rounded),
+                onPressed: () => setState(() => _showingPayment = false),
+              )
+            : null,
+      ),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
+          child: _showingPayment ? _paymentPhase() : _formPhase(),
+        ),
+      ),
+    );
+  }
+
+  Widget _formPhase() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        AppCard(
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              AppCard(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Icon(Icons.timeline_rounded, size: 16, color: widget.accent),
-                        const SizedBox(width: AppSpacing.sm),
-                        const Text('Process', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
-                      ],
-                    ),
-                    const SizedBox(height: 10),
-                    Wrap(
-                      spacing: 6,
-                      runSpacing: 6,
-                      children: [
-                        for (int i = 0; i < widget.item.process.length; i++) ...[
-                          _stepChip(i + 1, widget.item.process[i]),
-                        ],
-                      ],
-                    ),
+              Row(
+                children: [
+                  Icon(Icons.timeline_rounded, size: 16, color: widget.accent),
+                  const SizedBox(width: AppSpacing.sm),
+                  const Text('Process', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                ],
+              ),
+              const SizedBox(height: 10),
+              Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                children: [
+                  for (int i = 0; i < widget.item.process.length; i++) ...[
+                    _stepChip(i + 1, widget.item.process[i]),
                   ],
-                ),
-              ),
-              const SizedBox(height: AppSpacing.lg),
-              AppTextField(
-                label: 'Purpose',
-                hintText: 'e.g. Employment requirement, medical assistance for hospital bill...',
-                controller: _purposeController,
-                maxLines: 3,
-              ),
-              const SizedBox(height: AppSpacing.xl),
-              const Text(
-                'Requirements',
-                style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
-              ),
-              const SizedBox(height: AppSpacing.xs),
-              const Text(
-                'Attach a document for each requirement below.',
-                style: TextStyle(fontSize: 12, color: AppColors.textMuted),
-              ),
-              const SizedBox(height: AppSpacing.md),
-              Consumer<MasterFileService>(
-                builder: (context, masterFile, _) {
-                  final accountId = context.read<CitizenSessionService>().account!.id;
-                  return Column(
-                    children: [
-                      for (final req in _requirementInfos)
-                        RequirementUploader(
-                          requirement: req,
-                          attachment: _requirementAttachments[req.label],
-                          accent: widget.accent,
-                          existingMasterDoc: masterFile.findByType(accountId, req.documentType),
-                          onAttachNew: (a) {
-                            setState(() => _requirementAttachments[req.label] = a);
-                            masterFile.saveOrUpdate(
-                              accountId: accountId,
-                              documentType: req.documentType,
-                              label: req.label,
-                              attachment: a,
-                              origin: widget.category == ServiceCategory.dokyu ? 'Dokyu' : 'Tulong',
-                              serviceName: widget.item.name,
-                            );
-                          },
-                          onUseExisting: () {
-                            final existing = masterFile.findByType(accountId, req.documentType);
-                            if (existing != null) {
-                              setState(
-                                () => _requirementAttachments[req.label] =
-                                    attachmentForReuse(existing.attachment, requirementLabel: req.label),
-                              );
-                            }
-                          },
-                          onRemove: () => setState(() => _requirementAttachments[req.label] = null),
-                        ),
-                    ],
-                  );
-                },
-              ),
-              if (_error != null) ...[
-                const SizedBox(height: AppSpacing.md),
-                Text(_error!, style: const TextStyle(fontSize: 12.5, color: AppColors.rose600)),
-              ],
-              const SizedBox(height: AppSpacing.xxl),
-              AppButton(
-                label: 'Submit Request',
-                icon: Icons.send_rounded,
-                onPressed: _submit,
-                loading: _submitting,
-                fullWidth: true,
-                size: AppButtonSize.lg,
+                ],
               ),
             ],
           ),
         ),
-      ),
+        const SizedBox(height: AppSpacing.lg),
+        AppTextField(
+          label: 'Purpose',
+          hintText: 'e.g. Employment requirement, medical assistance for hospital bill...',
+          controller: _purposeController,
+          maxLines: 3,
+        ),
+        const SizedBox(height: AppSpacing.xl),
+        const Text(
+          'Requirements',
+          style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
+        ),
+        const SizedBox(height: AppSpacing.xs),
+        const Text(
+          'Attach a document for each requirement below.',
+          style: TextStyle(fontSize: 12, color: AppColors.textMuted),
+        ),
+        const SizedBox(height: AppSpacing.md),
+        Consumer<MasterFileService>(
+          builder: (context, masterFile, _) {
+            final accountId = context.read<CitizenSessionService>().account!.id;
+            return Column(
+              children: [
+                for (final req in _requirementInfos)
+                  RequirementUploader(
+                    requirement: req,
+                    attachment: _requirementAttachments[req.label],
+                    accent: widget.accent,
+                    existingMasterDoc: masterFile.findByType(accountId, req.documentType),
+                    onAttachNew: (a) {
+                      setState(() => _requirementAttachments[req.label] = a);
+                      masterFile.saveOrUpdate(
+                        accountId: accountId,
+                        documentType: req.documentType,
+                        label: req.label,
+                        attachment: a,
+                        origin: widget.category == ServiceCategory.dokyu ? 'Dokyu' : 'Tulong',
+                        serviceName: widget.item.name,
+                      );
+                    },
+                    onUseExisting: () {
+                      final existing = masterFile.findByType(accountId, req.documentType);
+                      if (existing != null) {
+                        setState(
+                          () => _requirementAttachments[req.label] =
+                              attachmentForReuse(existing.attachment, requirementLabel: req.label),
+                        );
+                      }
+                    },
+                    onRemove: () => setState(() => _requirementAttachments[req.label] = null),
+                  ),
+              ],
+            );
+          },
+        ),
+        if (_error != null) ...[
+          const SizedBox(height: AppSpacing.md),
+          Text(_error!, style: const TextStyle(fontSize: 12.5, color: AppColors.rose600)),
+        ],
+        const SizedBox(height: AppSpacing.xxl),
+        AppButton(
+          label: _isPaidDokyu ? 'Continue to Payment' : 'Submit Request',
+          icon: _isPaidDokyu ? Icons.arrow_forward_rounded : Icons.send_rounded,
+          iconTrailing: _isPaidDokyu,
+          onPressed: _submitting ? null : _continueFromForm,
+          loading: _submitting,
+          fullWidth: true,
+          size: AppButtonSize.lg,
+        ),
+      ],
+    );
+  }
+
+  Widget _paymentPhase() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const Text(
+          'Choose Payment Method',
+          style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
+        ),
+        const SizedBox(height: 6),
+        Text(
+          'Required fee for this request: ${widget.item.fee}',
+          style: const TextStyle(fontSize: 12.5, color: AppColors.textMuted, height: 1.4),
+        ),
+        const SizedBox(height: AppSpacing.xl),
+        PaymentMethodTile(
+          icon: Icons.storefront_outlined,
+          iconColor: widget.accent,
+          title: 'Pay at Municipal Office',
+          subtitle: 'Onsite — settle the fee in person when you visit or claim your document.',
+          selected: _paymentMethod == 'Onsite',
+          onTap: () => setState(() => _paymentMethod = 'Onsite'),
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        PaymentMethodTile(
+          icon: Icons.account_balance_wallet_outlined,
+          iconColor: AppColors.brand600,
+          title: 'GCash',
+          subtitle: 'Simulated online payment — no real transaction is made.',
+          demo: true,
+          selected: _paymentMethod == 'GCash',
+          onTap: () => setState(() => _paymentMethod = 'GCash'),
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        PaymentMethodTile(
+          icon: Icons.credit_card_outlined,
+          iconColor: AppColors.emerald700,
+          title: 'Maya',
+          subtitle: 'Simulated online payment — no real transaction is made.',
+          demo: true,
+          selected: _paymentMethod == 'Maya',
+          onTap: () => setState(() => _paymentMethod = 'Maya'),
+        ),
+        if (_error != null) ...[
+          const SizedBox(height: AppSpacing.md),
+          Text(_error!, style: const TextStyle(fontSize: 12.5, color: AppColors.rose600)),
+        ],
+        const SizedBox(height: AppSpacing.xxl),
+        AppButton(
+          label: 'Confirm Payment',
+          icon: Icons.send_rounded,
+          onPressed: _submitting ? null : _confirmPayment,
+          loading: _submitting,
+          fullWidth: true,
+          size: AppButtonSize.lg,
+        ),
+      ],
     );
   }
 

@@ -31,8 +31,16 @@ class TransactionsScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final requests = context.watch<RequestsService>();
     final account = context.watch<CitizenSessionService>().account;
-    final paid = requests.all.where((r) => r.receipt != null && r.applicantId == account?.id).toList()
-      ..sort((a, b) => b.receipt!.dateTime.compareTo(a.receipt!.dateTime));
+    // Free-type receipts (a Free Dokyu service's own formality/claim-stub
+    // receipt — see RequestsService.submit) are deliberately excluded here:
+    // this screen is specifically "paid transactions," and a Free request
+    // never had a real payment method to show. Its receipt is still fully
+    // viewable via "View Receipt" on the request's own detail screen.
+    final paid =
+        requests.all
+            .where((r) => r.receipt != null && r.receipt!.type != ReceiptType.free && r.applicantId == account?.id)
+            .toList()
+          ..sort((a, b) => b.receipt!.dateTime.compareTo(a.receipt!.dateTime));
 
     return Scaffold(
       appBar: AppBar(title: const Text('Transactions')),
@@ -62,6 +70,10 @@ class _TransactionCard extends StatelessWidget {
       ReceiptType.gcash => 'GCash',
       ReceiptType.maya => 'Maya',
       ReceiptType.onsite => 'Onsite / Municipal Office',
+      // Never actually reached — this screen's own list filters Free-type
+      // receipts out (see build()) — kept only so this switch stays
+      // exhaustive against ReceiptType.
+      ReceiptType.free => 'Free',
     };
 
     return Padding(

@@ -1,19 +1,40 @@
-// Functional coverage for Phase 5 — the richer Dokyu/Tulong milestone
-// timeline and its frontend-only payment/rejection simulation. Drives the
-// real RequestDetailScreen (not just RequestMilestoneTimeline in
-// isolation) so the demo controls, payment method sheet, and rejection
-// reason card are all exercised the way a presenter actually would.
+// Functional coverage for the Mobile-only final request-flow correction
+// pass — the simplified 5-stage citizen tracking lifecycle (Submitted ->
+// Under Verification -> Approved -> Ready for Pick Up -> Completed) and its
+// two branches off Under Verification (Rejected, and Under Review with its
+// re-verification loop). Payment now happens during the application's own
+// submission flow (see RequestsService.submit), never as a tracking
+// milestone here — there is no "Waiting for Payment" or "Choose Payment
+// Method (Demo)" step anymore; see receipt_system_test.dart for
+// payment/receipt coverage. Drives the real RequestDetailScreen (not just
+// RequestMilestoneTimeline in isolation) so the demo controls and
+// rejection/under-review cards are all exercised the way a presenter
+// actually would.
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'package:esperanza_mobile/models/receipt.dart';
+import 'package:esperanza_mobile/models/attachment.dart';
 import 'package:esperanza_mobile/models/request_milestones.dart';
 import 'package:esperanza_mobile/screens/shared/request_detail_screen.dart';
+import 'package:esperanza_mobile/services/citizen_session_service.dart';
+import 'package:esperanza_mobile/services/master_file_service.dart';
 import 'package:esperanza_mobile/services/requests_service.dart';
-import 'package:esperanza_mobile/theme/app_status.dart';
 import 'package:esperanza_mobile/widgets/app_button.dart';
+
+Attachment _fakeAttachment(String fileName, String documentTypeLabel) {
+  return Attachment(
+    id: 'att-$fileName',
+    fileName: fileName,
+    category: AttachmentCategory.pdf,
+    sizeBytes: 12345,
+    bytes: Uint8List(0),
+    addedAt: DateTime(2026, 1, 1),
+    documentTypeLabel: documentTypeLabel,
+  );
+}
 
 Future<RequestsService> _pumpDetail(WidgetTester tester, String requestId) async {
   // The default 800x600 test canvas is unusually wide/short and leaves
@@ -37,8 +58,12 @@ Future<RequestsService> _pumpDetail(WidgetTester tester, String requestId) async
   }
 
   await tester.pumpWidget(
-    ChangeNotifierProvider<RequestsService>.value(
-      value: requests,
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider<RequestsService>.value(value: requests),
+        ChangeNotifierProvider(create: (_) => CitizenSessionService()),
+        ChangeNotifierProvider(create: (_) => MasterFileService()),
+      ],
       child: MaterialApp(home: RequestDetailScreen(requestId: requestId)),
     ),
   );
@@ -47,13 +72,10 @@ Future<RequestsService> _pumpDetail(WidgetTester tester, String requestId) async
 }
 
 Future<void> _scrollToAndTap(WidgetTester tester, Finder finder) async {
-  // Drives the ListView's ScrollPosition directly to the very bottom
-  // rather than a gesture-based drag/scrollUntilVisible — both of those
-  // compute an offset from the target's *current* on-screen rect, which
-  // is unreliable once this screen's content (full payment-sequence
-  // timeline + demo controls) is taller than a single scroll increment.
-  // Same technique already used successfully elsewhere in this suite (see
-  // home_assets_integration_test.dart).
+  // Drives the ListView's ScrollPosition directly to the very bottom rather
+  // than a gesture-based drag/scrollUntilVisible — both of those compute an
+  // offset from the target's *current* on-screen rect, which is unreliable
+  // once this screen's content is taller than a single scroll increment.
   final scrollable = find.byType(Scrollable).first;
   final position = tester.state<ScrollableState>(scrollable).position;
   position.jumpTo(position.maxScrollExtent);
@@ -65,19 +87,14 @@ Future<void> _scrollToAndTap(WidgetTester tester, Finder finder) async {
 Future<void> _tapNextDemoStep(WidgetTester tester) => _scrollToAndTap(tester, find.widgetWithText(AppButton, 'Next Demo Step'));
 
 void main() {
-  group('No-payment path (Certificate of Indigency-style free service)', () {
-    testWidgets('demo-tulong-medical (free) advances Pending Review -> ... -> Completed with no payment steps', (
+  group('Free/no-payment path (Medical Assistance-style Tulong)', () {
+    testWidgets('demo-tulong-medical advances Under Verification -> ... -> Released with no payment steps', (
       tester,
     ) async {
       final requests = await _pumpDetail(tester, 'demo-tulong-medical');
 
       expect(requests.all.firstWhere((r) => r.id == 'demo-tulong-medical').requiresPayment, isFalse);
 
-      // Starts at Pending Review (seeded). Keep advancing until the
-      // service itself reports the sequence exhausted (Completed) — driven
-      // off canAdvance() rather than the button's on-screen presence, since
-      // the button may simply be scrolled out of the *current* position
-      // without that meaning the sequence is actually done.
       var guard = 0;
       while (requests.canAdvance('demo-tulong-medical')) {
         guard++;
@@ -85,84 +102,74 @@ void main() {
         await _tapNextDemoStep(tester);
       }
 
-      expect(find.text(RequestMilestones.completed), findsWidgets);
-      expect(find.text(RequestMilestones.waitingForPayment), findsNothing);
+      expect(find.text(RequestMilestones.released), findsWidgets);
+      expect(find.text('Waiting for Payment'), findsNothing);
       expect(find.text('Choose Payment Method (Demo)'), findsNothing);
       expect(tester.takeException(), isNull);
 
       final finalRequest = requests.all.firstWhere((r) => r.id == 'demo-tulong-medical');
-      expect(finalRequest.status, 'Completed');
+      expect(finalRequest.status, 'Released');
+      expect(finalRequest.receipt, isNull); // Tulong never has a receipt
     });
   });
 
-  group('Payment-required path (Barangay Clearance, ₱50.00)', () {
-    testWidgets('Onsite: reaches Waiting for Payment, choosing Onsite shows municipal-office copy, then completes', (
+  group('Demonstration Controls — "Needs Manual Verification (Demo)" removed', () {
+    testWidgets('shows exactly Next Demo Step, Request Additional Documents (Demo), and Reject Request (Demo)', (
       tester,
     ) async {
-      final requests = await _pumpDetail(tester, 'demo-dokyu-barangay-clearance');
-      final seeded = requests.all.firstWhere((r) => r.id == 'demo-dokyu-barangay-clearance');
-      expect(seeded.requiresPayment, isTrue);
-      expect(seeded.status, 'Approved'); // seeded final status — next step is Waiting for Payment
-
-      await _tapNextDemoStep(tester); // Approved -> Waiting for Payment
-      expect(find.text(RequestMilestones.waitingForPayment), findsWidgets);
-      expect(find.text('Choose Payment Method (Demo)'), findsOneWidget);
-
-      await _scrollToAndTap(tester, find.widgetWithText(AppButton, 'Choose Payment Method (Demo)'));
-      expect(find.text('Choose Payment Method'), findsOneWidget); // sheet title
-      expect(find.text('Pay at Municipal Office'), findsOneWidget);
-      expect(find.text('GCash'), findsOneWidget);
-      expect(find.text('Maya'), findsOneWidget);
-
-      await tester.tap(find.text('Pay at Municipal Office'));
+      final requests = await _pumpDetail(tester, 'demo-dokyu-business-permit');
+      final scrollable = find.byType(Scrollable).first;
+      tester.state<ScrollableState>(scrollable).position.jumpTo(
+        tester.state<ScrollableState>(scrollable).position.maxScrollExtent,
+      );
       await tester.pumpAndSettle();
 
-      var request = requests.all.firstWhere((r) => r.id == 'demo-dokyu-barangay-clearance');
-      expect(request.paymentMethod, 'Onsite');
-      expect(request.status, RequestMilestones.canonicalStatusFor(RequestMilestones.paymentMethodSelected).label);
-      expect(find.textContaining('Payment to be completed at Municipal Office'), findsOneWidget);
+      expect(find.widgetWithText(AppButton, 'Next Demo Step'), findsOneWidget);
+      expect(find.text('Request Additional Documents (Demo)'), findsOneWidget);
+      expect(find.text('Reject Request (Demo)'), findsOneWidget);
+      expect(find.text('Needs Manual Verification (Demo)'), findsNothing);
 
-      await _tapNextDemoStep(tester); // Payment Method Selected -> Payment Processing
-      await _tapNextDemoStep(tester); // Payment Processing -> Receipt Generated
-
-      request = requests.all.firstWhere((r) => r.id == 'demo-dokyu-barangay-clearance');
-      // Generated from the request's own catalog fee/applicant/reference —
-      // never an invented amount.
-      expect(request.receipt, isNotNull);
-      expect(request.receipt!.type, ReceiptType.onsite);
-      expect(request.receipt!.amount, seeded.fee);
-      expect(request.receipt!.residentName, seeded.applicantName);
-      expect(request.receipt!.requestReferenceNumber, seeded.referenceNumber);
-
-      await _tapNextDemoStep(tester); // Receipt Generated -> Paid
-      await _tapNextDemoStep(tester); // Paid -> Ready for Release
-      await _tapNextDemoStep(tester); // Ready for Release -> Completed
-
-      request = requests.all.firstWhere((r) => r.id == 'demo-dokyu-barangay-clearance');
-      expect(request.status, 'Completed');
-      // The receipt survives all the way to the end of the sequence.
-      expect(request.receipt, isNotNull);
-      expect(find.widgetWithText(AppButton, 'Next Demo Step'), findsNothing);
-      expect(tester.takeException(), isNull);
-    });
-
-    testWidgets('GCash: choosing an online method is clearly marked Demo/Simulation and never leaves Onsite copy', (
-      tester,
-    ) async {
-      final requests = await _pumpDetail(tester, 'demo-dokyu-barangay-clearance');
-      await _tapNextDemoStep(tester); // -> Waiting for Payment
-      await _scrollToAndTap(tester, find.widgetWithText(AppButton, 'Choose Payment Method (Demo)'));
-
-      expect(find.text('DEMO'), findsNWidgets(2)); // GCash + Maya tiles, not Onsite
-
-      await tester.tap(find.text('GCash'));
+      // The remaining controls still work: flagging still reaches Under
+      // Review exactly as before removing the manual-verification trigger.
+      await requests.flagAdditionalDocuments(
+        'demo-dokyu-business-permit',
+        requirementLabel: 'Proof of residency',
+        reason: 'Needs a clearer copy.',
+      );
       await tester.pumpAndSettle();
-
-      final request = requests.all.firstWhere((r) => r.id == 'demo-dokyu-barangay-clearance');
-      expect(request.paymentMethod, 'GCash');
-      expect(find.textContaining('GCash (Demo / Simulation)'), findsOneWidget);
+      expect(
+        requests.all.firstWhere((r) => r.id == 'demo-dokyu-business-permit').status,
+        RequestMilestones.underReview,
+      );
       expect(tester.takeException(), isNull);
     });
+  });
+
+  group('Paid Dokyu path (Barangay Clearance, ₱50.00) — payment already settled before tracking begins', () {
+    testWidgets(
+      'the seeded Approved request already has its receipt; tracking continues straight to Mark to Release -> Released',
+      (tester) async {
+        final requests = await _pumpDetail(tester, 'demo-dokyu-barangay-clearance');
+        final seeded = requests.all.firstWhere((r) => r.id == 'demo-dokyu-barangay-clearance');
+        expect(seeded.requiresPayment, isTrue);
+        expect(seeded.status, 'Approved');
+        // Payment/receipt are settled at submission time now — never a
+        // tracking milestone the citizen has to walk through here.
+        expect(seeded.receipt, isNotNull);
+        expect(seeded.paymentMethod, isNotNull);
+
+        await _tapNextDemoStep(tester); // Approved -> Mark to Release
+        expect(find.text(RequestMilestones.markToRelease), findsWidgets);
+
+        await _tapNextDemoStep(tester); // Mark to Release -> Released
+
+        final request = requests.all.firstWhere((r) => r.id == 'demo-dokyu-barangay-clearance');
+        expect(request.status, 'Released');
+        expect(request.receipt, isNotNull); // survives to the end of the sequence
+        expect(find.widgetWithText(AppButton, 'Next Demo Step'), findsNothing);
+        expect(tester.takeException(), isNull);
+      },
+    );
   });
 
   group('Rejected branch', () {
@@ -181,16 +188,114 @@ void main() {
       final request = requests.all.firstWhere((r) => r.id == 'demo-tulong-financial');
       expect(request.status, 'Rejected');
       // Financial Assistance (AICS) has its own realistic, service-specific
-      // rejection reason (CatalogItem.demoRejectionReason — see the Mobile
-      // <-> Web Admin final alignment pass) rather than the generic
-      // ID-mismatch fallback other services without one still use.
+      // rejection reason (CatalogItem.demoRejectionReason) rather than the
+      // generic ID-mismatch fallback other services without one still use.
       expect(request.adminRemarks, contains('social case study'));
-      expect(find.text('Reason for Rejection'), findsOneWidget);
+      expect(find.text('Application Rejected'), findsOneWidget);
       expect(find.textContaining('social case study'), findsWidgets);
       // No demo controls remain once terminal.
       expect(find.widgetWithText(AppButton, 'Next Demo Step'), findsNothing);
       expect(find.text('Reject Request (Demo)'), findsNothing);
       expect(tester.takeException(), isNull);
     });
+  });
+
+  group('Under Review / re-verification loop (Needs Additional Documents)', () {
+    testWidgets(
+      'flagging branches to Under Review outside the linear sequence; a wrong resubmission loops back to Under '
+      'Review again (no hard-coded max), a correct one reaches Approved',
+      (tester) async {
+        final requests = await _pumpDetail(tester, 'demo-dokyu-business-permit');
+        expect(requests.all.firstWhere((r) => r.id == 'demo-dokyu-business-permit').status, 'Under Verification');
+
+        await requests.flagAdditionalDocuments(
+          'demo-dokyu-business-permit',
+          requirementLabel: 'Proof of residency',
+          reason: 'The submitted "Proof of residency" could not be verified.',
+        );
+        await tester.pumpAndSettle();
+
+        var request = requests.all.firstWhere((r) => r.id == 'demo-dokyu-business-permit');
+        expect(request.status, RequestMilestones.underReview);
+        // A branch, not a linear step — Demo Controls' own "Next Demo Step"
+        // never applies to Under Review.
+        expect(requests.canAdvance('demo-dokyu-business-permit'), isFalse);
+        expect(find.widgetWithText(AppButton, 'Next Demo Step'), findsNothing);
+
+        // Still wrong on the first resubmission — replacing the document
+        // alone doesn't resubmit; the explicit Resubmit Application step is
+        // what actually loops back to Under Verification, then flagged
+        // again, back to Under Review with no hard-coded maximum correction
+        // count.
+        var flaggedId = request.flaggedRequirements.single.id;
+        await requests.replaceFlaggedRequirement(
+          'demo-dokyu-business-permit',
+          flaggedId: flaggedId,
+          newAttachment: _fakeAttachment('residency-v2.pdf', 'Proof of residency'),
+        );
+        request = requests.all.firstWhere((r) => r.id == 'demo-dokyu-business-permit');
+        expect(request.status, RequestMilestones.underReview); // still — replacing alone never resubmits
+        await requests.resubmitApplication('demo-dokyu-business-permit');
+        request = requests.all.firstWhere((r) => r.id == 'demo-dokyu-business-permit');
+        expect(request.status, RequestMilestones.underVerification);
+
+        await requests.flagAdditionalDocuments(
+          'demo-dokyu-business-permit',
+          requirementLabel: 'Proof of residency',
+          reason: 'Still not legible enough.',
+        );
+        await tester.pumpAndSettle();
+        request = requests.all.firstWhere((r) => r.id == 'demo-dokyu-business-permit');
+        expect(request.status, RequestMilestones.underReview); // looped back, exactly as before
+
+        // Correct this time — resubmits and resumes at Under Verification,
+        // from where it can now advance to Approved.
+        flaggedId = request.flaggedRequirements.last.id;
+        await requests.replaceFlaggedRequirement(
+          'demo-dokyu-business-permit',
+          flaggedId: flaggedId,
+          newAttachment: _fakeAttachment('residency-v3.pdf', 'Proof of residency'),
+        );
+        await requests.resubmitApplication('demo-dokyu-business-permit');
+        await tester.pumpAndSettle();
+        expect(requests.canAdvance('demo-dokyu-business-permit'), isTrue);
+
+        await _tapNextDemoStep(tester); // Under Verification -> Approved
+        request = requests.all.firstWhere((r) => r.id == 'demo-dokyu-business-permit');
+        expect(request.status, 'Approved');
+        expect(tester.takeException(), isNull);
+      },
+    );
+  });
+
+  group('Under Review — manual verification flavor (no flagged requirement)', () {
+    testWidgets(
+      'flagManualVerification branches to Under Review with nothing for the citizen to upload; Continue '
+      'Verification (Demo) resumes at Under Verification',
+      (tester) async {
+        final requests = await _pumpDetail(tester, 'demo-dokyu-business-permit');
+
+        await requests.flagManualVerification('demo-dokyu-business-permit', reason: 'Needs a closer look by staff.');
+        await tester.pumpAndSettle();
+
+        var request = requests.all.firstWhere((r) => r.id == 'demo-dokyu-business-permit');
+        expect(request.status, RequestMilestones.underReview);
+        expect(request.flaggedRequirements, isEmpty);
+        // Never presented as a rejection, and never the document-upload card.
+        expect(find.text('Application Rejected'), findsNothing);
+        expect(find.text('Additional Document Needed'), findsNothing);
+        expect(find.text('Under Review'), findsWidgets); // _ManualVerificationCard's own header
+
+        // The button sits near the bottom of the list, below the fold — a
+        // Sliver list only builds elements within the current viewport plus
+        // cache extent, so it isn't findable until scrolled into view (same
+        // reasoning as receipt_system_test.dart's own _scrollToTopAndTap).
+        await _scrollToAndTap(tester, find.widgetWithText(AppButton, 'Continue Verification (Demo)'));
+
+        request = requests.all.firstWhere((r) => r.id == 'demo-dokyu-business-permit');
+        expect(request.status, RequestMilestones.underVerification);
+        expect(tester.takeException(), isNull);
+      },
+    );
   });
 }

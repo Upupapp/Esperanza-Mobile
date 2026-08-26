@@ -68,7 +68,8 @@ class MockCatalog {
       ],
       process: ['Submit Request', 'Compute Tax Due', 'Pay Fee', 'Release'],
       icon: 'receipt',
-      demoPurpose: 'Community Tax Certificate needed for a bank transaction requirement.',
+      // Web Admin's own record for Cristy (DR-2026-2350).
+      demoPurpose: 'For submission as a government transaction requirement.',
       demoRejectionReason:
           'The declared income used to compute your Community Tax could not be verified against your '
           'submitted Certificate of Employment. Please submit an updated proof of income.',
@@ -106,7 +107,23 @@ class MockCatalog {
           ),
         ],
       ),
-      demoDefaults: {'purpose': 'Local Employment'},
+      // Web Admin's own record for Cristy's Barangay Clearance request
+      // (DR-2026-2255 — see config/esperanza_constituents.php and
+      // resources/views/admin/document-requests.blade.php in the Web
+      // Admin's GIT_FETCH_WEB reference) gives this exact free-text
+      // Purpose: "For local transaction and identification purposes."
+      // This wizard's own Purpose field is a constrained select sourced
+      // from the official BRGY.CLEARANCE NEW.docx checklist and has no
+      // matching option for that exact phrase (per this project's own
+      // "do not overwrite legitimate official form structure" rule, no new
+      // option is invented here) — 'Proof of Residency' is the closest
+      // official category to what she's actually requesting it for. The
+      // exact Web Admin wording is instead surfaced verbatim on the
+      // Requirements step's own "Additional notes (optional)" field via
+      // demoPurpose below, so the real submitted reason is still visible
+      // and never confused with the Purpose select itself.
+      demoDefaults: {'purpose': 'Proof of Residency'},
+      demoPurpose: 'For local transaction and identification purposes.',
       demoRejectionReason:
           'Your Proof of Residency document could not be verified against Barangay Baras records. Please '
           'submit an updated utility bill or lease contract showing your current address.',
@@ -155,6 +172,12 @@ class MockCatalog {
         ],
       ),
       demoDefaults: {'residencyType': 'Permanent Resident', 'purpose': 'Bank Requirement'},
+      // Web Admin's own record for Cristy (DR-2026-2331): "For submission
+      // to a requesting government agency" — same treatment as Barangay
+      // Clearance above: the exact free-text wording doesn't match any
+      // official Purpose select option, so it's surfaced verbatim via the
+      // Requirements step's own Additional Notes field instead.
+      demoPurpose: 'For submission to a requesting government agency.',
       demoRejectionReason:
           'The Barangay Clearance you attached has already expired. Please secure a current Barangay '
           'Clearance and resubmit your request.',
@@ -195,6 +218,10 @@ class MockCatalog {
         ],
       ),
       demoDefaults: {'purpose': 'Educational Assistance (e.g. Scholarship)'},
+      // Web Admin's own record for Cristy (DR-2026-2332): "For scholarship
+      // and financial assistance application requirement" — matches the
+      // select default above; surfaced verbatim on Additional Notes too.
+      demoPurpose: 'For scholarship and financial assistance application requirement.',
       demoRejectionReason:
           'The Municipal Social Welfare and Development Office interview/case assessment found your '
           'household income above the indigency threshold for this certification. You may reapply if your '
@@ -215,7 +242,8 @@ class MockCatalog {
       ],
       process: ['Submit Requirements', 'Zoning & Fire Inspection', 'Assessment & Payment', 'Release'],
       icon: 'store',
-      demoPurpose: "New business permit application for the family's sari-sari store in Barangay Baras.",
+      // Web Admin's own record for Cristy (DR-2026-2333).
+      demoPurpose: 'New business permit application.',
       demoRejectionReason:
           'Your Locational/Zoning Clearance and Sanitary Permit could not be verified during the zoning and '
           'fire inspection. Please coordinate with the Business Permits and Licensing Office to schedule a '
@@ -234,7 +262,8 @@ class MockCatalog {
       ],
       process: ['Submit Request', 'Verify Tax Records', 'Settle Balance (if any)', 'Release'],
       icon: 'landmark',
-      demoPurpose: 'Tax clearance for the family property in Barangay Baras, required for a loan application.',
+      // Web Admin's own record for Cristy (DR-2026-2334).
+      demoPurpose: 'Real property tax clearance for a property transaction.',
       demoRejectionReason:
           'Our records show an outstanding Real Property Tax balance for this property. Please settle the '
           "balance at the Treasurer's Office before a clearance can be issued.",
@@ -248,7 +277,8 @@ class MockCatalog {
       requirements: ['One (1) valid government-issued ID', 'Details of the record being requested'],
       process: ['Submit Request', 'Records Verification', 'Payment', 'Release'],
       icon: 'file-text',
-      demoPurpose: 'Certified true copy of my own birth certificate for a school scholarship application.',
+      // Web Admin's own record for Cristy (DR-2026-2335).
+      demoPurpose: 'For submission as a scholarship and school enrollment requirement.',
       demoRejectionReason:
           'The record details you provided did not match the civil registry entry on file. Please verify '
           'the exact registered name and date, then resubmit your request.',
@@ -290,7 +320,8 @@ class MockCatalog {
         'yearsOperating': '3',
         'capitalAmount': '15000',
       },
-      demoPurpose: "Barangay business clearance for the family's sari-sari store renewal.",
+      // Web Admin's own record for Cristy (DR-2026-2233).
+      demoPurpose: 'Market stall permit renewal.',
       demoRejectionReason:
           'The proof of business location you submitted could not be verified against the barangay '
           'records for this address. Please submit an updated lease contract or land title.',
@@ -321,7 +352,8 @@ class MockCatalog {
           ),
         ],
       ),
-      demoDefaults: {'purpose': 'Proof of residency in Barangay Baras for a school scholarship application.'},
+      // Web Admin's own record for Cristy (DR-2026-2312).
+      demoDefaults: {'purpose': 'For submission as a requirement for a local government transaction.'},
       demoRejectionReason:
           'The stated purpose requires supporting documentation that was not included with your request. '
           'Please attach the required supporting document and resubmit.',
@@ -359,7 +391,8 @@ class MockCatalog {
         ],
       ),
       demoDefaults: {'confirmFirstTime': true},
-      demoPurpose: 'First time jobseeker certificate for a part-time job application.',
+      // Web Admin's own record for Cristy (DR-2026-2336).
+      demoPurpose: 'For local job application requirement.',
     ),
     // Moved here from Tulong (assistanceTypes) — this is an ID/membership
     // registration, not an assistance/benefit program (unlike e.g. Social
@@ -456,6 +489,26 @@ class MockCatalog {
           ),
         ],
       ),
+      // 'presentOccupation', not 'occupation' — the wizard's generic
+      // Master-Profile prefill only auto-matches the exact key 'occupation'
+      // (see ServiceRequestWizardScreen's _masterEligibleKeys), so this
+      // differently-named-but-same-meaning field needs its own explicit
+      // demoDefault to actually get Cristy's real occupation instead of
+      // silently staying blank. annualIncome/philsysIdNumber/lastGovt* are
+      // deliberately left blank — she has no income, no PhilSys ID on
+      // file, and no prior government employment to report.
+      // 'educationalAttainment' — this field's own option list predates
+      // the K-12 Senior High tier (no such option exists here at all), so
+      // the wizard's generic Master-Profile select prefill safely skips it
+      // rather than crashing; 'High School' is the closest valid,
+      // non-fabricated approximation. Web Admin's own record for Cristy
+      // (DR-2026-2345) includes this application under her account too
+      // (generic purpose, no age claim), even though she's 25 — this
+      // project's own catalog has no eligibility gate on this service
+      // either, so it's treated the same as Web Admin's own approach:
+      // filled where ordinary, never claiming she's actually a senior.
+      demoDefaults: {'presentOccupation': 'Student', 'educationalAttainment': 'High School'},
+      demoPurpose: 'Senior Citizen ID / OSCA membership application.',
     ),
     CatalogItem(
       key: 'dokyu_marriage_license',
@@ -544,6 +597,25 @@ class MockCatalog {
           ),
         ],
       ),
+      // Web Admin's own record for Cristy (DR-2026-2337) includes this
+      // application under her account with a generic purpose, but never
+      // names a second party (nothing in her Constituents record
+      // establishes who she's marrying) — First Party's Information is
+      // legitimately her own real identity (party1DateOfBirth already
+      // auto-fills via the wizard's generic birthdate rule), so it's
+      // filled from her Resident Master Profile the same as any other
+      // form; Second Party's Information is deliberately left blank rather
+      // than inventing a fiancé's identity Web Admin never specified.
+      demoDefaults: {
+        'party1FullName': 'Cristy Pareja Bonghanoy',
+        'party1PlaceOfBirth': 'Milagros, Masbate',
+        'party1Citizenship': 'Filipino',
+        'party1Residence': 'Purok 2, Barangay Baras, Esperanza, Masbate',
+        'party1CivilStatus': 'Single',
+        'party1FatherName': 'Ramon Bonghanoy',
+        'party1MotherMaidenName': 'Corazon Pareja',
+      },
+      demoPurpose: 'Application for marriage license.',
     ),
     CatalogItem(
       key: 'dokyu_marriage_certificate_copy',
@@ -603,17 +675,29 @@ class MockCatalog {
           ),
         ],
       ),
+      // Web Admin's own record for Cristy (DR-2026-2338, purpose "For
+      // submission as proof of civil status") never establishes her as
+      // married — her Civil Status is Single (see the Cristy Master
+      // Profile Web Admin sync) — so this is her requesting a copy of her
+      // PARENTS' marriage certificate instead (a genuine, common real-world
+      // reason to need one "as proof of civil status": establishing her
+      // own legitimacy/parentage), reusing their already-established real
+      // names rather than inventing a spouse for her. Previously this
+      // prefilled 'Jerome Villaruel' as her own husband and a 2022 marriage
+      // date, both inconsistent with her Single status and, for a
+      // 25-year-old, a marriage date that couldn't predate her own birth.
       demoDefaults: {
-        'husbandFullName': 'Jerome Villaruel',
-        'wifeFullName': 'Cristy Pareja Bonghanoy',
+        'husbandFullName': 'Ramon Bonghanoy',
+        'wifeFullName': 'Corazon Bonghanoy',
         // ISO date string — CatalogItem's demoDefaults must stay a const
         // map (documentTypes/assistanceTypes are const lists), and
         // DateTime has no const constructor. Parsed back to DateTime by
-        // ServiceRequestWizardScreen's own demoDefaults application.
-        'dateOfMarriage': '2022-06-18',
+        // ServiceRequestWizardScreen's own demoDefaults application. Set
+        // safely before Cristy's own birthdate (March 15, 2001).
+        'dateOfMarriage': '1999-05-10',
         'placeOfMarriage': 'Esperanza, Masbate',
       },
-      demoPurpose: 'Requesting a certified copy of my own marriage certificate for a bank requirement.',
+      demoPurpose: 'For submission as proof of civil status.',
     ),
     CatalogItem(
       key: 'dokyu_delayed_birth_registration',
@@ -657,6 +741,14 @@ class MockCatalog {
           ),
         ],
       ),
+      // Web Admin's own record for Cristy (DR-2026-2339) includes this
+      // application under her account with only a generic purpose — it
+      // never names a specific child, so the Birth Details fields
+      // (childFullName, father/mother, etc.) are deliberately left blank
+      // rather than inventing a sibling or relative Web Admin never
+      // established (see this pass's own report on why a deceased/
+      // third-party subject is never fabricated).
+      demoPurpose: 'Delayed registration of birth.',
     ),
     CatalogItem(
       key: 'dokyu_delayed_death_registration',
@@ -713,6 +805,17 @@ class MockCatalog {
           ),
         ],
       ),
+      // Web Admin's own record for Cristy (DR-2026-2340): "Delayed
+      // registration of a deceased grandparent's death for civil registry
+      // purposes" — an already-established Web Admin scenario, not
+      // fabricated by this pass. No specific grandparent is named there,
+      // so deceasedFullName/dateOfDeath/etc. stay blank rather than
+      // inventing one; note this form's own 'sex'/'civilStatus' fields
+      // describe the deceased grandparent, not Cristy herself, but the
+      // wizard's generic Master-Profile prefill has no way to tell a
+      // "this is about someone else" field apart from an ordinary one
+      // sharing the same key name — see this pass's own report.
+      demoPurpose: "Delayed registration of a deceased grandparent's death for civil registry purposes.",
     ),
     CatalogItem(
       key: 'dokyu_fetal_death',
@@ -1009,6 +1112,20 @@ class MockCatalog {
           ),
         ],
       ),
+      // Web Admin's own record for Cristy (DR-2026-2341): "Supporting
+      // certification for a family member's late birth registration" — NOT
+      // her own birth (her own is already registered — she has an existing
+      // valid ID/Resident Profile). personFullName/motherMaidenName/
+      // citizenship are deliberately left blank rather than naming a
+      // specific relative Web Admin never establishes. Note this form's own
+      // dateOfBirth/placeOfBirth/sex/civilStatus/occupation/fatherName
+      // fields describe THAT family member, not Cristy — but the wizard's
+      // generic Master-Profile prefill (including the Father/Mother block,
+      // which matches on the 'fatherName' key alone) has no way to tell a
+      // "this is about someone else" field apart from an ordinary one
+      // sharing the same key name, so those will still show her own/her
+      // father's values here; see this pass's own report.
+      demoPurpose: "Supporting certification for a family member's late birth registration.",
     ),
     CatalogItem(
       key: 'dokyu_barangay_cert_death',
@@ -1048,6 +1165,13 @@ class MockCatalog {
           ),
         ],
       ),
+      // Web Admin's own record for Cristy (DR-2026-2342): "Barangay-level
+      // supporting certification for a deceased grandparent's death
+      // registration" — the same already-established grandparent scenario
+      // as Delayed Registration of Death above. No specific grandparent is
+      // named there, so the Deceased's Details fields stay blank rather
+      // than inventing one.
+      demoPurpose: "Barangay-level supporting certification for a deceased grandparent's death registration.",
     ),
     CatalogItem(
       key: 'dokyu_pet_registration',
@@ -1148,10 +1272,17 @@ class MockCatalog {
         'dobOrApproxAge': 'Approximately 2 years old',
         'spayedNeutered': 'No',
         'ownerAddress': 'Purok 2, Barangay Baras, Esperanza, Masbate',
-        'emergencyContactName': 'Corazon Cristy',
-        'emergencyContactNumber': '0921 456 7890',
+        // emergencyContactName/Number are deliberately NOT set here — this
+        // form's own field keys exactly match ResidentProfile's own
+        // Emergency Contact facts, so ServiceRequestWizardScreen's generic
+        // Master-Profile prefill block fills them from the same real,
+        // editable Roberto Pareja / 0919 502 7735 record used everywhere
+        // else, instead of this catalog item inventing its own separate
+        // (and previously stale — "Corazon Cristy" used the pre-correction
+        // surname bug) emergency contact just for a pet form.
       },
-      demoPurpose: "Registering our family's dog with the Municipal Agriculture Office.",
+      // Web Admin's own record for Cristy (DR-2026-2343).
+      demoPurpose: 'Registration of household pet dog for the municipal pet registry.',
     ),
     CatalogItem(
       key: 'dokyu_locational_clearance',
@@ -1264,10 +1395,14 @@ class MockCatalog {
           ),
         ],
       ),
+      // Web Admin's own record for Cristy (DR-2026-2344): "Locational
+      // clearance for a proposed structure" — a new structure, not a
+      // renovation of an existing one (natureOfApplication/projectTitle
+      // updated to match; previously said "Improvement / Renovation").
       demoDefaults: {
         'applicantType': 'Individual',
-        'natureOfApplication': 'Improvement / Renovation',
-        'projectTitle': 'Home Renovation - Bonghanoy Residence',
+        'natureOfApplication': 'New Development',
+        'projectTitle': 'Proposed Residential Structure - Bonghanoy Residence',
         'projectLocation': 'Purok 2, Barangay Baras, Esperanza, Masbate',
         'floorArea': '45',
         'lotArea': '120',
@@ -1275,7 +1410,7 @@ class MockCatalog {
         'rightOverLand': 'Owner',
         'zoningClassification': <String>{'Residential'},
       },
-      demoPurpose: 'Locational clearance for a home renovation project.',
+      demoPurpose: 'Locational clearance for a proposed structure.',
     ),
   ];
 
@@ -1300,7 +1435,10 @@ class MockCatalog {
         'Cash / Guarantee Letter Release',
       ],
       icon: 'stethoscope',
-      demoPurpose: "Medical assistance for my mother's hospital bill at Masbate Provincial Hospital.",
+      // Web Admin's own record for Cristy (AR-2026-0230) — about her own
+      // treatment, not her mother's (the previous wording named her mother
+      // instead, which Web Admin's record doesn't establish).
+      demoPurpose: 'Financial assistance for dental treatment expenses.',
       demoRejectionReason:
           'The Medical Abstract you submitted has already expired. Please secure an updated Medical '
           'Abstract or Statement of Account from the hospital and resubmit.',
@@ -1320,6 +1458,12 @@ class MockCatalog {
       ],
       process: ['Submit Request', 'Verify Death Certificate', 'Approval', 'Release'],
       icon: 'flower',
+      // Web Admin's own record for Cristy (AR-2026-0231): "Burial
+      // assistance for a deceased grandparent" — an already-established
+      // Web Admin scenario (not fabricated by this pass — see this pass's
+      // own report on why a deceased relative is otherwise never invented
+      // outright). No specific grandparent is named there.
+      demoPurpose: 'Burial assistance for a deceased grandparent.',
     ),
     CatalogItem(
       key: 'tulong_educational',
@@ -1430,7 +1574,9 @@ class MockCatalog {
           ),
         ],
       ),
-      demoPurpose: 'Educational assistance to support continuing studies.',
+      // Web Admin's own record for Cristy (AR-2026-0227): "Scholarship
+      // program application."
+      demoPurpose: 'Scholarship program application.',
       demoRejectionReason:
           'Your Certificate of Enrollment does not match the current academic term. Please secure an '
           'updated Certificate of Enrollment for the present school year and resubmit.',
@@ -1449,7 +1595,9 @@ class MockCatalog {
       ],
       process: ['Submit Request', 'Social Case Study', 'Approval', 'Release'],
       icon: 'wallet',
-      demoPurpose: "Financial assistance for the family's living expenses following reduced household income.",
+      // Web Admin's own record for Cristy (AR-2026-0228): "Livelihood
+      // capital support."
+      demoPurpose: 'Livelihood capital support.',
       demoRejectionReason:
           'The social case study found an active source of household income that was not disclosed in '
           'your request. Please coordinate with the Municipal Social Welfare and Development Office to '
@@ -1465,7 +1613,9 @@ class MockCatalog {
       requirements: ['Barangay Certification', 'One (1) valid government-issued ID'],
       process: ['Submit Request', 'Barangay Verification', 'Approval', 'Distribution'],
       icon: 'package',
-      demoPurpose: 'Relief goods request for the household in Barangay Baras.',
+      // Web Admin's own record for Cristy (AR-2026-0229): "Relief
+      // assistance following recent heavy rains affecting the household."
+      demoPurpose: 'Relief assistance following recent heavy rains affecting the household.',
       demoRejectionReason:
           'Your household has already received a relief goods package for the current distribution cycle. '
           'Please wait for the next scheduled distribution.',
@@ -1489,6 +1639,11 @@ class MockCatalog {
         'Quarterly Release',
       ],
       icon: 'users',
+      // Web Admin's own record for Cristy (AR-2026-0232): "Social pension
+      // benefit application." — an already-established Web Admin scenario;
+      // no fabricated senior-only sub-detail is added anywhere else on
+      // this form (see this pass's own report).
+      demoPurpose: 'Social pension benefit application.',
     ),
     CatalogItem(
       key: 'tulong_solo_parent',
@@ -1620,6 +1775,38 @@ class MockCatalog {
           ),
         ],
       ),
+      // Everything else here (familyComposition, soloParentClassification,
+      // employmentStatus, monthlyIncome, needsOrProblems) genuinely
+      // requires being a solo parent, which Cristy is not (Single, no
+      // dependents) — deliberately left unfilled rather than fabricated;
+      // see this pass's own report. isPantawidBeneficiary is the one
+      // service-specific field here that's a real, true fact already on
+      // her Resident Master Profile (4Ps Beneficiary), so it's filled;
+      // emergencyContactName/Number are covered by the wizard's own
+      // generic Master-Profile prefill, not here. 'educationalAttainment'
+      // — this field's own option list has no Senior High tier (see the
+      // matching note on dokyu_senior_citizen_id); 'High School' is the
+      // closest valid approximation. 'employmentStatus' is a REQUIRED
+      // select whose own option list has no 'Student' entry (unlike PWD
+      // Registration's own employmentStatus field, which does) — without a
+      // value here the wizard's required-field validation blocks Continue
+      // outright, an "appears fine in code but is actually stuck in the UI"
+      // bug this audit specifically targets. 'Unemployed' is the honest,
+      // non-fabricated fit (she is not Employed or Self-Employed).
+      // 'familyComposition' (Children / Dependents) is also REQUIRED —
+      // 'None' is the truthful, non-fabricated answer (she genuinely has
+      // no children/dependents), not a fabricated name; same class of
+      // required-field-blocks-Continue bug as employmentStatus above.
+      demoDefaults: {
+        'isPantawidBeneficiary': true,
+        'educationalAttainment': 'High School',
+        'employmentStatus': 'Unemployed',
+        'familyComposition': 'None',
+      },
+      // Web Admin's own record for Cristy (AR-2026-0233): "Solo parent
+      // cash assistance application." — a generic purpose; Web Admin
+      // never names a specific solo-parent circumstance for her either.
+      demoPurpose: 'Solo parent cash assistance application.',
     ),
     CatalogItem(
       key: 'tulong_pwd_registration',
@@ -1727,6 +1914,22 @@ class MockCatalog {
           ),
         ],
       ),
+      // Disability Information (disabilityType, causeOfDisability) is
+      // deliberately left unfilled — inventing a disability for Cristy is
+      // exactly the kind of fabricated identity attribute this pass must
+      // never create (see this pass's own report); PWD Registration is
+      // logically inapplicable to her as a full demo scenario, even though
+      // the ordinary fields below still legitimately prefill.
+      // fatherName/motherName are covered by the wizard's own generic
+      // Father/Mother prefill, not here. 'educationalAttainment' — this
+      // field's own option list has no Senior High tier (see the matching
+      // note on dokyu_senior_citizen_id); 'employmentStatus' genuinely
+      // includes 'Student', a real fact about her.
+      demoDefaults: {'educationalAttainment': 'High School', 'employmentStatus': 'Student'},
+      // Web Admin's own record for Cristy (AR-2026-0234): "PWD ID / PRPWD
+      // registration application." — generic; no specific disability is
+      // named there either, consistent with the note above.
+      demoPurpose: 'PWD ID / PRPWD registration application.',
     ),
     CatalogItem(
       key: 'tulong_tupad',
@@ -1827,13 +2030,30 @@ class MockCatalog {
       demoDefaults: {
         'typeOfWorker': 'Underemployed',
         'specificBeneficiaryType': 'Vendor / Self-Employed',
-        'spouseName': 'Jerome Villaruel',
+        // spouseName deliberately left unset — Cristy's Civil Status is
+        // Single (see the Cristy Master Profile Web Admin sync), so a
+        // spouse's name here would contradict a fact this same field's own
+        // profile already establishes. This field is optional and only
+        // logically applies to a married applicant.
         'monthlyIncome': '9718',
         'numberOfDependents': '0',
-        'highestEducationalAttainment': 'College',
+        // 'highestEducationalAttainment', not 'educationalAttainment' — a
+        // differently-named field, so it needs its own explicit value
+        // rather than relying on the wizard's generic Master-Profile
+        // prefill (which only matches the exact key 'educationalAttainment').
+        // 'High School', not 'Senior High School' — this field's own
+        // option list predates the K-12 Senior High tier and has no such
+        // option at all (the wizard's own select-field prefill guard would
+        // otherwise silently drop an unmatched value, but picking the
+        // closest valid option here keeps the field genuinely prefilled
+        // rather than left blank); "High School" is still accurate for a
+        // Senior High School graduate.
+        'highestEducationalAttainment': 'High School',
         'intentionToAvailSkillsTraining': true,
       },
-      demoPurpose: 'Applying for emergency employment assistance to help with household income.',
+      // Web Admin's own record for Cristy (AR-2026-0235): "Application for
+      // short-term emergency employment during school break."
+      demoPurpose: 'Application for short-term emergency employment during school break.',
     ),
     CatalogItem(
       key: 'tulong_tesda_registration',
@@ -1936,12 +2156,23 @@ class MockCatalog {
       demoDefaults: {
         'nationality': 'Filipino',
         'employmentStatusBeforeTraining': 'Unemployed',
-        'educationalAttainmentBeforeTraining': 'College',
-        'learnerClassification': <String>{'Student'},
+        // 'educationalAttainmentBeforeTraining', not 'educationalAttainment'
+        // — needs its own explicit value; the wizard's generic prefill
+        // only matches the exact key 'educationalAttainment'. 'High
+        // School', not 'Senior High School' — this field's own option list
+        // has no Senior High tier at all; see the matching note on
+        // tulong_tupad's highestEducationalAttainment.
+        'educationalAttainmentBeforeTraining': 'High School',
+        // Both true facts on Cristy's own Resident Master Profile (Student;
+        // 4Ps Beneficiary — see the Cristy Master Profile Web Admin sync),
+        // never fabricated.
+        'learnerClassification': <String>{'Student', '4Ps Beneficiary'},
         'courseOrQualification': 'Bookkeeping NC III',
         'scholarshipPackage': 'TWSP',
       },
-      demoPurpose: 'Registering for TESDA skills training to complement my education.',
+      // Web Admin's own record for Cristy (AR-2026-0236): "Registration
+      // for Bookkeeping NC III skills training program."
+      demoPurpose: 'Registration for Bookkeeping NC III skills training program.',
     ),
     CatalogItem(
       key: 'tulong_erpat_registration',
@@ -2014,6 +2245,26 @@ class MockCatalog {
           ),
         ],
       ),
+      // 'familyComposition' and 'educationalAttainment' are both REQUIRED
+      // fields the generic Master-Profile mechanisms don't reach (the
+      // former has no generic source at all; the latter's option list has
+      // no Senior High tier, so the master-eligible guard safely skips it)
+      // — left blank, both would silently block Continue past this step, a
+      // real "appears fine in code but is actually stuck in the UI" bug
+      // this audit specifically targets. Household Members lists her real,
+      // already-established household (Father, Mother, herself) — a true
+      // fact, not a fabricated one; 'High School' is the same closest
+      // valid, non-crashing educational-attainment approximation used
+      // elsewhere in this pass.
+      demoDefaults: {
+        'familyComposition': 'Ramon Bonghanoy (Father), Corazon Bonghanoy (Mother), Cristy Pareja Bonghanoy (Self)',
+        'educationalAttainment': 'High School',
+      },
+      // Web Admin's own record for Cristy (AR-2026-0237): "ERPAT program
+      // registration." — generic; Web Admin never reframes her sex or
+      // household role to fit the fathers'-program framing, consistent
+      // with this pass never doing so either.
+      demoPurpose: 'ERPAT program registration.',
     ),
   ];
 
@@ -2318,25 +2569,29 @@ class MockCatalog {
       // LGU verification is still pending.
       status: 'Pending Review',
     ),
-    // The verified demo account is Cristy Pareja Bonghanoy's actual record
-    // from the Web Admin's own mock data (config/esperanza_citizens.php,
-    // id ESP-RES-2024-1044) — id, name, email, and every resident-fact
+    // The verified demo account is Cristy Pareja Bonghanoy's actual
+    // Constituents record from the Web Admin's own mock data
+    // (esperanza_constituents.php, Citizen Account ID ESP-RES-2024-1044,
+    // Resident ID RES-2026-104) — id, name, email, and every resident-fact
     // field below all come from that same source record, not a fabricated
-    // demo identity. Her matching single-member household lives in
-    // esperanza_constituents.php as HH-2026-104 — no family/household
-    // members beyond herself, so there is nothing to carry into
-    // Family/Household screens.
+    // demo identity. Her matching single-member household is HH-2026-104,
+    // Family ID FAM-2026-104 — no family/household members of her own
+    // beyond herself and her Family Information's seeded Father/Mother
+    // (see ResidentProfileService's Cristy Master Profile alignment).
     //
-    // Birthdate corrected Jan 13, 2001 (was Nov 29, 1988) to align with the
-    // Web Admin's own Educational Assistance record for Cristy Pareja
-    // Bonghanoy — see ResidentProfileService's Cristy Master Profile
-    // alignment migration, which also corrects any device that already
-    // persisted the old value. NOTE: the seeded Digital ID wallet images
+    // Birthdate/Civil Status/Occupation corrected to March 15, 2001 /
+    // Single / Student — this Constituents record supersedes an earlier,
+    // intermediate correction sourced from her Educational Assistance
+    // application (Jan 13, 2001 / Married / Market Vendor), which itself
+    // had superseded the original placeholder (Nov 29, 1988). See
+    // ResidentProfileService's Cristy Master Profile alignment migration,
+    // which also corrects any device that already persisted either older
+    // set of values. NOTE: the seeded Digital ID wallet images
     // (BarangayID_Front.png / PWD_Front.png) and the submitted government
     // ID image (CRISTY DEMO ID.png) still print "November 29, 1988" — per
     // this project's rule against generating new ID images, those assets
     // are left untouched; this is a known, reported printed-vs-profile
-    // mismatch, not an oversight (see this alignment pass's own report).
+    // mismatch, not an oversight (see this correction's own report).
     CitizenAccount(
       id: 'ESP-RES-2024-1044',
       firstName: 'Cristy',
@@ -2346,10 +2601,10 @@ class MockCatalog {
       barangay: 'Baras',
       purok: 'Purok 2',
       address: 'Purok 2, Barangay Baras, Esperanza, Masbate',
-      birthdate: 'January 13, 2001',
+      birthdate: 'March 15, 2001',
       sex: 'Female',
-      civilStatus: 'Married',
-      occupation: 'Market Vendor',
+      civilStatus: 'Single',
+      occupation: 'Student',
       profileCompleteness: 90,
       // Demo account for the "fully verified resident" state — full
       // access to verified-only features (Dokyu/Tulong).
@@ -2378,10 +2633,10 @@ class MockCatalog {
     barangay: 'Baras',
     purok: 'Purok 2',
     address: 'Purok 2, Barangay Baras, Esperanza, Masbate',
-    birthdate: 'January 13, 2001',
+    birthdate: 'March 15, 2001',
     sex: 'Female',
-    civilStatus: 'Married',
-    occupation: 'Market Vendor',
+    civilStatus: 'Single',
+    occupation: 'Student',
     profileCompleteness: 35,
     // Never becomes 'Approved' in this simulation — see
     // screens/notifications/duplicate_account_details_screen.dart.
@@ -2402,13 +2657,13 @@ class MockCatalog {
   /// from before this project's demo identity was corrected to Cristy
   /// Bonghanoy's real Web Admin record. The printed address (Purok 2,
   /// Barangay Baras) still matches exactly, but the printed date of birth
-  /// (November 29, 1988) is now STALE — the Master Profile alignment pass
-  /// corrected Cristy's actual birthdate to January 13, 2001 (her real Web
-  /// Admin Educational Assistance record), and per this project's rule
-  /// against generating new ID images, this asset was intentionally left
-  /// untouched. This is a known, reported printed-vs-profile mismatch (see
-  /// that alignment pass's own report), not an oversight; only a person can
-  /// supply a replacement image with the corrected name/birthdate.
+  /// (November 29, 1988) is now STALE — the Master Profile alignment
+  /// passes have since corrected Cristy's actual birthdate to March 15,
+  /// 2001 (her real Web Admin Constituents record), and per this project's
+  /// rule against generating new ID images, this asset was intentionally
+  /// left untouched. This is a known, reported printed-vs-profile mismatch
+  /// (see this correction's own report), not an oversight; only a person
+  /// can supply a replacement image with the corrected name/birthdate.
   static const cristyGovernmentId = GovernmentIdRecord(
     accountId: 'ESP-RES-2024-1044',
     idType: 'Postal ID (PHLPost)',
@@ -2432,7 +2687,7 @@ class MockCatalog {
   /// Both card images also print "NOV 29, 1988" as Date of Birth (and
   /// "Barangay Libertad" as address, a separate, pre-existing mismatch from
   /// before this alignment pass) — now stale against the corrected Master
-  /// Profile birthdate (January 13, 2001). Neither [DigitalCredential]
+  /// Profile birthdate (March 15, 2001). Neither [DigitalCredential]
   /// itself nor this screen's own info panel has a structured DOB field
   /// (see that class's fields), so nothing in the app's own UI text
   /// contradicts the corrected profile — only the baked-in card artwork

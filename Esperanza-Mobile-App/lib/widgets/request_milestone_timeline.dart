@@ -4,17 +4,21 @@ import '../models/service_request.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_motion.dart';
 import '../theme/app_spacing.dart';
-import '../theme/app_status.dart';
 
-/// The richer Dokyu/Tulong milestone timeline (Phase 5 — frontend
-/// simulation only, see docs). Unlike the plain "history so far" list this
-/// replaces, it shows the *entire* path for this request — completed
-/// steps, the current one clearly highlighted, and future ones grayed out
-/// with a placeholder instead of a date — using [RequestMilestones]'s
-/// fixed sequence (payment or no-payment) so a citizen always sees what's
-/// still ahead, not just what already happened. Branches into a distinct
-/// Rejected state instead of the normal tail when the request was
-/// rejected, since rejection can happen from any point in the sequence.
+/// The richer Dokyu/Tulong milestone timeline (Phase 5, rewritten for the
+/// Mobile-only final request-flow correction pass — frontend simulation
+/// only, see docs). Unlike the plain "history so far" list this replaces,
+/// it shows the *entire* primary path for this request — completed steps,
+/// the current one clearly highlighted, and future ones grayed out with a
+/// placeholder instead of a date — using [RequestMilestones.sequence]'s
+/// fixed 5 stages (Submitted, Under Verification, Approved, Mark to
+/// Release, Released; payment no longer appears here at all — see that
+/// class's own doc comment) so a citizen always sees what's still ahead.
+/// Branches into a distinct Rejected or Under Review view instead of the
+/// normal tail when applicable, since both can happen from any point in
+/// the sequence — Under Review is the only one of the two that's
+/// resumable: once resolved the request re-enters the sequence at Under
+/// Verification and this branch stops applying on the next rebuild.
 class RequestMilestoneTimeline extends StatelessWidget {
   final ServiceRequest request;
   final Color accent;
@@ -24,18 +28,9 @@ class RequestMilestoneTimeline extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isRejected = request.statusHistory.last.status == RequestMilestones.rejected;
-    // Only the "admin flagged one requirement" simulation sets
-    // flaggedRequirementLabel — the payment sub-steps also canonicalize to
-    // this same 'Waiting Requirements' label but never set it, so this
-    // never misfires for a request that's just waiting on payment.
-    final isAwaitingDocs = request.status == AppStatus.waitingRequirements.label && request.flaggedRequirementLabel != null;
+    final isUnderReview = request.status == RequestMilestones.underReview;
 
-    if (isAwaitingDocs) {
-      // Same reasoning as isRejected below — this can branch off from any
-      // point in the sequence, so walk the real recorded order rather than
-      // the fixed one. Unlike Rejected, this isn't terminal: once resolved,
-      // the request re-enters the normal sequence at Under Verification and
-      // this branch stops applying on the next rebuild.
+    if (isUnderReview) {
       final entries = request.statusHistory;
       return Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -43,11 +38,9 @@ class RequestMilestoneTimeline extends StatelessWidget {
           for (int i = 0; i < entries.length; i++)
             _MilestoneRow(
               label: entries[i].status,
-              state: entries[i].status == AppStatus.waitingRequirements.label
-                  ? _MilestoneState.needsAction
-                  : _MilestoneState.done,
+              state: entries[i].status == RequestMilestones.underReview ? _MilestoneState.needsAction : _MilestoneState.done,
               timestamp: entries[i].at,
-              remarks: entries[i].status == AppStatus.waitingRequirements.label ? null : entries[i].remarks,
+              remarks: entries[i].status == RequestMilestones.underReview ? null : entries[i].remarks,
               isLast: i == entries.length - 1,
               accent: accent,
             ),
@@ -83,7 +76,7 @@ class RequestMilestoneTimeline extends StatelessWidget {
       );
     }
 
-    final sequence = RequestMilestones.sequenceFor(requiresPayment: request.requiresPayment);
+    final sequence = RequestMilestones.sequence;
     final reachedAt = <String, DateTime>{
       for (final e in request.statusHistory)
         if (sequence.contains(e.status)) e.status: e.at,

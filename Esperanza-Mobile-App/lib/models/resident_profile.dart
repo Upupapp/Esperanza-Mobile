@@ -78,6 +78,14 @@ class Individual {
   String occupation;
   String educationalAttainment;
 
+  /// A married woman's birth surname — distinct from [lastName] (her
+  /// current/married surname). Only ever populated for a family member
+  /// whose Web Admin constituent record actually specifies one (see
+  /// ResidentProfileService's Cristy Master Profile alignment); blank for
+  /// every other Individual, since nothing in this app's own forms
+  /// currently captures it as a normal editable field.
+  String maidenName;
+
   /// Reusable Educational-Assistance-sourced student facts — see
   /// ServiceRequestWizardScreen's own prefill block, which reads these the
   /// same way Date of Birth is already prefilled (a starting value in an
@@ -98,6 +106,13 @@ class Individual {
   bool isPWD;
   bool isSoloParent;
   bool isVoter;
+
+  /// 4Ps (Pantawid Pamilyang Pilipino Program) beneficiary — same
+  /// "classification" treatment as the four flags above, added specifically
+  /// so the Web Admin's own vulnerable-sector fact for a constituent can be
+  /// reflected here without inventing a new, separate tagging system (see
+  /// ResidentProfileService's Cristy Master Profile alignment).
+  bool isFourPsBeneficiary;
   String? photoPath;
   /// The profile photo's own bytes, base64-encoded — the source of truth
   /// for display everywhere (see utils/demo_resident_photo.dart's
@@ -137,6 +152,7 @@ class Individual {
     this.completeAddress = '',
     this.occupation = '',
     this.educationalAttainment = '',
+    this.maidenName = '',
     this.placeOfBirth = '',
     this.schoolName = '',
     this.yearOrGradeLevel = '',
@@ -148,6 +164,7 @@ class Individual {
     this.isPWD = false,
     this.isSoloParent = false,
     this.isVoter = false,
+    this.isFourPsBeneficiary = false,
     this.photoPath,
     this.photoBytesBase64,
     List<String>? documentPaths,
@@ -186,6 +203,7 @@ class Individual {
         'completeAddress': completeAddress,
         'occupation': occupation,
         'educationalAttainment': educationalAttainment,
+        'maidenName': maidenName,
         'placeOfBirth': placeOfBirth,
         'schoolName': schoolName,
         'yearOrGradeLevel': yearOrGradeLevel,
@@ -197,6 +215,7 @@ class Individual {
         'isPWD': isPWD,
         'isSoloParent': isSoloParent,
         'isVoter': isVoter,
+        'isFourPsBeneficiary': isFourPsBeneficiary,
         'photoPath': photoPath,
         'photoBytesBase64': photoBytesBase64,
         'documentPaths': documentPaths,
@@ -224,6 +243,7 @@ class Individual {
         completeAddress: json['completeAddress'] ?? '',
         occupation: json['occupation'] ?? '',
         educationalAttainment: json['educationalAttainment'] ?? '',
+        maidenName: json['maidenName'] ?? '',
         placeOfBirth: json['placeOfBirth'] ?? '',
         schoolName: json['schoolName'] ?? '',
         yearOrGradeLevel: json['yearOrGradeLevel'] ?? '',
@@ -235,6 +255,7 @@ class Individual {
         isPWD: json['isPWD'] ?? false,
         isSoloParent: json['isSoloParent'] ?? false,
         isVoter: json['isVoter'] ?? false,
+        isFourPsBeneficiary: json['isFourPsBeneficiary'] ?? false,
         photoPath: json['photoPath'],
         photoBytesBase64: json['photoBytesBase64'],
         documentPaths: (json['documentPaths'] as List?)?.cast<String>() ?? [],
@@ -462,6 +483,26 @@ class ResidentProfile {
   String? correctionMessage;
   DateTime? submittedAt;
   bool joinRequestSent;
+
+  /// Household/family-level emergency contact — editable via Family
+  /// Information's own Edit action (see FamilyInformationScreen and
+  /// ResidentProfileService.saveEmergencyContact), populated by default
+  /// only where a constituent's own Web Admin record actually specifies one
+  /// (see ResidentProfileService's Cristy Master Profile alignment). Blank
+  /// for every profile with nothing on file.
+  String emergencyContactName;
+  String emergencyContactRelationship;
+  String emergencyContactNumber;
+
+  /// True once the citizen has explicitly saved their own Emergency Contact
+  /// edit — from that point on, the Cristy Master Profile alignment's own
+  /// seeded default (Roberto Pareja / Brother / 0919 502 7735) must never
+  /// overwrite it again on a later app launch. Left false for a profile
+  /// that has never gone through that save flow, so the seeded default
+  /// keeps applying/migrating normally until the citizen actually changes
+  /// it.
+  bool emergencyContactEdited;
+
   /// When the citizen last saved a new profile photo through the camera-icon
   /// flow (see ResidentProfileService.updateProfilePhoto) — null until they
   /// use that flow for the first time. Deliberately never set by seeding
@@ -486,14 +527,29 @@ class ResidentProfile {
     this.correctionMessage,
     this.submittedAt,
     this.joinRequestSent = false,
+    this.emergencyContactName = '',
+    this.emergencyContactRelationship = '',
+    this.emergencyContactNumber = '',
+    this.emergencyContactEdited = false,
     this.lastProfilePhotoChangeAt,
   }) : familyMembers = familyMembers ?? [];
 
   /// Seeds a brand-new profile from the citizen's existing account so the
   /// Personal Information step starts pre-filled rather than blank.
-  factory ResidentProfile.seedFrom(CitizenAccount account) {
+  /// [familyIdOverride]/[householdIdOverride] let a specific known
+  /// constituent record (see ResidentProfileService's Cristy Master Profile
+  /// alignment, whose Web Admin record specifies exact ids) seed with those
+  /// exact ids immediately rather than the generic hash-derived scheme every
+  /// other account still uses.
+  factory ResidentProfile.seedFrom(
+    CitizenAccount account, {
+    String? familyIdOverride,
+    String? householdIdOverride,
+  }) {
     final year = DateTime.now().year;
     final shortId = account.id.hashCode.abs() % 900 + 100;
+    final familyId = familyIdOverride ?? 'FAM-$year-$shortId';
+    final householdId = householdIdOverride ?? 'HH-$year-$shortId';
     return ResidentProfile(
       citizenAccountId: account.id,
       personal: Individual(
@@ -509,14 +565,14 @@ class ResidentProfile {
         sitioPurok: account.purok == '—' ? '' : account.purok,
         completeAddress: account.address,
         occupation: account.occupation == '—' ? '' : account.occupation,
-        householdId: 'HH-$year-$shortId',
+        householdId: householdId,
       ),
       familyName: '${account.lastName} Family',
       headIndividualId: account.id,
-      familyId: 'FAM-$year-$shortId',
-      householdId: 'HH-$year-$shortId',
+      familyId: familyId,
+      householdId: householdId,
       household: Household(
-        householdId: 'HH-$year-$shortId',
+        householdId: householdId,
         barangay: account.barangay,
         sitioPurok: account.purok == '—' ? '' : account.purok,
         completeAddress: account.address,
@@ -666,6 +722,10 @@ class ResidentProfile {
         'correctionMessage': correctionMessage,
         'submittedAt': submittedAt?.toIso8601String(),
         'joinRequestSent': joinRequestSent,
+        'emergencyContactName': emergencyContactName,
+        'emergencyContactRelationship': emergencyContactRelationship,
+        'emergencyContactNumber': emergencyContactNumber,
+        'emergencyContactEdited': emergencyContactEdited,
         'lastProfilePhotoChangeAt': lastProfilePhotoChangeAt?.toIso8601String(),
       };
 
@@ -685,6 +745,10 @@ class ResidentProfile {
         correctionMessage: json['correctionMessage'],
         submittedAt: json['submittedAt'] != null ? DateTime.parse(json['submittedAt']) : null,
         joinRequestSent: json['joinRequestSent'] ?? false,
+        emergencyContactName: json['emergencyContactName'] ?? '',
+        emergencyContactRelationship: json['emergencyContactRelationship'] ?? '',
+        emergencyContactNumber: json['emergencyContactNumber'] ?? '',
+        emergencyContactEdited: json['emergencyContactEdited'] ?? false,
         lastProfilePhotoChangeAt:
             json['lastProfilePhotoChangeAt'] != null ? DateTime.parse(json['lastProfilePhotoChangeAt']) : null,
       );

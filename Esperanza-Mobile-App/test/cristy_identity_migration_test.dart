@@ -189,8 +189,12 @@ void main() {
         expect(migrated.applicantId, 'ESP-RES-2024-1044');
         expect(migrated.applicantName, 'Cristy Bonghanoy');
         expect(migrated.receipt!.residentName, 'Cristy Bonghanoy');
-        // Everything else about the already-paid request is preserved.
-        expect(migrated.status, 'Paid');
+        // Everything else about the already-paid request is preserved — its
+        // old 'Paid' status is itself an obsolete tracking label, separately
+        // remapped to 'Approved' by _migrateObsoleteTrackingLabels (see the
+        // Mobile-only final request-flow correction pass), which runs
+        // alongside this identity migration, not instead of it.
+        expect(migrated.status, 'Approved');
         expect(migrated.receipt!.referenceNumber, 'GC-1112223334');
         expect(migrated.receipt!.amount, '₱50.00');
 

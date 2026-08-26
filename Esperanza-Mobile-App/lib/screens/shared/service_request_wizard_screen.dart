@@ -21,8 +21,10 @@ import '../../widgets/app_date_field.dart';
 import '../../widgets/app_text_field.dart';
 import '../../widgets/form_section.dart';
 import '../../widgets/onboarding_step_indicator.dart';
+import '../../widgets/payment_method_tile.dart';
 import '../../widgets/requirement_uploader.dart';
 import '../profile/resident_profile/personal_information_screen.dart';
+import 'receipt_screen.dart';
 import 'request_detail_screen.dart';
 import 'request_submitted_screen.dart';
 
@@ -63,18 +65,33 @@ class _ServiceRequestWizardScreenState extends State<ServiceRequestWizardScreen>
   List<ServiceFormStep> get _serviceSteps => widget.item.formSpec!.steps;
   int get _requirementsStep => _serviceSteps.length + 1;
   int get _reviewStep => _serviceSteps.length + 2;
-  int get _lastStep => _reviewStep;
+
+  /// Every Dokyu service with a real configured fee gets its own Payment
+  /// Method step, after Review — Tulong never does (assistance
+  /// applications have no payment concept), and a Free Dokyu service
+  /// skips straight from Review to submission. See the Mobile-only final
+  /// request-flow correction pass: payment now happens during the
+  /// application/submission flow itself, before a request exists at all,
+  /// never as a later tracking milestone.
+  bool get _isPaidDokyu => widget.category == ServiceCategory.dokyu && widget.item.fee != 'Free';
+  int get _paymentStep => _reviewStep + 1;
+  int get _lastStep => _isPaidDokyu ? _paymentStep : _reviewStep;
 
   late final List<String> _stepLabels = [
     'Applicant Info',
     for (final s in _serviceSteps) s.label,
     'Requirements',
-    'Review & Submit',
+    'Review',
+    if (_isPaidDokyu) 'Payment',
   ];
 
   int _step = 0;
   String? _error;
   bool _submitting = false;
+
+  /// 'GCash' / 'Maya' / 'Onsite' — chosen on the Payment Method step, only
+  /// ever meaningful when [_isPaidDokyu].
+  String? _paymentMethod;
 
   // Applicant info (step 0) — prefilled from the signed-in account, still
   // editable since a request's details can differ from the base profile
@@ -184,6 +201,22 @@ class _ServiceRequestWizardScreenState extends State<ServiceRequestWizardScreen>
         if (field == null) continue;
         if (field.type == ServiceFieldType.text) {
           _controllerFor(key).text = masterValue;
+        } else if (field.type == ServiceFieldType.select) {
+          // A select field's own local option list is sourced per-service
+          // from an official form and isn't guaranteed to include every
+          // Master Profile value verbatim (e.g. several older forms here
+          // predate "Senior High School" as its own tier and only offer
+          // "High School"/"College") — DropdownButtonFormField crashes
+          // outright if given a value absent from its own items, so this
+          // must never force a mismatched value in. Skipping leaves the
+          // field a normal, still-required editable select the citizen
+          // picks themself, same as before this Master Profile value ever
+          // existed.
+          if (field.options?.contains(masterValue) ?? false) {
+            _values[key] = masterValue;
+          } else {
+            continue;
+          }
         } else {
           _values[key] = masterValue;
         }
@@ -253,6 +286,24 @@ class _ServiceRequestWizardScreenState extends State<ServiceRequestWizardScreen>
         if (digitsOnly.isNotEmpty) _controllerFor('parentsMonthlyIncome').text = digitsOnly;
       }
 
+      // Emergency Contact — sourced from Family Information's own Emergency
+      // Contact fields (see ResidentProfile.emergencyContactName/Number and
+      // the targeted Family Information Emergency Contact editing pass),
+      // reused by any service form that asks for one under these exact
+      // shared field-key names (e.g. Pet Registration, Solo Parent Cash
+      // Assistance) — same "single source of truth" treatment as
+      // Father/Mother above, so this never needs a separate
+      // service-specific demoDefault.
+      final emergencyContactPrefills = <String, String>{
+        'emergencyContactName': profile.emergencyContactName,
+        'emergencyContactNumber': profile.emergencyContactNumber,
+      };
+      for (final entry in emergencyContactPrefills.entries) {
+        if (entry.value.trim().isEmpty) continue;
+        if (_fieldByKey(entry.key) == null) continue;
+        _controllerFor(entry.key).text = entry.value;
+      }
+
       // Service-specific demo answers (see mock_catalog.dart's own
       // CatalogItem.demoDefaults doc comment) — realistic starting values
       // for fields no Master Profile mechanism above already covers (e.g.
@@ -280,6 +331,15 @@ class _ServiceRequestWizardScreenState extends State<ServiceRequestWizardScreen>
               // DateTime has no const constructor.
               _values.putIfAbsent(entry.key, () => DateTime.parse(entry.value as String));
             case ServiceFieldType.select:
+              // Guards the same class of crash as the Master-Profile
+              // select prefill above — a demoDefault authored for one
+              // version of a field's option list must never be trusted
+              // blindly if that list changes later, since
+              // DropdownButtonFormField crashes outright on an unmatched
+              // value.
+              if (field.options?.contains(entry.value) ?? false) {
+                _values.putIfAbsent(entry.key, () => entry.value);
+              }
             case ServiceFieldType.multiselect:
             case ServiceFieldType.checkbox:
               _values.putIfAbsent(entry.key, () => entry.value);
@@ -371,6 +431,10 @@ class _ServiceRequestWizardScreenState extends State<ServiceRequestWizardScreen>
             ? 'Please attach your ${missing.first.label}.'
             : 'Please attach: ${missing.map((r) => r.label).join(', ')}.';
       }
+      return null;
+    }
+    if (step == _paymentStep) {
+      if (_paymentMethod == null) return 'Please choose a payment method.';
       return null;
     }
     return null; // review step
@@ -539,10 +603,32 @@ class _ServiceRequestWizardScreenState extends State<ServiceRequestWizardScreen>
       formFields: _buildFormFields(),
       requiresPayment: widget.item.fee != 'Free',
       fee: widget.item.fee,
+      paymentMethod: _isPaidDokyu ? _paymentMethod : null,
     );
 
     if (!mounted) return;
     setState(() => _submitting = false);
+
+    // Every Dokyu request (paid or free) gets a receipt at submission time
+    // now (see RequestsService.submit) — Tulong never does, so it keeps
+    // going straight to the existing Request Submitted screen.
+    if (widget.category == ServiceCategory.dokyu) {
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(
+          // routeContext, not this wizard State's own `context` — by the
+          // time "Done" is actually tapped, pushReplacement has already
+          // unmounted this wizard screen, so capturing `context` here would
+          // throw "This widget has been unmounted" the moment onDone runs.
+          builder: (routeContext) => ReceiptScreen(
+            receipt: request.receipt!,
+            onDone: () => Navigator.of(routeContext).pushReplacement(
+              MaterialPageRoute(builder: (_) => RequestDetailScreen(requestId: request.id)),
+            ),
+          ),
+        ),
+      );
+      return;
+    }
 
     Navigator.of(context).pushReplacement(
       MaterialPageRoute(
@@ -586,7 +672,9 @@ class _ServiceRequestWizardScreenState extends State<ServiceRequestWizardScreen>
                   Expanded(
                     flex: 2,
                     child: AppButton(
-                      label: _step == _lastStep ? 'Submit Request' : 'Continue',
+                      label: _step != _lastStep
+                          ? 'Continue'
+                          : (_isPaidDokyu ? 'Confirm Payment' : 'Submit Request'),
                       icon: _step == _lastStep ? Icons.send_rounded : Icons.arrow_forward_rounded,
                       iconTrailing: _step != _lastStep,
                       fullWidth: true,
@@ -607,6 +695,7 @@ class _ServiceRequestWizardScreenState extends State<ServiceRequestWizardScreen>
     if (_step == 0) return _applicantInfoStep();
     if (_step >= 1 && _step <= _serviceSteps.length) return _serviceFieldStep(_serviceSteps[_step - 1]);
     if (_step == _requirementsStep) return _requirementsAttachmentsStep();
+    if (_step == _paymentStep) return _paymentStepWidget();
     return _reviewStepWidget();
   }
 
@@ -829,9 +918,11 @@ class _ServiceRequestWizardScreenState extends State<ServiceRequestWizardScreen>
           style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
         ),
         const SizedBox(height: 6),
-        const Text(
-          'Make sure everything looks correct before submitting.',
-          style: TextStyle(fontSize: 12.5, color: AppColors.textMuted, height: 1.4),
+        Text(
+          _isPaidDokyu
+              ? 'Make sure everything looks correct before continuing to payment.'
+              : 'Make sure everything looks correct before submitting.',
+          style: const TextStyle(fontSize: 12.5, color: AppColors.textMuted, height: 1.4),
         ),
         const SizedBox(height: AppSpacing.xl),
         _reviewRow('Full name', _fullName.text.trim(), onEdit: () => setState(() => _step = 0)),
@@ -873,6 +964,57 @@ class _ServiceRequestWizardScreenState extends State<ServiceRequestWizardScreen>
           'Attachments',
           _attachmentCount == 0 ? '—' : '$_attachmentCount file(s)',
           onEdit: () => setState(() => _step = _requirementsStep),
+        ),
+        if (_isPaidDokyu) _reviewRow('Fee', widget.item.fee, onEdit: null),
+        if (_error != null) ...[
+          const SizedBox(height: AppSpacing.md),
+          Text(_error!, style: const TextStyle(fontSize: 12.5, color: AppColors.rose600)),
+        ],
+      ],
+    );
+  }
+
+  Widget _paymentStepWidget() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const Text(
+          'Choose Payment Method',
+          style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
+        ),
+        const SizedBox(height: 6),
+        Text(
+          'Required fee for this request: ${widget.item.fee}',
+          style: const TextStyle(fontSize: 12.5, color: AppColors.textMuted, height: 1.4),
+        ),
+        const SizedBox(height: AppSpacing.xl),
+        PaymentMethodTile(
+          icon: Icons.storefront_outlined,
+          iconColor: widget.accent,
+          title: 'Pay at Municipal Office',
+          subtitle: 'Onsite — settle the fee in person when you visit or claim your document.',
+          selected: _paymentMethod == 'Onsite',
+          onTap: () => setState(() => _paymentMethod = 'Onsite'),
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        PaymentMethodTile(
+          icon: Icons.account_balance_wallet_outlined,
+          iconColor: AppColors.brand600,
+          title: 'GCash',
+          subtitle: 'Simulated online payment — no real transaction is made.',
+          demo: true,
+          selected: _paymentMethod == 'GCash',
+          onTap: () => setState(() => _paymentMethod = 'GCash'),
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        PaymentMethodTile(
+          icon: Icons.credit_card_outlined,
+          iconColor: AppColors.emerald700,
+          title: 'Maya',
+          subtitle: 'Simulated online payment — no real transaction is made.',
+          demo: true,
+          selected: _paymentMethod == 'Maya',
+          onTap: () => setState(() => _paymentMethod = 'Maya'),
         ),
         if (_error != null) ...[
           const SizedBox(height: AppSpacing.md),
@@ -979,12 +1121,20 @@ class _MasterSourcedField extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(
-              label,
-              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: AppColors.slate700),
+            // Expanded, not a bare fixed-size child in a spaceBetween Row —
+            // a longer field label (e.g. "Educational attainment", now also
+            // reachable here since the Master Profile started answering it
+            // — see the Cristy Master Profile Web Admin sync) plus "Edit
+            // Profile" together can exceed a narrow phone's width.
+            Expanded(
+              child: Text(
+                label,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: AppColors.slate700),
+              ),
             ),
+            const SizedBox(width: AppSpacing.sm),
             GestureDetector(
               onTap: onEditProfile,
               child: const Text(
@@ -1107,3 +1257,4 @@ class _CheckboxField extends StatelessWidget {
     );
   }
 }
+

@@ -16,11 +16,15 @@ import 'package:esperanza_mobile/utils/tulong_eligibility.dart';
 const _cristyId = 'ESP-RES-2024-1044';
 const _cristyName = 'Cristy Bonghanoy';
 
-/// The exact nine ids RequestsService's own seeding used to create (three
-/// Dokyu, three Tulong status-simulation demos, plus two Dokyu / one Tulong
-/// already-paid demos) — copied literally here (not imported) so this test
-/// independently proves the cleanup targets these specific, known ids
-/// rather than relying on the same constant the implementation itself uses.
+/// The exact eight ids RequestsService's own seeding used to create (three
+/// Dokyu, three Tulong status-simulation demos, plus two Dokyu already-paid
+/// demos) — copied literally here (not imported) so this test independently
+/// proves the cleanup targets these specific, known ids rather than relying
+/// on the same constant the implementation itself uses. There is no Tulong
+/// already-paid demo — Tulong assistance applications never have a payment
+/// method or receipt (see the Mobile-only final request-flow correction
+/// pass); an earlier build's seed briefly had one
+/// ('demo-paid-tulong-pension-onsite'), since removed.
 const _legacySeedIds = [
   'demo-dokyu-barangay-clearance',
   'demo-dokyu-business-permit',
@@ -30,7 +34,6 @@ const _legacySeedIds = [
   'demo-tulong-educational',
   'demo-paid-dokyu-residency-gcash',
   'demo-paid-dokyu-rpt-maya',
-  'demo-paid-tulong-pension-onsite',
 ];
 
 ServiceRequest _legacySeedFixture(String id, ServiceCategory category) => ServiceRequest(
@@ -90,7 +93,7 @@ void main() {
     });
 
     testWidgets(
-      'a device that already persisted the nine legacy seeded requests has them removed, '
+      'a device that already persisted the eight legacy seeded requests has them removed, '
       'but a genuinely-submitted request is preserved untouched',
       (tester) async {
         final legacySeeds = _legacySeedIds

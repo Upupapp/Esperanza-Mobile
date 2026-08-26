@@ -14,8 +14,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:esperanza_mobile/models/attachment.dart';
 import 'package:esperanza_mobile/models/service_request.dart';
+import 'package:esperanza_mobile/screens/shared/receipt_screen.dart';
 import 'package:esperanza_mobile/screens/shared/request_detail_screen.dart';
-import 'package:esperanza_mobile/screens/shared/request_submitted_screen.dart';
 import 'package:esperanza_mobile/screens/shared/service_request_wizard_screen.dart';
 import 'package:esperanza_mobile/services/citizen_session_service.dart';
 import 'package:esperanza_mobile/services/master_file_service.dart';
@@ -175,14 +175,17 @@ void main() {
         // Applicant Info -> Continue.
         await tester.tap(find.widgetWithText(AppButton, 'Continue'));
         await tester.pumpAndSettle();
-        // Personal Information step — Date of Birth/Place of Birth/Sex/
-        // Civil Status are already locked/prefilled from her Resident
-        // Profile (see the wizard's own _masterEligibleKeys treatment);
-        // only Educational Attainment is a real, still-empty select here.
-        await tester.tap(find.text('Select Educational Attainment'), warnIfMissed: false);
-        await tester.pumpAndSettle();
-        await tester.tap(find.text('College').last);
-        await tester.pumpAndSettle();
+        // Personal Information step — Date of Birth/Sex/Civil Status are
+        // locked/prefilled from her Resident Profile (see the wizard's own
+        // _masterEligibleKeys treatment). Educational Attainment is the one
+        // exception: her real profile value ('Senior High School') isn't in
+        // this field's own option list (predates the K-12 tier), so the
+        // master-eligible guard safely skips locking it — it stays a
+        // normal, editable select, filled via an explicit demoDefault
+        // ('High School', the closest valid, non-crashing approximation)
+        // so Continue is never blocked here either.
+        expect(find.text('High School'), findsOneWidget);
+        expect(find.text('Select Educational Attainment'), findsNothing);
         await tester.tap(find.widgetWithText(AppButton, 'Continue'));
         await tester.pumpAndSettle();
         // Government Service Record step — every field optional.
@@ -209,7 +212,12 @@ void main() {
         await tester.tap(find.widgetWithText(AppButton, 'Submit Request'));
         await tester.pumpAndSettle();
 
-        expect(find.byType(RequestSubmittedScreen), findsOneWidget);
+        // Every Dokyu request now lands on the receipt screen first — a
+        // receipt is generated at submission time, paid or free — never
+        // the older generic Request Submitted screen (see
+        // RequestsService.submit). Senior Citizen ID is Free, so it gets a
+        // no-amount formality receipt, not a payment step.
+        expect(find.byType(ReceiptScreen), findsOneWidget);
         final submitted = requests.all.single;
         expect(submitted.typeName, _seniorCitizenIdName);
         // The whole point of this move — a *new* application is now
@@ -217,7 +225,7 @@ void main() {
         expect(submitted.category, ServiceCategory.dokyu);
         expect(submitted.attachments.length, 3);
 
-        await tester.tap(find.text('Track This Request'));
+        await tester.tap(find.widgetWithText(AppButton, 'Done'));
         await tester.pumpAndSettle();
 
         expect(find.byType(RequestDetailScreen), findsOneWidget);

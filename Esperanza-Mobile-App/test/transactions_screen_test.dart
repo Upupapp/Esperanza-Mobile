@@ -1,7 +1,10 @@
-// Coverage for the Transactions screen (Milestone B) — it must be a
-// read-only view derived from each ServiceRequest's own Receipt, never a
-// separate hardcoded list, sorted newest-first, and it must reuse the same
+// Coverage for the Transactions screen — it must be a read-only view
+// derived from each ServiceRequest's own Receipt, never a separate
+// hardcoded list, sorted newest-first, and it must reuse the same
 // ReceiptScreen/receipt data as the request detail screen's "View Receipt".
+// Free-type receipts (a Free Dokyu service's own formality/claim-stub — see
+// RequestsService.submit) are excluded: this screen is specifically "paid
+// transactions."
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
@@ -9,6 +12,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:esperanza_mobile/models/citizen_account.dart';
 import 'package:esperanza_mobile/models/receipt.dart';
+import 'package:esperanza_mobile/models/service_request.dart';
 import 'package:esperanza_mobile/screens/shared/receipt_screen.dart';
 import 'package:esperanza_mobile/screens/shared/request_detail_screen.dart';
 import 'package:esperanza_mobile/screens/shared/transactions_screen.dart';
@@ -64,16 +68,26 @@ Future<void> _pumpTransactions(WidgetTester tester, RequestsService requests, {C
   await tester.pumpAndSettle();
 }
 
-/// Drives 'demo-dokyu-barangay-clearance' (₱50.00) from Approved to Receipt
-/// Generated, choosing [method] at the payment-method step, using the
-/// already-loaded [requests] service directly (no detail screen needed
-/// here — RequestsService.advanceMilestone is the same code path the
-/// detail screen's "Next Demo Step" button calls).
-Future<void> _payThrough(RequestsService requests, String method) async {
-  await requests.advanceMilestone('demo-dokyu-barangay-clearance'); // Approved -> Waiting for Payment
-  await requests.advanceMilestone('demo-dokyu-barangay-clearance', paymentMethod: method); // -> Payment Method Selected
-  await requests.advanceMilestone('demo-dokyu-barangay-clearance'); // -> Payment Processing
-  await requests.advanceMilestone('demo-dokyu-barangay-clearance'); // -> Receipt Generated
+/// Submits a brand-new paid Barangay Clearance request via [method] — the
+/// only way to create a receipt with a specific payment method now that
+/// payment happens synchronously inside RequestsService.submit (see the
+/// Mobile-only final request-flow correction pass). There is no longer a
+/// way to "pay" an already-existing request after the fact, so this always
+/// creates its own new request rather than advancing a seeded one.
+Future<ServiceRequest> _payThrough(RequestsService requests, String method) {
+  return requests.submit(
+    applicantId: 'ESP-RES-2024-1044',
+    applicantName: 'Cristy Bonghanoy',
+    typeName: 'Barangay Clearance',
+    category: ServiceCategory.dokyu,
+    office: 'Barangay Hall',
+    purpose: 'Proof of Residency',
+    expectedDays: '1-2 working days',
+    attachments: const [],
+    requiresPayment: true,
+    fee: '₱50.00',
+    paymentMethod: method,
+  );
 }
 
 void main() {
@@ -89,27 +103,36 @@ void main() {
   });
 
   group('Seeded demo transactions (verified Cristy Bonghanoy)', () {
-    testWidgets('all three seeded paid transactions are visible, one per payment method, with real service/fee data', (
+    testWidgets('every seeded paid Dokyu request appears, free ones excluded, with real service/fee/method data', (
       tester,
     ) async {
       final requests = await _loaded(tester);
       await _pumpTransactions(tester, requests);
 
+      // Every Dokyu demo-status seed now gets a receipt at seed time (see
+      // RequestsService._seedDemoStatusSimulationsIfNeeded) — the two paid
+      // ones (Barangay Clearance, Business Permit) show up here; the free
+      // one (Certificate of Indigency) does not.
+      expect(find.text('Barangay Clearance'), findsOneWidget);
+      expect(find.text('Business Permit (New Application)'), findsOneWidget);
       expect(find.text('Certificate of Residency'), findsOneWidget);
       expect(find.text('Real Property Tax Clearance'), findsOneWidget);
-      expect(find.text('Social Pension (Indigent Senior Citizen)'), findsOneWidget);
-      expect(find.textContaining('₱50.00'), findsWidgets); // Certificate of Residency's real fee
-      expect(find.textContaining('₱100.00'), findsWidgets); // RPT Clearance's and Social Pension's real fees
+      expect(find.text('Certificate of Indigency'), findsNothing);
+      expect(find.textContaining('₱50.00'), findsWidgets); // Barangay Clearance's and Residency's real fees
+      expect(find.textContaining('₱100.00'), findsWidgets); // RPT Clearance's real fee
       expect(find.textContaining('GCash'), findsWidgets);
       expect(find.textContaining('Maya'), findsWidgets);
-      expect(find.textContaining('Onsite / Municipal Office'), findsWidgets);
-      expect(find.text('Paid'), findsNWidgets(3));
+      expect(find.text('Paid'), findsNWidgets(4));
     });
 
     testWidgets('does not duplicate on a second load (simulates a restart)', (tester) async {
       final requests = await _loaded(tester);
-      final paidCount = requests.all.where((r) => r.receipt != null).length;
-      expect(paidCount, 3);
+      final receiptCount = requests.all.where((r) => r.receipt != null).length;
+      // 3 seeded Dokyu demo-status requests (2 paid + 1 free) + 2 paid-
+      // transaction seeds — every Dokyu request gets a receipt at seed
+      // time now, paid or free (see RequestsService.submit's own doc
+      // comment on why); Tulong requests never do.
+      expect(receiptCount, 5);
 
       // Persist, then restore into a fresh RequestsService instance from
       // the same SharedPreferences-backed storage — exactly what an app
@@ -121,7 +144,7 @@ void main() {
         if (attempts > 100) throw StateError('RequestsService never finished loading.');
         await tester.pump(const Duration(milliseconds: 1));
       }
-      expect(reloaded.all.where((r) => r.receipt != null).length, 3);
+      expect(reloaded.all.where((r) => r.receipt != null).length, 5);
     });
 
     testWidgets("the duplicate Cristy registration does not inherit the verified account's transactions", (
@@ -155,17 +178,30 @@ void main() {
   testWidgets('A paid request appears as a transaction card with its own receipt data, and View Receipt opens '
       'the same receipt shown from the request detail screen', (tester) async {
     final requests = await _loaded(tester);
-    await _payThrough(requests, 'GCash');
-    final receipt = requests.all.firstWhere((r) => r.id == 'demo-dokyu-barangay-clearance').receipt!;
+    // TransactionsScreen's ListView.builder only builds cards within the
+    // current viewport plus cache extent — the default 800x600 test canvas
+    // is too short to fit all 5 cards (4 seeded + the one this test adds)
+    // at once, same reasoning as dokyu_requirement_uploads_test.dart's own
+    // taller-viewport fix. A tall portrait viewport keeps every card
+    // reachable without needing to scroll before every assertion.
+    tester.view.physicalSize = const Size(390, 1400);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final newRequest = await _payThrough(requests, 'GCash');
+    final receipt = requests.all.firstWhere((r) => r.id == newRequest.id).receipt!;
 
     await _pumpTransactions(tester, requests);
 
-    expect(find.text('Barangay Clearance'), findsOneWidget);
+    expect(find.text('Barangay Clearance'), findsNWidgets(2)); // the seeded one + this new one
     expect(find.text(receipt.requestReferenceNumber), findsOneWidget);
     expect(find.textContaining(receipt.amount), findsWidgets);
     expect(find.textContaining('GCash'), findsWidgets);
-    expect(find.text('Paid'), findsNWidgets(4)); // 3 seeded + this one
+    expect(find.text('Paid'), findsNWidgets(5)); // 4 seeded + this one
 
+    // Newest-first sort puts the just-paid one first — its own card's
+    // "View Receipt" is the first in the list.
     await tester.tap(find.text('View Receipt').first);
     await tester.pumpAndSettle();
     expect(find.byType(ReceiptScreen), findsOneWidget);
@@ -175,15 +211,15 @@ void main() {
 
   testWidgets('Most recent transaction is listed first', (tester) async {
     final requests = await _loaded(tester);
-    await _payThrough(requests, 'Onsite'); // demo-dokyu-barangay-clearance, paid first
-    final firstReceipt = requests.all.firstWhere((r) => r.id == 'demo-dokyu-barangay-clearance').receipt!;
+    final newRequest = await _payThrough(requests, 'Onsite'); // paid "now" — must sort above every seeded one
+    final firstReceipt = requests.all.firstWhere((r) => r.id == newRequest.id).receipt!;
 
-    // The 3 seeded transactions are all dated in the past (see
-    // RequestsService._seedPaidTransactionDemoIfNeeded) — this one was just
-    // paid "now", so it must sort above all of them. The ListView builds
-    // its children in list order, so the first Text built in the whole
-    // tree (build order, not screen position) is this transaction's own
-    // service name.
+    // The seeded transactions are all dated in the past (see
+    // RequestsService's own seeding functions) — this one was just paid
+    // "now", so it must sort above all of them. The ListView builds its
+    // children in list order, so the first Text built in the whole tree
+    // (build order, not screen position) is this transaction's own service
+    // name.
     await _pumpTransactions(tester, requests);
 
     expect(find.text(firstReceipt.requestReferenceNumber), findsOneWidget);
@@ -196,44 +232,42 @@ void main() {
 
   testWidgets('Free Dokyu/Tulong requests never produce a transaction entry', (tester) async {
     final requests = await _loaded(tester);
-    // demo-tulong-medical and demo-tulong-financial are seeded Free
-    // (requiresPayment: false) — confirm neither ever gets a receipt and
-    // neither shows up here even though other paid requests exist.
+    // demo-tulong-medical, demo-tulong-financial (Tulong — never has a
+    // receipt at all) and demo-dokyu-certificate-indigency (a Free Dokyu
+    // service — gets a receipt, but never a *transaction*) must never show
+    // up here even though other paid requests exist.
     await _payThrough(requests, 'Maya');
 
     await _pumpTransactions(tester, requests);
 
     expect(find.text('Medical Assistance (AICS)'), findsNothing);
     expect(find.text('Financial Assistance (AICS)'), findsNothing);
-    expect(find.text('Barangay Clearance'), findsOneWidget); // the one that WAS paid
+    expect(find.text('Certificate of Indigency'), findsNothing);
+    expect(find.text('Barangay Clearance'), findsNWidgets(2)); // seeded one + this new paid one
   });
 
   testWidgets('Onsite transaction shows "Onsite / Municipal Office" as its payment method', (tester) async {
     final requests = await _loaded(tester);
-    await _payThrough(requests, 'Onsite');
-    final receipt = requests.all.firstWhere((r) => r.id == 'demo-dokyu-barangay-clearance').receipt!;
+    final newRequest = await _payThrough(requests, 'Onsite');
+    final receipt = requests.all.firstWhere((r) => r.id == newRequest.id).receipt!;
     expect(receipt.type, ReceiptType.onsite);
 
     await _pumpTransactions(tester, requests);
 
-    // findsWidgets, not findsOneWidget: the seeded Social Pension
-    // transaction is also paid Onsite (see
-    // RequestsService._seedPaidTransactionDemoIfNeeded) — both correctly
-    // show the same payment-method label.
-    expect(find.textContaining('Onsite / Municipal Office'), findsWidgets);
+    expect(find.textContaining('Onsite / Municipal Office'), findsOneWidget);
   });
 
   testWidgets(
     "Request detail screen's View Receipt reaches the exact same Receipt object Transactions would show for it",
     (tester) async {
       final requests = await _loaded(tester);
-      await _payThrough(requests, 'GCash');
-      final receipt = requests.all.firstWhere((r) => r.id == 'demo-dokyu-barangay-clearance').receipt!;
+      final newRequest = await _payThrough(requests, 'GCash');
+      final receipt = requests.all.firstWhere((r) => r.id == newRequest.id).receipt!;
 
       await tester.pumpWidget(
         ChangeNotifierProvider<RequestsService>.value(
           value: requests,
-          child: MaterialApp(home: RequestDetailScreen(requestId: 'demo-dokyu-barangay-clearance')),
+          child: MaterialApp(home: RequestDetailScreen(requestId: newRequest.id)),
         ),
       );
       await tester.pumpAndSettle();

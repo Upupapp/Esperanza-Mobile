@@ -153,8 +153,27 @@ class _FamilyInformationScreenState extends State<FamilyInformationScreen> {
                 ),
                 _InfoRow(label: 'Members', value: '${profile.allFamilyIndividuals.length}'),
                 _InfoRow(label: 'Family ID', value: profile.familyId, muted: true),
+                _InfoRow(label: 'Household ID', value: profile.householdId, muted: true),
+                // Mother's Maiden Name — a plain display fact sourced from
+                // the seeded Mother family member's own maidenName (see
+                // Individual.maidenName's own doc comment); shown only when
+                // one is actually on file, never invented for a family
+                // without this specific data point.
+                if (profile.familyMembers.any(
+                  (m) => m.relationshipToHead == 'Mother' && m.maidenName.trim().isNotEmpty,
+                ))
+                  _InfoRow(
+                    label: "Mother's Maiden Name",
+                    value: profile.familyMembers
+                        .firstWhere((m) => m.relationshipToHead == 'Mother' && m.maidenName.trim().isNotEmpty)
+                        .maidenName,
+                  ),
               ],
             ),
+            if (profile.emergencyContactName.trim().isNotEmpty) ...[
+              const SizedBox(height: AppSpacing.xl),
+              _EmergencyContactSection(accountId: _accountId, profile: profile),
+            ],
             const SizedBox(height: AppSpacing.xl),
             const Text(
               'Family Members',
@@ -242,6 +261,191 @@ class _InfoRow extends StatelessWidget {
                 style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.brand600),
               ),
             ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Family Information's own Emergency Contact block — displays the current
+/// Name/Relationship/Contact Number (seeded default for Cristy: Roberto
+/// Pareja / Brother / 0919 502 7735 — see ResidentProfileService's Cristy
+/// Master Profile alignment) with an Edit action that swaps in real
+/// editable fields, pre-populated with the currently saved values, never
+/// hint text. Cancel discards in-progress edits and restores the saved
+/// values; Save persists via ResidentProfileService.saveEmergencyContact
+/// and marks the profile as having a citizen-edited contact, so the seeded
+/// default never overwrites it again on a later launch. Deliberately
+/// self-contained (not FamilyMemberFormSheet, not the family members list
+/// above) — family members themselves stay untouched by this section.
+class _EmergencyContactSection extends StatefulWidget {
+  final String accountId;
+  final ResidentProfile profile;
+  const _EmergencyContactSection({required this.accountId, required this.profile});
+
+  @override
+  State<_EmergencyContactSection> createState() => _EmergencyContactSectionState();
+}
+
+class _EmergencyContactSectionState extends State<_EmergencyContactSection> {
+  bool _editing = false;
+  bool _saving = false;
+  String? _error;
+  late final TextEditingController _name;
+  late final TextEditingController _relationship;
+  late final TextEditingController _number;
+
+  @override
+  void initState() {
+    super.initState();
+    _name = TextEditingController(text: widget.profile.emergencyContactName);
+    _relationship = TextEditingController(text: widget.profile.emergencyContactRelationship);
+    _number = TextEditingController(text: widget.profile.emergencyContactNumber);
+  }
+
+  @override
+  void dispose() {
+    _name.dispose();
+    _relationship.dispose();
+    _number.dispose();
+    super.dispose();
+  }
+
+  void _startEdit() {
+    setState(() {
+      // Always seed the fields from the currently saved values, never a
+      // stale in-progress edit from a previous Cancel.
+      _name.text = widget.profile.emergencyContactName;
+      _relationship.text = widget.profile.emergencyContactRelationship;
+      _number.text = widget.profile.emergencyContactNumber;
+      _error = null;
+      _editing = true;
+    });
+  }
+
+  void _cancel() {
+    setState(() {
+      _name.text = widget.profile.emergencyContactName;
+      _relationship.text = widget.profile.emergencyContactRelationship;
+      _number.text = widget.profile.emergencyContactNumber;
+      _error = null;
+      _editing = false;
+    });
+  }
+
+  /// Accepts either local (09XXXXXXXXX) or +63 (+639XXXXXXXXX) mobile
+  /// format, same "09XX XXX XXXX" shape used as hint text everywhere else
+  /// in this app — spaces/dashes are stripped before matching so the
+  /// existing "0919 502 7735" formatting keeps working unchanged.
+  bool _isValidPhMobile(String value) {
+    final digits = value.replaceAll(RegExp(r'[\s-]'), '');
+    return RegExp(r'^(09\d{9}|\+639\d{9})$').hasMatch(digits);
+  }
+
+  Future<void> _save() async {
+    final name = _name.text.trim();
+    final relationship = _relationship.text.trim();
+    final number = _number.text.trim();
+    if (name.isEmpty) {
+      setState(() => _error = "Please enter the emergency contact's name.");
+      return;
+    }
+    if (relationship.isEmpty) {
+      setState(() => _error = 'Please enter their relationship to you.');
+      return;
+    }
+    if (number.isEmpty) {
+      setState(() => _error = 'Please enter a contact number.');
+      return;
+    }
+    if (!_isValidPhMobile(number)) {
+      setState(() => _error = 'Please enter a valid mobile number (e.g. 09XX XXX XXXX).');
+      return;
+    }
+    setState(() {
+      _saving = true;
+      _error = null;
+    });
+    await context.read<ResidentProfileService>().saveEmergencyContact(
+      widget.accountId,
+      name: name,
+      relationship: relationship,
+      number: number,
+    );
+    if (!mounted) return;
+    setState(() {
+      _saving = false;
+      _editing = false;
+    });
+    AppDialogs.toast(context, 'Emergency contact updated.');
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final profile = widget.profile;
+    return AppCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Expanded(
+                child: Text(
+                  'Emergency Contact',
+                  style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
+                ),
+              ),
+              if (!_editing)
+                GestureDetector(
+                  onTap: _startEdit,
+                  child: const Text(
+                    'Edit',
+                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.brand600),
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.lg),
+          if (_editing) ...[
+            AppTextField(label: 'Name', controller: _name, icon: Icons.person_outline_rounded),
+            const SizedBox(height: 18),
+            AppTextField(label: 'Relationship', controller: _relationship, icon: Icons.people_outline_rounded),
+            const SizedBox(height: 18),
+            AppTextField(
+              label: 'Contact number',
+              controller: _number,
+              keyboardType: TextInputType.phone,
+              icon: Icons.phone_outlined,
+              hintText: '09XX XXX XXXX',
+            ),
+            if (_error != null) ...[
+              const SizedBox(height: AppSpacing.md),
+              Text(_error!, style: const TextStyle(fontSize: 12.5, color: AppColors.rose600)),
+            ],
+            const SizedBox(height: AppSpacing.lg),
+            Row(
+              children: [
+                Expanded(
+                  child: AppButton(
+                    label: 'Cancel',
+                    variant: AppButtonVariant.secondary,
+                    onPressed: _saving ? null : _cancel,
+                    fullWidth: true,
+                  ),
+                ),
+                const SizedBox(width: AppSpacing.md),
+                Expanded(
+                  child: AppButton(label: 'Save', onPressed: _saving ? null : _save, loading: _saving, fullWidth: true),
+                ),
+              ],
+            ),
+          ] else ...[
+            _InfoRow(label: 'Name', value: profile.emergencyContactName),
+            if (profile.emergencyContactRelationship.trim().isNotEmpty)
+              _InfoRow(label: 'Relationship', value: profile.emergencyContactRelationship),
+            if (profile.emergencyContactNumber.trim().isNotEmpty)
+              _InfoRow(label: 'Contact Number', value: profile.emergencyContactNumber),
+          ],
         ],
       ),
     );
