@@ -1,11 +1,11 @@
 {
-    "name": "esperanza_mobile",
-    "short_name": "esperanza_mobile",
+    "name": "Esperanza Mobile",
+    "short_name": "Esperanza",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "background_color": "#0B1730",
+    "theme_color": "#0B1730",
+    "description": "Municipal services for the citizens of Esperanza — document requests, assistance applications, incident reports, announcements and your digital ID.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [
