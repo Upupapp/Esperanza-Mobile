@@ -39,7 +39,7 @@ Draft, Submitted, Pending Review, Under Verification, Assigned, Processing, Wait
 | `ui/input.blade.php` | `lib/widgets/app_text_field.dart` |
 | `ui/empty-state.blade.php` | `lib/widgets/empty_state.dart` (+ `SkeletonBox`, `ErrorState`) |
 | `ui/stat-card.blade.php` | `lib/widgets/stat_tile.dart` |
-| `ui/file-picker.blade.php` (category icons: IMG/PDF/DOCX/VID) | `lib/widgets/attachment_picker.dart` (real device picker, not a mock) |
+| `ui/file-picker.blade.php` (category icons: IMG/PDF/DOCX/VID) | `lib/widgets/requirement_uploader.dart` (real device picker, not a mock) — one uploader per requirement. Corrected 2026-08-29: this row named `attachment_picker.dart`, which no screen ever rendered and which was deleted in FE 08. |
 
 ### Brand assets
 
@@ -161,7 +161,7 @@ When the backend developer builds real APIs (see the separate Laravel backend-re
 ## Section 9 — Android/iOS Compatibility Notes
 
 - **Permissions declared:** Camera + photo library (`READ_MEDIA_IMAGES` / `READ_EXTERNAL_STORAGE` on Android; `NSCameraUsageDescription` / `NSPhotoLibraryUsageDescription` on iOS) — see `android/app/src/main/AndroidManifest.xml` and `ios/Runner/Info.plist`.
-- **Attachment picker** (`lib/widgets/attachment_picker.dart`) uses `image_picker` (camera + gallery) and `file_picker` (PDF/DOCX/images), both of which have first-class Android and iOS implementations — no platform-specific code was needed.
+- **Requirement uploader** (`lib/widgets/requirement_uploader.dart`) uses `image_picker` (camera + gallery) and `file_picker` (PDF/DOCX/images), both of which have first-class Android and iOS implementations — no platform-specific code was needed. Corrected 2026-08-29: this named `attachment_picker.dart`, which was unreachable from `main.dart` and was deleted in FE 08; the capability itself was never missing, only misattributed.
 - **Bottom nav IA** deliberately trimmed to 5 items (Home/Dokyu/Tulong/Alerts/Profile) rather than mirroring the Web Admin's 7-item sidebar, since a 7-tab bottom bar doesn't fit comfortably on smaller Android/iOS screens. Balita, Events, Directory, and Help remain fully reachable from Home and Profile.
 - **SafeArea** wraps every screen's scaffold body where content could collide with a notch/Dynamic Island or Android gesture nav.
 - **Keyboard handling:** form screens (`NewRequestScreen`, `RegisterScreen`, `EditProfileScreen`) use `SingleChildScrollView` so the keyboard never covers the active field.

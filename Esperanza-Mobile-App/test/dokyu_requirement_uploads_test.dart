@@ -25,7 +25,6 @@ import 'package:esperanza_mobile/services/mock_catalog.dart';
 import 'package:esperanza_mobile/services/requests_service.dart';
 import 'package:esperanza_mobile/services/resident_profile_service.dart';
 import 'package:esperanza_mobile/theme/app_colors.dart';
-import 'package:esperanza_mobile/widgets/attachment_picker.dart';
 
 const _cristyId = 'ESP-RES-2024-1044';
 
@@ -133,8 +132,10 @@ void main() {
         expect(find.text('Upload $label'), findsOneWidget);
       }
       // The old generic single-uploader affordance must be gone for Dokyu.
+      // Asserted by its label rather than by widget type: AttachmentPicker was
+      // deleted in FE 08 (unreachable from main.dart, its capabilities fully
+      // covered by RequirementUploader), so there is no type left to name.
       expect(find.text('Add photo or document'), findsNothing);
-      expect(find.byType(AttachmentPicker), findsNothing);
       expect(tester.takeException(), isNull);
     });
 

@@ -8,28 +8,55 @@
 // test taps through to a real picker call either), so that half of the
 // flow is manual/device-QA territory, same as it always was for the
 // underlying pickers themselves.
+//
+// These tests used to reach the picker sheet through `AttachmentPicker`,
+// which no screen ever rendered — so they proved the permission dialogs
+// worked in a widget no citizen could open, and would not have caught the
+// shipping widget wiring a different message to the wrong action. They now
+// host on `RequirementUploader`, which is what Dokyu and Tulong actually
+// render. `AttachmentPicker` was deleted with FE 08.
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:esperanza_mobile/models/attachment.dart';
-import 'package:esperanza_mobile/widgets/attachment_picker.dart';
+import 'package:esperanza_mobile/theme/app_colors.dart';
+import 'package:esperanza_mobile/utils/requirement_document_type.dart';
+import 'package:esperanza_mobile/widgets/requirement_uploader.dart';
 
-Future<void> _openPickerSheet(WidgetTester tester) async {
-  await tester.pumpWidget(MaterialApp(
-    home: Scaffold(
-      body: AttachmentPicker(documentTypeLabel: 'Valid ID', attachments: const [], onAdd: (_) {}, onRemove: (_) {}),
-    ),
-  ));
+const _requirement = RequirementInfo(
+  label: 'Valid ID',
+  documentType: 'Valid ID',
+  isRequired: true,
+  requiresUpload: true,
+);
+
+Widget _host({void Function()? onAttach}) => MaterialApp(
+      home: Scaffold(
+        body: RequirementUploader(
+          requirement: _requirement,
+          attachment: null,
+          accent: AppColors.brand600,
+          existingMasterDoc: null,
+          onAttachNew: (_) => onAttach?.call(),
+          onUseExisting: () {},
+          onRemove: () {},
+        ),
+      ),
+    );
+
+/// Opens the requirement's own upload sheet — the real entry point a citizen
+/// taps, labelled per requirement rather than generically.
+Future<void> _openPickerSheet(WidgetTester tester, {void Function()? onAttach}) async {
+  await tester.pumpWidget(_host(onAttach: onAttach));
   await tester.pumpAndSettle();
-  await tester.tap(find.text('Add photo or document'));
+  await tester.tap(find.text('Upload Valid ID'));
   await tester.pumpAndSettle();
 }
 
 void main() {
-  testWidgets('Take a photo shows the Camera Access Required explanation before anything else', (tester) async {
+  testWidgets('Take Photo shows the Camera Access Required explanation before anything else', (tester) async {
     await _openPickerSheet(tester);
 
-    await tester.tap(find.text('Take a photo'));
+    await tester.tap(find.text('Take Photo'));
     await tester.pumpAndSettle();
 
     expect(find.text('Camera Access Required'), findsOneWidget);
@@ -42,10 +69,10 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('Choose from gallery shows the Photo Access Required explanation', (tester) async {
+  testWidgets('Choose Image shows the Photo Access Required explanation', (tester) async {
     await _openPickerSheet(tester);
 
-    await tester.tap(find.text('Choose from gallery'));
+    await tester.tap(find.text('Choose Image'));
     await tester.pumpAndSettle();
 
     expect(find.text('Photo Access Required'), findsOneWidget);
@@ -58,10 +85,10 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('Choose a document shows the Document Access explanation, never a broad storage warning', (tester) async {
+  testWidgets('Choose File / PDF shows the Document Access explanation, never a broad storage warning', (tester) async {
     await _openPickerSheet(tester);
 
-    await tester.tap(find.text('Choose a document (PDF/DOCX)'));
+    await tester.tap(find.text('Choose File / PDF'));
     await tester.pumpAndSettle();
 
     expect(find.text('Document Access'), findsOneWidget);
@@ -76,17 +103,10 @@ void main() {
   });
 
   testWidgets('Not Now closes the explanation and returns to the form untouched — no attachment added, no error', (tester) async {
-    Attachment? added;
-    await tester.pumpWidget(MaterialApp(
-      home: Scaffold(
-        body: AttachmentPicker(documentTypeLabel: 'Valid ID', attachments: const [], onAdd: (a) => added = a, onRemove: (_) {}),
-      ),
-    ));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Add photo or document'));
-    await tester.pumpAndSettle();
+    var attached = false;
+    await _openPickerSheet(tester, onAttach: () => attached = true);
 
-    await tester.tap(find.text('Take a photo'));
+    await tester.tap(find.text('Take Photo'));
     await tester.pumpAndSettle();
     expect(find.text('Camera Access Required'), findsOneWidget);
 
@@ -94,15 +114,15 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Camera Access Required'), findsNothing);
-    // Back on the plain empty-picker form — not a broken/blocked screen.
-    expect(find.text('Add photo or document'), findsOneWidget);
-    expect(added, isNull);
+    // Back on the plain empty-uploader form — not a broken/blocked screen.
+    expect(find.text('Upload Valid ID'), findsOneWidget);
+    expect(attached, isFalse);
     expect(tester.takeException(), isNull);
   });
 
   testWidgets('the explanation dialog uses the existing Esperanza confirm-sheet styling (rounded sheet, primary/secondary buttons)', (tester) async {
     await _openPickerSheet(tester);
-    await tester.tap(find.text('Choose a document (PDF/DOCX)'));
+    await tester.tap(find.text('Choose File / PDF'));
     await tester.pumpAndSettle();
 
     // Same bottom-sheet shell every other Esperanza confirmation uses
