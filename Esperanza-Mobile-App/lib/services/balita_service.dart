@@ -1,6 +1,8 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
+import 'persistence_recovery.dart';
 import '../models/announcement.dart';
 import 'mock_catalog.dart';
 
@@ -33,7 +35,7 @@ class BalitaService extends ChangeNotifier {
         final list = (jsonDecode(raw) as List).map((e) => Announcement.fromJson(e)).toList();
         _posts = list;
       }
-    } catch (_) {
+    } catch (error) {
       // A payload persisted by an earlier build can fail to decode after a
       // model or enum changes shape. Before this guard that throw escaped an
       // un-awaited future started in the constructor, so notifyListeners()
@@ -41,6 +43,11 @@ class BalitaService extends ChangeNotifier {
       // only by clearing app data. Discard the unreadable state instead; the
       // migrations here already exist for exactly this class of change.
       _posts = [];
+      await PersistenceRecovery.discardUnreadable(
+        service: 'BalitaService',
+        keys: const [_key],
+        error: error,
+      );
     } finally {
       _loaded = true;
       notifyListeners();

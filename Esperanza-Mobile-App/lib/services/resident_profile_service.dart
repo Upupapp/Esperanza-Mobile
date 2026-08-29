@@ -1,6 +1,8 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
+import 'persistence_recovery.dart';
 import '../models/citizen_account.dart';
 import '../models/resident_profile.dart';
 
@@ -48,7 +50,7 @@ class ResidentProfileService extends ChangeNotifier {
         final idsChanged = _migrateCristyHouseholdFamilyIds();
         if (fieldsChanged || idsChanged) await _persist();
       }
-    } catch (_) {
+    } catch (error) {
       // A payload persisted by an earlier build can fail to decode after a
       // model or enum changes shape. Before this guard that throw escaped an
       // un-awaited future started in the constructor, so notifyListeners()
@@ -56,6 +58,11 @@ class ResidentProfileService extends ChangeNotifier {
       // only by clearing app data. Discard the unreadable state instead; the
       // migrations here already exist for exactly this class of change.
       _profiles = {};
+      await PersistenceRecovery.discardUnreadable(
+        service: 'ResidentProfileService',
+        keys: const [_key],
+        error: error,
+      );
     } finally {
       _loaded = true;
       notifyListeners();

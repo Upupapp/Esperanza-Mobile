@@ -2,6 +2,8 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'persistence_recovery.dart';
+
 /// Tracks which notifications a citizen has already opened/viewed — the
 /// notification feed itself is entirely *derived* live from other services
 /// (request status history, profile completion, illustrative sample
@@ -45,7 +47,7 @@ class NotificationsService extends ChangeNotifier {
         _duplicateResolutions = Map<String, String>.from(jsonDecode(rawDuplicate) as Map);
       }
       _unverifiedDuplicateKeptAccountId = prefs.getString(_unverifiedDuplicateKey);
-    } catch (_) {
+    } catch (error) {
       // A payload persisted by an earlier build can fail to decode after a
       // model or enum changes shape. Before this guard that throw escaped an
       // un-awaited future started in the constructor, so notifyListeners()
@@ -55,6 +57,14 @@ class NotificationsService extends ChangeNotifier {
       _readIds = {};
       _duplicateResolutions = {};
       _unverifiedDuplicateKeptAccountId = null;
+      // This service owns three keys and cannot tell which one failed, so all
+      // three go. Splitting the restore per key would narrow it further; that is
+      // a deliberate follow-up, not an oversight.
+      await PersistenceRecovery.discardUnreadable(
+        service: 'NotificationsService',
+        keys: const [_readKey, _duplicateKey, _unverifiedDuplicateKey],
+        error: error,
+      );
     } finally {
       _loaded = true;
       notifyListeners();

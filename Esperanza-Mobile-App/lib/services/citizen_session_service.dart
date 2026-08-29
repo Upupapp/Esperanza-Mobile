@@ -5,6 +5,7 @@ import '../models/access_level.dart';
 import '../models/citizen_account.dart';
 import '../theme/app_status.dart';
 import 'mock_catalog.dart';
+import 'persistence_recovery.dart';
 
 /// Frontend-only session simulation — the mobile equivalent of the Web
 /// Admin's `Alpine.store('citizenSession')` in resources/js/app.js. No real
@@ -60,7 +61,7 @@ class CitizenSessionService extends ChangeNotifier {
       } else {
         _isGuest = prefs.getBool(_guestKey) ?? false;
       }
-    } catch (_) {
+    } catch (error) {
       // A payload persisted by an earlier build can fail to decode after a
       // model or enum changes shape. Before this guard that throw escaped an
       // un-awaited future started in the constructor, so notifyListeners()
@@ -69,22 +70,18 @@ class CitizenSessionService extends ChangeNotifier {
       // migrations here already exist for exactly this class of change.
       _account = null;
       _isGuest = false;
-      await _discardCorruptSession();
+      // Only the session key — the guest flag is a separate, still-readable key.
+      await PersistenceRecovery.discardUnreadable(
+        service: 'CitizenSessionService',
+        keys: const [_key],
+        error: error,
+      );
     } finally {
       _loading = false;
       notifyListeners();
     }
   }
 
-  /// Best-effort removal of a session that could not be decoded, so the next
-  /// launch starts clean instead of retaking the fallback path every time.
-  Future<void> _discardCorruptSession() async {
-    try {
-      await (await SharedPreferences.getInstance()).remove(_key);
-    } catch (_) {
-      // Nothing further to do - the signed-out fallback above already applies.
-    }
-  }
 
   /// A browser signed in before the Marites-Ferrer-to-Cristy-Bonghanoy demo
   /// identity correction has that exact stale [CitizenAccount] snapshot

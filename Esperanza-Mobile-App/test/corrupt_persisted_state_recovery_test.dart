@@ -30,6 +30,8 @@ import 'package:esperanza_mobile/services/balita_service.dart';
 import 'package:esperanza_mobile/services/citizen_session_service.dart';
 import 'package:esperanza_mobile/services/master_file_service.dart';
 import 'package:esperanza_mobile/services/notifications_service.dart';
+import 'package:esperanza_mobile/services/onboarding_service.dart';
+import 'package:esperanza_mobile/services/persistence_recovery.dart';
 import 'package:esperanza_mobile/services/requests_service.dart';
 import 'package:esperanza_mobile/services/resident_profile_service.dart';
 
@@ -53,6 +55,8 @@ const _notJson = '{this is not json';
 const _wrongType = '{"unexpected":"object where a list belongs"}';
 
 void main() {
+  setUp(PersistenceRecovery.resetForTest);
+
   group('A corrupt or incompatible persisted payload never bricks the splash', () {
     testWidgets('CitizenSessionService falls back to signed-out', (tester) async {
       SharedPreferences.setMockInitialValues({'esperanza_citizen_session': _notJson});
@@ -64,17 +68,36 @@ void main() {
       expect(session.account, isNull);
     });
 
-    testWidgets('CitizenSessionService discards the bad session so the next launch is clean', (tester) async {
-      SharedPreferences.setMockInitialValues({'esperanza_citizen_session': _notJson});
+    testWidgets('CitizenSessionService clears only the session key, not the guest flag', (tester) async {
+      // The guest flag is a separate, perfectly readable key. Clearing it too
+      // would be a wider data loss than the failure requires.
+      SharedPreferences.setMockInitialValues({
+        'esperanza_citizen_session': _notJson,
+        'esperanza_guest_mode': true,
+      });
 
       final session = CitizenSessionService();
       await _settle(tester, () => !session.loading, 'CitizenSessionService');
-      // The discard is best-effort and fire-and-forget; let it land.
       await tester.pump(const Duration(milliseconds: 1));
 
       final prefs = await SharedPreferences.getInstance();
       await prefs.reload();
-      expect(prefs.getString('esperanza_citizen_session'), isNull);
+      expect(prefs.getString('esperanza_citizen_session'), isNull, reason: 'the unreadable key must go');
+      expect(prefs.getBool('esperanza_guest_mode'), isTrue, reason: 'the readable neighbour must survive');
+    });
+
+    testWidgets('the discard is logged, never silent', (tester) async {
+      // Clearing a key destroys whatever that citizen had saved. It must be
+      // observable — a silent wipe is its own defect.
+      SharedPreferences.setMockInitialValues({'esperanza_citizen_session': _notJson});
+
+      final session = CitizenSessionService();
+      await _settle(tester, () => !session.loading, 'CitizenSessionService');
+      await tester.pump(const Duration(milliseconds: 1));
+
+      expect(PersistenceRecovery.discards, hasLength(1));
+      expect(PersistenceRecovery.discards.single.service, 'CitizenSessionService');
+      expect(PersistenceRecovery.discards.single.keys, ['esperanza_citizen_session']);
     });
 
     testWidgets('RequestsService drops an unreadable list rather than hanging', (tester) async {
@@ -115,6 +138,38 @@ void main() {
 
       final profiles = ResidentProfileService();
       await _settle(tester, () => profiles.loaded, 'ResidentProfileService');
+    });
+  });
+
+  group('The splash reads a typed preference, and that can throw too', () {
+    // Not a jsonDecode and not a _restore(), so this path sits outside the
+    // shape of every other case in this file — and outside the shape of the
+    // audit that found them. `getBool` is a checked cast inside
+    // shared_preferences: a value of the wrong type raises a TypeError.
+    // SplashScreen._run() awaits this from an initState-started future that
+    // nothing awaits, so an escape means pushReplacement never runs and the
+    // citizen sits on the splash forever — before AuthGate is even reached.
+    testWidgets('a non-bool onboarding flag does not throw out of isComplete', (tester) async {
+      SharedPreferences.setMockInitialValues({'esperanza_onboarding_complete': 'yes'});
+
+      late bool complete;
+      await tester.runAsync(() async {
+        complete = await OnboardingService.isComplete();
+      });
+
+      expect(complete, isFalse, reason: 're-show onboarding rather than strand the citizen');
+      expect(PersistenceRecovery.discards.single.service, 'OnboardingService');
+    });
+
+    testWidgets('the unreadable flag is cleared so the next launch is clean', (tester) async {
+      SharedPreferences.setMockInitialValues({'esperanza_onboarding_complete': 'yes'});
+
+      await tester.runAsync(() async {
+        await OnboardingService.isComplete();
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.reload();
+        expect(prefs.get('esperanza_onboarding_complete'), isNull);
+      });
     });
   });
 
