@@ -40,7 +40,17 @@ class CitizenSessionService extends ChangeNotifier {
   AccessLevel get accessLevel {
     final acc = _account;
     if (acc == null) return AccessLevel.guest;
-    return AppStatusX.fromLabel(acc.status) == AppStatus.approved ? AccessLevel.verified : AccessLevel.unverified;
+    final status = AppStatusX.fromLabel(acc.status);
+    // `Approved` and `Verified` are the same state under two names. The Web
+    // Admin stores `Approved` and *displays* `Verified`
+    // (constituents.blade.php: `$acct['status'] === 'Approved' ? 'Verified'`),
+    // and its own comment says `Verified` grants full Dokyu/Tulong access.
+    // Mobile writes only `Approved` today, so this is additive — but before
+    // `verified` existed in AppStatus, a status arriving as `Verified` resolved
+    // to `draft` and locked the citizen OUT of Dokyu, meaning the identical
+    // word granted access on one surface and denied it on the other.
+    final isVerified = status == AppStatus.approved || status == AppStatus.verified;
+    return isVerified ? AccessLevel.verified : AccessLevel.unverified;
   }
 
   CitizenSessionService() {

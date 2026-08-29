@@ -22,7 +22,11 @@ Extracted read-only from the Web Admin's `resources/css/app.css` (`@theme` block
 
 ### Universal status system (exact, from `badge.blade.php` — never invent new labels)
 
-Draft, Submitted, Pending Review, Under Verification, Assigned, Processing, Waiting Requirements, Approved, Rejected, Ready for Release, Released, Completed, Cancelled, Archived — each with a fixed bg/text/dot color tint (see `lib/theme/app_status.dart`, ported line-for-line from `badge.blade.php`).
+Draft, Submitted, Pending Review, Under Verification, Assigned, Processing, Under Review, Resubmitted, Approved, Verified, Unverified, Rejected, Mark to Release, Released, Completed, Cancelled, Archived — seventeen, each with a fixed bg/text/dot colour tint (see `lib/theme/app_status.dart`, ported line-for-line from `badge.blade.php`).
+
+> **Corrected 2026-08-29 (FE 04).** This list previously named fourteen and included `Ready for Release` and `Waiting Requirements`. Measured against `badge.blade.php` on the web repo's **`origin/main`**: `Ready for Release` has been renamed `Mark to Release`, `Waiting Requirements` no longer exists web-side at all, and `Under Review`, `Resubmitted`, `Verified` and `Unverified` were missing here. Check this list against `origin/main`, never a local clone — a clone a few dozen commits stale still carries the old labels and will make mobile look correct when it is not. `test/status_parity_test.dart` now enforces it.
+>
+> `Waiting Requirements` still exists in mobile's enum **pending an owner decision** — see `docs/FE04_STATUS_PARITY.md`. It is inert in practice: `requests_service.dart` migrates it to `Under Review` on load, so no live request can carry it.
 
 ### Typography
 
@@ -102,12 +106,12 @@ This is exactly the loop the "Demo: Simulate Web Admin Action" panel fakes local
 ### Dokyu (Document Requests) API
 - **Missing:** `document_requests` table, model, controller, API routes, admin review UI wired to real data (current `admin.document-requests` route is a static Blade mock).
 - **Required fields:** applicant_id, type, office, purpose, submitted_at, status, status_history, attachments (file refs), remarks, admin_remarks.
-- **Required admin actions:** Review, Verify, Approve, Reject, Ready for Release, Release, Archive.
-- **Statuses:** Submitted → Under Verification → Waiting Requirements (optional loop) → Approved → Ready for Release → Released / Rejected.
+- **Required admin actions:** Review, Verify, Approve, Reject, Mark to Release, Release, Archive. *(2026-08-29: `Ready for Release` renamed `Mark to Release` to match the web platform.)*
+- **Statuses:** Submitted → Under Verification → Under Review (optional loop) → Approved → Mark to Release → Released / Rejected. *(2026-08-29: was `Waiting Requirements` → `Ready for Release`; both renamed — see Section 1.)*
 - **Mobile reflection:** status chip + timeline, as built.
 
 ### Tulong (Assistance Requests) API
-- Same shape as Dokyu. **Statuses:** Submitted → Assigned → Processing → Waiting Requirements (optional) → Approved → Released / Rejected → Completed.
+- Same shape as Dokyu. **Statuses:** Submitted → Assigned → Processing → Under Review (optional) → Approved → Released / Rejected → Completed. *(2026-08-29: was `Waiting Requirements` — see Section 1.)*
 
 ### Sakuna Incidents (citizen-reported) API
 - **Missing:** citizen-facing incident submission endpoint. The Web Admin's Sakuna module (Command Center, Incidents, etc.) is itself entirely mock data with no backend — see the separate Laravel readiness audit delivered earlier in this session.

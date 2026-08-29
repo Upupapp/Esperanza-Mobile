@@ -65,6 +65,14 @@ class AppColors {
   static const purple500 = Color(0xFFA855F7);
   static const purple700 = Color(0xFF7E22CE);
   static const purple50 = Color(0xFFFAF5FF);
+  // Tailwind sky-*, which is what the Web Admin's `bg-sky-50 text-sky-700
+  // bg-sky-500` classes on the `Resubmitted` badge resolve to. Not a new
+  // colour invented here: every status hex in this file is the Tailwind
+  // default the shared badge component already uses (orange-500 #F97316,
+  // emerald-50 #ECFDF5, purple-50 #FAF5FF ... all verified matching).
+  static const sky500 = Color(0xFF0EA5E9);
+  static const sky700 = Color(0xFF0369A1);
+  static const sky50 = Color(0xFFF0F9FF);
   static const orange500 = Color(0xFFF97316);
   static const orange700 = Color(0xFFC2410C);
   static const orange50 = Color(0xFFFFF7ED);
