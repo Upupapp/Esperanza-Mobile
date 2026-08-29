@@ -2,10 +2,14 @@
 
 ## Read this first: the app is NOT at the repo root
 
-The repository root holds a **broken leftover Flutter scaffold** — a `pubspec.yaml`
-that declares eight assets, with **no `lib/` and no `assets/` directory**. It cannot
-build. `README.md`, `.metadata`, `package-lock.json` and all three screenshots at the
-root are byte-identical duplicates of the real ones.
+That broken leftover Flutter scaffold at the root — a `pubspec.yaml` declaring eight
+assets with no `lib/` and no `assets/` — **was removed on 2026-08-29 (FE 07)**, along
+with the byte-identical duplicate README, `.metadata`, both `package-lock.json` files,
+the three screenshots and the duplicate alignment spec. The root now holds only
+`.gitignore`, `README.md`, `CLAUDE.md`, `SWEEP_2026-08-29.md` and the app directory.
+
+The app was deliberately **not** promoted to the root: two lanes work this repository
+and the move rewrites every path in every open branch. Revisit only by agreement.
 
 **The app is `Esperanza-Mobile-App/`.** Every `flutter` command runs from there:
 
@@ -29,7 +33,8 @@ A **frontend-only** Flutter citizen app for the Municipality of Esperanza. There
 **no HTTP client dependency at all** — auth, requests, notifications and profile are
 simulated and persisted to `shared_preferences`. This is deliberate, not an omission.
 
-`ESPERANZA_MOBILE_WEB_ALIGNMENT.md` is the spec and the intent authority. It also
+`Esperanza-Mobile-App/ESPERANZA_MOBILE_WEB_ALIGNMENT.md` is the spec and the intent
+authority (there is now exactly one copy; the root duplicate is gone). It also
 names the Web-Admin APIs that do not exist yet. The web counterpart is a separate,
 **read-only** Laravel project (`Esperanza-Web-Platform-frontend`) — never modify it
 from here.
