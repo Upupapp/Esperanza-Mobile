@@ -24,6 +24,10 @@ analyzer:
     # analysis_options.yaml. Never built or shipped as part of Esperanza.
     # Gitignored (see the repo-root .gitignore) — absent from a fresh clone,
     # so this entry only takes effect for a developer who has a local copy.
+    # Kept deliberately (FE 14, 2026-08-29) rather than removed for pointing at
+    # a path that does not exist here: excluding an absent directory costs the
+    # analyzer nothing, and dropping it would silently break analysis for anyone
+    # who does pull that reference copy down.
     - design_reference/**
     - build/**
     - android/**

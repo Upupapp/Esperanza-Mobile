@@ -2,7 +2,17 @@
 
 Living reference for keeping the Esperanza Mobile App (Flutter, this repo) and the Esperanza Web Admin (Laravel, `Esperanza-Web-Platform-frontend--main`, **read-only** — never modified from this project) in sync. Both projects are currently **pure frontend** — no real backend exists for either. This document is what gets handed to the Web Admin / backend developer.
 
-Last updated: 2026-08-11.
+Last updated: **2026-08-29**. Previously 2026-08-11.
+
+> **How to read the dates in this document.** Every claim that is a *measurement* — a count, a
+> parity assertion, a compatibility statement — carries the date it was measured, inline. A claim
+> without a date is either structural (it describes intent, not a fact about the code) or it has
+> not been re-measured since 2026-08-11 and should be treated as inherited rather than verified.
+> Do not mark a claim verified because it was true when it was written: date it or re-measure it.
+>
+> Corrections made on 2026-08-29 by the front-end programme (FE 01 – FE 14) are marked inline
+> where they occur, with the command that made them. The full reasoning for each lives in
+> `docs/FE0*.md`.
 
 ---
 
@@ -10,7 +20,9 @@ Last updated: 2026-08-11.
 
 Extracted read-only from the Web Admin's `resources/css/app.css` (`@theme` block) and `resources/views/components/ui/*.blade.php`. Ported 1:1 into `lib/theme/*.dart`. Never invent colors outside this list.
 
-### Colors (exact hex from `app.css`)
+*Measured 2026-08-29: all 23 navy/brand/gold hexes in `app_colors.dart` match `app.css` exactly. `sky-50/500/700` were added on the same date for the `Resubmitted` badge — not an invented colour, but the Tailwind defaults the Web Admin's own `bg-sky-*` classes resolve to, sourced the same way every other status hex in that file is (FE 04).*
+
+### Colors (exact hex from `app.css`) — verified matching 2026-08-29
 
 | Token | Hex | Used for |
 |---|---|---|
