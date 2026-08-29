@@ -207,7 +207,7 @@ class ServiceRequest {
         applicantId: json['applicantId'],
         applicantName: json['applicantName'],
         typeName: json['typeName'],
-        category: ServiceCategory.values.firstWhere((c) => c.name == json['category']),
+        category: ServiceCategory.values.firstWhere((c) => c.name == json['category'], orElse: () => ServiceCategory.dokyu),
         office: json['office'],
         purpose: json['purpose'],
         submittedAt: DateTime.parse(json['submittedAt']),

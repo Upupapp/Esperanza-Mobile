@@ -72,23 +72,34 @@ class RequestsService extends ChangeNotifier {
   }
 
   Future<void> _restore() async {
-    final prefs = await SharedPreferences.getInstance();
-    final raw = prefs.getString(_key);
-    if (raw != null) {
-      final list = (jsonDecode(raw) as List).map((e) => ServiceRequest.fromJson(e)).toList();
-      _requests.addAll(list);
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final raw = prefs.getString(_key);
+      if (raw != null) {
+        final list = (jsonDecode(raw) as List).map((e) => ServiceRequest.fromJson(e)).toList();
+        _requests.addAll(list);
+      }
+      if (retireLegacyDemoRequestSeeds && _removeRetiredDemoRequestSeeds()) await _persist();
+      if (_migrateStaleDemoIdentity()) await _persist();
+      if (_migrateEducationalRejectionReason()) await _persist();
+      if (_migrateSeniorCitizenIdCategory()) await _persist();
+      if (_migrateObsoleteTrackingLabels()) await _persist();
+      if (seedDemoData) {
+        await _seedDemoStatusSimulationsIfNeeded();
+        await _seedPaidTransactionDemoIfNeeded();
+      }
+    } catch (_) {
+      // A payload persisted by an earlier build can fail to decode after a
+      // model or enum changes shape. Before this guard that throw escaped an
+      // un-awaited future started in the constructor, so notifyListeners()
+      // never fired and AuthGate spun on the splash forever - recoverable
+      // only by clearing app data. Discard the unreadable state instead; the
+      // migrations here already exist for exactly this class of change.
+      _requests.clear();
+    } finally {
+      _loaded = true;
+      notifyListeners();
     }
-    if (retireLegacyDemoRequestSeeds && _removeRetiredDemoRequestSeeds()) await _persist();
-    if (_migrateStaleDemoIdentity()) await _persist();
-    if (_migrateEducationalRejectionReason()) await _persist();
-    if (_migrateSeniorCitizenIdCategory()) await _persist();
-    if (_migrateObsoleteTrackingLabels()) await _persist();
-    if (seedDemoData) {
-      await _seedDemoStatusSimulationsIfNeeded();
-      await _seedPaidTransactionDemoIfNeeded();
-    }
-    _loaded = true;
-    notifyListeners();
   }
 
   /// Removes exactly the nine known Dokyu/Tulong demo seed ids (see

@@ -34,18 +34,31 @@ class NotificationsService extends ChangeNotifier {
   }
 
   Future<void> _restore() async {
-    final prefs = await SharedPreferences.getInstance();
-    final rawRead = prefs.getString(_readKey);
-    if (rawRead != null) {
-      _readIds = (jsonDecode(rawRead) as List).cast<String>().toSet();
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final rawRead = prefs.getString(_readKey);
+      if (rawRead != null) {
+        _readIds = (jsonDecode(rawRead) as List).cast<String>().toSet();
+      }
+      final rawDuplicate = prefs.getString(_duplicateKey);
+      if (rawDuplicate != null) {
+        _duplicateResolutions = Map<String, String>.from(jsonDecode(rawDuplicate) as Map);
+      }
+      _unverifiedDuplicateKeptAccountId = prefs.getString(_unverifiedDuplicateKey);
+    } catch (_) {
+      // A payload persisted by an earlier build can fail to decode after a
+      // model or enum changes shape. Before this guard that throw escaped an
+      // un-awaited future started in the constructor, so notifyListeners()
+      // never fired and AuthGate spun on the splash forever - recoverable
+      // only by clearing app data. Discard the unreadable state instead; the
+      // migrations here already exist for exactly this class of change.
+      _readIds = {};
+      _duplicateResolutions = {};
+      _unverifiedDuplicateKeptAccountId = null;
+    } finally {
+      _loaded = true;
+      notifyListeners();
     }
-    final rawDuplicate = prefs.getString(_duplicateKey);
-    if (rawDuplicate != null) {
-      _duplicateResolutions = Map<String, String>.from(jsonDecode(rawDuplicate) as Map);
-    }
-    _unverifiedDuplicateKeptAccountId = prefs.getString(_unverifiedDuplicateKey);
-    _loaded = true;
-    notifyListeners();
   }
 
   Future<void> _persist() async {

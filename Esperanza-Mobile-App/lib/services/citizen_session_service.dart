@@ -47,20 +47,43 @@ class CitizenSessionService extends ChangeNotifier {
   }
 
   Future<void> _restore() async {
-    final prefs = await SharedPreferences.getInstance();
-    final raw = prefs.getString(_key);
-    if (raw != null) {
-      _account = CitizenAccount.fromJson(jsonDecode(raw));
-      final migrated = _migrateStaleDemoIdentity(_account!);
-      if (migrated != null) {
-        _account = migrated;
-        await prefs.setString(_key, jsonEncode(migrated.toJson()));
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final raw = prefs.getString(_key);
+      if (raw != null) {
+        _account = CitizenAccount.fromJson(jsonDecode(raw));
+        final migrated = _migrateStaleDemoIdentity(_account!);
+        if (migrated != null) {
+          _account = migrated;
+          await prefs.setString(_key, jsonEncode(migrated.toJson()));
+        }
+      } else {
+        _isGuest = prefs.getBool(_guestKey) ?? false;
       }
-    } else {
-      _isGuest = prefs.getBool(_guestKey) ?? false;
+    } catch (_) {
+      // A payload persisted by an earlier build can fail to decode after a
+      // model or enum changes shape. Before this guard that throw escaped an
+      // un-awaited future started in the constructor, so notifyListeners()
+      // never fired and AuthGate spun on the splash forever - recoverable
+      // only by clearing app data. Discard the unreadable state instead; the
+      // migrations here already exist for exactly this class of change.
+      _account = null;
+      _isGuest = false;
+      await _discardCorruptSession();
+    } finally {
+      _loading = false;
+      notifyListeners();
     }
-    _loading = false;
-    notifyListeners();
+  }
+
+  /// Best-effort removal of a session that could not be decoded, so the next
+  /// launch starts clean instead of retaking the fallback path every time.
+  Future<void> _discardCorruptSession() async {
+    try {
+      await (await SharedPreferences.getInstance()).remove(_key);
+    } catch (_) {
+      // Nothing further to do - the signed-out fallback above already applies.
+    }
   }
 
   /// A browser signed in before the Marites-Ferrer-to-Cristy-Bonghanoy demo

@@ -83,7 +83,8 @@ class Attachment {
   factory Attachment.fromJson(Map<String, dynamic> json) => Attachment(
         id: json['id'],
         fileName: json['fileName'],
-        category: AttachmentCategory.values.firstWhere((c) => c.name == json['category']),
+        category: AttachmentCategory.values
+            .firstWhere((c) => c.name == json['category'], orElse: () => AttachmentCategory.other),
         sizeBytes: json['sizeBytes'],
         localPath: json['localPath'],
         remoteUrl: json['remoteUrl'],

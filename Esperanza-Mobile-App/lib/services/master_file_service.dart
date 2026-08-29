@@ -24,16 +24,27 @@ class MasterFileService extends ChangeNotifier {
   }
 
   Future<void> _restore() async {
-    final prefs = await SharedPreferences.getInstance();
-    final raw = prefs.getString(_key);
-    if (raw != null) {
-      final map = jsonDecode(raw) as Map<String, dynamic>;
-      _byAccount = map.map(
-        (accountId, docs) => MapEntry(accountId, (docs as List).map((d) => MasterFileDocument.fromJson(d)).toList()),
-      );
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final raw = prefs.getString(_key);
+      if (raw != null) {
+        final map = jsonDecode(raw) as Map<String, dynamic>;
+        _byAccount = map.map(
+          (accountId, docs) => MapEntry(accountId, (docs as List).map((d) => MasterFileDocument.fromJson(d)).toList()),
+        );
+      }
+    } catch (_) {
+      // A payload persisted by an earlier build can fail to decode after a
+      // model or enum changes shape. Before this guard that throw escaped an
+      // un-awaited future started in the constructor, so notifyListeners()
+      // never fired and AuthGate spun on the splash forever - recoverable
+      // only by clearing app data. Discard the unreadable state instead; the
+      // migrations here already exist for exactly this class of change.
+      _byAccount = {};
+    } finally {
+      _loaded = true;
+      notifyListeners();
     }
-    _loaded = true;
-    notifyListeners();
   }
 
   Future<void> _persist() async {

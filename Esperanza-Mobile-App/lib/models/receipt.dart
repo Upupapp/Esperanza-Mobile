@@ -58,7 +58,7 @@ class Receipt {
       };
 
   factory Receipt.fromJson(Map<String, dynamic> json) => Receipt(
-        type: ReceiptType.values.firstWhere((t) => t.name == json['type']),
+        type: ReceiptType.values.firstWhere((t) => t.name == json['type'], orElse: () => ReceiptType.onsite),
         amount: json['amount'],
         referenceNumber: json['referenceNumber'],
         dateTime: DateTime.parse(json['dateTime']),
