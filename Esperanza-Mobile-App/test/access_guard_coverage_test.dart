@@ -1,4 +1,5 @@
-// Every route to a gated screen must carry its guard — not just the tab.
+// Every route to a gated screen must carry its guard — and there must be only
+// one route.
 //
 // `root_shell.dart` wraps DokyuScreen and TulongScreen in
 // `AccessGuard(required: AccessLevel.verified)`. Until 2026-08-30 the Home
@@ -11,15 +12,33 @@
 // not by a test. `nav_access_overflow_test.dart` renders the guarded tab and
 // passes; nothing exercised the shortcut.
 //
-// So this asserts the property that actually matters — no unguarded
-// construction *anywhere* — rather than testing the two call sites that happen
-// to exist today. A third route added next month is covered by construction.
+// The first fix wrapped those pushes in the same AccessGuard. It closed the
+// access hole and it was not enough: `RootShell.openService` also intercepts
+// the confirmed-duplicate account before it can reach either screen, and a
+// second route bypassed that. The comment on `openService` had *already* stated
+// the invariant — "both the launcher's bubbles and Home's own tiles funnel
+// through this one gateway" — while two of Home's six call sites did not.
+//
+// So this asserts two properties, both by construction rather than by listing
+// today's call sites:
+//
+//   1. no gated screen is ever built outside an AccessGuard;
+//   2. exactly one file builds them at all, so the gateway cannot be routed
+//      around by a future caller that remembers the guard but not the
+//      duplicate-account rule.
+//
+// (2) subsumes (1) today. Both are kept: (1) is the rule a reader expects to
+// find, and if the shell is ever legitimately split across files, (2) is the
+// one that should be revisited and (1) is the one that must survive.
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 
 /// Screens that must never be constructed without an enclosing AccessGuard.
 const _gated = ['DokyuScreen', 'TulongScreen', 'SakunaScreen'];
+
+/// The single file permitted to construct them.
+const _gateway = 'lib/screens/home/root_shell.dart';
 
 /// Is this construction lexically inside an `AccessGuard(... child: ...)`?
 ///
@@ -44,37 +63,42 @@ void main() {
       .where((f) => f.path.endsWith('.dart'))
       .toList();
 
+  String posix(File f) => f.path.replaceAll(r'\', '/');
+
   test('the scan reaches the screens', () {
     expect(sources.length, greaterThan(100), reason: 'only ${sources.length} lib files — the walk is broken');
   });
 
   for (final screen in _gated) {
-    test('$screen is never constructed outside an AccessGuard', () {
-      final pattern = RegExp('\\b$screen\\s*\\(\\s*\\)');
-      final offenders = <String>[];
-      var constructions = 0;
+    final pattern = RegExp(r'\b' + screen + r'\s*\(\s*\)');
 
+    /// Every construction of [screen] outside its own definition file, as
+    /// `path:line` → whether it sits inside an AccessGuard.
+    Map<String, bool> constructions() {
+      final found = <String, bool>{};
       for (final file in sources) {
         final source = file.readAsStringSync();
         // The screen's own definition file legitimately names it.
         if (source.contains('class $screen ')) continue;
-        final path = file.path.replaceAll(r'\', '/');
-
         for (final match in pattern.allMatches(source)) {
-          constructions++;
-          if (_insideAccessGuard(source, match.start)) continue;
           final line = '\n'.allMatches(source.substring(0, match.start)).length + 1;
-          offenders.add('$path:$line');
+          found['${posix(file)}:$line'] = _insideAccessGuard(source, match.start);
         }
       }
+      return found;
+    }
+
+    test('$screen is never constructed outside an AccessGuard', () {
+      final found = constructions();
 
       // A scanner that finds no constructions passes for ever.
       expect(
-        constructions,
-        greaterThan(0),
+        found,
+        isNotEmpty,
         reason: 'found no $screen construction at all — the pattern is broken, not the code',
       );
 
+      final offenders = found.entries.where((e) => !e.value).map((e) => e.key).toList();
       expect(
         offenders,
         isEmpty,
@@ -85,5 +109,33 @@ void main() {
             'not gated.',
       );
     });
+
+    test('$screen is built only by the shell, so openService cannot be bypassed', () {
+      final elsewhere = constructions().keys.where((at) => !at.startsWith('$_gateway:')).toList();
+
+      expect(
+        elsewhere,
+        isEmpty,
+        reason:
+            '$screen is constructed outside $_gateway:\n  ${elsewhere.join('\n  ')}\n\n'
+            'Even wrapped in an AccessGuard, a second route skips '
+            'RootShell.openService — which turns the confirmed-duplicate account '
+            'away with an explanation instead of the generic restricted notice. '
+            'Call RootShell.openService(context, ServiceLauncherTarget.…) as the '
+            'other Home call sites do.',
+      );
+    });
   }
+
+  test('Home reaches the request screens through the gateway, and still reaches them', () {
+    // The inverse of the rule above: routing through openService must not have
+    // been achieved by quietly dropping the shortcuts. Home offers six.
+    final home = File('lib/screens/home/home_screen.dart').readAsStringSync();
+    final calls = RegExp(r'RootShell\.openService\(').allMatches(home).length;
+    expect(
+      calls,
+      greaterThanOrEqualTo(6),
+      reason: 'Home had 6 openService call sites; found $calls — a shortcut was removed, not rerouted',
+    );
+  });
 }

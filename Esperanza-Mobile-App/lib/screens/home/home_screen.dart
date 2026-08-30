@@ -1,6 +1,4 @@
 import 'package:flutter/material.dart';
-import '../../models/access_level.dart';
-import '../../widgets/access_guard.dart';
 import 'package:provider/provider.dart';
 import '../../models/citizen_account.dart';
 import '../../models/service_request.dart';
@@ -27,9 +25,7 @@ import '../../widgets/service_launcher_menu.dart';
 import '../../widgets/status_chip.dart';
 import '../auth/login_screen.dart';
 import '../auth/register_screen.dart';
-import '../dokyu/dokyu_screen.dart';
 import '../profile/resident_profile/resident_profile_overview_screen.dart';
-import '../tulong/tulong_screen.dart';
 import 'root_shell.dart';
 
 /// Mirrors citizen/dashboard.blade.php: navy hero with greeting + barangay
@@ -352,22 +348,21 @@ class _Hero extends StatelessWidget {
               variant: AppButtonVariant.secondary,
               size: AppButtonSize.sm,
               fullWidth: true,
-              // Guarded with the SAME level and featureName RootShell uses for
-              // the Tulong tab. Until 2026-08-30 this pushed TulongScreen raw:
-              // the tab route was gated at AccessLevel.verified while this
-              // shortcut to the identical screen was not, so an Unverified
-              // citizen tapping the Home CTA walked straight into the request
-              // flow the tab refuses them. One rule, two call sites, enforced
-              // at one of them.
-              onPressed: () => Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (_) => const AccessGuard(
-                    required: AccessLevel.verified,
-                    featureName: 'Tulong (Assistance Requests)',
-                    child: TulongScreen(),
-                  ),
-                ),
-              ),
+              // Through RootShell's one gateway, exactly like the four other
+              // Home call sites. Until 2026-08-30 this pushed TulongScreen raw
+              // - the tab was gated at AccessLevel.verified while this shortcut
+              // to the identical screen was not, so an Unverified citizen
+              // tapping the Home CTA walked straight into the request flow the
+              // tab refuses them.
+              //
+              // The first fix wrapped the push in the same AccessGuard. That
+              // closed the access hole but left TWO routes to one screen, and
+              // the second still bypassed openService's duplicate-account
+              // interception - whose own doc comment already claimed every Home
+              // tile funnelled through it. Routing here restores both rules at
+              // once, and leaves one path to gate instead of a set to keep in
+              // step.
+              onPressed: () => RootShell.openService(context, ServiceLauncherTarget.tulong),
             );
             final dokyuButton = AppButton(
               label: dokyuLabel,
@@ -375,16 +370,8 @@ class _Hero extends StatelessWidget {
               variant: AppButtonVariant.gold,
               size: AppButtonSize.sm,
               fullWidth: true,
-              // Same guard as the Dokyu tab — see the Tulong button above.
-              onPressed: () => Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (_) => const AccessGuard(
-                    required: AccessLevel.verified,
-                    featureName: 'Dokyu (Document Requests)',
-                    child: DokyuScreen(),
-                  ),
-                ),
-              ),
+              // Same gateway - see the Tulong button above.
+              onPressed: () => RootShell.openService(context, ServiceLauncherTarget.dokyu),
             );
 
             // Side by side only if BOTH full labels genuinely fit on one
