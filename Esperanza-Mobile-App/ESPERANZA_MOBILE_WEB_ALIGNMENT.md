@@ -111,6 +111,58 @@ This is exactly the loop the "Demo: Simulate Web Admin Action" panel fakes local
 
 ---
 
+## Section 4a — Citizen access tiers and per-category capabilities
+
+*Added 2026-08-29, agreed with the backend session. This is the contract FE 13 should consume
+instead of deriving anything client-side.*
+
+Mobile has **three** access tiers (`lib/models/access_level.dart`), and `AccessGuard` compares
+them by enum index, so declaration order is part of the contract:
+
+| Tier | Reaches |
+|---|---|
+| `guest` | Balita, Events |
+| `unverified` | + Sakuna / Emergency — a registered but unapproved citizen may still report an incident |
+| `verified` | + Dokyu, Tulong |
+
+**The server deliberately models only two.** `guest` means no account and therefore no session,
+so there is nothing for `/auth/me` to describe. Authenticated is always exactly Verified or
+Unverified:
+
+    access_level "Verified"    -> AccessLevel.verified
+    access_level "Unverified"  -> AccessLevel.unverified
+    no session                 -> AccessLevel.guest   (client-only, never a server value)
+
+### The tier is a property of the ACCOUNT; the gate is a property of the CATEGORY
+
+Conflating those is what produced the `Verified`-means-locked-out bug in Section 1, and a
+single `full_service_access` boolean would have reintroduced it — it answers Dokyu/Tulong and
+says nothing about incident reporting. So the contract publishes both:
+
+    GET /api/v1/auth/me
+      "status": "Approved",              // the stored value
+      "access_level": "Verified",        // the derived tier — SAME state, different field
+      "capabilities": { "dokyu": false, "tulong": false,
+                        "sakuna_incident": true,
+                        "satisfaction_survey": true, "community_post": true }
+
+    GET /api/v1/statuses
+      "citizen_capability_requirements": { "dokyu": "Verified", "tulong": "Verified",
+                                           "sakuna_incident": "Unverified", ... }
+
+A client reads `capabilities` to **enforce**, and `citizen_capability_requirements` to
+**explain** — which is what mobile's `RestrictionReason.guestOnly` / `needsVerification` copy
+needs, without re-deriving the rule.
+
+`Approved` and `Verified` arrive from *different fields* and both are live. Mobile treats them
+as one state (`CitizenSessionService.accessLevel`), which is the correct reading of two fields
+describing the same account from different angles — not a tolerance for inconsistent input.
+
+Pinned from this side by `test/access_tier_contract_test.dart`, which parses the guards out of
+`root_shell.dart` rather than restating them.
+
+---
+
 ## Section 5 — Missing Web Admin Processes
 
 *(For the Web Admin / backend developer — nothing below was built or implied in the Web Admin project itself.)*
@@ -126,8 +178,11 @@ This is exactly the loop the "Demo: Simulate Web Admin Action" panel fakes local
 - Same shape as Dokyu. **Statuses:** Submitted → Assigned → Processing → Under Review (optional) → Approved → Released / Rejected → Completed. *(2026-08-29: was `Waiting Requirements` — see Section 1.)*
 
 ### Sakuna Incidents (citizen-reported) API
-- **Missing:** citizen-facing incident submission endpoint. The Web Admin's Sakuna module (Command Center, Incidents, etc.) is itself entirely mock data with no backend — see the separate Laravel readiness audit delivered earlier in this session.
+- **~~Missing~~ — DELIVERED 2026-08-29** (backend `a63a8ae`). This entry was correct: there was no citizen path. The only way to create an incident was `POST /api/v1/admin/sakuna/incidents`, behind an admin permission no citizen holds, so mobile's "Report an Incident" button had nothing to call.
+- **Now available:** `POST /api/v1/citizen/incidents` (session required, **Unverified accounts allowed** — see Section 4a), `GET /api/v1/citizen/incidents` for the citizen's own reports. Throttled 20/min and idempotent on `client_uuid`, so a report replayed after a phone loses signal returns the filed incident (200) rather than creating a duplicate (201). Lands with `source: "Citizen Portal"` and enters the responders' queue on the same verb chain as a field-reported incident.
+- **Body:** `title`, `type`, `severity`, `barangay`, `sitio`, `lat`, `lng`, `description`, `client_uuid`.
 - **Statuses:** Submitted → Validated → Dispatched → Resolved / Closed.
+- The Web Admin's own Sakuna module (Command Center, Incidents) remains mock data — the citizen submission path is what now exists.
 
 ### Citizen Registration & Verification
 - **Missing:** any citizen self-registration endpoint, `residents` table, verification queue for barangay staff. Currently registration only exists as static demo accounts in `config/esperanza_citizens.php`.

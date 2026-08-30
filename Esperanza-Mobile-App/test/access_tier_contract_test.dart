@@ -12,14 +12,16 @@
 // registered but is still `Pending Review` must be able to report a flood or a
 // fire. Dokyu and Tulong require `verified`.
 //
-// This matters beyond mobile. The backend session (2026-08-29) added a
-// server-side gate refusing submissions from unverified accounts with
-// `ACCOUNT_NOT_VERIFIED`, after finding its own controller had no citizen-status
-// check at all. That gate is correct for Dokyu and Tulong and WRONG for Sakuna,
-// and was flagged back to them. If mobile ever quietly tightens Sakuna to
-// `verified`, the two surfaces would agree on something that denies emergency
-// reports to the citizens most likely to need them — so the rule is asserted
-// here rather than left implicit in a widget tree.
+// This matters beyond mobile, and it has a server counterpart as of 2026-08-29:
+// `POST /api/v1/citizen/incidents` explicitly admits Unverified accounts, while
+// Dokyu and Tulong submissions are refused with `ACCOUNT_NOT_VERIFIED`. Before
+// that endpoint existed the only way to create an incident was an admin route no
+// citizen could reach, so this button had nothing to call at all.
+//
+// The two surfaces now agree, which is exactly why this is pinned: if mobile
+// quietly tightened Sakuna to `verified`, both sides would still "agree" — on
+// denying emergency reports to the citizens most likely to need them. The rule
+// is asserted here rather than left implicit in a widget tree.
 //
 // `AccessGuard` compares by enum index (`level.index >= required.index`), so
 // declaration order in `AccessLevel` is itself part of the contract.

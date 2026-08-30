@@ -166,16 +166,30 @@ Verified or Unverified, so their binary field is the correct projection:
 What is not binary is the **gate**, not the tier. `AccessGuard` compares by enum index
 (`level.index >= required.index`), and the required level differs per module.
 
-### The cross-surface hazard this surfaced
+### The cross-surface hazard this surfaced — and how the guess was wrong
 
 The backend added a server-side gate refusing submissions from unverified accounts with
 `ACCOUNT_NOT_VERIFIED`, after finding its controller had no citizen-status check at all — the
-mirror of the bug fixed here. Correct for Dokyu and Tulong. **Wrong for Sakuna**: incident
-reports go through the same request-creation flow (`sakuna_screen.dart` pushes
-`RequestListScreen` with `ServiceCategory.sakunaIncident`, and there is no second gate), and a
-registered-but-unapproved citizen is deliberately allowed to report a flood or a fire.
+mirror of the bug fixed here. Correct for Dokyu and Tulong. I flagged that it looked **wrong for
+Sakuna**, since incident reports go through the same request-creation flow on this side
+(`sakuna_screen.dart` pushes `RequestListScreen` with `ServiceCategory.sakunaIncident`, no
+second gate) and an unapproved citizen must still be able to report a flood.
 
-Flagged back to them. `test/access_tier_contract_test.dart` now pins it from **this** side, by
+**That concern was worth raising and the diagnosis was wrong — in the worse direction.**
+Corrected by the backend session on 2026-08-29: incident reports never went through
+`/citizen/requests` at all. That endpoint requires a `service_key` present in the `services`
+table, and the catalog holds only `dokyu` and `tulong`. So `ACCOUNT_NOT_VERIFIED` could not have
+fired there.
+
+The actual gap was larger: the **only** way to create an incident was
+`POST /api/v1/admin/sakuna/incidents`, behind an admin permission no citizen holds. Mobile's
+"Report an Incident" button had nothing to call, and would still have had nothing to call once
+FE 13 wired the seam. The contract had always implied the path — `esperanza_constituents.php`
+carries incident records with `source: 'Citizen Portal'` — and only the backend lacked it.
+
+Now `POST /api/v1/citizen/incidents` exists and explicitly admits Unverified accounts
+(backend `a63a8ae`). Alignment spec Section 5 updated accordingly: that entry had listed this
+endpoint as missing, and it was right to. `test/access_tier_contract_test.dart` now pins it from **this** side, by
 parsing the guards out of `root_shell.dart` rather than restating them — the first draft
 asserted against its own local constant and would have passed while the app changed underneath
 it. Watched failing: tightening Sakuna to `verified` produces
@@ -185,10 +199,25 @@ it. Watched failing: tightening Sakuna to `verified` produces
 
 ### For FE 13
 
-When the API seam lands, read the server's tier instead of deriving it — but note
-`full_service_access` as named answers Dokyu/Tulong only. It does not answer "may this account
-report an incident", so mobile will need the raw `access_level` too, or a per-category
-capability, or it is back to deriving.
+When the API seam lands, read the server's answer instead of deriving it. The point that the
+tier is a property of the **account** while the gate is a property of the **category** was
+accepted, and the contract now publishes both:
+
+    GET /api/v1/auth/me
+      "capabilities": { "dokyu": false, "tulong": false, "sakuna_incident": true, ... }
+
+    GET /api/v1/statuses
+      "citizen_capability_requirements": { "dokyu": "Verified", "sakuna_incident": "Unverified", ... }
+
+So a client reads a boolean to enforce, and can read the *rule* to explain — which is what
+`RestrictionReason.guestOnly` / `needsVerification` needs, without mobile re-deriving anything.
+`access_level` remains for the guest/unverified/verified projection, with `guest` deliberately
+unmodelled server-side because there is no session to describe.
+
+One refinement worth carrying into the seam: `Approved` arrives as `status` and `Verified`
+arrives as `access_level` — **different fields, both live**. Mobile treating them as one state
+is therefore not a tolerance for sloppy input; it is the correct reading of two fields that each
+describe the same account from a different angle.
 
 ## Acceptance
 
