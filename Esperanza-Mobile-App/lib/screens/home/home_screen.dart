@@ -170,7 +170,17 @@ class _HomeScreenState extends State<HomeScreen> {
                       const SizedBox(width: 12),
                       Expanded(
                         child: StatTile(
-                          label: 'Profile Complete',
+                          // "Account Details", not "Profile Complete": this is
+                          // account.profileCompleteness — the four contact
+                          // fields on Edit Profile (mobile, occupation, purok,
+                          // barangay). The Resident Profile card directly above
+                          // shows overallCompletionPercent, which weighs the
+                          // Personal/Family/Household sections. Both are
+                          // correct and they legitimately differ, but until
+                          // 2026-08-30 they sat on one screen as "Profile
+                          // Complete" and "Resident Profile" with no way for a
+                          // citizen to tell they measure different forms.
+                          label: 'Account Details',
                           value: '${account.profileCompleteness}%',
                           icon: Icons.badge_outlined,
                           color: StatTileColor.gold,

@@ -80,7 +80,9 @@ class ProfileScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: AppSpacing.sm),
                 Text(
-                  'Profile ${account.profileCompleteness}% complete',
+                  // Names the form it measures — see home_screen.dart's
+                  // Account Details tile.
+                  'Account details ${account.profileCompleteness}% complete',
                   style: const TextStyle(fontSize: 11.5, color: AppColors.textMuted),
                 ),
                 const SizedBox(height: AppSpacing.lg),
