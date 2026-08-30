@@ -54,6 +54,14 @@ class MasterFileService extends ChangeNotifier {
     }
   }
 
+  /// Erases [accountId]'s stored Master File documents from memory and from
+  /// disk. Called on sign-out.
+  Future<void> forgetAccount(String accountId) async {
+    _byAccount.remove(accountId);
+    await _persist();
+    notifyListeners();
+  }
+
   Future<void> _persist() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(

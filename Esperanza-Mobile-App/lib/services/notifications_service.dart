@@ -71,6 +71,23 @@ class NotificationsService extends ChangeNotifier {
     }
   }
 
+  /// Clears read-state and duplicate-resolution bookkeeping on sign-out.
+  ///
+  /// Unlike the other services this is not keyed by account: read ids point at
+  /// notifications derived from the requests being erased alongside them, so
+  /// keeping them would leave orphaned references to a citizen who has signed
+  /// out. Clearing all of it is both the private and the correct choice.
+  Future<void> forgetAccount(String accountId) async {
+    _readIds = {};
+    _duplicateResolutions = {};
+    _unverifiedDuplicateKeptAccountId = null;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_readKey);
+    await prefs.remove(_duplicateKey);
+    await prefs.remove(_unverifiedDuplicateKey);
+    notifyListeners();
+  }
+
   Future<void> _persist() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_readKey, jsonEncode(_readIds.toList()));

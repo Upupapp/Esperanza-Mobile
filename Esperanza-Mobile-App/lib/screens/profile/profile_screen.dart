@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../../services/sign_out.dart';
+import '../../services/requests_service.dart';
+import '../../services/notifications_service.dart';
+import '../../services/master_file_service.dart';
 import '../../services/citizen_session_service.dart';
 import '../../services/resident_profile_service.dart';
 import '../../theme/app_colors.dart';
@@ -139,14 +143,34 @@ class ProfileScreen extends StatelessWidget {
             label: 'Sign Out',
             danger: true,
             onTap: () async {
+              // Read the services BEFORE the await — `context` may be gone
+              // by the time the dialog resolves.
+              final requests = context.read<RequestsService>();
+              final profiles = context.read<ResidentProfileService>();
+              final masterFile = context.read<MasterFileService>();
+              final notifications = context.read<NotificationsService>();
               final ok = await AppDialogs.confirm(
                 context,
                 title: 'Sign out?',
-                message: 'You can sign back in anytime with your registered email.',
+                // Says what actually happens. Signing out now erases this
+                // account's profile, photo, requests and documents from the
+                // device, and there is no backend holding a copy — so the old
+                // "you can sign back in anytime" would have been a promise the
+                // app cannot keep.
+                message: 'Your profile, photo, requests and uploaded documents will be removed '
+                    'from this device. You can register or sign in again anytime.',
                 confirmLabel: 'Sign Out',
                 danger: true,
               );
-              if (ok) await session.logout();
+              if (ok) {
+                await SignOut.signOut(
+                  session,
+                  requests: requests,
+                  profiles: profiles,
+                  masterFile: masterFile,
+                  notifications: notifications,
+                );
+              }
             },
           ),
         ],

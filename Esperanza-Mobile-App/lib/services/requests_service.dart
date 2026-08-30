@@ -631,6 +631,18 @@ class RequestsService extends ChangeNotifier {
 
   bool get loaded => _loaded;
 
+  /// Erases every request belonging to [accountId] from memory and from disk.
+  ///
+  /// Called on sign-out. Before this existed, `logout()` cleared only the
+  /// session, so a citizen's full request history stayed on the device — which
+  /// matters for a municipal app that will be used on shared and family
+  /// handsets.
+  Future<void> forgetAccount(String accountId) async {
+    _requests.removeWhere((r) => r.applicantId == accountId);
+    await _persist();
+    notifyListeners();
+  }
+
   Future<void> _persist() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_key, jsonEncode(_requests.map((r) => r.toJson()).toList()));

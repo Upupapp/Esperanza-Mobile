@@ -69,6 +69,15 @@ class ResidentProfileService extends ChangeNotifier {
     }
   }
 
+  /// Erases [accountId]'s resident profile — including the base64 profile
+  /// photo, birthdate, address, household and family data — from memory and
+  /// from disk. Called on sign-out.
+  Future<void> forgetAccount(String accountId) async {
+    _profiles.remove(accountId);
+    await _persist();
+    notifyListeners();
+  }
+
   Future<void> _persist() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_key, jsonEncode(_profiles.map((k, v) => MapEntry(k, v.toJson()))));
