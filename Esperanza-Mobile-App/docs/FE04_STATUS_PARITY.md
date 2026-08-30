@@ -3,7 +3,7 @@
 **Status:** complete except one item that is **not this lane's to decide** (see "Waiting
 Requirements", below)
 **Date:** 2026-08-29
-**Gate:** `flutter analyze` clean · `flutter test` **466 passed**
+**Gate:** `flutter analyze` clean · `flutter test` **536 passed** (466 when this command was first completed; the access-tier section below was added later the same day)
 
 ---
 
@@ -137,6 +137,58 @@ Tailwind defaults. Porting them is mirroring a colour the shared component alrea
 inventing one. The rationale is recorded at the definition.
 
 ---
+
+## Access tiers are three, but the gate is per-category — added 2026-08-29
+
+Raised by the Esperanza **backend** session, which asked whether mobile's "3-tier model" was
+real or whether its own two-valued `access_level` was wrong. Measured answer: both are right,
+because they describe different things.
+
+`lib/models/access_level.dart` has three values and all three carry behaviour:
+
+| Tier | Reaches |
+|---|---|
+| `guest` | Balita, Events |
+| `unverified` | **+ Sakuna / Emergency** |
+| `verified` | + Dokyu, Tulong |
+
+The middle tier also changes user-facing copy, not just access: `balita_post_actions.dart`
+picks `RestrictionReason.guestOnly` vs `RestrictionReason.needsVerification`.
+
+**The backend should not add a third value.** `guest` means *no account at all* — there is no
+`/auth/me` response for a guest because there is no session. Authenticated is always exactly
+Verified or Unverified, so their binary field is the correct projection:
+
+    access_level "Verified"    -> AccessLevel.verified
+    access_level "Unverified"  -> AccessLevel.unverified
+    no session                 -> AccessLevel.guest   (client-only, never a server value)
+
+What is not binary is the **gate**, not the tier. `AccessGuard` compares by enum index
+(`level.index >= required.index`), and the required level differs per module.
+
+### The cross-surface hazard this surfaced
+
+The backend added a server-side gate refusing submissions from unverified accounts with
+`ACCOUNT_NOT_VERIFIED`, after finding its controller had no citizen-status check at all — the
+mirror of the bug fixed here. Correct for Dokyu and Tulong. **Wrong for Sakuna**: incident
+reports go through the same request-creation flow (`sakuna_screen.dart` pushes
+`RequestListScreen` with `ServiceCategory.sakunaIncident`, and there is no second gate), and a
+registered-but-unapproved citizen is deliberately allowed to report a flood or a fire.
+
+Flagged back to them. `test/access_tier_contract_test.dart` now pins it from **this** side, by
+parsing the guards out of `root_shell.dart` rather than restating them — the first draft
+asserted against its own local constant and would have passed while the app changed underneath
+it. Watched failing: tightening Sakuna to `verified` produces
+
+    "Risk Reduction & Emergency" now requires "verified". A registered but
+    unapproved citizen must still be able to report an incident.
+
+### For FE 13
+
+When the API seam lands, read the server's tier instead of deriving it — but note
+`full_service_access` as named answers Dokyu/Tulong only. It does not answer "may this account
+report an incident", so mobile will need the raw `access_level` too, or a per-category
+capability, or it is back to deriving.
 
 ## Acceptance
 
