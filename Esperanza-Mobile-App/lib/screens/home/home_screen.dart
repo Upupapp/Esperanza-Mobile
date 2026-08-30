@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import '../../models/access_level.dart';
+import '../../widgets/access_guard.dart';
 import 'package:provider/provider.dart';
 import '../../models/citizen_account.dart';
 import '../../models/service_request.dart';
@@ -350,7 +352,22 @@ class _Hero extends StatelessWidget {
               variant: AppButtonVariant.secondary,
               size: AppButtonSize.sm,
               fullWidth: true,
-              onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const TulongScreen())),
+              // Guarded with the SAME level and featureName RootShell uses for
+              // the Tulong tab. Until 2026-08-30 this pushed TulongScreen raw:
+              // the tab route was gated at AccessLevel.verified while this
+              // shortcut to the identical screen was not, so an Unverified
+              // citizen tapping the Home CTA walked straight into the request
+              // flow the tab refuses them. One rule, two call sites, enforced
+              // at one of them.
+              onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => const AccessGuard(
+                    required: AccessLevel.verified,
+                    featureName: 'Tulong (Assistance Requests)',
+                    child: TulongScreen(),
+                  ),
+                ),
+              ),
             );
             final dokyuButton = AppButton(
               label: dokyuLabel,
@@ -358,7 +375,16 @@ class _Hero extends StatelessWidget {
               variant: AppButtonVariant.gold,
               size: AppButtonSize.sm,
               fullWidth: true,
-              onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const DokyuScreen())),
+              // Same guard as the Dokyu tab — see the Tulong button above.
+              onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => const AccessGuard(
+                    required: AccessLevel.verified,
+                    featureName: 'Dokyu (Document Requests)',
+                    child: DokyuScreen(),
+                  ),
+                ),
+              ),
             );
 
             // Side by side only if BOTH full labels genuinely fit on one
