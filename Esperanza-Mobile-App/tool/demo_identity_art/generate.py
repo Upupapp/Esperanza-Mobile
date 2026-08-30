@@ -133,6 +133,79 @@ IDENTITIES = [
 ]
 
 
+def wallet_card(title, subtitle, name, id_number, fields, path, size, back=False):
+    """A Digital ID wallet card — front carries the holder, back the notes.
+
+    These four were missed in FE 02's first pass and found by running the app on
+    a device: the wallet still rendered a real resident's photograph, name,
+    birthdate, address and mobile number. The text layer had been renamed, so
+    the screen showed the synthetic name in its metadata while the card image
+    below it showed the real one. A text-only ban test cannot see a name that
+    lives in pixels.
+    """
+    w, h = size
+    img = Image.new('RGB', size, WHITE)
+    d = ImageDraw.Draw(img)
+
+    d.rectangle([0, 0, w, int(h * 0.15)], fill=NAVY_900)
+    d.text((int(w * 0.03), int(h * 0.030)), 'MUNICIPALITY OF ESPERANZA', font=font(True, int(h * 0.036)), fill=SLATE_400)
+    d.text((int(w * 0.03), int(h * 0.072)), title, font=font(True, int(h * 0.052)), fill=WHITE)
+    d.text((w - int(w * 0.03) - d.textlength(subtitle, font=font(True, int(h * 0.034))), int(h * 0.085)),
+           subtitle, font=font(True, int(h * 0.034)), fill=SLATE_400)
+
+    if not back:
+        bx0, by0 = int(w * 0.035), int(h * 0.22)
+        bx1, by1 = bx0 + int(w * 0.19), by0 + int(h * 0.50)
+        d.rectangle([bx0, by0, bx1, by1], fill=NAVY_700)
+        centre(d, (bx0, by0, bx1, by1), initials(name), font(True, int(h * 0.19)), WHITE)
+        centre(d, (bx0, by1 + 4, bx1, by1 + int(h * 0.075)), 'NO PHOTO — DEMO', font(True, int(h * 0.026)), SLATE_600)
+        fx, y = bx1 + int(w * 0.04), by0
+        for label, value in fields:
+            d.text((fx, y), label, font=font(True, int(h * 0.026)), fill=SLATE_600)
+            d.text((fx, y + int(h * 0.032)), value, font=font(True, int(h * 0.044)), fill=NAVY_900)
+            y += int(h * 0.098)
+        d.text((int(w * 0.68), int(h * 0.22)), 'ID NUMBER', font=font(True, int(h * 0.026)), fill=SLATE_600)
+        d.text((int(w * 0.68), int(h * 0.255)), id_number, font=font(True, int(h * 0.040)), fill=NAVY_900)
+    else:
+        y = int(h * 0.26)
+        for label, value in fields:
+            d.text((int(w * 0.05), y), label, font=font(True, int(h * 0.028)), fill=SLATE_600)
+            d.text((int(w * 0.05), y + int(h * 0.034)), value, font=font(True, int(h * 0.042)), fill=NAVY_900)
+            y += int(h * 0.105)
+
+    d.rectangle([0, int(h * 0.86), w, h], fill=BRAND_600)
+    centre(d, (0, int(h * 0.86), w, h), 'SPECIMEN — DEMONSTRATION DATA — NOT A VALID GOVERNMENT ID',
+           font(True, int(h * 0.040)), WHITE)
+
+    mark = Image.new('RGBA', (w * 2, h * 2), (0, 0, 0, 0))
+    ImageDraw.Draw(mark).text((int(w * 0.12), int(h * 0.75)), 'DEMO ONLY',
+                              font=font(True, int(h * 0.40)), fill=(220, 38, 38, 65))
+    img.paste(Image.alpha_composite(img.convert('RGBA'), mark.rotate(20, center=(0, 0)).crop((0, 0, w, h))).convert('RGB'))
+    img.save(path)
+    print('  %-34s %s' % (os.path.basename(path), img.size))
+
+
+WALLET = [
+    ('Barangay Resident ID', 'BRGY. BARAS', 'Perlita Quiambao', 'ESP-RES-2024-9002',
+     [('FULL NAME', 'PERLITA QUIAMBAO'), ('DATE OF BIRTH', 'February 4, 2001'),
+      ('ADDRESS', 'Purok 2, Brgy. Baras')],
+     'BarangayID_Front.png', (1573, 1000), False),
+    ('Barangay Resident ID', 'REVERSE', 'Perlita Quiambao', 'ESP-RES-2024-9002',
+     [('ISSUED BY', 'Municipality of Esperanza'), ('VALIDITY', 'No expiry — demonstration card'),
+      ('NOTE', 'Every value on this card is invented.')],
+     'BarangayID_Back.png', (1578, 997), True),
+    ('PWD Identification Card', 'MSWDO', 'Perlita Quiambao', 'ESP-PWD-2024-9002',
+     [('FULL NAME', 'PERLITA QUIAMBAO'), ('DATE OF BIRTH', 'February 4, 2001'),
+      ('ADDRESS', 'Purok 2, Brgy. Baras')],
+     'PWD_Front.png', (1577, 997), False),
+    ('PWD Identification Card', 'REVERSE', 'Perlita Quiambao', 'ESP-PWD-2024-9002',
+     [('ISSUED BY', 'Municipal Social Welfare and Development Office'),
+      ('VALIDITY', 'No expiry — demonstration card'),
+      ('NOTE', 'Every value on this card is invented.')],
+     'PWD_Back.png', (1578, 996), True),
+]
+
+
 def main():
     if not os.path.isdir(OUT):
         raise SystemExit('run this from Esperanza-Mobile-App/ — %s not found' % OUT)
@@ -140,6 +213,8 @@ def main():
     for name, av, idf, id_type, id_no, dob, addr, id_size in IDENTITIES:
         avatar(name, os.path.join(OUT, av))
         id_card(name, id_type, id_no, dob, addr, os.path.join(OUT, idf), id_size)
+    for title, subtitle, name, id_no, fields, fn, size, back in WALLET:
+        wallet_card(title, subtitle, name, id_no, fields, os.path.join(OUT, fn), size, back)
     print('done — every value above is invented; see the retired-identity record kept outside this repo')
 
 

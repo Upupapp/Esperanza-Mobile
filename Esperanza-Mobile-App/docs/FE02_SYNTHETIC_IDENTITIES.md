@@ -122,6 +122,33 @@ Three anti-vacuity guards, because a scanner that reads nothing passes beautiful
 - an **inverse** guard asserting the synthetic identities are still present, since deleting the
   demo data entirely would also satisfy the denylist.
 
+## What the first pass missed, and how it was caught
+
+**Running the app on a device found a real resident still shipping in it.**
+
+FE 02 replaced three ID images and three profile photos. The **Digital ID wallet** uses four
+*different* assets — `BarangayID_Front/Back.png` and `PWD_Front/Back.png` — and those were left
+untouched. The result was a screen whose text layer read `Perlita Quiambao` while the card image
+directly above it printed a real resident's **photograph, full name, birthdate, civil status,
+address, occupation, mobile number and signature**.
+
+Two things make this worth recording rather than quietly fixing:
+
+1. **The source told me.** A comment in `mock_catalog.dart` named
+   `BarangayID_Front.png / PWD_Front.png` as carrying the identity, in the same sentence as the
+   third file I *did* replace. I read that comment during the rename and acted on part of it.
+2. **The ban test cannot see pixels.** It scans text and filenames, so it went green over an
+   image printing the very name it exists to deny. I had claimed it covered `assets/`; it covers
+   asset *names*. That limit is now written into the test itself.
+
+Fixed by extending `tool/demo_identity_art/generate.py` to all four wallet cards, rebuilt, and
+re-verified on the device — the wallet now shows initials, no photograph, the DEMO watermark and
+the SPECIMEN band. The APK dropped again, 84.0 MB → **77.2 MB**.
+
+The lesson generalises: a text-based privacy check is necessary and nowhere near sufficient when
+the data can be rendered into an image. Only a human looking at the running app closes that gap,
+which is an argument for FE 03 rather than against automation.
+
 ## Acceptance
 
 | Criterion | Result |

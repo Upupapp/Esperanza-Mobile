@@ -18,10 +18,19 @@
 // repository, alongside the replacement mapping. If the hashes ever need
 // regenerating, that file is the source of truth.
 //
-// Scope, honestly: this checks the working tree at HEAD. It cannot and does not
-// touch git history, where every retired name still appears. That needs a
-// history rewrite, a force-push, and treating the data as already fetched — an
-// owner decision, explicitly out of scope for this command.
+// TWO LIMITS, BOTH LEARNED THE HARD WAY
+//
+// 1. **It cannot read pixels.** This scans text and file *names*. A name
+//    rendered INTO an image is invisible to it. FE 02's first pass replaced
+//    three ID images and left four Digital ID wallet cards untouched, and this
+//    test went green over a card printing a real resident's photograph, name,
+//    birthdate, address and mobile number. Running the app on a device is what
+//    caught it. Any new image asset that could carry a person's details has to
+//    be looked at by a human; nothing here will tell you.
+//
+// 2. **It checks the working tree at HEAD**, not git history, where every
+//    retired name still appears. That needs a history rewrite, a force-push and
+//    treating the data as already fetched — an owner decision, out of scope.
 import 'dart:convert';
 import 'dart:io';
 
