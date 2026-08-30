@@ -108,7 +108,16 @@ class _RootShellState extends State<RootShell> {
   static const _bannerAssets = {
     1: ('assets/images/Balita Tab.png', 'Balita', AccessLevel.guest),
     2: ('assets/images/Balita tab_Events.png', 'Events', AccessLevel.guest),
-    3: ('assets/images/Emergency.png', 'Emergency', AccessLevel.unverified),
+    // 3 (Emergency) is DELIBERATELY ABSENT. Every other tab's promotional
+    // banner costs the citizen one tap. On Risk Reduction & Emergency it costs
+    // time during an emergency: observed on a device 2026-08-30, the
+    // full-screen popup covered the red "In a life-threatening emergency, call
+    // 911 or MDRRMO directly" banner and the evacuation-centre list, and had to
+    // be dismissed before either could be read or used.
+    //
+    // assets/images/Emergency.png is still declared and still shipped — it is
+    // used elsewhere on that screen. Only the interstitial is suppressed, so
+    // restoring it is re-adding this one line if the LGU decides otherwise.
     4: ('assets/images/Dokyu Tab.png', 'Dokyu', AccessLevel.verified),
     5: ('assets/images/Tulong Tab.png', 'Tulong', AccessLevel.verified),
   };
