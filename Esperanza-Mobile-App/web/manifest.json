@@ -3,7 +3,7 @@
     "short_name": "Esperanza",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0B1730",
+    "background_color": "#FFFFFF",
     "theme_color": "#0B1730",
     "description": "Municipal services for the citizens of Esperanza — document requests, assistance applications, incident reports, announcements and your digital ID.",
     "orientation": "portrait-primary",

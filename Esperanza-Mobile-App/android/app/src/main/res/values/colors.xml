@@ -6,4 +6,5 @@
          colour on every cold start. Keep this in step with
          lib/theme/app_colors.dart. -->
     <color name="esperanza_navy_900">#FF0B1730</color>
+	<color name="ic_launcher_background">#FFFFFF</color>
 </resources>

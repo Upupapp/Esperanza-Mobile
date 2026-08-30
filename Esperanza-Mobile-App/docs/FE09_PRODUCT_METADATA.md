@@ -1,7 +1,7 @@
 # FE 09 — Product metadata
 
-**Status:** complete for everything this lane can decide. **One launch blocker found and left
-open**: the Android launcher icon is still Flutter's.
+**Status:** complete for Android. The launch blocker below was **found, escalated, decided by
+the owner, and closed** in the same session — the app now ships the municipal seal.
 **Date:** 2026-08-29
 **Lane:** Windows / Android. iOS items are flagged for the macOS lane, not guessed at.
 **Verified on:** Pixel 8 emulator, Android 16 / API 36 — screenshots below
@@ -50,7 +50,7 @@ silently.
 
 **Verified on device**: the launch window is navy. Screenshot: `splash_check.png`.
 
-### 2. LAUNCH BLOCKER — the launcher icon is still Flutter's
+### 2. ~~LAUNCH BLOCKER~~ — RESOLVED: the app now ships the municipal seal
 
 Measured, not inferred: `android/app/src/main/res/mipmap-hdpi/ic_launcher.png` is **byte-identical**
 (md5 `13e9c72ec37fac220397aa819fa1ef2d`) to
@@ -63,13 +63,32 @@ Esperanza navy. It is also the icon in the app drawer. Both screenshots show it.
 Ironically, fixing the splash colour made this *more* visible: the Flutter logo now sits on a
 correct navy field instead of blending into white.
 
-**Not fixed here, deliberately.** The mandate for this item is to *audit* icons, and replacing
-one is a branding decision, not a metadata edit. `assets/images/Logo/esperanza-seal.png` is in
-the repo and is the obvious source, but an adaptive icon needs a foreground/background split
-with correct safe zones, and a detailed municipal seal usually needs redrawing to read at 48dp
-rather than being scaled down. That needs design input and the owner's sign-off.
+**Resolved 2026-08-29.** The owner's instruction was explicit: *no Flutter logo, the LGU logo*.
 
-**This should block any release to citizens.**
+Icons are now generated from the municipality's own seal with `flutter_launcher_icons`
+(dev-dependency; config in `pubspec.yaml`, sources and the recipe in `tool/icon/`). One command
+regenerates Android legacy + adaptive, iOS and web on either lane — nothing is hand-drawn, so
+this cannot drift.
+
+Three decisions worth recording, each measured rather than guessed:
+
+- **White background, not the app's navy.** The seal is drawn for a light ground — a black outer
+  ring around a yellow band — and on `#0B1730` the ring disappears into the background.
+- **Foreground at 84 % of its canvas.** The generator adds `android:inset="16%"`, so the
+  drawable paints at 68 % of the 108 dp layer. 84 % lands the seal at ~57 % of the finished
+  icon: inside even a circular mask, with margin, and still legible at launcher size. The first
+  attempt used 60 % and rendered the seal at ~41 % — correct, but lost in white.
+- **`values-v31/styles.xml` added.** Android 12+ derives the splash from the launcher icon, and
+  by default paints the adaptive **foreground alone** on the window background — which stripped
+  the seal's white plate and sank its ring into the navy. Naming the full adaptive icon as
+  `windowSplashScreenAnimatedIcon` puts the same white-backed seal from the launcher onto the
+  navy window.
+
+Verified on the Pixel 8 emulator: the launcher shows the seal, and the cold-start splash shows
+the white-backed seal on Esperanza navy. `test/launcher_icon_test.dart` guards it — it was
+watched failing by restoring Flutter's hdpi icon, which produced
+`These densities still ship Flutter's logo: hdpi`. It also asserts no iOS icon carries an alpha
+channel, which is an App Store rejection rule.
 
 ### 3. The app name truncates on the launcher — recommendation, not a unilateral change
 
@@ -96,7 +115,7 @@ fixing a defect; shortening the product name is a branding call that is not this
 | No default Flutter scaffold **string** is reachable by a user on any platform | ✅ all eleven replaced |
 | The app name is identical on Android and iOS, verified on a device home screen | ✅ identical (`Esperanza Mobile`), verified on Android — ⚠️ **truncates**, and iOS home screen not verified from this lane |
 | The root README gets a newcomer to a green test run with no other input | ✅ FE 07 |
-| Launcher icon and splash verified on both platforms | ⚠️ **Android only.** Splash ✅ fixed and verified. Icon ❌ still Flutter's — see blocker above. iOS unverified from this lane |
+| Launcher icon and splash verified on both platforms | ⚠️ **Android done and verified** — seal icon + white-backed seal on the navy splash. iOS icons regenerated with alpha stripped, but **not built or seen on an iOS device** from this lane |
 
 Two criteria are partially met and are marked as such rather than rounded up. The iOS half needs
 the macOS lane; an emulator is also not a phone.
@@ -107,8 +126,11 @@ the macOS lane; an emulator is also not a phone.
 
 | File | Shows |
 |---|---|
-| `splash_check.png` | Cold start after the fix — navy launch window, and the Flutter logo on the Android 12+ system splash |
-| `launcher.png` | App drawer — the Flutter icon, and the label truncated to "Esperanza M…" |
+| `splash_check.png` | **Before.** Navy launch window fixed — but the Flutter logo on the Android 12+ system splash |
+| `launcher.png` | **Before.** App drawer with the Flutter icon, label truncated to "Esperanza M…" |
+| `splash_seal.png` | Seal on the splash, before `values-v31` — no white plate, ring sinking into the navy |
+| `splash_v31.png` | **After.** White-backed seal on Esperanza navy |
+| `launcher_seal.png` | **After.** The seal in the app drawer, alongside other apps |
 
 Kept outside the repository: the repo is public and already carries a real-data problem, so no
 new binaries were added to it for this.
@@ -117,9 +139,9 @@ new binaries were added to it for this.
 
 ## Follow-ups
 
-1. **Design and ship a real launcher icon** (Android adaptive + iOS) — the one item that should
-   block a citizen-facing release.
-2. **Owner decision on the home-screen name** — recommend `Esperanza`.
+1. ~~Design and ship a real launcher icon~~ — **done**, see above.
+2. **Owner decision on the home-screen name** — recommend `Esperanza`. Still open, and now the
+   only default-metadata item left: the drawer shows "Esperanza M…".
 3. **macOS lane**: verify `CFBundleName`, the iOS home-screen name and truncation, the iOS app
    icon, and the iOS launch screen. `CFBundleName` was changed here and has **not** been built
    or seen on an iOS device.
