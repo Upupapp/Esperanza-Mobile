@@ -12,8 +12,8 @@ the owner, and closed** in the same session — the app now ships the municipal 
 
 | Where | Was | Now |
 |---|---|---|
-| `AndroidManifest.xml` `android:label` | `esperanza_mobile` | `Esperanza Mobile` *(fixed in the preceding sweep, `7901100`)* |
-| `ios/Runner/Info.plist` `CFBundleDisplayName` | `Esperanza Mobile` | unchanged — it was already correct |
+| `AndroidManifest.xml` `android:label` | `esperanza_mobile` | **`Esperanza`** *(snake_case fixed in `7901100`; shortened on the owner's call — see 3)* |
+| `ios/Runner/Info.plist` `CFBundleDisplayName` | `Esperanza Mobile` | **`Esperanza`** — was already a real name, shortened to match Android and to stop truncating |
 | `ios/Runner/Info.plist` `CFBundleName` | `esperanza_mobile` | `Esperanza` |
 | `web/manifest.json` `name` | `esperanza_mobile` | `Esperanza Mobile` |
 | `web/manifest.json` `short_name` | `esperanza_mobile` | `Esperanza` |
@@ -21,14 +21,15 @@ the owner, and closed** in the same session — the app now ships the municipal 
 | `web/manifest.json` theme + background | `#0175C2` (Flutter blue) | `#0B1730` (`AppColors.navy900`) |
 | `web/index.html` `<title>` | `esperanza_mobile` | `Esperanza Mobile` |
 | `web/index.html` description | "A new Flutter project." | real description |
-| `web/index.html` `apple-mobile-web-app-title` | `esperanza_mobile` | `Esperanza Mobile` |
+| `web/index.html` `apple-mobile-web-app-title` | `esperanza_mobile` | **`Esperanza`** — "Add to Home Screen" is a home screen |
 | `web/index.html` `theme-color` | absent | `#0B1730` |
 | root + app `README.md` | Flutter template | rewritten *(FE 07)* |
 | `drawable/launch_background.xml` | `@android:color/white` | `@color/esperanza_navy_900` |
 | `drawable-v21/launch_background.xml` | `?android:colorBackground` | `@color/esperanza_navy_900` |
 
-`CFBundleName` is capped at 15 characters by Apple's own guidance, so it takes `Esperanza`
-rather than the 16-character `Esperanza Mobile`. **Bundle identifiers were not touched** —
+`CFBundleName` is capped at 15 characters by Apple's own guidance. `Esperanza Mobile` is 16, and
+it is also what was measured truncating on the launcher — which is how the short name ended up
+being the right answer in both places. **Bundle identifiers were not touched** —
 `ph.gov.esperanza.esperanza_mobile` and `ph.gov.esperanza.esperanzaMobile` are correct, and
 changing one breaks store identity and existing installs.
 
@@ -90,7 +91,7 @@ watched failing by restoring Flutter's hdpi icon, which produced
 `These densities still ship Flutter's logo: hdpi`. It also asserts no iOS icon carries an alpha
 channel, which is an App Store rejection rule.
 
-### 3. The app name truncates on the launcher — recommendation, not a unilateral change
+### 3. ~~The app name truncates on the launcher~~ — RESOLVED: the name is `Esperanza`
 
 FE 09 asks for truncation to be checked on a small launcher. It truncates: the app drawer shows
 **"Esperanza M…"**. Neighbouring apps ("Play Store", "Messages", "Calendar") fit; sixteen
@@ -98,13 +99,26 @@ characters does not.
 
 `CFBundleDisplayName` on iOS is the same sixteen characters, so iOS will truncate the same way.
 
-**Recommended:** use `Esperanza` for both home-screen names and keep `Esperanza Mobile` as the
-full product name in the stores and the web manifest — which is exactly what `short_name`
-already does on web.
+**Resolved 2026-08-29 — the owner chose `Esperanza`.** The guardrail was to confirm the wording
+before setting it in three places rather than decide it here; that confirmation happened.
 
-**Not changed here.** The guardrail says to confirm the exact user-facing wording with the owner
-before setting it in three places. Correcting Android's snake_case identifier to match iOS was
-fixing a defect; shortening the product name is a branding call that is not this lane's to make.
+| Surface | Value | Why |
+|---|---|---|
+| `android:label` | `Esperanza` | home screen |
+| `CFBundleDisplayName` | `Esperanza` | home screen — the two now match, which is the acceptance criterion |
+| `CFBundleName` | `Esperanza` | already short; within Apple's 15-character guidance |
+| `web/manifest.json` `short_name` | `Esperanza` | PWA home screen — this is exactly what `short_name` is for |
+| `apple-mobile-web-app-title` | `Esperanza` | iOS "Add to Home Screen" is a home screen |
+| `web/manifest.json` `name` | `Esperanza Mobile` | install prompt / store listing — room for the full name |
+| `web/index.html` `<title>` | `Esperanza Mobile` | browser tab, not length-constrained |
+
+Verified on the Pixel 8 drawer: **"Esperanza" renders in full**, no ellipsis, beside the seal.
+
+`test/app_name_parity_test.dart` holds it: the two platforms must agree, the name must not be a
+package identifier, it must fit the measured 13-character budget, and the *full* product name
+must survive where there is room — so shortening the home-screen name cannot quietly shorten the
+product everywhere. Watched failing by setting Android back to the long name, which produced
+`the home-screen name differs between platforms`.
 
 ---
 
@@ -113,7 +127,7 @@ fixing a defect; shortening the product name is a branding call that is not this
 | Criterion | Result |
 |---|---|
 | No default Flutter scaffold **string** is reachable by a user on any platform | ✅ all eleven replaced |
-| The app name is identical on Android and iOS, verified on a device home screen | ✅ identical (`Esperanza Mobile`), verified on Android — ⚠️ **truncates**, and iOS home screen not verified from this lane |
+| The app name is identical on Android and iOS, verified on a device home screen | ✅ identical (`Esperanza`), renders in full on the Pixel 8 drawer and is enforced by a test. iOS home screen still not seen from this lane |
 | The root README gets a newcomer to a green test run with no other input | ✅ FE 07 |
 | Launcher icon and splash verified on both platforms | ⚠️ **Android done and verified** — seal icon + white-backed seal on the navy splash. iOS icons regenerated with alpha stripped, but **not built or seen on an iOS device** from this lane |
 
@@ -130,7 +144,8 @@ the macOS lane; an emulator is also not a phone.
 | `launcher.png` | **Before.** App drawer with the Flutter icon, label truncated to "Esperanza M…" |
 | `splash_seal.png` | Seal on the splash, before `values-v31` — no white plate, ring sinking into the navy |
 | `splash_v31.png` | **After.** White-backed seal on Esperanza navy |
-| `launcher_seal.png` | **After.** The seal in the app drawer, alongside other apps |
+| `launcher_seal.png` | The seal in the app drawer, name still truncated to "Esperanza M…" |
+| `launcher_name.png` | **After.** Seal + "Esperanza" in full, no ellipsis |
 
 Kept outside the repository: the repo is public and already carries a real-data problem, so no
 new binaries were added to it for this.
@@ -140,8 +155,7 @@ new binaries were added to it for this.
 ## Follow-ups
 
 1. ~~Design and ship a real launcher icon~~ — **done**, see above.
-2. **Owner decision on the home-screen name** — recommend `Esperanza`. Still open, and now the
-   only default-metadata item left: the drawer shows "Esperanza M…".
+2. ~~Owner decision on the home-screen name~~ — **decided: `Esperanza`**, applied and enforced.
 3. **macOS lane**: verify `CFBundleName`, the iOS home-screen name and truncation, the iOS app
    icon, and the iOS launch screen. `CFBundleName` was changed here and has **not** been built
    or seen on an iOS device.
