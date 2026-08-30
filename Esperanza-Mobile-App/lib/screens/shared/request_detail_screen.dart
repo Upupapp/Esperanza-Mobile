@@ -283,7 +283,7 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
                     ],
                   ),
                   const SizedBox(height: 6),
-                  Text(request.office, style: const TextStyle(fontSize: 12.5, color: AppColors.textMuted)),
+                  Text(request.office, style: AppTypography.bodySmallRegular.copyWith(color: AppColors.textMuted)),
                   const Divider(height: AppSpacing.xxl),
                   _infoRow('Purpose', request.purpose),
                   _infoRow('Expected processing time', request.expectedDays),
@@ -410,7 +410,7 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
                       (a) => ListTile(
                         dense: true,
                         leading: Icon(_iconFor(a.category), color: accent, size: 18),
-                        title: Text(a.fileName, style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w500)),
+                        title: Text(a.fileName, style: AppTypography.bodySmallMedium),
                         subtitle: Text(
                           '${a.category.shortLabel} · ${a.readableSize}',
                           style: const TextStyle(fontSize: 11),
@@ -460,7 +460,7 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
           Expanded(
             child: Text(
               value,
-              style: const TextStyle(fontSize: 12.5, color: AppColors.slate700, fontWeight: FontWeight.w500),
+              style: AppTypography.bodySmallMedium.copyWith(color: AppColors.slate700),
             ),
           ),
         ],
@@ -514,14 +514,14 @@ class _RejectedApplicationCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: AppSpacing.md),
-          Text(reason, style: const TextStyle(fontSize: 12.5, color: AppColors.slate700, height: 1.45)),
+          Text(reason, style: AppTypography.bodySmallRegular.copyWith(color: AppColors.slate700, height: 1.45)),
           const SizedBox(height: AppSpacing.md),
           const Text(
             'What you can do:',
             style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.slate700),
           ),
           const SizedBox(height: 3),
-          Text(guidance, style: const TextStyle(fontSize: 12.5, color: AppColors.slate600, height: 1.4)),
+          Text(guidance, style: AppTypography.bodySmallRegular.copyWith(color: AppColors.slate600, height: 1.4)),
           const SizedBox(height: AppSpacing.lg),
           AppButton(label: 'Apply Again', fullWidth: true, onPressed: onApplyAgain),
         ],
@@ -595,7 +595,7 @@ class _CorrectionsSection extends StatelessWidget {
                 : allResolved
                     ? 'All flagged documents have been replaced — you may now resubmit.'
                     : '1 document requires correction.',
-            style: const TextStyle(fontSize: 11.5, color: AppColors.slate500, height: 1.4),
+            style: AppTypography.captionSmallRegular.copyWith(color: AppColors.slate500, height: 1.4),
           ),
           for (final flagged in request.flaggedRequirements.where((f) => !f.isResolved).toList())
             Padding(
@@ -626,7 +626,7 @@ class _CorrectionsSection extends StatelessWidget {
               style: TextButton.styleFrom(foregroundColor: AppColors.orange700),
               child: const Text(
                 'Flag Another Document (Demo)',
-                style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600),
+                style: AppTypography.bodySmall,
               ),
             ),
           ],
@@ -772,12 +772,12 @@ class _ManualVerificationCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: AppSpacing.md),
-          Text(reason, style: const TextStyle(fontSize: 12.5, color: AppColors.slate700, height: 1.45)),
+          Text(reason, style: AppTypography.bodySmallRegular.copyWith(color: AppColors.slate700, height: 1.45)),
           const SizedBox(height: AppSpacing.sm),
-          const Text(
+          Text(
             'The request requires additional verification. This is still an active request, not a rejection — no '
             'action is needed from you at this time.',
-            style: TextStyle(fontSize: 11.5, color: AppColors.slate500, height: 1.4),
+            style: AppTypography.captionSmallRegular.copyWith(color: AppColors.slate500, height: 1.4),
           ),
         ],
       ),
@@ -838,7 +838,7 @@ class _DemoControlsCard extends StatelessWidget {
             next == null
                 ? 'For client demonstrations only — not a real resident control.'
                 : 'For client demonstrations only — not a real resident control. Next: $next',
-            style: const TextStyle(fontSize: 11.5, color: AppColors.slate600, height: 1.35),
+            style: AppTypography.captionSmallRegular.copyWith(color: AppColors.slate600, height: 1.35),
           ),
           const SizedBox(height: AppSpacing.md),
           AppButton(
@@ -856,7 +856,7 @@ class _DemoControlsCard extends StatelessWidget {
               style: TextButton.styleFrom(foregroundColor: AppColors.orange700),
               child: const Text(
                 'Request Additional Documents (Demo)',
-                style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600),
+                style: AppTypography.bodySmall,
               ),
             ),
           ],
@@ -864,7 +864,7 @@ class _DemoControlsCard extends StatelessWidget {
           TextButton(
             onPressed: busy ? null : onReject,
             style: TextButton.styleFrom(foregroundColor: AppColors.rose600),
-            child: const Text('Reject Request (Demo)', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600)),
+            child: const Text('Reject Request (Demo)', style: AppTypography.bodySmall),
           ),
         ],
       ),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../theme/app_elevation.dart';
 import 'package:flutter/services.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -92,7 +93,7 @@ class _ShareSheet extends StatelessWidget {
               children: [
                 _ShareOption(
                   icon: Icons.facebook_rounded,
-                  color: const Color(0xFF1877F2),
+                  color: ThirdPartyBrandColors.facebook,
                   label: 'Facebook',
                   onTap: () {
                     Navigator.of(context).pop();
@@ -104,7 +105,7 @@ class _ShareSheet extends StatelessWidget {
                 ),
                 _ShareOption(
                   icon: Icons.chat_bubble_rounded,
-                  color: const Color(0xFF00B2FF),
+                  color: ThirdPartyBrandColors.messenger,
                   label: 'Messenger',
                   onTap: () {
                     Navigator.of(context).pop();
@@ -122,7 +123,7 @@ class _ShareSheet extends StatelessWidget {
                 ),
                 _ShareOption(
                   icon: Icons.forum_rounded,
-                  color: const Color(0xFF7360F2),
+                  color: ThirdPartyBrandColors.viber,
                   label: 'Viber',
                   onTap: () {
                     Navigator.of(context).pop();
@@ -131,7 +132,7 @@ class _ShareSheet extends StatelessWidget {
                 ),
                 _ShareOption(
                   icon: Icons.chat_rounded,
-                  color: const Color(0xFF25D366),
+                  color: ThirdPartyBrandColors.whatsapp,
                   label: 'WhatsApp',
                   onTap: () {
                     Navigator.of(context).pop();

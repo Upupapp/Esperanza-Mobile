@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../theme/app_elevation.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
 
@@ -69,7 +70,7 @@ class _Segment extends StatelessWidget {
             color: selected ? Colors.white : Colors.transparent,
             borderRadius: BorderRadius.circular(9),
             boxShadow: selected
-                ? const [BoxShadow(color: Color(0x140F172A), blurRadius: 6, offset: Offset(0, 1))]
+                ? [BoxShadow(color: AppElevation.tabPillShadow, blurRadius: 6, offset: const Offset(0, 1))]
                 : null,
           ),
           child: Text(

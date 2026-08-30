@@ -57,6 +57,50 @@ class AppTypography {
     color: AppColors.textMuted,
   );
 
+  // ---------------------------------------------------------------------
+  // The half-point scale.
+  //
+  // Measured 2026-08-29 (FE 06): of 412 hardcoded `fontSize:` literals in
+  // lib/, **177 are half-point sizes this class had no value for at all** —
+  // 12.5 alone appears 90 times, making it the most-used size in the app.
+  // The bypass rate was not carelessness; the token set genuinely could not
+  // express the size people needed, so they wrote the number.
+  //
+  // These name the sizes that already won, in the weights they already use,
+  // rather than introducing new values. Each carries no `color` so a call
+  // site can `.copyWith(color:)` from AppColors without fighting a default.
+  // ---------------------------------------------------------------------
+
+  /// 12.5 / w400 — running text at the compact size. Note this is the DEFAULT
+  /// weight: a bare `TextStyle(fontSize: 12.5)` is w400, so migrating one to
+  /// [bodySmall] (w600) would silently embolden it. Both exist for that reason.
+  static const TextStyle bodySmallRegular = TextStyle(fontFamily: sans, fontSize: 12.5, fontWeight: FontWeight.w400);
+
+  /// 12.5 / w600 — the app's most common size, by a wide margin. Dense row
+  /// labels, chip text, compact metadata.
+  static const TextStyle bodySmall = TextStyle(fontFamily: sans, fontSize: 12.5, fontWeight: FontWeight.w600);
+
+  /// 12.5 / w500 — the same size at normal emphasis.
+  static const TextStyle bodySmallMedium = TextStyle(fontFamily: sans, fontSize: 12.5, fontWeight: FontWeight.w500);
+
+  /// 13.5 / w600 — section and field labels a step above [bodySmall].
+  static const TextStyle label = TextStyle(fontFamily: sans, fontSize: 13.5, fontWeight: FontWeight.w600);
+
+  /// 13.5 / w700 — the emphatic form of [label]; equally common in practice.
+  static const TextStyle labelStrong = TextStyle(fontFamily: sans, fontSize: 13.5, fontWeight: FontWeight.w700);
+
+  /// 11.5 / w400 — the default-weight form; see [bodySmallRegular] on why the
+  /// regular variants exist separately.
+  static const TextStyle captionSmallRegular = TextStyle(fontFamily: sans, fontSize: 11.5, fontWeight: FontWeight.w400);
+
+  /// 11.5 / w600 — the smallest size used for real content: badge text,
+  /// timestamps, helper lines.
+  static const TextStyle captionSmall = TextStyle(fontFamily: sans, fontSize: 11.5, fontWeight: FontWeight.w600);
+
+  /// 10.5 / w600 — navigation labels and the tightest chrome. Below this,
+  /// reconsider the layout rather than the type.
+  static const TextStyle micro = TextStyle(fontFamily: sans, fontSize: 10.5, fontWeight: FontWeight.w600);
+
   /// Card/list-tile title text — Balita post headers, request/notification
   /// tiles, evacuation-center rows, and similar "titled item" rows. Added
   /// after an audit found this exact (13, w600) pairing was already the
