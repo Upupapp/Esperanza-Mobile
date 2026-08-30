@@ -144,7 +144,7 @@ void main() {
   testWidgets('RegisterScreen jumps straight to Verification Status for an already-signed-in account, no overflow', (tester) async {
     SharedPreferences.setMockInitialValues({});
     final session = CitizenSessionService();
-    await session.login(MockCatalog.demoAccounts.first); // Ronaldo — Pending Review
+    await session.login(MockCatalog.demoAccounts.first); // Nicanor — Pending Review
     tester.view.physicalSize = const Size(320, 568);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.resetPhysicalSize);

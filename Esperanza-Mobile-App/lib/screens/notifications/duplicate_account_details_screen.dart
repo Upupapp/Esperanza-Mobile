@@ -9,7 +9,7 @@ import '../../widgets/app_dialogs.dart';
 
 /// Phase 6 — "One Person, One Account" duplicate-account simulation,
 /// FRONTEND SIMULATION ONLY (see module doc). Opened from the original
-/// Cristy Bonghanoy account's "Possible Duplicate Account Detected"
+/// Perlita Quiambao account's "Possible Duplicate Account Detected"
 /// notification. [scenarioId] ('a' or 'b') lets the same flow be
 /// demonstrated twice without resetting the app — see
 /// NotificationsService.resolveDuplicateAlert, which persists which
@@ -32,7 +32,7 @@ class DuplicateAccountDetailsScreen extends StatelessWidget {
   // screen just vanishing.
   // The duplicate account is never terminated/deleted by this — it stays
   // reachable, just permanently Unverified (see
-  // MockCatalog.duplicateCristyAccount's own status comment). This screen
+  // MockCatalog.duplicateVerifiedDemoAccount's own status comment). This screen
   // only records that the citizen confirmed ownership of both accounts.
   Future<void> _confirmSameOwner(BuildContext context, NotificationsService notifications) async {
     AppHaptics.medium();

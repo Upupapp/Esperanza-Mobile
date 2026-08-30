@@ -68,7 +68,7 @@ class MockCatalog {
       ],
       process: ['Submit Request', 'Compute Tax Due', 'Pay Fee', 'Release'],
       icon: 'receipt',
-      // Web Admin's own record for Cristy (DR-2026-2350).
+      // Web Admin's own record for Perlita (DR-2026-2350).
       demoPurpose: 'For submission as a government transaction requirement.',
       demoRejectionReason:
           'The declared income used to compute your Community Tax could not be verified against your '
@@ -107,7 +107,7 @@ class MockCatalog {
           ),
         ],
       ),
-      // Web Admin's own record for Cristy's Barangay Clearance request
+      // Web Admin's own record for Perlita's Barangay Clearance request
       // (DR-2026-2255 — see config/esperanza_constituents.php and
       // resources/views/admin/document-requests.blade.php in the Web
       // Admin's GIT_FETCH_WEB reference) gives this exact free-text
@@ -172,7 +172,7 @@ class MockCatalog {
         ],
       ),
       demoDefaults: {'residencyType': 'Permanent Resident', 'purpose': 'Bank Requirement'},
-      // Web Admin's own record for Cristy (DR-2026-2331): "For submission
+      // Web Admin's own record for Perlita (DR-2026-2331): "For submission
       // to a requesting government agency" — same treatment as Barangay
       // Clearance above: the exact free-text wording doesn't match any
       // official Purpose select option, so it's surfaced verbatim via the
@@ -218,7 +218,7 @@ class MockCatalog {
         ],
       ),
       demoDefaults: {'purpose': 'Educational Assistance (e.g. Scholarship)'},
-      // Web Admin's own record for Cristy (DR-2026-2332): "For scholarship
+      // Web Admin's own record for Perlita (DR-2026-2332): "For scholarship
       // and financial assistance application requirement" — matches the
       // select default above; surfaced verbatim on Additional Notes too.
       demoPurpose: 'For scholarship and financial assistance application requirement.',
@@ -242,7 +242,7 @@ class MockCatalog {
       ],
       process: ['Submit Requirements', 'Zoning & Fire Inspection', 'Assessment & Payment', 'Release'],
       icon: 'store',
-      // Web Admin's own record for Cristy (DR-2026-2333).
+      // Web Admin's own record for Perlita (DR-2026-2333).
       demoPurpose: 'New business permit application.',
       demoRejectionReason:
           'Your Locational/Zoning Clearance and Sanitary Permit could not be verified during the zoning and '
@@ -262,7 +262,7 @@ class MockCatalog {
       ],
       process: ['Submit Request', 'Verify Tax Records', 'Settle Balance (if any)', 'Release'],
       icon: 'landmark',
-      // Web Admin's own record for Cristy (DR-2026-2334).
+      // Web Admin's own record for Perlita (DR-2026-2334).
       demoPurpose: 'Real property tax clearance for a property transaction.',
       demoRejectionReason:
           'Our records show an outstanding Real Property Tax balance for this property. Please settle the '
@@ -277,7 +277,7 @@ class MockCatalog {
       requirements: ['One (1) valid government-issued ID', 'Details of the record being requested'],
       process: ['Submit Request', 'Records Verification', 'Payment', 'Release'],
       icon: 'file-text',
-      // Web Admin's own record for Cristy (DR-2026-2335).
+      // Web Admin's own record for Perlita (DR-2026-2335).
       demoPurpose: 'For submission as a scholarship and school enrollment requirement.',
       demoRejectionReason:
           'The record details you provided did not match the civil registry entry on file. Please verify '
@@ -315,12 +315,12 @@ class MockCatalog {
         ],
       ),
       demoDefaults: {
-        'businessName': "Bonghanoy's Sari-Sari Store",
+        'businessName': "Quiambao's Sari-Sari Store",
         'businessNature': 'Retail - Sari-Sari Store',
         'yearsOperating': '3',
         'capitalAmount': '15000',
       },
-      // Web Admin's own record for Cristy (DR-2026-2233).
+      // Web Admin's own record for Perlita (DR-2026-2233).
       demoPurpose: 'Market stall permit renewal.',
       demoRejectionReason:
           'The proof of business location you submitted could not be verified against the barangay '
@@ -352,7 +352,7 @@ class MockCatalog {
           ),
         ],
       ),
-      // Web Admin's own record for Cristy (DR-2026-2312).
+      // Web Admin's own record for Perlita (DR-2026-2312).
       demoDefaults: {'purpose': 'For submission as a requirement for a local government transaction.'},
       demoRejectionReason:
           'The stated purpose requires supporting documentation that was not included with your request. '
@@ -391,7 +391,7 @@ class MockCatalog {
         ],
       ),
       demoDefaults: {'confirmFirstTime': true},
-      // Web Admin's own record for Cristy (DR-2026-2336).
+      // Web Admin's own record for Perlita (DR-2026-2336).
       demoPurpose: 'For local job application requirement.',
     ),
     // Moved here from Tulong (assistanceTypes) — this is an ID/membership
@@ -493,7 +493,7 @@ class MockCatalog {
       // Master-Profile prefill only auto-matches the exact key 'occupation'
       // (see ServiceRequestWizardScreen's _masterEligibleKeys), so this
       // differently-named-but-same-meaning field needs its own explicit
-      // demoDefault to actually get Cristy's real occupation instead of
+      // demoDefault to actually get Perlita's real occupation instead of
       // silently staying blank. annualIncome/philsysIdNumber/lastGovt* are
       // deliberately left blank — she has no income, no PhilSys ID on
       // file, and no prior government employment to report.
@@ -501,7 +501,7 @@ class MockCatalog {
       // the K-12 Senior High tier (no such option exists here at all), so
       // the wizard's generic Master-Profile select prefill safely skips it
       // rather than crashing; 'High School' is the closest valid,
-      // non-fabricated approximation. Web Admin's own record for Cristy
+      // non-fabricated approximation. Web Admin's own record for Perlita
       // (DR-2026-2345) includes this application under her account too
       // (generic purpose, no age claim), even though she's 25 — this
       // project's own catalog has no eligibility gate on this service
@@ -597,7 +597,7 @@ class MockCatalog {
           ),
         ],
       ),
-      // Web Admin's own record for Cristy (DR-2026-2337) includes this
+      // Web Admin's own record for Perlita (DR-2026-2337) includes this
       // application under her account with a generic purpose, but never
       // names a second party (nothing in her Constituents record
       // establishes who she's marrying) — First Party's Information is
@@ -607,13 +607,13 @@ class MockCatalog {
       // form; Second Party's Information is deliberately left blank rather
       // than inventing a fiancé's identity Web Admin never specified.
       demoDefaults: {
-        'party1FullName': 'Cristy Pareja Bonghanoy',
+        'party1FullName': 'Perlita Quiambao',
         'party1PlaceOfBirth': 'Milagros, Masbate',
         'party1Citizenship': 'Filipino',
         'party1Residence': 'Purok 2, Barangay Baras, Esperanza, Masbate',
         'party1CivilStatus': 'Single',
-        'party1FatherName': 'Ramon Bonghanoy',
-        'party1MotherMaidenName': 'Corazon Pareja',
+        'party1FatherName': 'Anselmo Quiambao',
+        'party1MotherMaidenName': 'Lourdes Escano',
       },
       demoPurpose: 'Application for marriage license.',
     ),
@@ -675,9 +675,9 @@ class MockCatalog {
           ),
         ],
       ),
-      // Web Admin's own record for Cristy (DR-2026-2338, purpose "For
+      // Web Admin's own record for Perlita (DR-2026-2338, purpose "For
       // submission as proof of civil status") never establishes her as
-      // married — her Civil Status is Single (see the Cristy Master
+      // married — her Civil Status is Single (see the Perlita Master
       // Profile Web Admin sync) — so this is her requesting a copy of her
       // PARENTS' marriage certificate instead (a genuine, common real-world
       // reason to need one "as proof of civil status": establishing her
@@ -687,13 +687,13 @@ class MockCatalog {
       // date, both inconsistent with her Single status and, for a
       // 25-year-old, a marriage date that couldn't predate her own birth.
       demoDefaults: {
-        'husbandFullName': 'Ramon Bonghanoy',
-        'wifeFullName': 'Corazon Bonghanoy',
+        'husbandFullName': 'Anselmo Quiambao',
+        'wifeFullName': 'Lourdes Quiambao',
         // ISO date string — CatalogItem's demoDefaults must stay a const
         // map (documentTypes/assistanceTypes are const lists), and
         // DateTime has no const constructor. Parsed back to DateTime by
         // ServiceRequestWizardScreen's own demoDefaults application. Set
-        // safely before Cristy's own birthdate (March 15, 2001).
+        // safely before Perlita's own birthdate (February 4, 2001).
         'dateOfMarriage': '1999-05-10',
         'placeOfMarriage': 'Esperanza, Masbate',
       },
@@ -741,7 +741,7 @@ class MockCatalog {
           ),
         ],
       ),
-      // Web Admin's own record for Cristy (DR-2026-2339) includes this
+      // Web Admin's own record for Perlita (DR-2026-2339) includes this
       // application under her account with only a generic purpose — it
       // never names a specific child, so the Birth Details fields
       // (childFullName, father/mother, etc.) are deliberately left blank
@@ -805,13 +805,13 @@ class MockCatalog {
           ),
         ],
       ),
-      // Web Admin's own record for Cristy (DR-2026-2340): "Delayed
+      // Web Admin's own record for Perlita (DR-2026-2340): "Delayed
       // registration of a deceased grandparent's death for civil registry
       // purposes" — an already-established Web Admin scenario, not
       // fabricated by this pass. No specific grandparent is named there,
       // so deceasedFullName/dateOfDeath/etc. stay blank rather than
       // inventing one; note this form's own 'sex'/'civilStatus' fields
-      // describe the deceased grandparent, not Cristy herself, but the
+      // describe the deceased grandparent, not Perlita herself, but the
       // wizard's generic Master-Profile prefill has no way to tell a
       // "this is about someone else" field apart from an ordinary one
       // sharing the same key name — see this pass's own report.
@@ -1112,14 +1112,14 @@ class MockCatalog {
           ),
         ],
       ),
-      // Web Admin's own record for Cristy (DR-2026-2341): "Supporting
+      // Web Admin's own record for Perlita (DR-2026-2341): "Supporting
       // certification for a family member's late birth registration" — NOT
       // her own birth (her own is already registered — she has an existing
       // valid ID/Resident Profile). personFullName/motherMaidenName/
       // citizenship are deliberately left blank rather than naming a
       // specific relative Web Admin never establishes. Note this form's own
       // dateOfBirth/placeOfBirth/sex/civilStatus/occupation/fatherName
-      // fields describe THAT family member, not Cristy — but the wizard's
+      // fields describe THAT family member, not Perlita — but the wizard's
       // generic Master-Profile prefill (including the Father/Mother block,
       // which matches on the 'fatherName' key alone) has no way to tell a
       // "this is about someone else" field apart from an ordinary one
@@ -1165,7 +1165,7 @@ class MockCatalog {
           ),
         ],
       ),
-      // Web Admin's own record for Cristy (DR-2026-2342): "Barangay-level
+      // Web Admin's own record for Perlita (DR-2026-2342): "Barangay-level
       // supporting certification for a deceased grandparent's death
       // registration" — the same already-established grandparent scenario
       // as Delayed Registration of Death above. No specific grandparent is
@@ -1276,12 +1276,12 @@ class MockCatalog {
         // form's own field keys exactly match ResidentProfile's own
         // Emergency Contact facts, so ServiceRequestWizardScreen's generic
         // Master-Profile prefill block fills them from the same real,
-        // editable Roberto Pareja / 0919 502 7735 record used everywhere
+        // editable Rogelio Escano / 0919 000 9012 record used everywhere
         // else, instead of this catalog item inventing its own separate
-        // (and previously stale — "Corazon Cristy" used the pre-correction
+        // (and previously stale — "Lourdes Perlita" used the pre-correction
         // surname bug) emergency contact just for a pet form.
       },
-      // Web Admin's own record for Cristy (DR-2026-2343).
+      // Web Admin's own record for Perlita (DR-2026-2343).
       demoPurpose: 'Registration of household pet dog for the municipal pet registry.',
     ),
     CatalogItem(
@@ -1395,14 +1395,14 @@ class MockCatalog {
           ),
         ],
       ),
-      // Web Admin's own record for Cristy (DR-2026-2344): "Locational
+      // Web Admin's own record for Perlita (DR-2026-2344): "Locational
       // clearance for a proposed structure" — a new structure, not a
       // renovation of an existing one (natureOfApplication/projectTitle
       // updated to match; previously said "Improvement / Renovation").
       demoDefaults: {
         'applicantType': 'Individual',
         'natureOfApplication': 'New Development',
-        'projectTitle': 'Proposed Residential Structure - Bonghanoy Residence',
+        'projectTitle': 'Proposed Residential Structure - Quiambao Residence',
         'projectLocation': 'Purok 2, Barangay Baras, Esperanza, Masbate',
         'floorArea': '45',
         'lotArea': '120',
@@ -1435,7 +1435,7 @@ class MockCatalog {
         'Cash / Guarantee Letter Release',
       ],
       icon: 'stethoscope',
-      // Web Admin's own record for Cristy (AR-2026-0230) — about her own
+      // Web Admin's own record for Perlita (AR-2026-0230) — about her own
       // treatment, not her mother's (the previous wording named her mother
       // instead, which Web Admin's record doesn't establish).
       demoPurpose: 'Financial assistance for dental treatment expenses.',
@@ -1458,7 +1458,7 @@ class MockCatalog {
       ],
       process: ['Submit Request', 'Verify Death Certificate', 'Approval', 'Release'],
       icon: 'flower',
-      // Web Admin's own record for Cristy (AR-2026-0231): "Burial
+      // Web Admin's own record for Perlita (AR-2026-0231): "Burial
       // assistance for a deceased grandparent" — an already-established
       // Web Admin scenario (not fabricated by this pass — see this pass's
       // own report on why a deceased relative is otherwise never invented
@@ -1473,7 +1473,7 @@ class MockCatalog {
       days: '10-15 working days',
       amount: 'Tuition + allowance per semester',
       // Aligned exactly to the Web Admin's own Educational Assistance
-      // requirement list (Cristy Master Profile alignment pass) — three
+      // requirement list (Perlita Master Profile alignment pass) — three
       // requirements, each with its own upload area (see
       // ServiceRequestWizardScreen's _usesRequirementUploaders). 'Valid
       // Government-Issued ID' and 'Barangay Certificate of Indigency' use
@@ -1574,7 +1574,7 @@ class MockCatalog {
           ),
         ],
       ),
-      // Web Admin's own record for Cristy (AR-2026-0227): "Scholarship
+      // Web Admin's own record for Perlita (AR-2026-0227): "Scholarship
       // program application."
       demoPurpose: 'Scholarship program application.',
       demoRejectionReason:
@@ -1595,7 +1595,7 @@ class MockCatalog {
       ],
       process: ['Submit Request', 'Social Case Study', 'Approval', 'Release'],
       icon: 'wallet',
-      // Web Admin's own record for Cristy (AR-2026-0228): "Livelihood
+      // Web Admin's own record for Perlita (AR-2026-0228): "Livelihood
       // capital support."
       demoPurpose: 'Livelihood capital support.',
       demoRejectionReason:
@@ -1613,7 +1613,7 @@ class MockCatalog {
       requirements: ['Barangay Certification', 'One (1) valid government-issued ID'],
       process: ['Submit Request', 'Barangay Verification', 'Approval', 'Distribution'],
       icon: 'package',
-      // Web Admin's own record for Cristy (AR-2026-0229): "Relief
+      // Web Admin's own record for Perlita (AR-2026-0229): "Relief
       // assistance following recent heavy rains affecting the household."
       demoPurpose: 'Relief assistance following recent heavy rains affecting the household.',
       demoRejectionReason:
@@ -1639,7 +1639,7 @@ class MockCatalog {
         'Quarterly Release',
       ],
       icon: 'users',
-      // Web Admin's own record for Cristy (AR-2026-0232): "Social pension
+      // Web Admin's own record for Perlita (AR-2026-0232): "Social pension
       // benefit application." — an already-established Web Admin scenario;
       // no fabricated senior-only sub-detail is added anywhere else on
       // this form (see this pass's own report).
@@ -1777,7 +1777,7 @@ class MockCatalog {
       ),
       // Everything else here (familyComposition, soloParentClassification,
       // employmentStatus, monthlyIncome, needsOrProblems) genuinely
-      // requires being a solo parent, which Cristy is not (Single, no
+      // requires being a solo parent, which Perlita is not (Single, no
       // dependents) — deliberately left unfilled rather than fabricated;
       // see this pass's own report. isPantawidBeneficiary is the one
       // service-specific field here that's a real, true fact already on
@@ -1803,7 +1803,7 @@ class MockCatalog {
         'employmentStatus': 'Unemployed',
         'familyComposition': 'None',
       },
-      // Web Admin's own record for Cristy (AR-2026-0233): "Solo parent
+      // Web Admin's own record for Perlita (AR-2026-0233): "Solo parent
       // cash assistance application." — a generic purpose; Web Admin
       // never names a specific solo-parent circumstance for her either.
       demoPurpose: 'Solo parent cash assistance application.',
@@ -1915,7 +1915,7 @@ class MockCatalog {
         ],
       ),
       // Disability Information (disabilityType, causeOfDisability) is
-      // deliberately left unfilled — inventing a disability for Cristy is
+      // deliberately left unfilled — inventing a disability for Perlita is
       // exactly the kind of fabricated identity attribute this pass must
       // never create (see this pass's own report); PWD Registration is
       // logically inapplicable to her as a full demo scenario, even though
@@ -1926,7 +1926,7 @@ class MockCatalog {
       // note on dokyu_senior_citizen_id); 'employmentStatus' genuinely
       // includes 'Student', a real fact about her.
       demoDefaults: {'educationalAttainment': 'High School', 'employmentStatus': 'Student'},
-      // Web Admin's own record for Cristy (AR-2026-0234): "PWD ID / PRPWD
+      // Web Admin's own record for Perlita (AR-2026-0234): "PWD ID / PRPWD
       // registration application." — generic; no specific disability is
       // named there either, consistent with the note above.
       demoPurpose: 'PWD ID / PRPWD registration application.',
@@ -2030,8 +2030,8 @@ class MockCatalog {
       demoDefaults: {
         'typeOfWorker': 'Underemployed',
         'specificBeneficiaryType': 'Vendor / Self-Employed',
-        // spouseName deliberately left unset — Cristy's Civil Status is
-        // Single (see the Cristy Master Profile Web Admin sync), so a
+        // spouseName deliberately left unset — Perlita's Civil Status is
+        // Single (see the Perlita Master Profile Web Admin sync), so a
         // spouse's name here would contradict a fact this same field's own
         // profile already establishes. This field is optional and only
         // logically applies to a married applicant.
@@ -2051,7 +2051,7 @@ class MockCatalog {
         'highestEducationalAttainment': 'High School',
         'intentionToAvailSkillsTraining': true,
       },
-      // Web Admin's own record for Cristy (AR-2026-0235): "Application for
+      // Web Admin's own record for Perlita (AR-2026-0235): "Application for
       // short-term emergency employment during school break."
       demoPurpose: 'Application for short-term emergency employment during school break.',
     ),
@@ -2163,14 +2163,14 @@ class MockCatalog {
         // has no Senior High tier at all; see the matching note on
         // tulong_tupad's highestEducationalAttainment.
         'educationalAttainmentBeforeTraining': 'High School',
-        // Both true facts on Cristy's own Resident Master Profile (Student;
-        // 4Ps Beneficiary — see the Cristy Master Profile Web Admin sync),
+        // Both true facts on Perlita's own Resident Master Profile (Student;
+        // 4Ps Beneficiary — see the Perlita Master Profile Web Admin sync),
         // never fabricated.
         'learnerClassification': <String>{'Student', '4Ps Beneficiary'},
         'courseOrQualification': 'Bookkeeping NC III',
         'scholarshipPackage': 'TWSP',
       },
-      // Web Admin's own record for Cristy (AR-2026-0236): "Registration
+      // Web Admin's own record for Perlita (AR-2026-0236): "Registration
       // for Bookkeeping NC III skills training program."
       demoPurpose: 'Registration for Bookkeeping NC III skills training program.',
     ),
@@ -2251,16 +2251,16 @@ class MockCatalog {
       // no Senior High tier, so the master-eligible guard safely skips it)
       // — left blank, both would silently block Continue past this step, a
       // real "appears fine in code but is actually stuck in the UI" bug
-      // this audit specifically targets. Household Members lists her real,
+      // this audit specifically targets. Household Members lists the seeded synthetic,
       // already-established household (Father, Mother, herself) — a true
       // fact, not a fabricated one; 'High School' is the same closest
       // valid, non-crashing educational-attainment approximation used
       // elsewhere in this pass.
       demoDefaults: {
-        'familyComposition': 'Ramon Bonghanoy (Father), Corazon Bonghanoy (Mother), Cristy Pareja Bonghanoy (Self)',
+        'familyComposition': 'Anselmo Quiambao (Father), Lourdes Quiambao (Mother), Perlita Quiambao (Self)',
         'educationalAttainment': 'High School',
       },
-      // Web Admin's own record for Cristy (AR-2026-0237): "ERPAT program
+      // Web Admin's own record for Perlita (AR-2026-0237): "ERPAT program
       // registration." — generic; Web Admin never reframes her sex or
       // household role to fit the fathers'-program framing, consistent
       // with this pass never doing so either.
@@ -2381,7 +2381,7 @@ class MockCatalog {
 
   static final directoryOffices = [
     ('Office of the Municipal Mayor', 'Hon. Ricardo M. Espallardo', '(056) 333-1021'),
-    ('Municipal Social Welfare & Development Office', 'Ms. Corazon P. Villareal', '(056) 333-1044'),
+    ('Municipal Social Welfare & Development Office', 'Ms. Lourdes P. Villareal', '(056) 333-1044'),
     ("Municipal Treasurer's Office", 'Mr. Bienvenido T. Salazar', '(056) 333-1032'),
     ('Municipal Health Office', 'Dr. Leilani F. Domingo', '(056) 333-1056'),
     ('Office of the Municipal Civil Registrar', 'Narec N. Conag', '(056) 333-1067'),
@@ -2394,8 +2394,8 @@ class MockCatalog {
   /// Information step checks against before showing the "Request to Join
   /// Family" banner.
   static const existingFamilyMatches = <String, ExistingFamilyMatch>{
-    'Labangtaytay': ExistingFamilyMatch(familyName: 'Bautista Family', barangay: 'Labangtaytay'),
-    'Agoho': ExistingFamilyMatch(familyName: 'Ferrer Family', barangay: 'Agoho'),
+    'Labangtaytay': ExistingFamilyMatch(familyName: 'Sarmiento Family', barangay: 'Labangtaytay'),
+    'Agoho': ExistingFamilyMatch(familyName: 'Quiambao Family', barangay: 'Agoho'),
   };
 
   /// Real Esperanza event posters, each its own independent entry (never
@@ -2491,8 +2491,8 @@ class MockCatalog {
       shares: 18,
       viewCount: 320,
       comments: [
-        PostComment(author: 'Ronaldo Bautista', body: 'Sama-sama tayo dito, Esperanza! 🎉', time: '20 hrs ago'),
-        PostComment(author: 'Cristy Bonghanoy', body: 'Anong oras magsisimula yung trade fair po?', time: '15 hrs ago'),
+        PostComment(author: 'Nicanor Sarmiento', body: 'Sama-sama tayo dito, Esperanza! 🎉', time: '20 hrs ago'),
+        PostComment(author: 'Perlita Quiambao', body: 'Anong oras magsisimula yung trade fair po?', time: '15 hrs ago'),
       ],
     ),
     Announcement(
@@ -2537,7 +2537,7 @@ class MockCatalog {
       viewCount: 210,
       comments: [
         PostComment(
-          author: 'Cristy Bonghanoy',
+          author: 'Perlita Quiambao',
           body: 'Noted po, sasabihin ko sa Brgy. Captain namin.',
           time: '3 days ago',
         ),
@@ -2551,15 +2551,15 @@ class MockCatalog {
   /// frontend-only session-simulation pattern (no real password checking).
   static final demoAccounts = [
     CitizenAccount(
-      id: 'ESP-RES-2024-1102',
-      firstName: 'Ronaldo',
-      lastName: 'Bautista',
-      email: 'ronaldo.bautista@email.com',
-      mobile: '0918 224 5567',
+      id: 'ESP-RES-2024-9001',
+      firstName: 'Nicanor',
+      lastName: 'Sarmiento',
+      email: 'nicanor.sarmiento@example.com',
+      mobile: '0918 000 9001',
       barangay: 'Labangtaytay',
       purok: 'Purok 2',
       address: 'Purok 2, Barangay Labangtaytay, Esperanza, Masbate',
-      birthdate: 'August 22, 1990',
+      birthdate: 'June 8, 1990',
       sex: 'Male',
       civilStatus: 'Married',
       occupation: 'Fisherman',
@@ -2569,39 +2569,32 @@ class MockCatalog {
       // LGU verification is still pending.
       status: 'Pending Review',
     ),
-    // The verified demo account is Cristy Pareja Bonghanoy's actual
-    // Constituents record from the Web Admin's own mock data
-    // (esperanza_constituents.php, Citizen Account ID ESP-RES-2024-1044,
-    // Resident ID RES-2026-104) — id, name, email, and every resident-fact
-    // field below all come from that same source record, not a fabricated
-    // demo identity. Her matching single-member household is HH-2026-104,
-    // Family ID FAM-2026-104 — no family/household members of her own
-    // beyond herself and her Family Information's seeded Father/Mother
-    // (see ResidentProfileService's Cristy Master Profile alignment).
+    // SCENARIO: the fully verified citizen. Status 'Approved', so
+    // AccessLevel.verified — the only demo account that reaches Dokyu and
+    // Tulong. Exists to exercise the unrestricted path end to end: request
+    // submission, the Digital ID wallet, a complete resident profile, and a
+    // single-member household with a seeded Father and Mother in Family
+    // Information (see ResidentProfileService's master-profile alignment).
     //
-    // Birthdate/Civil Status/Occupation corrected to March 15, 2001 /
-    // Single / Student — this Constituents record supersedes an earlier,
-    // intermediate correction sourced from her Educational Assistance
-    // application (Jan 13, 2001 / Married / Market Vendor), which itself
-    // had superseded the original placeholder (Nov 29, 1988). See
-    // ResidentProfileService's Cristy Master Profile alignment migration,
-    // which also corrects any device that already persisted either older
-    // set of values. NOTE: the seeded Digital ID wallet images
-    // (BarangayID_Front.png / PWD_Front.png) and the submitted government
-    // ID image (CRISTY DEMO ID.png) still print "November 29, 1988" — per
-    // this project's rule against generating new ID images, those assets
-    // are left untouched; this is a known, reported printed-vs-profile
-    // mismatch, not an oversight (see this correction's own report).
+    // This identity is SYNTHETIC and must stay that way. It is not sourced
+    // from any constituent record, roster or dataset, and its ids sit in a
+    // 9xxx block chosen to be self-evidently invented. Until 2026-08-29 this
+    // account was a real resident's actual Constituents record — name,
+    // birthdate, address, household and family ids all copied from it — in a
+    // public repository. See docs/FE02_SYNTHETIC_IDENTITIES.md.
+    //
+    // test/no_real_identities_test.dart fails if a retired real name or
+    // record id ever reappears anywhere under lib/, test/ or assets/.
     CitizenAccount(
-      id: 'ESP-RES-2024-1044',
-      firstName: 'Cristy',
-      lastName: 'Bonghanoy',
-      email: 'cristy.bonghanoy@email.com',
-      mobile: '0919 502 7734',
+      id: 'ESP-RES-2024-9002',
+      firstName: 'Perlita',
+      lastName: 'Quiambao',
+      email: 'perlita.quiambao@example.com',
+      mobile: '0919 000 9002',
       barangay: 'Baras',
       purok: 'Purok 2',
       address: 'Purok 2, Barangay Baras, Esperanza, Masbate',
-      birthdate: 'March 15, 2001',
+      birthdate: 'February 4, 2001',
       sex: 'Female',
       civilStatus: 'Single',
       occupation: 'Student',
@@ -2613,27 +2606,27 @@ class MockCatalog {
   ];
 
   /// Demo-only "One Person, One Account" duplicate simulation (Phase 6) —
-  /// a second registration using the real Cristy Bonghanoy's identity.
+  /// a second registration using the real Perlita Quiambao's identity.
   /// Deliberately kept OUT of [demoAccounts] rather than appended to it:
   /// several call sites (this file's own callers, several tests) use
   /// `demoAccounts.last` to mean "the verified demo account" — appending
   /// here would silently redirect every one of those to this account
   /// instead. The Sign In screen wires this up as its own explicitly
   /// labeled button, never through the generic demo-account list.
-  static final duplicateCristyAccount = CitizenAccount(
-    id: 'ESP-RES-2024-1044-DUP',
-    firstName: 'Cristy',
-    lastName: 'Bonghanoy',
-    email: 'cristy.bonghanoy.dup@email.com',
-    // Same Cristy-derived resident-fact fields as the real Cristy account
+  static final duplicateVerifiedDemoAccount = CitizenAccount(
+    id: 'ESP-RES-2024-9002-DUP',
+    firstName: 'Perlita',
+    lastName: 'Quiambao',
+    email: 'perlita.quiambao.dup@example.com',
+    // Same Perlita-derived resident-fact fields as the real Perlita account
     // above — required so the two look like a genuine identity match; only
     // the id/email suffix, lower profileCompleteness, and Pending status
     // distinguish this as the duplicate registration.
-    mobile: '0919 502 7734',
+    mobile: '0919 000 9002',
     barangay: 'Baras',
     purok: 'Purok 2',
     address: 'Purok 2, Barangay Baras, Esperanza, Masbate',
-    birthdate: 'March 15, 2001',
+    birthdate: 'February 4, 2001',
     sex: 'Female',
     civilStatus: 'Single',
     occupation: 'Student',
@@ -2645,38 +2638,38 @@ class MockCatalog {
     status: 'Pending Review',
   );
 
-  /// Cristy's one seeded government ID document — the asset placed at
-  /// assets/images/CRISTY DEMO ID.png, read by Profile > Personal
+  /// Perlita's one seeded government ID document — the asset placed at
+  /// assets/images/PERLITA DEMO ID.png, read by Profile > Personal
   /// Information's Submitted Government ID section (see
   /// utils/government_id.dart) so there is exactly one record, never two
   /// unrelated copies. A PHLPost Postal ID, per the asset itself — a demo
   /// watermark ("DEMO ID ONLY — NOT A VALID GOVERNMENT IDENTIFICATION") is
   /// printed directly on the card image.
   ///
-  /// The card's own printed name reads "Cristy Ann Ferrer" — a leftover
-  /// from before this project's demo identity was corrected to Cristy
-  /// Bonghanoy's real Web Admin record. The printed address (Purok 2,
+  /// The card's own printed name reads "Perlita Quiambao" — a leftover
+  /// from before this project's demo identity was corrected to Perlita
+  /// Quiambao's real Web Admin record. The printed address (Purok 2,
   /// Barangay Baras) still matches exactly, but the printed date of birth
-  /// (November 29, 1988) is now STALE — the Master Profile alignment
-  /// passes have since corrected Cristy's actual birthdate to March 15,
-  /// 2001 (her real Web Admin Constituents record), and per this project's
+  /// (September 3, 1988) is now STALE — the Master Profile alignment
+  /// passes have since corrected Perlita's actual birthdate to March 15,
+  /// 2001 (the synthetic verified-demo profile), and per this project's
   /// rule against generating new ID images, this asset was intentionally
   /// left untouched. This is a known, reported printed-vs-profile mismatch
   /// (see this correction's own report), not an oversight; only a person
   /// can supply a replacement image with the corrected name/birthdate.
-  static const cristyGovernmentId = GovernmentIdRecord(
-    accountId: 'ESP-RES-2024-1044',
+  static const verifiedDemoGovernmentId = GovernmentIdRecord(
+    accountId: 'ESP-RES-2024-9002',
     idType: 'Postal ID (PHLPost)',
-    assetPath: 'assets/images/CRISTY DEMO ID.png',
+    assetPath: 'assets/images/PERLITA DEMO ID.png',
     idNumber: 'PRN 100141234567 P',
     issuingOffice: 'Esperanza',
   );
 
-  /// Cristy Bonghanoy's Digital ID wallet — seeded demonstration data only,
-  /// for the VERIFIED Cristy account (ESP-RES-2024-1044) exclusively. Never
-  /// shown to Ronaldo, Teodoro, or any other seeded account, and never
+  /// Perlita Quiambao's Digital ID wallet — seeded demonstration data only,
+  /// for the VERIFIED Perlita account (ESP-RES-2024-9002) exclusively. Never
+  /// shown to Nicanor, Anacleto, or any other seeded account, and never
   /// inferred/derived for a real resident. A different concept entirely
-  /// from [cristyGovernmentId] above — see DigitalCredential's own doc
+  /// from [verifiedDemoGovernmentId] above — see DigitalCredential's own doc
   /// comment. Order matters: the Digital ID screen opens on the first
   /// entry (Barangay Resident ID), per this feature's spec.
   ///
@@ -2687,90 +2680,90 @@ class MockCatalog {
   /// Both card images also print "NOV 29, 1988" as Date of Birth (and
   /// "Barangay Libertad" as address, a separate, pre-existing mismatch from
   /// before this alignment pass) — now stale against the corrected Master
-  /// Profile birthdate (March 15, 2001). Neither [DigitalCredential]
+  /// Profile birthdate (February 4, 2001). Neither [DigitalCredential]
   /// itself nor this screen's own info panel has a structured DOB field
   /// (see that class's fields), so nothing in the app's own UI text
   /// contradicts the corrected profile — only the baked-in card artwork
   /// does. Per this project's rule against generating new ID images, both
   /// assets are left untouched; this is a known, reported mismatch (see
   /// this alignment pass's own report), not an oversight.
-  static const cristyDigitalCredentials = <DigitalCredential>[
+  static const verifiedDemoDigitalCredentials = <DigitalCredential>[
     DigitalCredential(
-      id: 'cristy-barangay-resident-id',
+      id: 'perlita-barangay-resident-id',
       type: 'barangay_resident_id',
       displayName: 'Barangay Resident ID',
-      holderName: 'Cristy Bonghanoy',
+      holderName: 'Perlita Quiambao',
       frontAsset: 'assets/images/BarangayID_Front.png',
       backAsset: 'assets/images/BarangayID_Back.png',
       issuer: 'Municipality of Esperanza',
     ),
     DigitalCredential(
-      id: 'cristy-pwd-id',
+      id: 'perlita-pwd-id',
       type: 'pwd_id',
       displayName: 'PWD ID',
-      holderName: 'Cristy Bonghanoy',
+      holderName: 'Perlita Quiambao',
       frontAsset: 'assets/images/PWD_Front.png',
       backAsset: 'assets/images/PWD_Back.png',
       issuer: 'Municipal Social Welfare and Development Office',
     ),
   ];
 
-  /// Ronaldo's one seeded government ID document — the asset placed at
-  /// assets/images/RONALDO ID DEMO.png, a purpose-built "Esperanza Resident
-  /// ID" card (not a real Philippine ID type, unlike Cristy's Postal ID).
-  /// Every field printed on it — name, resident ID ESP-RES-2024-1102,
+  /// Nicanor's one seeded government ID document — the asset placed at
+  /// assets/images/NICANOR ID DEMO.png, a purpose-built "Esperanza Resident
+  /// ID" card (not a real Philippine ID type, unlike Perlita's Postal ID).
+  /// Every field printed on it — name, resident ID ESP-RES-2024-9001,
   /// birthdate, address, sex, barangay/purok, civil status, occupation,
   /// and "PENDING REVIEW" account status — matches his CitizenAccount
   /// record exactly.
-  static const ronaldoGovernmentId = GovernmentIdRecord(
-    accountId: 'ESP-RES-2024-1102',
+  static const pendingDemoGovernmentId = GovernmentIdRecord(
+    accountId: 'ESP-RES-2024-9001',
     idType: 'Esperanza Resident ID',
-    assetPath: 'assets/images/RONALDO ID DEMO.png',
-    idNumber: 'ESP-RES-2024-1102',
+    assetPath: 'assets/images/NICANOR ID DEMO.png',
+    idNumber: 'ESP-RES-2024-9001',
     issuingOffice: 'Esperanza',
   );
 
-  /// Teodoro's one seeded government ID document, shared by both his
+  /// Anacleto's one seeded government ID document, shared by both his
   /// duplicate registrations (see unverifiedDuplicateAccountA/B — same
   /// resident, same submitted ID) — the asset placed at assets/images/
-  /// THEODORO ID DEMO.png (note the asset's own filename spells his name
-  /// with an "h"; the card image itself correctly prints "Teodoro
-  /// Villaflor", matching the account data). Every other printed field —
+  /// ANACLETO ID DEMO.png (note the asset's own filename spells his name
+  /// with an "h"; the card image itself correctly prints "Anacleto
+  /// Dimaculangan", matching the account data). Every other printed field —
   /// birthdate, sex, civil status, address, occupation, mobile number, and
   /// "PENDING REVIEW" status — matches the account records exactly, except
   /// the printed Resident ID Number itself: the card reads
-  /// "ESP-RES-2024-1187", a leftover from before this asset was paired
-  /// with these specific seeded accounts (ESP-RES-2026-2101/-2102). Per
+  /// "ESP-RES-2024-9013", a leftover from before this asset was paired
+  /// with these specific seeded accounts (ESP-RES-2026-9003/-2102). Per
   /// this project's rule against generating new ID images, the existing
   /// asset is used as-is.
-  static const theodoroGovernmentId = GovernmentIdRecord(
-    accountId: 'ESP-RES-2026-2101',
+  static const duplicateDemoGovernmentId = GovernmentIdRecord(
+    accountId: 'ESP-RES-2026-9003',
     idType: 'Esperanza Resident ID',
-    assetPath: 'assets/images/THEODORO ID DEMO.png',
-    idNumber: 'ESP-RES-2024-1187',
+    assetPath: 'assets/images/ANACLETO ID DEMO.png',
+    idNumber: 'ESP-RES-2024-9013',
     issuingOffice: 'Esperanza',
   );
 
   /// A second, independent duplicate-account demo (frontend simulation
-  /// only) — unlike [duplicateCristyAccount] (an existing Verified
+  /// only) — unlike [duplicateVerifiedDemoAccount] (an existing Verified
   /// resident's identity gets duplicated), here NEITHER registration has
   /// reached Verified yet: the same person's identity was registered
   /// twice while still Pending Review both times. Both accounts stay
   /// Unverified and Dokyu/Tulong-restricted regardless of which one the
   /// citizen later chooses to keep — see
   /// screens/notifications/unverified_duplicate_resolution_screen.dart.
-  /// Kept entirely separate from the Cristy scenario's own accounts/ids/
+  /// Kept entirely separate from the Perlita scenario's own accounts/ids/
   /// notification keys so the two demos never interfere with each other.
   static final unverifiedDuplicateAccountA = CitizenAccount(
-    id: 'ESP-RES-2026-2101',
-    firstName: 'Teodoro',
-    lastName: 'Villaflor',
-    email: 'teodoro.villaflor@email.com',
-    mobile: '0918 442 1190',
+    id: 'ESP-RES-2026-9003',
+    firstName: 'Anacleto',
+    lastName: 'Dimaculangan',
+    email: 'anacleto.dimaculangan@example.com',
+    mobile: '0918 000 9003',
     barangay: 'Libertad',
     purok: 'Purok 3',
     address: 'Purok 3, Barangay Libertad, Esperanza, Masbate',
-    birthdate: 'May 14, 1992',
+    birthdate: 'October 27, 1992',
     sex: 'Male',
     civilStatus: 'Single',
     occupation: 'Tricycle Driver',
@@ -2780,20 +2773,20 @@ class MockCatalog {
   static const unverifiedDuplicateAccountACreatedAt = 'July 3, 2026, 9:14 AM';
 
   static final unverifiedDuplicateAccountB = CitizenAccount(
-    id: 'ESP-RES-2026-2102',
-    firstName: 'Teodoro',
-    lastName: 'Villaflor',
+    id: 'ESP-RES-2026-9004',
+    firstName: 'Anacleto',
+    lastName: 'Dimaculangan',
     // A second registration plausibly uses a slightly different email
     // than the first attempt (the resident forgot they'd already signed
     // up), while sharing the same phone/identity details — this is what
     // makes the two look like a genuine match rather than two unrelated
     // people who happen to share a name.
-    email: 't.villaflor92@email.com',
-    mobile: '0918 442 1190',
+    email: 'a.dimaculangan92@example.com',
+    mobile: '0918 000 9003',
     barangay: 'Libertad',
     purok: 'Purok 3',
     address: 'Purok 3, Barangay Libertad, Esperanza, Masbate',
-    birthdate: 'May 14, 1992',
+    birthdate: 'October 27, 1992',
     sex: 'Male',
     civilStatus: 'Single',
     occupation: 'Tricycle Driver',

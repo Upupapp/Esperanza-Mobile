@@ -13,8 +13,8 @@ import 'package:esperanza_mobile/models/service_request.dart';
 import 'package:esperanza_mobile/services/requests_service.dart';
 import 'package:esperanza_mobile/utils/tulong_eligibility.dart';
 
-const _cristyId = 'ESP-RES-2024-1044';
-const _cristyName = 'Cristy Bonghanoy';
+const _verifiedDemoId = 'ESP-RES-2024-9002';
+const _verifiedDemoName = 'Perlita Quiambao';
 
 /// The exact eight ids RequestsService's own seeding used to create (three
 /// Dokyu, three Tulong status-simulation demos, plus two Dokyu already-paid
@@ -39,8 +39,8 @@ const _legacySeedIds = [
 ServiceRequest _legacySeedFixture(String id, ServiceCategory category) => ServiceRequest(
   id: id,
   referenceNumber: 'DR-2026-DEMO',
-  applicantId: _cristyId,
-  applicantName: _cristyName,
+  applicantId: _verifiedDemoId,
+  applicantName: _verifiedDemoName,
   typeName: 'Some Legacy Demo Type',
   category: category,
   office: 'Some Office',
@@ -55,8 +55,8 @@ ServiceRequest _legacySeedFixture(String id, ServiceCategory category) => Servic
 ServiceRequest _genuineRequestFixture() => ServiceRequest(
   id: 'req-1700000000000',
   referenceNumber: 'DR-2026-0001',
-  applicantId: _cristyId,
-  applicantName: _cristyName,
+  applicantId: _verifiedDemoId,
+  applicantName: _verifiedDemoName,
   typeName: 'Barangay Clearance',
   category: ServiceCategory.dokyu,
   office: 'Barangay Hall',
@@ -164,8 +164,8 @@ void main() {
       expect(requests.all, isEmpty);
 
       final submitted = await requests.submit(
-        applicantId: _cristyId,
-        applicantName: _cristyName,
+        applicantId: _verifiedDemoId,
+        applicantName: _verifiedDemoName,
         typeName: 'Barangay Clearance',
         category: ServiceCategory.dokyu,
         office: 'Barangay Hall',
@@ -201,7 +201,7 @@ void main() {
         tester,
       );
 
-      final result = tulongEligibilityFor(requests, applicantId: _cristyId, typeName: 'Medical Assistance (AICS)');
+      final result = tulongEligibilityFor(requests, applicantId: _verifiedDemoId, typeName: 'Medical Assistance (AICS)');
       expect(result.isEligible, isTrue);
     });
 
@@ -213,8 +213,8 @@ void main() {
       );
 
       await requests.submit(
-        applicantId: _cristyId,
-        applicantName: _cristyName,
+        applicantId: _verifiedDemoId,
+        applicantName: _verifiedDemoName,
         typeName: 'Medical Assistance (AICS)',
         category: ServiceCategory.tulong,
         office: 'Municipal Social Welfare and Development Office',
@@ -223,7 +223,7 @@ void main() {
         attachments: const [],
       );
 
-      final result = tulongEligibilityFor(requests, applicantId: _cristyId, typeName: 'Medical Assistance (AICS)');
+      final result = tulongEligibilityFor(requests, applicantId: _verifiedDemoId, typeName: 'Medical Assistance (AICS)');
       expect(result.isEligible, isFalse);
       expect(result.status, TulongEligibility.blockedActive);
     });
@@ -236,8 +236,8 @@ void main() {
       );
 
       final rejected = await requests.submit(
-        applicantId: _cristyId,
-        applicantName: _cristyName,
+        applicantId: _verifiedDemoId,
+        applicantName: _verifiedDemoName,
         typeName: 'Educational Assistance',
         category: ServiceCategory.tulong,
         office: 'Office of the Municipal Mayor',
@@ -247,7 +247,7 @@ void main() {
       );
       await requests.rejectDemo(rejected.id, reason: 'Missing enrollment document.');
 
-      final result = tulongEligibilityFor(requests, applicantId: _cristyId, typeName: 'Educational Assistance');
+      final result = tulongEligibilityFor(requests, applicantId: _verifiedDemoId, typeName: 'Educational Assistance');
       expect(result.isEligible, isTrue);
     });
   });

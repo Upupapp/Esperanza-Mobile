@@ -45,7 +45,7 @@ Future<void> _openService(WidgetTester tester, String label) async {
   await tester.pumpAndSettle();
 }
 
-Future<void> _pumpSignedInAsCristy(WidgetTester tester, Size size) async {
+Future<void> _pumpSignedInAsVerifiedDemo(WidgetTester tester, Size size) async {
   SharedPreferences.setMockInitialValues({});
   tester.view.physicalSize = size;
   tester.view.devicePixelRatio = 1.0;
@@ -53,7 +53,7 @@ Future<void> _pumpSignedInAsCristy(WidgetTester tester, Size size) async {
   addTearDown(tester.view.resetDevicePixelRatio);
 
   final session = CitizenSessionService();
-  await session.login(MockCatalog.demoAccounts.last); // Cristy — verified, no requests yet
+  await session.login(MockCatalog.demoAccounts.last); // Perlita — verified, no requests yet
 
   await tester.pumpWidget(
     MultiProvider(
@@ -105,7 +105,7 @@ void main() {
 
   for (final entry in sizes.entries) {
     testWidgets('Dokyu empty state clears the New Request FAB at ${entry.key}', (tester) async {
-      await _pumpSignedInAsCristy(tester, entry.value);
+      await _pumpSignedInAsVerifiedDemo(tester, entry.value);
 
       await _openService(tester, 'Dokyu');
 
@@ -114,7 +114,7 @@ void main() {
     });
 
     testWidgets('Tulong empty state clears the New Request FAB at ${entry.key}', (tester) async {
-      await _pumpSignedInAsCristy(tester, entry.value);
+      await _pumpSignedInAsVerifiedDemo(tester, entry.value);
 
       await _openService(tester, 'Tulong');
 

@@ -1,5 +1,5 @@
-// Coverage for the Digital ID credential wallet (verified Cristy
-// Bonghanoy only): seeded Barangay Resident ID / PWD ID order and asset
+// Coverage for the Digital ID credential wallet (verified Perlita
+// Quiambao only): seeded Barangay Resident ID / PWD ID order and asset
 // pairing, tap-to-flip, vertical swipe navigation (direction, bounds,
 // position indicator), the information panel following the active
 // credential, View Full Screen preserving the currently-shown side,
@@ -55,11 +55,11 @@ bool _hasAssetImage(WidgetTester tester, String assetPath) {
 }
 
 void main() {
-  group('Verified Cristy — Digital ID wallet', () {
+  group('Verified Perlita — Digital ID wallet', () {
     testWidgets('is accessible and shows Barangay Resident ID first, PWD ID second (position indicator)', (
       tester,
     ) async {
-      final session = await _signedInAs(tester, MockCatalog.demoAccounts.last); // Cristy — verified
+      final session = await _signedInAs(tester, MockCatalog.demoAccounts.last); // Perlita — verified
       await _pumpWallet(tester, session);
 
       expect(session.accessLevel, AccessLevel.verified);
@@ -219,13 +219,13 @@ void main() {
       expect(find.text('1 of 2'), findsOneWidget); // total is exactly 2
       expect(find.text('Submitted Government ID'), findsNothing);
       expect(find.text('Postal ID (PHLPost)'), findsNothing);
-      expect(_hasAssetImage(tester, 'assets/images/CRISTY DEMO ID.png'), isFalse);
+      expect(_hasAssetImage(tester, 'assets/images/PERLITA DEMO ID.png'), isFalse);
     });
   });
 
   group('Unverified accounts — no active credentials', () {
-    testWidgets('Ronaldo (unverified) sees the locked state, never the wallet', (tester) async {
-      final session = await _signedInAs(tester, MockCatalog.demoAccounts.first); // Ronaldo — unverified
+    testWidgets('Nicanor (unverified) sees the locked state, never the wallet', (tester) async {
+      final session = await _signedInAs(tester, MockCatalog.demoAccounts.first); // Nicanor — unverified
       await _pumpWallet(tester, session);
 
       expect(session.accessLevel, AccessLevel.unverified);
@@ -236,8 +236,8 @@ void main() {
       expect(tester.takeException(), isNull);
     });
 
-    testWidgets('duplicate Cristy registration (still Pending Review) also sees the locked state', (tester) async {
-      final session = await _signedInAs(tester, MockCatalog.duplicateCristyAccount);
+    testWidgets('duplicate Perlita registration (still Pending Review) also sees the locked state', (tester) async {
+      final session = await _signedInAs(tester, MockCatalog.duplicateVerifiedDemoAccount);
       await _pumpWallet(tester, session);
 
       expect(session.accessLevel, AccessLevel.unverified);

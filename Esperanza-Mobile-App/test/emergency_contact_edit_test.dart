@@ -1,10 +1,10 @@
-// Coverage for the targeted Family Information update: Cristy's Emergency
+// Coverage for the targeted Family Information update: Perlita's Emergency
 // Contact section becomes editable (Name/Relationship/Contact Number), with
 // Cancel/Save actions, sensible validation, and a migration-safe seeded
-// default (Roberto Pareja / Brother / 0919 502 7735) that never overwrites
+// default (Rogelio Escano / Brother / 0919 000 9012) that never overwrites
 // a citizen's own saved edit on a later app launch. Family members
-// (Ramon/Corazon Bonghanoy), Family ID, and Household ID are explicitly
-// untouched by this feature — see the Cristy Master Profile Web Admin sync
+// (Anselmo/Lourdes Quiambao), Family ID, and Household ID are explicitly
+// untouched by this feature — see the Perlita Master Profile Web Admin sync
 // this builds on.
 import 'dart:convert';
 import 'package:flutter/material.dart';
@@ -19,7 +19,7 @@ import 'package:esperanza_mobile/services/resident_profile_service.dart';
 import 'package:esperanza_mobile/widgets/app_button.dart';
 import 'package:esperanza_mobile/widgets/app_text_field.dart';
 
-Future<CitizenSessionService> _signedInAsCristy(WidgetTester tester) async {
+Future<CitizenSessionService> _signedInAsVerifiedDemo(WidgetTester tester) async {
   final session = CitizenSessionService();
   var attempts = 0;
   while (session.loading) {
@@ -27,7 +27,7 @@ Future<CitizenSessionService> _signedInAsCristy(WidgetTester tester) async {
     if (attempts > 100) throw StateError('CitizenSessionService never finished loading.');
     await tester.pump(const Duration(milliseconds: 1));
   }
-  await session.login(MockCatalog.demoAccounts.last); // Cristy — verified
+  await session.login(MockCatalog.demoAccounts.last); // Perlita — verified
   return session;
 }
 
@@ -81,16 +81,16 @@ Finder _fieldInput(String label) =>
 
 void main() {
   group('Display — seeded default', () {
-    testWidgets('shows Roberto Pareja / Brother / 0919 502 7735 read-only, with an Edit action', (tester) async {
+    testWidgets('shows Rogelio Escano / Brother / 0919 000 9012 read-only, with an Edit action', (tester) async {
       SharedPreferences.setMockInitialValues({});
-      final session = await _signedInAsCristy(tester);
+      final session = await _signedInAsVerifiedDemo(tester);
       final profiles = await _readyProfiles(tester);
       await _pumpFamilyInfo(tester, session: session, profiles: profiles);
 
       expect(find.text('Emergency Contact'), findsOneWidget);
-      expect(find.text('Roberto Pareja'), findsOneWidget);
+      expect(find.text('Rogelio Escano'), findsOneWidget);
       expect(find.text('Brother'), findsOneWidget);
-      expect(find.text('0919 502 7735'), findsOneWidget);
+      expect(find.text('0919 000 9012'), findsOneWidget);
       expect(find.text('Edit'), findsOneWidget);
       // Not yet in edit mode — no editable text fields for this section.
       expect(find.widgetWithText(AppTextField, 'Name'), findsNothing);
@@ -103,7 +103,7 @@ void main() {
       tester,
     ) async {
       SharedPreferences.setMockInitialValues({});
-      final session = await _signedInAsCristy(tester);
+      final session = await _signedInAsVerifiedDemo(tester);
       final profiles = await _readyProfiles(tester);
       await _pumpFamilyInfo(tester, session: session, profiles: profiles);
 
@@ -114,9 +114,9 @@ void main() {
       expect(find.widgetWithText(AppTextField, 'Relationship'), findsOneWidget);
       expect(find.widgetWithText(AppTextField, 'Contact number'), findsOneWidget);
       // The current values are real editable text, not placeholder/hint.
-      expect(tester.widget<TextField>(_fieldInput('Name')).controller!.text, 'Roberto Pareja');
+      expect(tester.widget<TextField>(_fieldInput('Name')).controller!.text, 'Rogelio Escano');
       expect(tester.widget<TextField>(_fieldInput('Relationship')).controller!.text, 'Brother');
-      expect(tester.widget<TextField>(_fieldInput('Contact number')).controller!.text, '0919 502 7735');
+      expect(tester.widget<TextField>(_fieldInput('Contact number')).controller!.text, '0919 000 9012');
       expect(find.widgetWithText(AppButton, 'Cancel'), findsOneWidget);
       expect(find.widgetWithText(AppButton, 'Save'), findsOneWidget);
       expect(tester.takeException(), isNull);
@@ -124,14 +124,14 @@ void main() {
 
     testWidgets('Save persists the new values and the screen immediately shows them', (tester) async {
       SharedPreferences.setMockInitialValues({});
-      final session = await _signedInAsCristy(tester);
+      final session = await _signedInAsVerifiedDemo(tester);
       final profiles = await _readyProfiles(tester);
       await _pumpFamilyInfo(tester, session: session, profiles: profiles);
 
       await tester.tap(find.text('Edit'));
       await tester.pumpAndSettle();
 
-      await tester.enterText(_fieldInput('Name'), 'Maria Pareja');
+      await tester.enterText(_fieldInput('Name'), 'Maria Escano');
       await tester.enterText(_fieldInput('Relationship'), 'Sister');
       await tester.enterText(_fieldInput('Contact number'), '0917 111 2222');
       await tester.pumpAndSettle();
@@ -140,13 +140,13 @@ void main() {
       await tester.tap(find.widgetWithText(AppButton, 'Save'));
       await tester.pumpAndSettle();
 
-      expect(find.text('Maria Pareja'), findsOneWidget);
+      expect(find.text('Maria Escano'), findsOneWidget);
       expect(find.text('Sister'), findsOneWidget);
       expect(find.text('0917 111 2222'), findsOneWidget);
       expect(find.widgetWithText(AppButton, 'Save'), findsNothing); // back to read-only
 
       final saved = profiles.profileFor(session.account!);
-      expect(saved.emergencyContactName, 'Maria Pareja');
+      expect(saved.emergencyContactName, 'Maria Escano');
       expect(saved.emergencyContactRelationship, 'Sister');
       expect(saved.emergencyContactNumber, '0917 111 2222');
       expect(saved.emergencyContactEdited, isTrue);
@@ -155,7 +155,7 @@ void main() {
 
     testWidgets('Cancel discards edits and restores the currently saved values', (tester) async {
       SharedPreferences.setMockInitialValues({});
-      final session = await _signedInAsCristy(tester);
+      final session = await _signedInAsVerifiedDemo(tester);
       final profiles = await _readyProfiles(tester);
       await _pumpFamilyInfo(tester, session: session, profiles: profiles);
 
@@ -170,9 +170,9 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Someone Else'), findsNothing);
-      expect(find.text('Roberto Pareja'), findsOneWidget);
+      expect(find.text('Rogelio Escano'), findsOneWidget);
       expect(find.text('Brother'), findsOneWidget);
-      expect(find.text('0919 502 7735'), findsOneWidget);
+      expect(find.text('0919 000 9012'), findsOneWidget);
       expect(find.widgetWithText(AppButton, 'Save'), findsNothing);
       expect(profiles.profileFor(session.account!).emergencyContactEdited, isFalse);
       expect(tester.takeException(), isNull);
@@ -192,7 +192,7 @@ void main() {
 
     testWidgets('empty Name blocks Save with an error, nothing is persisted', (tester) async {
       SharedPreferences.setMockInitialValues({});
-      final session = await _signedInAsCristy(tester);
+      final session = await _signedInAsVerifiedDemo(tester);
       final profiles = await _readyProfiles(tester);
       await _pumpFamilyInfo(tester, session: session, profiles: profiles);
 
@@ -205,7 +205,7 @@ void main() {
 
     testWidgets('empty Relationship blocks Save with an error', (tester) async {
       SharedPreferences.setMockInitialValues({});
-      final session = await _signedInAsCristy(tester);
+      final session = await _signedInAsVerifiedDemo(tester);
       final profiles = await _readyProfiles(tester);
       await _pumpFamilyInfo(tester, session: session, profiles: profiles);
 
@@ -217,7 +217,7 @@ void main() {
 
     testWidgets('empty Contact Number blocks Save with an error', (tester) async {
       SharedPreferences.setMockInitialValues({});
-      final session = await _signedInAsCristy(tester);
+      final session = await _signedInAsVerifiedDemo(tester);
       final profiles = await _readyProfiles(tester);
       await _pumpFamilyInfo(tester, session: session, profiles: profiles);
 
@@ -229,7 +229,7 @@ void main() {
 
     testWidgets('a malformed contact number blocks Save with a format error', (tester) async {
       SharedPreferences.setMockInitialValues({});
-      final session = await _signedInAsCristy(tester);
+      final session = await _signedInAsVerifiedDemo(tester);
       final profiles = await _readyProfiles(tester);
       await _pumpFamilyInfo(tester, session: session, profiles: profiles);
 
@@ -247,7 +247,7 @@ void main() {
 
     testWidgets('a +63 formatted mobile number is accepted', (tester) async {
       SharedPreferences.setMockInitialValues({});
-      final session = await _signedInAsCristy(tester);
+      final session = await _signedInAsVerifiedDemo(tester);
       final profiles = await _readyProfiles(tester);
       await _pumpFamilyInfo(tester, session: session, profiles: profiles);
 
@@ -270,7 +270,7 @@ void main() {
     ) async {
       SharedPreferences.setMockInitialValues({});
       final firstLaunchProfiles = await _readyProfiles(tester);
-      final session = await _signedInAsCristy(tester);
+      final session = await _signedInAsVerifiedDemo(tester);
       firstLaunchProfiles.profileFor(session.account!); // seeds the default first
       await firstLaunchProfiles.saveEmergencyContact(
         session.account!.id,
@@ -281,7 +281,7 @@ void main() {
 
       // Simulates relaunching the app — a brand-new service instance
       // reading from the same persisted SharedPreferences store, which is
-      // exactly where the Cristy Master Profile alignment's own seeded
+      // exactly where the Perlita Master Profile alignment's own seeded
       // default would otherwise re-apply.
       final relaunchedProfiles = await _readyProfiles(tester);
       final relaunched = relaunchedProfiles.profileFor(session.account!);
@@ -297,12 +297,12 @@ void main() {
     ) async {
       SharedPreferences.setMockInitialValues({});
       final profiles = await _readyProfiles(tester);
-      final session = await _signedInAsCristy(tester);
+      final session = await _signedInAsVerifiedDemo(tester);
       final profile = profiles.profileFor(session.account!);
 
-      expect(profile.emergencyContactName, 'Roberto Pareja');
+      expect(profile.emergencyContactName, 'Rogelio Escano');
       expect(profile.emergencyContactRelationship, 'Brother');
-      expect(profile.emergencyContactNumber, '0919 502 7735');
+      expect(profile.emergencyContactNumber, '0919 000 9012');
       expect(profile.emergencyContactEdited, isFalse);
     });
   });
@@ -312,7 +312,7 @@ void main() {
       tester,
     ) async {
       SharedPreferences.setMockInitialValues({});
-      final session = await _signedInAsCristy(tester);
+      final session = await _signedInAsVerifiedDemo(tester);
       final profiles = await _readyProfiles(tester);
       profiles.profileFor(session.account!); // seeds the profile first
       await profiles.saveEmergencyContact(
@@ -323,13 +323,13 @@ void main() {
       );
 
       final profile = profiles.profileFor(session.account!);
-      expect(profile.familyId, 'FAM-2026-104');
-      expect(profile.householdId, 'HH-2026-104');
+      expect(profile.familyId, 'FAM-2026-9002');
+      expect(profile.householdId, 'HH-2026-9002');
       final father = profile.familyMembers.firstWhere((m) => m.relationshipToHead == 'Father');
-      expect(father.fullName, 'Ramon Bonghanoy');
+      expect(father.fullName, 'Anselmo Quiambao');
       final mother = profile.familyMembers.firstWhere((m) => m.relationshipToHead == 'Mother');
-      expect(mother.fullName, 'Corazon Bonghanoy');
-      expect(mother.maidenName, 'Pareja');
+      expect(mother.fullName, 'Lourdes Quiambao');
+      expect(mother.maidenName, 'Escano');
     });
   });
 
@@ -342,44 +342,44 @@ void main() {
         // emergencyContactEdited existed at all (defaults to false on
         // decode — see ResidentProfile.fromJson).
         final legacyJson = {
-          'citizenAccountId': 'ESP-RES-2024-1044',
+          'citizenAccountId': 'ESP-RES-2024-9002',
           'personal': {
-            'individualId': 'ESP-RES-2024-1044',
-            'firstName': 'Cristy',
-            'lastName': 'Bonghanoy',
+            'individualId': 'ESP-RES-2024-9002',
+            'firstName': 'Perlita',
+            'lastName': 'Quiambao',
             'sex': 'Female',
             'birthdate': DateTime(2001, 3, 15).toIso8601String(),
             'civilStatus': 'Single',
-            'mobile': '0919 502 7734',
+            'mobile': '0919 000 9002',
             'barangay': 'Baras',
             'sitioPurok': 'Purok 2',
             'completeAddress': 'Purok 2, Barangay Baras, Esperanza, Masbate',
             'occupation': 'Student',
-            'householdId': 'HH-2026-104',
+            'householdId': 'HH-2026-9002',
           },
           'familyMembers': <Map<String, dynamic>>[],
-          'familyName': 'Bonghanoy Family',
-          'headIndividualId': 'ESP-RES-2024-1044',
-          'familyId': 'FAM-2026-104',
-          'householdId': 'HH-2026-104',
-          'household': {'householdId': 'HH-2026-104', 'barangay': 'Baras'},
+          'familyName': 'Quiambao Family',
+          'headIndividualId': 'ESP-RES-2024-9002',
+          'familyId': 'FAM-2026-9002',
+          'householdId': 'HH-2026-9002',
+          'household': {'householdId': 'HH-2026-9002', 'barangay': 'Baras'},
           'personalSaved': true,
           'familySaved': true,
-          'emergencyContactName': 'Roberto Pareja',
+          'emergencyContactName': 'Rogelio Escano',
           'emergencyContactRelationship': 'Brother',
-          'emergencyContactNumber': '0919 502 7735',
+          'emergencyContactNumber': '0919 000 9012',
           // No 'emergencyContactEdited' key at all — simulates data saved
           // before this field existed.
         };
         SharedPreferences.setMockInitialValues({
-          'esperanza_resident_profiles': jsonEncode({'ESP-RES-2024-1044': legacyJson}),
+          'esperanza_resident_profiles': jsonEncode({'ESP-RES-2024-9002': legacyJson}),
         });
 
-        final session = await _signedInAsCristy(tester);
+        final session = await _signedInAsVerifiedDemo(tester);
         final profiles = await _readyProfiles(tester);
         await _pumpFamilyInfo(tester, session: session, profiles: profiles);
 
-        expect(find.text('Roberto Pareja'), findsOneWidget);
+        expect(find.text('Rogelio Escano'), findsOneWidget);
         await tester.tap(find.text('Edit'));
         await tester.pumpAndSettle();
         expect(find.widgetWithText(AppTextField, 'Name'), findsOneWidget);

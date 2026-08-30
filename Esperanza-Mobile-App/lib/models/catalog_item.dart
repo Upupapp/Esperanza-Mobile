@@ -29,7 +29,7 @@ class CatalogItem {
   /// aren't already covered by the Resident Master Profile prefill (see
   /// ServiceRequestWizardScreen's own prefill block) — e.g. a select's
   /// option value, a checkbox's bool, free text. Applied only when the
-  /// signed-in resident is the primary demo resident (Cristy Bonghanoy),
+  /// signed-in resident is the primary demo resident (Perlita Quiambao),
   /// so a live client demo opens every form already realistically filled
   /// in rather than blank (see the Mobile <-> Web Admin final alignment
   /// pass). Keyed by [ServiceFormField.key], same as [formSpec] itself.
@@ -41,7 +41,7 @@ class CatalogItem {
 
   /// A realistic default for the Requirements step's own free-text Purpose
   /// / Additional Notes field (see ServiceRequestWizardScreen/
-  /// NewRequestScreen), applied under the same "Cristy only" condition as
+  /// NewRequestScreen), applied under the same "Perlita only" condition as
   /// [demoDefaults]. Null leaves that field blank, as before.
   final String? demoPurpose;
 

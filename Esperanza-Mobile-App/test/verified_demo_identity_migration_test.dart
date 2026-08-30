@@ -1,8 +1,8 @@
-// Coverage for the Marites-Ferrer-to-Cristy-Bonghanoy demo identity
+// Coverage for the Perlita-Quiambao-to-Perlita-Quiambao demo identity
 // correction — specifically the parts a static source-code read can't
 // prove: that a browser which already persisted the OLD stale identity to
 // SharedPreferences (session snapshot, seeded demo requests, and an
-// already-generated receipt) gets migrated to the correct Cristy Bonghanoy
+// already-generated receipt) gets migrated to the correct Perlita Quiambao
 // identity on next load, without the user manually clearing storage.
 import 'dart:convert';
 import 'package:flutter/material.dart';
@@ -26,14 +26,14 @@ import 'package:esperanza_mobile/widgets/app_button.dart';
 final _staleVerifiedAccountJson = jsonEncode(
   CitizenAccount(
     id: 'ESP-RES-2024-1203',
-    firstName: 'Marites',
-    lastName: 'Ferrer',
-    email: 'marites.ferrer@email.com',
-    mobile: '0919 502 7734',
+    firstName: 'Perlita',
+    lastName: 'Quiambao',
+    email: 'perlita.quiambao@example.com',
+    mobile: '0919 000 9002',
     barangay: 'Baras',
     purok: 'Purok 2',
     address: 'Purok 2, Barangay Baras, Esperanza, Masbate',
-    birthdate: 'November 29, 1988',
+    birthdate: 'September 3, 1988',
     sex: 'Female',
     civilStatus: 'Married',
     occupation: 'Market Vendor',
@@ -45,14 +45,14 @@ final _staleVerifiedAccountJson = jsonEncode(
 final _staleDuplicateAccountJson = jsonEncode(
   CitizenAccount(
     id: 'ESP-RES-2024-1203-DUP',
-    firstName: 'Marites',
-    lastName: 'Ferrer',
-    email: 'marites.ferrer.dup@email.com',
-    mobile: '0919 502 7734',
+    firstName: 'Perlita',
+    lastName: 'Quiambao',
+    email: 'perlita.quiambao.dup@example.com',
+    mobile: '0919 000 9002',
     barangay: 'Baras',
     purok: 'Purok 2',
     address: 'Purok 2, Barangay Baras, Esperanza, Masbate',
-    birthdate: 'November 29, 1988',
+    birthdate: 'September 3, 1988',
     sex: 'Female',
     civilStatus: 'Married',
     occupation: 'Market Vendor',
@@ -74,7 +74,7 @@ Future<RequestsService> _loadedRequests(WidgetTester tester) async {
 
 void main() {
   group('CitizenSessionService migrates a stale persisted account', () {
-    testWidgets('a browser signed in as the old verified snapshot now sees Cristy Bonghanoy', (tester) async {
+    testWidgets('a browser signed in as the old verified snapshot now sees Perlita Quiambao', (tester) async {
       SharedPreferences.setMockInitialValues({'esperanza_citizen_session': _staleVerifiedAccountJson});
       final session = CitizenSessionService();
       var attempts = 0;
@@ -84,20 +84,20 @@ void main() {
         await tester.pump(const Duration(milliseconds: 1));
       }
 
-      expect(session.account!.id, 'ESP-RES-2024-1044');
-      expect(session.account!.fullName, 'Cristy Bonghanoy');
-      expect(session.account!.email, 'cristy.bonghanoy@email.com');
+      expect(session.account!.id, 'ESP-RES-2024-9002');
+      expect(session.account!.fullName, 'Perlita Quiambao');
+      expect(session.account!.email, 'perlita.quiambao@example.com');
 
       // The migration also re-persists the corrected snapshot — a later
       // restore (without this migration running again) must still be
       // correct, proving it wasn't just corrected in memory.
       final prefs = await SharedPreferences.getInstance();
       final resaved = jsonDecode(prefs.getString('esperanza_citizen_session')!) as Map<String, dynamic>;
-      expect(resaved['id'], 'ESP-RES-2024-1044');
-      expect(resaved['firstName'], 'Cristy');
+      expect(resaved['id'], 'ESP-RES-2024-9002');
+      expect(resaved['firstName'], 'Perlita');
     });
 
-    testWidgets('a browser signed in as the old duplicate snapshot now sees the duplicate Cristy account', (
+    testWidgets('a browser signed in as the old duplicate snapshot now sees the duplicate Perlita account', (
       tester,
     ) async {
       SharedPreferences.setMockInitialValues({'esperanza_citizen_session': _staleDuplicateAccountJson});
@@ -109,22 +109,22 @@ void main() {
         await tester.pump(const Duration(milliseconds: 1));
       }
 
-      expect(session.account!.id, MockCatalog.duplicateCristyAccount.id);
-      expect(session.account!.fullName, 'Cristy Bonghanoy');
+      expect(session.account!.id, MockCatalog.duplicateVerifiedDemoAccount.id);
+      expect(session.account!.fullName, 'Perlita Quiambao');
       expect(session.account!.status, 'Pending Review');
     });
 
     testWidgets('an account unrelated to the demo identity is left untouched', (tester) async {
       final unrelated = CitizenAccount(
-        id: 'ESP-RES-2026-2101',
-        firstName: 'Teodoro',
-        lastName: 'Villaflor',
-        email: 'teodoro.villaflor@email.com',
-        mobile: '0918 442 1190',
+        id: 'ESP-RES-2026-9003',
+        firstName: 'Anacleto',
+        lastName: 'Dimaculangan',
+        email: 'anacleto.dimaculangan@example.com',
+        mobile: '0918 000 9003',
         barangay: 'Libertad',
         purok: 'Purok 3',
         address: 'Purok 3, Barangay Libertad, Esperanza, Masbate',
-        birthdate: 'May 14, 1992',
+        birthdate: 'October 27, 1992',
         sex: 'Male',
         civilStatus: 'Single',
         occupation: 'Farmer',
@@ -140,8 +140,8 @@ void main() {
         await tester.pump(const Duration(milliseconds: 1));
       }
 
-      expect(session.account!.id, 'ESP-RES-2026-2101');
-      expect(session.account!.fullName, 'Teodoro Villaflor');
+      expect(session.account!.id, 'ESP-RES-2026-9003');
+      expect(session.account!.fullName, 'Anacleto Dimaculangan');
     });
   });
 
@@ -153,7 +153,7 @@ void main() {
           id: 'demo-dokyu-barangay-clearance',
           referenceNumber: 'DR-2026-DEMO01',
           applicantId: 'ESP-RES-2024-1203',
-          applicantName: 'Marites Ferrer',
+          applicantName: 'Perlita Quiambao',
           typeName: 'Barangay Clearance',
           category: ServiceCategory.dokyu,
           office: 'Barangay Hall',
@@ -174,7 +174,7 @@ void main() {
             amount: '₱50.00',
             referenceNumber: 'GC-1112223334',
             dateTime: DateTime(2026, 1, 2),
-            residentName: 'Marites Ferrer',
+            residentName: 'Perlita Quiambao',
             serviceName: 'Barangay Clearance',
             requestReferenceNumber: 'DR-2026-DEMO01',
           ),
@@ -186,9 +186,9 @@ void main() {
         final requests = await _loadedRequests(tester);
         final migrated = requests.all.firstWhere((r) => r.id == 'demo-dokyu-barangay-clearance');
 
-        expect(migrated.applicantId, 'ESP-RES-2024-1044');
-        expect(migrated.applicantName, 'Cristy Bonghanoy');
-        expect(migrated.receipt!.residentName, 'Cristy Bonghanoy');
+        expect(migrated.applicantId, 'ESP-RES-2024-9002');
+        expect(migrated.applicantName, 'Perlita Quiambao');
+        expect(migrated.receipt!.residentName, 'Perlita Quiambao');
         // Everything else about the already-paid request is preserved — its
         // old 'Paid' status is itself an obsolete tracking label, separately
         // remapped to 'Approved' by _migrateObsoleteTrackingLabels (see the
@@ -202,8 +202,8 @@ void main() {
         final prefs = await SharedPreferences.getInstance();
         final resaved = jsonDecode(prefs.getString('esperanza_service_requests')!) as List;
         final resavedRequest = resaved.first as Map<String, dynamic>;
-        expect(resavedRequest['applicantId'], 'ESP-RES-2024-1044');
-        expect((resavedRequest['receipt'] as Map<String, dynamic>)['residentName'], 'Cristy Bonghanoy');
+        expect(resavedRequest['applicantId'], 'ESP-RES-2024-9002');
+        expect((resavedRequest['receipt'] as Map<String, dynamic>)['residentName'], 'Perlita Quiambao');
       },
     );
 
@@ -214,7 +214,7 @@ void main() {
         id: 'req-9999999999',
         referenceNumber: 'DR-2026-0099',
         applicantId: 'ESP-RES-2024-1203', // coincidentally reused id, but NOT one of the demo-seed ids
-        applicantName: 'Marites Ferrer',
+        applicantName: 'Perlita Quiambao',
         typeName: 'Barangay Clearance',
         category: ServiceCategory.dokyu,
         office: 'Barangay Hall',
@@ -232,12 +232,12 @@ void main() {
       final requests = await _loadedRequests(tester);
       final untouched = requests.all.firstWhere((r) => r.id == 'req-9999999999');
       expect(untouched.applicantId, 'ESP-RES-2024-1203');
-      expect(untouched.applicantName, 'Marites Ferrer');
+      expect(untouched.applicantName, 'Perlita Quiambao');
     });
   });
 
   group('Digital ID', () {
-    testWidgets('Verified Cristy sees her Digital ID wallet, not the registration ID document', (tester) async {
+    testWidgets('Verified Perlita sees her Digital ID wallet, not the registration ID document', (tester) async {
       SharedPreferences.setMockInitialValues({});
       final session = CitizenSessionService();
       var attempts = 0;
@@ -261,7 +261,7 @@ void main() {
 
       // The seeded wallet — Barangay Resident ID first, PWD ID second.
       expect(find.text('Barangay Resident ID'), findsOneWidget);
-      expect(find.text('Cristy Bonghanoy'), findsOneWidget);
+      expect(find.text('Perlita Quiambao'), findsOneWidget);
       expect(find.text('1 of 2'), findsOneWidget);
       // The registration-uploaded ID document is a different concept, shown
       // only at Profile > Personal Information (see
@@ -271,7 +271,7 @@ void main() {
       expect(tester.takeException(), isNull);
     });
 
-    testWidgets('Duplicate Cristy (still Pending Review) does not get a second verified Digital ID', (tester) async {
+    testWidgets('Duplicate Perlita (still Pending Review) does not get a second verified Digital ID', (tester) async {
       SharedPreferences.setMockInitialValues({});
       final session = CitizenSessionService();
       var attempts = 0;
@@ -280,7 +280,7 @@ void main() {
         if (attempts > 100) throw StateError('CitizenSessionService never finished loading.');
         await tester.pump(const Duration(milliseconds: 1));
       }
-      await session.login(MockCatalog.duplicateCristyAccount);
+      await session.login(MockCatalog.duplicateVerifiedDemoAccount);
 
       await tester.pumpWidget(
         MultiProvider(

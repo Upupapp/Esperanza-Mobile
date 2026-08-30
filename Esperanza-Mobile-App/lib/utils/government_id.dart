@@ -12,11 +12,11 @@ import '../services/mock_catalog.dart';
 /// verified — that's decided entirely by `account.status`/`accessLevel`,
 /// never by whether an ID record exists.
 Map<String, GovernmentIdRecord> get _governmentIdByAccountId => {
-  'ESP-RES-2024-1044': MockCatalog.cristyGovernmentId,
-  'ESP-RES-2024-1044-DUP': MockCatalog.cristyGovernmentId,
-  'ESP-RES-2024-1102': MockCatalog.ronaldoGovernmentId,
-  'ESP-RES-2026-2101': MockCatalog.theodoroGovernmentId,
-  'ESP-RES-2026-2102': MockCatalog.theodoroGovernmentId,
+  'ESP-RES-2024-9002': MockCatalog.verifiedDemoGovernmentId,
+  'ESP-RES-2024-9002-DUP': MockCatalog.verifiedDemoGovernmentId,
+  'ESP-RES-2024-9001': MockCatalog.pendingDemoGovernmentId,
+  'ESP-RES-2026-9003': MockCatalog.duplicateDemoGovernmentId,
+  'ESP-RES-2026-9004': MockCatalog.duplicateDemoGovernmentId,
 };
 
 /// The one seeded government ID record for [account], or null if none is

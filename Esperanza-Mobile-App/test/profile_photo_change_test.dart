@@ -96,16 +96,16 @@ Future<ResidentProfileService> _pumpPersonalInformation(
 void main() {
   group('profileImageFor (shared resolution used by every avatar call site)', () {
     test('a seeded demo account with no saved photo resolves to its demo portrait', () {
-      final cristy = MockCatalog.demoAccounts.last;
-      final profile = ResidentProfile.seedFrom(cristy);
-      final image = _unwrapImage<AssetImage>(profileImageFor(cristy, profile.personal));
-      expect(image.assetName, 'assets/images/Cristy Profile.png');
+      final perlita = MockCatalog.demoAccounts.last;
+      final profile = ResidentProfile.seedFrom(perlita);
+      final image = _unwrapImage<AssetImage>(profileImageFor(perlita, profile.personal));
+      expect(image.assetName, 'assets/images/Perlita Profile.png');
     });
 
     test('a saved custom photo takes priority over the seeded demo portrait', () {
-      final cristy = MockCatalog.demoAccounts.last;
-      final profile = ResidentProfile.seedFrom(cristy)..personal.photoBytesBase64 = _tinyPngBase64;
-      final image = _unwrapImage<MemoryImage>(profileImageFor(cristy, profile.personal));
+      final perlita = MockCatalog.demoAccounts.last;
+      final profile = ResidentProfile.seedFrom(perlita)..personal.photoBytesBase64 = _tinyPngBase64;
+      final image = _unwrapImage<MemoryImage>(profileImageFor(perlita, profile.personal));
       expect(image.bytes, _tinyPngBytes);
     });
 
@@ -117,10 +117,10 @@ void main() {
   group('ResidentProfile profile-photo cooldown', () {
     test('a freshly seeded profile (including every seeded demo account) is never on cooldown', () {
       for (final account in [
-        MockCatalog.demoAccounts.first, // Ronaldo
-        MockCatalog.demoAccounts.last, // Cristy
-        MockCatalog.unverifiedDuplicateAccountA, // Teodoro A
-        MockCatalog.unverifiedDuplicateAccountB, // Teodoro B
+        MockCatalog.demoAccounts.first, // Nicanor
+        MockCatalog.demoAccounts.last, // Perlita
+        MockCatalog.unverifiedDuplicateAccountA, // Anacleto A
+        MockCatalog.unverifiedDuplicateAccountB, // Anacleto B
       ]) {
         final profile = ResidentProfile.seedFrom(account);
         expect(profile.lastProfilePhotoChangeAt, isNull);

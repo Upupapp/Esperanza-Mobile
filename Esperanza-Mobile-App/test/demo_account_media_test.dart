@@ -1,6 +1,6 @@
-// Coverage for Ronaldo Bautista's and Teodoro Villaflor's profile photo +
+// Coverage for Nicanor Sarmiento's and Anacleto Dimaculangan's profile photo +
 // submitted government ID — the same single-source-of-truth architecture
-// already used for Cristy (see utils/demo_resident_photo.dart and
+// already used for Perlita (see utils/demo_resident_photo.dart and
 // utils/government_id.dart), just extended to two more seeded residents.
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -46,43 +46,43 @@ Future<void> _pumpDigitalId(WidgetTester tester, CitizenSessionService session) 
 
 void main() {
   group('Asset lookups (no widgets — proves the single source of truth resolves correctly)', () {
-    test('Ronaldo has his own profile photo and government ID, distinct from Cristy and Teodoro', () {
-      final ronaldo = MockCatalog.demoAccounts.first;
-      expect(ronaldo.firstName, 'Ronaldo');
-      final photo = _unwrapAssetImage(demoProfileImageFor(ronaldo));
-      expect(photo.assetName, ronaldoProfilePhotoAsset);
-      expect(ronaldoProfilePhotoAsset, 'assets/images/Ronaldo Bautista.png');
+    test('Nicanor has his own profile photo and government ID, distinct from Perlita and Anacleto', () {
+      final nicanor = MockCatalog.demoAccounts.first;
+      expect(nicanor.firstName, 'Nicanor');
+      final photo = _unwrapAssetImage(demoProfileImageFor(nicanor));
+      expect(photo.assetName, pendingDemoProfilePhotoAsset);
+      expect(pendingDemoProfilePhotoAsset, 'assets/images/Nicanor Sarmiento.png');
 
-      final id = governmentIdFor(ronaldo);
+      final id = governmentIdFor(nicanor);
       expect(id, isNotNull);
-      expect(id!.assetPath, 'assets/images/RONALDO ID DEMO.png');
-      expect(id.accountId, ronaldo.id);
+      expect(id!.assetPath, 'assets/images/NICANOR ID DEMO.png');
+      expect(id.accountId, nicanor.id);
     });
 
-    test('Both Teodoro duplicate accounts share the same photo and the same government ID record', () {
+    test('Both Anacleto duplicate accounts share the same photo and the same government ID record', () {
       final a = MockCatalog.unverifiedDuplicateAccountA;
       final b = MockCatalog.unverifiedDuplicateAccountB;
       expect(a.id, isNot(b.id)); // distinct accounts internally
 
       final photoA = _unwrapAssetImage(demoProfileImageFor(a));
       final photoB = _unwrapAssetImage(demoProfileImageFor(b));
-      expect(photoA.assetName, theodoroProfilePhotoAsset);
-      expect(photoB.assetName, theodoroProfilePhotoAsset);
-      expect(theodoroProfilePhotoAsset, 'assets/images/Theodoro Milaflor.png');
+      expect(photoA.assetName, duplicateDemoProfilePhotoAsset);
+      expect(photoB.assetName, duplicateDemoProfilePhotoAsset);
+      expect(duplicateDemoProfilePhotoAsset, 'assets/images/Anacleto Dimaculangan.png');
 
       final idA = governmentIdFor(a);
       final idB = governmentIdFor(b);
       expect(idA, isNotNull);
-      expect(idA!.assetPath, 'assets/images/THEODORO ID DEMO.png');
+      expect(idA!.assetPath, 'assets/images/ANACLETO ID DEMO.png');
       expect(idA, same(idB)); // literally the same record, not two copies
     });
 
-    test('an unrelated account (Cristy) never resolves to Ronaldo or Teodoro assets', () {
-      final cristy = MockCatalog.demoAccounts.last;
-      final photo = _unwrapAssetImage(demoProfileImageFor(cristy));
-      expect(photo.assetName, isNot(ronaldoProfilePhotoAsset));
-      expect(photo.assetName, isNot(theodoroProfilePhotoAsset));
-      expect(governmentIdFor(cristy)!.assetPath, isNot('assets/images/RONALDO ID DEMO.png'));
+    test('an unrelated account (Perlita) never resolves to Nicanor or Anacleto assets', () {
+      final perlita = MockCatalog.demoAccounts.last;
+      final photo = _unwrapAssetImage(demoProfileImageFor(perlita));
+      expect(photo.assetName, isNot(pendingDemoProfilePhotoAsset));
+      expect(photo.assetName, isNot(duplicateDemoProfilePhotoAsset));
+      expect(governmentIdFor(perlita)!.assetPath, isNot('assets/images/NICANOR ID DEMO.png'));
     });
   });
 
@@ -90,9 +90,9 @@ void main() {
     // The registration-uploaded ID document is a different concept from the
     // Esperanza Digital ID and is never shown on this screen — see Profile >
     // Personal Information's own coverage in submitted_government_id_test.dart.
-    testWidgets('Ronaldo (Unverified): no Esperanza Digital ID, and no registration ID document either', (tester) async {
+    testWidgets('Nicanor (Unverified): no Esperanza Digital ID, and no registration ID document either', (tester) async {
       final session = await _signedInAs(tester, MockCatalog.demoAccounts.first);
-      expect(session.account!.firstName, 'Ronaldo');
+      expect(session.account!.firstName, 'Nicanor');
       expect(session.accessLevel, AccessLevel.unverified);
       expect(session.account!.status, 'Pending Review');
 
@@ -104,13 +104,13 @@ void main() {
       expect(find.text('Esperanza Resident ID'), findsNothing);
       expect(find.byType(AppButton), findsNothing);
 
-      // Ronaldo remains Unverified — an uploaded/submitted ID never
+      // Nicanor remains Unverified — an uploaded/submitted ID never
       // implies verification on its own.
       expect(session.account!.status, 'Pending Review');
       expect(session.accessLevel, AccessLevel.unverified);
     });
 
-    testWidgets('Teodoro Account A (Unverified duplicate): no registration ID document, no verified Digital ID', (
+    testWidgets('Anacleto Account A (Unverified duplicate): no registration ID document, no verified Digital ID', (
       tester,
     ) async {
       final session = await _signedInAs(tester, MockCatalog.unverifiedDuplicateAccountA);
@@ -122,7 +122,7 @@ void main() {
       expect(session.account!.status, 'Pending Review');
     });
 
-    testWidgets('Teodoro Account B (Unverified duplicate): no registration ID document, no verified Digital ID', (
+    testWidgets('Anacleto Account B (Unverified duplicate): no registration ID document, no verified Digital ID', (
       tester,
     ) async {
       final session = await _signedInAs(tester, MockCatalog.unverifiedDuplicateAccountB);

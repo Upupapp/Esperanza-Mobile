@@ -53,21 +53,20 @@ The canonical list lives in the web repo's own `CLAUDE.md`:
 few dozen commits stale still contains `Waiting Requirements` and `Ready for
 Release` — labels since replaced — and will make mobile look correct when it is not.
 
-Known drift, unresolved as of 2026-08-29 — do not "fix" one half without the other:
+**That prose list is 15; `badge.blade.php` actually styles 17.** It omits `Verified`
+and `Unverified`. Where the two disagree the component wins — prose describes, a
+component renders. `test/status_parity_test.dart` holds mobile to the component.
 
-- Mobile has no `Resubmitted`, so `AppStatusX.fromLabel('Resubmitted')` silently
-  returns `AppStatus.draft` — a resubmitted request would render as grey "Draft".
-- Mobile carries `Waiting Requirements`, which appears in **zero** files across the
-  current web platform. `requests_service.dart` already migrates it to `Under
-  Review` on load, so no live request can carry it.
-- The web's `badge.blade.php` actually styles **17** labels — the 15 above plus
-  `Verified` and `Unverified`, which are in neither that prose list nor mobile.
-  `fromLabel` returns `draft` for both. That matters beyond a badge colour:
-  `CitizenSessionService.accessLevel` decides Guest/unverified/verified by
-  `fromLabel(acc.status) == AppStatus.approved`, so an account whose status ever
-  arrives as `Verified` would be treated as **unverified** and locked out of Dokyu.
-  Latent, not live — mobile only ever writes `Pending Review` and `Approved` today,
-  and there is no backend — but it is the first thing that breaks when one lands.
+Resolved in FE 04 (2026-08-29): `Resubmitted`, `Verified` and `Unverified` were added,
+and `fromLabel` now asserts in debug rather than degrading silently to `Draft`. The
+`Verified` gap was not cosmetic — the Web Admin stores `Approved` and *displays*
+`Verified`, so an account arriving as `Verified` used to resolve to `draft` and be
+locked **out** of Dokyu.
+
+Still open, and **not this lane's to decide**: mobile carries `Waiting Requirements`,
+which appears in zero files on the current web platform. It is inert —
+`requests_service.dart` migrates it to `Under Review` on load — and is marked
+`PENDING OWNER DECISION` in the parity test. Recommendation: retire it.
 
 ## Design tokens
 
@@ -77,15 +76,24 @@ matching on 2026-08-29. **Never introduce a color outside that set.**
 
 ## Privacy — this repository is PUBLIC
 
-It currently contains real constituents' personal data, unresolved:
+**Never add a real person's data, document scan, or identifying image.** Use synthetic
+identities. `test/no_real_identities_test.dart` enforces this: it fails if any retired
+real name or record id reappears under `lib/`, `test/` or `assets/`. Its denylist is
+**hashed**, because listing the names in a public repo would republish the very index
+it exists to remove.
 
-- `Esperanza-Mobile-App/Reference_forms/` — real residents' scanned documents.
-- The "demo" account is a **real** person's constituent record (see the comment at
-  `lib/services/mock_catalog.dart:2572`), and the bundled ID images print real details.
+Resolved at HEAD (FE 02, 2026-08-29): the three demo identities were real residents'
+records — names, birthdates, addresses, household and family ids — and the bundled
+profile photos and ID scans were their real images. All are now synthetic and
+generated (`tool/demo_identity_art/generate.py`). See
+`Esperanza-Mobile-App/docs/FE02_SYNTHETIC_IDENTITIES.md`.
 
-**Never add another real person's data, document scan, or identifying image.** Use
-synthetic identities. Removing such a file at HEAD does not remove it from history —
-raise it with the owner rather than attempting a fix.
+**Still unresolved, and owner decisions — do not attempt:**
+
+- `Esperanza-Mobile-App/Reference_forms/` — real residents' scanned documents, untouched.
+- **Git history.** FE 02 changed HEAD only. Every retired name is still in the history of
+  a public repository and in every existing clone and fork. Removing it means a history
+  rewrite, a force-push, and treating the data as already fetched.
 
 ## Two machines, one repo
 
@@ -106,10 +114,10 @@ Windows lane in ~4½ min and produces a 94.8 MB fat APK. Two things to know:
 
 - Gradle warns that both **AGP 8.11.1** (wants ≥ 9.0.1) and **Kotlin 2.2.20**
   (wants ≥ 2.3.20) will soon be dropped by Flutter. Not yet fatal.
-- 94.8 MB is almost entirely `assets/images/` (39 MB of ~2 MB PNGs, 37 declared
-  assets). Ship an **AAB**, not this APK — and see the privacy note above: the
-  bundled demo ID images are real residents' details, so they are compiled into
-  every binary this produces, not merely committed to the repo.
+- ~95 MB is almost entirely `assets/images/` (39 MB of ~2 MB PNGs). Ship an **AAB**,
+  not this APK. (The demo ID images that used to carry real residents' details, and
+  therefore shipped inside every binary, were replaced with generated synthetic ones
+  in FE 02.)
 
 iOS has never been built from either lane.
 

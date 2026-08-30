@@ -8,22 +8,22 @@ import '../models/resident_profile.dart';
 /// [demoProfileImageFor] instead of re-deriving either fact itself, so
 /// there's only one spot to update if an asset ever moves, and one place
 /// to extend when a new seeded resident gets a photo.
-const String cristyProfilePhotoAsset = 'assets/images/Cristy Profile.png';
-const String ronaldoProfilePhotoAsset = 'assets/images/Ronaldo Bautista.png';
-const String theodoroProfilePhotoAsset = 'assets/images/Theodoro Milaflor.png';
+const String verifiedDemoProfilePhotoAsset = 'assets/images/Perlita Profile.png';
+const String pendingDemoProfilePhotoAsset = 'assets/images/Nicanor Sarmiento.png';
+const String duplicateDemoProfilePhotoAsset = 'assets/images/Anacleto Dimaculangan.png';
 
 /// Every account id that shares a resident's single portrait — the
-/// Verified Cristy account and her duplicate registration are the same
-/// resident (see MockCatalog.duplicateCristyAccount's own doc comment), and
-/// likewise both Teodoro Villaflor duplicate registrations (see
+/// Verified Perlita account and her duplicate registration are the same
+/// resident (see MockCatalog.duplicateVerifiedDemoAccount's own doc comment), and
+/// likewise both Anacleto Dimaculangan duplicate registrations (see
 /// MockCatalog.unverifiedDuplicateAccountA/B) are the same resident.
-/// Ronaldo has only the one account.
+/// Nicanor has only the one account.
 const _profilePhotoAssetByAccountId = {
-  'ESP-RES-2024-1044': cristyProfilePhotoAsset,
-  'ESP-RES-2024-1044-DUP': cristyProfilePhotoAsset,
-  'ESP-RES-2024-1102': ronaldoProfilePhotoAsset,
-  'ESP-RES-2026-2101': theodoroProfilePhotoAsset,
-  'ESP-RES-2026-2102': theodoroProfilePhotoAsset,
+  'ESP-RES-2024-9002': verifiedDemoProfilePhotoAsset,
+  'ESP-RES-2024-9002-DUP': verifiedDemoProfilePhotoAsset,
+  'ESP-RES-2024-9001': pendingDemoProfilePhotoAsset,
+  'ESP-RES-2026-9003': duplicateDemoProfilePhotoAsset,
+  'ESP-RES-2026-9004': duplicateDemoProfilePhotoAsset,
 };
 
 /// Every avatar call site shows a photo at a small size (a CircleAvatar of

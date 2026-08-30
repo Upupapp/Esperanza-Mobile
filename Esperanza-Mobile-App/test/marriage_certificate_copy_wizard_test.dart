@@ -20,7 +20,7 @@ import 'package:esperanza_mobile/services/requests_service.dart';
 import 'package:esperanza_mobile/services/resident_profile_service.dart';
 import 'package:esperanza_mobile/theme/app_colors.dart';
 
-Future<void> _pumpDokyuAsCristy(WidgetTester tester) async {
+Future<void> _pumpDokyuAsVerifiedDemo(WidgetTester tester) async {
   tester.view.physicalSize = const Size(390, 844);
   tester.view.devicePixelRatio = 1.0;
   addTearDown(tester.view.resetPhysicalSize);
@@ -28,7 +28,7 @@ Future<void> _pumpDokyuAsCristy(WidgetTester tester) async {
 
   SharedPreferences.setMockInitialValues({});
   final session = CitizenSessionService();
-  await session.login(MockCatalog.demoAccounts.last); // Cristy — verified
+  await session.login(MockCatalog.demoAccounts.last); // Perlita — verified
   await tester.pumpWidget(
     MultiProvider(
       providers: [
@@ -70,7 +70,7 @@ Future<void> _pumpDokyuAsCristy(WidgetTester tester) async {
 
 void main() {
   testWidgets('appears in Dokyu, positioned next to Application for Marriage License', (tester) async {
-    await _pumpDokyuAsCristy(tester);
+    await _pumpDokyuAsVerifiedDemo(tester);
 
     // Both marriage-related Civil Registrar items are on screen together in the same
     // item list, confirming they sit side by side rather than in separate
@@ -86,7 +86,7 @@ void main() {
   });
 
   testWidgets('opens a lean, lookup-only wizard — not the full certificate as a form', (tester) async {
-    await _pumpDokyuAsCristy(tester);
+    await _pumpDokyuAsVerifiedDemo(tester);
 
     await tester.scrollUntilVisible(
       find.text('Certified Copy of Marriage Certificate'),
@@ -122,8 +122,8 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('demo prefill (Cristy), editability, and full fill-through to the attachment gate', (tester) async {
-    await _pumpDokyuAsCristy(tester);
+  testWidgets('demo prefill (Perlita), editability, and full fill-through to the attachment gate', (tester) async {
+    await _pumpDokyuAsVerifiedDemo(tester);
     await tester.scrollUntilVisible(
       find.text('Certified Copy of Marriage Certificate'),
       200,
@@ -135,14 +135,14 @@ void main() {
     await tester.tap(find.text('Continue')); // Applicant Info (prefilled) -> Marriage Record Information
     await tester.pumpAndSettle();
 
-    // All 4 required fields are already prefilled for Cristy (see
+    // All 4 required fields are already prefilled for Perlita (see
     // CatalogItem.demoDefaults on dokyu_marriage_certificate_copy) — no
     // "Please complete" block on a fresh Continue, unlike before this
     // service had demo prefill. Reframed as a request for her PARENTS'
     // marriage certificate (she's Single, so "her own marriage" would be
-    // inconsistent) — Ramon & Corazon Bonghanoy, married before her birth.
-    expect(find.text('Ramon Bonghanoy'), findsOneWidget);
-    expect(find.text('Corazon Bonghanoy'), findsOneWidget);
+    // inconsistent) — Anselmo & Lourdes Quiambao, married before her birth.
+    expect(find.text('Anselmo Quiambao'), findsOneWidget);
+    expect(find.text('Lourdes Quiambao'), findsOneWidget);
     expect(find.text('May 10, 1999'), findsOneWidget); // dateOfMarriage, parsed from the ISO demoDefault
     expect(find.text('Esperanza, Masbate'), findsOneWidget);
 

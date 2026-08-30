@@ -163,7 +163,7 @@ class _RootShellState extends State<RootShell> {
 
   /// Both the launcher's bubbles and Home's own "jump straight to
   /// Dokyu/Tulong" tiles funnel through this one gateway, so the confirmed
-  /// duplicate account (Phase 6 — see MockCatalog.duplicateCristyAccount)
+  /// duplicate account (Phase 6 — see MockCatalog.duplicateVerifiedDemoAccount)
   /// is intercepted here regardless of entry point, rather than only when
   /// reached through the "+" — it never becomes Verified in this
   /// simulation, so it can never legitimately land on Dokyu/Tulong's own
@@ -172,7 +172,7 @@ class _RootShellState extends State<RootShell> {
   /// exactly why (a duplicate of their own verified account exists).
   void openService(ServiceLauncherTarget target) {
     final session = context.read<CitizenSessionService>();
-    if (session.account?.id == MockCatalog.duplicateCristyAccount.id) {
+    if (session.account?.id == MockCatalog.duplicateVerifiedDemoAccount.id) {
       _promptSwitchToVerifiedAccount();
       return;
     }
@@ -187,7 +187,7 @@ class _RootShellState extends State<RootShell> {
   }
 
   /// "Go to My Verified Account" switches the frontend session straight to
-  /// the real, verified Cristy and lands on Home — deliberately not
+  /// the real, verified Perlita and lands on Home — deliberately not
   /// straight into Dokyu/Tulong, so the account switch itself stays
   /// legible before the citizen deliberately re-opens the launcher (this
   /// screen's own class doc explains why that separation matters here).

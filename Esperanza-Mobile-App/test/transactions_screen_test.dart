@@ -51,7 +51,7 @@ Future<CitizenSessionService> _signedInAs(WidgetTester tester, CitizenAccount ac
 /// Pumps TransactionsScreen wired to both providers it now depends on —
 /// RequestsService and (since the screen scopes its list to the signed-in
 /// account's own applicantId) CitizenSessionService. Defaults to the
-/// verified Cristy Bonghanoy demo account, since that's who the seeded
+/// verified Perlita Quiambao demo account, since that's who the seeded
 /// paid-transaction demo data (and _payThrough's manual payments) belong
 /// to in every test below.
 Future<void> _pumpTransactions(WidgetTester tester, RequestsService requests, {CitizenAccount? account}) async {
@@ -76,8 +76,8 @@ Future<void> _pumpTransactions(WidgetTester tester, RequestsService requests, {C
 /// creates its own new request rather than advancing a seeded one.
 Future<ServiceRequest> _payThrough(RequestsService requests, String method) {
   return requests.submit(
-    applicantId: 'ESP-RES-2024-1044',
-    applicantName: 'Cristy Bonghanoy',
+    applicantId: 'ESP-RES-2024-9002',
+    applicantName: 'Perlita Quiambao',
     typeName: 'Barangay Clearance',
     category: ServiceCategory.dokyu,
     office: 'Barangay Hall',
@@ -92,7 +92,7 @@ Future<ServiceRequest> _payThrough(RequestsService requests, String method) {
 
 void main() {
   testWidgets('No paid transactions yet shows the proper empty state, not a fake seeded list', (tester) async {
-    // seedDemoData: false — even Cristy's own seeded paid-transaction demo
+    // seedDemoData: false — even Perlita's own seeded paid-transaction demo
     // data must not leak into this assertion; this proves the *genuine*
     // empty state, not merely "an account with no seed happens to be empty".
     final requests = await _loaded(tester, seedDemoData: false);
@@ -102,7 +102,7 @@ void main() {
     expect(find.text('Your paid Dokyu or Tulong transactions will appear here.'), findsOneWidget);
   });
 
-  group('Seeded demo transactions (verified Cristy Bonghanoy)', () {
+  group('Seeded demo transactions (verified Perlita Quiambao)', () {
     testWidgets('every seeded paid Dokyu request appears, free ones excluded, with real service/fee/method data', (
       tester,
     ) async {
@@ -147,11 +147,11 @@ void main() {
       expect(reloaded.all.where((r) => r.receipt != null).length, 5);
     });
 
-    testWidgets("the duplicate Cristy registration does not inherit the verified account's transactions", (
+    testWidgets("the duplicate Perlita registration does not inherit the verified account's transactions", (
       tester,
     ) async {
       final requests = await _loaded(tester);
-      await _pumpTransactions(tester, requests, account: MockCatalog.duplicateCristyAccount);
+      await _pumpTransactions(tester, requests, account: MockCatalog.duplicateVerifiedDemoAccount);
 
       expect(find.text('No transactions yet'), findsOneWidget);
       expect(find.text('Certificate of Residency'), findsNothing);
@@ -168,7 +168,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.byType(ReceiptScreen), findsOneWidget);
       expect(tester.widget<ReceiptScreen>(find.byType(ReceiptScreen)).receipt, same(gcash.receipt));
-      expect(find.text('Cristy Bonghanoy'), findsWidgets);
+      expect(find.text('Perlita Quiambao'), findsWidgets);
       expect(find.text('Mode of Payment'), findsOneWidget);
       expect(find.text('GCash'), findsOneWidget);
       expect(find.text(gcash.fee), findsOneWidget);

@@ -93,7 +93,7 @@ class CitizenSessionService extends ChangeNotifier {
   }
 
 
-  /// A browser signed in before the Marites-Ferrer-to-Cristy-Bonghanoy demo
+  /// A browser signed in before the Perlita-Quiambao-to-Perlita-Quiambao demo
   /// identity correction has that exact stale [CitizenAccount] snapshot
   /// persisted (see [login]'s full-object jsonEncode) — a source-code fix
   /// alone never reaches it, since this only ever reads back whatever was
@@ -102,7 +102,7 @@ class CitizenSessionService extends ChangeNotifier {
   /// returns null for every other account, which is left untouched.
   CitizenAccount? _migrateStaleDemoIdentity(CitizenAccount stale) {
     if (stale.id == 'ESP-RES-2024-1203') return MockCatalog.demoAccounts.last;
-    if (stale.id == 'ESP-RES-2024-1203-DUP') return MockCatalog.duplicateCristyAccount;
+    if (stale.id == 'ESP-RES-2024-1203-DUP') return MockCatalog.duplicateVerifiedDemoAccount;
     return null;
   }
 

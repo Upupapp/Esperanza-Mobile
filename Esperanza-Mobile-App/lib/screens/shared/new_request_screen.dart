@@ -66,19 +66,19 @@ class _NewRequestScreenState extends State<NewRequestScreen> {
   /// The primary demo resident — same id used by ResidentProfileService,
   /// RequestsService, and ServiceRequestWizardScreen's own equivalent
   /// constant. Only her requests get [CatalogItem.demoPurpose] applied.
-  static const _cristyVerifiedAccountId = 'ESP-RES-2024-1044';
+  static const _verifiedDemoAccountId = 'ESP-RES-2024-9002';
 
   @override
   void initState() {
     super.initState();
     // Realistic demo Purpose text for the primary demo resident, same
-    // "Cristy only, still a normal editable starting value" treatment
+    // "Perlita only, still a normal editable starting value" treatment
     // ServiceRequestWizardScreen's own demoDefaults/demoPurpose use — see
     // CatalogItem's own doc comment. This screen has no formSpec fields of
     // its own, so Purpose is the only field demoPurpose ever needs to
     // reach here.
     final account = context.read<CitizenSessionService>().account;
-    if (account?.id == _cristyVerifiedAccountId && widget.item.demoPurpose != null) {
+    if (account?.id == _verifiedDemoAccountId && widget.item.demoPurpose != null) {
       _purposeController.text = widget.item.demoPurpose!;
     }
   }

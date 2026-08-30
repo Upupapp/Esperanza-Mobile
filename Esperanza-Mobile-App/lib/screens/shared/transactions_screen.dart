@@ -20,8 +20,8 @@ import 'receipt_screen.dart';
 /// Scoped to the currently signed-in account's own `applicantId` — this
 /// app's request "database" is a single shared local store (see
 /// RequestsService's own doc comment), so without this filter a second
-/// account (e.g. the duplicate Cristy registration, or any other signed-in
-/// demo account) would see the verified Cristy account's paid transactions
+/// account (e.g. the duplicate Perlita registration, or any other signed-in
+/// demo account) would see the verified Perlita account's paid transactions
 /// too. Requires a signed-in account; the drawer already only offers this
 /// screen once signed in.
 class TransactionsScreen extends StatelessWidget {

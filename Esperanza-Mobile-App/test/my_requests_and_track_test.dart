@@ -32,7 +32,7 @@ Future<RequestsService> _loaded(WidgetTester tester, {bool seedDemoData = false}
   return requests;
 }
 
-Future<CitizenSessionService> _signedInAsCristy(WidgetTester tester) async {
+Future<CitizenSessionService> _signedInAsVerifiedDemo(WidgetTester tester) async {
   final session = CitizenSessionService();
   var attempts = 0;
   while (session.loading) {
@@ -40,17 +40,17 @@ Future<CitizenSessionService> _signedInAsCristy(WidgetTester tester) async {
     if (attempts > 100) throw StateError('CitizenSessionService never finished loading.');
     await tester.pump(const Duration(milliseconds: 1));
   }
-  await session.login(MockCatalog.demoAccounts.last); // Cristy — verified
+  await session.login(MockCatalog.demoAccounts.last); // Perlita — verified
   return session;
 }
 
-const _cristyId = 'ESP-RES-2024-1044';
-const _cristyName = 'Cristy Bonghanoy';
+const _verifiedDemoId = 'ESP-RES-2024-9002';
+const _verifiedDemoName = 'Perlita Quiambao';
 
 Future<ServiceRequest> _submitDokyu(RequestsService requests, {String typeName = 'Barangay Clearance'}) {
   return requests.submit(
-    applicantId: _cristyId,
-    applicantName: _cristyName,
+    applicantId: _verifiedDemoId,
+    applicantName: _verifiedDemoName,
     typeName: typeName,
     category: ServiceCategory.dokyu,
     office: 'Barangay Hall',
@@ -62,8 +62,8 @@ Future<ServiceRequest> _submitDokyu(RequestsService requests, {String typeName =
 
 Future<ServiceRequest> _submitTulong(RequestsService requests, {String typeName = 'Medical Assistance (AICS)'}) {
   return requests.submit(
-    applicantId: _cristyId,
-    applicantName: _cristyName,
+    applicantId: _verifiedDemoId,
+    applicantName: _verifiedDemoName,
     typeName: typeName,
     category: ServiceCategory.tulong,
     office: 'Municipal Social Welfare and Development Office',
@@ -98,13 +98,13 @@ void main() {
       required String id,
       required String status,
       String typeName = 'Medical Assistance (AICS)',
-      String applicantId = _cristyId,
+      String applicantId = _verifiedDemoId,
     }) {
       return ServiceRequest(
         id: id,
         referenceNumber: 'AR-2026-$id',
         applicantId: applicantId,
-        applicantName: _cristyName,
+        applicantName: _verifiedDemoName,
         typeName: typeName,
         category: ServiceCategory.tulong,
         office: 'Municipal Social Welfare and Development Office',
@@ -119,7 +119,7 @@ void main() {
 
     testWidgets('Case A — no previous application for this assistance is eligible', (tester) async {
       final requests = await _loaded(tester);
-      final result = tulongEligibilityFor(requests, applicantId: _cristyId, typeName: 'Medical Assistance (AICS)');
+      final result = tulongEligibilityFor(requests, applicantId: _verifiedDemoId, typeName: 'Medical Assistance (AICS)');
       expect(result.isEligible, isTrue);
       expect(result.blockingRequest, isNull);
     });
@@ -144,7 +144,7 @@ void main() {
           if (attempts > 100) throw StateError('RequestsService never finished loading.');
           await tester.pump(const Duration(milliseconds: 1));
         }
-        final result = tulongEligibilityFor(requests, applicantId: _cristyId, typeName: 'Medical Assistance (AICS)');
+        final result = tulongEligibilityFor(requests, applicantId: _verifiedDemoId, typeName: 'Medical Assistance (AICS)');
         expect(result.isEligible, isFalse);
         expect(result.blockingRequest?.id, 'r1');
       });
@@ -162,7 +162,7 @@ void main() {
           if (attempts > 100) throw StateError('RequestsService never finished loading.');
           await tester.pump(const Duration(milliseconds: 1));
         }
-        final result = tulongEligibilityFor(requests, applicantId: _cristyId, typeName: 'Medical Assistance (AICS)');
+        final result = tulongEligibilityFor(requests, applicantId: _verifiedDemoId, typeName: 'Medical Assistance (AICS)');
         expect(result.isEligible, isFalse, reason: 'status=$status');
         expect(result.status, TulongEligibility.blockedReceived, reason: 'status=$status');
       }
@@ -179,7 +179,7 @@ void main() {
         if (attempts > 100) throw StateError('RequestsService never finished loading.');
         await tester.pump(const Duration(milliseconds: 1));
       }
-      final result = tulongEligibilityFor(requests, applicantId: _cristyId, typeName: 'Medical Assistance (AICS)');
+      final result = tulongEligibilityFor(requests, applicantId: _verifiedDemoId, typeName: 'Medical Assistance (AICS)');
       expect(result.isEligible, isTrue);
 
       // Reapplying creates a brand-new request/reference number and never
@@ -193,7 +193,7 @@ void main() {
       final requests = await _loaded(tester);
       final r1 = await _submitTulong(requests);
       await requests.cancel(r1.id);
-      final result = tulongEligibilityFor(requests, applicantId: _cristyId, typeName: 'Medical Assistance (AICS)');
+      final result = tulongEligibilityFor(requests, applicantId: _verifiedDemoId, typeName: 'Medical Assistance (AICS)');
       expect(result.isEligible, isTrue);
     });
 
@@ -210,8 +210,8 @@ void main() {
         if (attempts > 100) throw StateError('RequestsService never finished loading.');
         await tester.pump(const Duration(milliseconds: 1));
       }
-      expect(tulongEligibilityFor(requests, applicantId: _cristyId, typeName: 'Medical Assistance (AICS)').isEligible, isFalse);
-      expect(tulongEligibilityFor(requests, applicantId: _cristyId, typeName: 'Educational Assistance').isEligible, isTrue);
+      expect(tulongEligibilityFor(requests, applicantId: _verifiedDemoId, typeName: 'Medical Assistance (AICS)').isEligible, isFalse);
+      expect(tulongEligibilityFor(requests, applicantId: _verifiedDemoId, typeName: 'Educational Assistance').isEligible, isTrue);
     });
 
     testWidgets('eligibility is scoped per resident — another account with an active application is separate', (
@@ -219,7 +219,7 @@ void main() {
     ) async {
       SharedPreferences.setMockInitialValues({
         'esperanza_service_requests': jsonEncode([
-          tulongRequest(id: 'r1', status: 'Pending Review', applicantId: 'ESP-RES-2024-1102').toJson(),
+          tulongRequest(id: 'r1', status: 'Pending Review', applicantId: 'ESP-RES-2024-9001').toJson(),
         ]),
       });
       final requests = RequestsService(seedDemoData: false);
@@ -229,9 +229,9 @@ void main() {
         if (attempts > 100) throw StateError('RequestsService never finished loading.');
         await tester.pump(const Duration(milliseconds: 1));
       }
-      expect(tulongEligibilityFor(requests, applicantId: _cristyId, typeName: 'Medical Assistance (AICS)').isEligible, isTrue);
+      expect(tulongEligibilityFor(requests, applicantId: _verifiedDemoId, typeName: 'Medical Assistance (AICS)').isEligible, isTrue);
       expect(
-        tulongEligibilityFor(requests, applicantId: 'ESP-RES-2024-1102', typeName: 'Medical Assistance (AICS)').isEligible,
+        tulongEligibilityFor(requests, applicantId: 'ESP-RES-2024-9001', typeName: 'Medical Assistance (AICS)').isEligible,
         isFalse,
       );
     });
@@ -253,7 +253,7 @@ void main() {
 
     testWidgets('shows Dokyu + Tulong together under All, and each filter narrows correctly', (tester) async {
       final requests = await _loaded(tester);
-      final session = await _signedInAsCristy(tester);
+      final session = await _signedInAsVerifiedDemo(tester);
 
       await _submitDokyu(requests, typeName: 'Barangay Clearance');
       await _submitTulong(requests, typeName: 'Medical Assistance (AICS)');
@@ -283,8 +283,8 @@ void main() {
       final older = ServiceRequest(
         id: 'req-older',
         referenceNumber: 'DR-2026-0001',
-        applicantId: _cristyId,
-        applicantName: _cristyName,
+        applicantId: _verifiedDemoId,
+        applicantName: _verifiedDemoName,
         typeName: 'Barangay Clearance',
         category: ServiceCategory.dokyu,
         office: 'Barangay Hall',
@@ -298,8 +298,8 @@ void main() {
       final newer = ServiceRequest(
         id: 'req-newer',
         referenceNumber: 'AR-2026-0001',
-        applicantId: _cristyId,
-        applicantName: _cristyName,
+        applicantId: _verifiedDemoId,
+        applicantName: _verifiedDemoName,
         typeName: 'Medical Assistance (AICS)',
         category: ServiceCategory.tulong,
         office: 'Municipal Social Welfare and Development Office',
@@ -320,7 +320,7 @@ void main() {
         if (attempts > 100) throw StateError('RequestsService never finished loading.');
         await tester.pump(const Duration(milliseconds: 1));
       }
-      final session = await _signedInAsCristy(tester);
+      final session = await _signedInAsVerifiedDemo(tester);
 
       await pumpMyRequests(tester, requests, session);
 
@@ -333,7 +333,7 @@ void main() {
 
     testWidgets('tapping a request card opens the existing RequestDetailScreen for that exact request', (tester) async {
       final requests = await _loaded(tester);
-      final session = await _signedInAsCristy(tester);
+      final session = await _signedInAsVerifiedDemo(tester);
       final submitted = await _submitDokyu(requests);
 
       await pumpMyRequests(tester, requests, session);
@@ -345,12 +345,12 @@ void main() {
       expect(find.text(submitted.referenceNumber), findsOneWidget);
     });
 
-    testWidgets('account scoping — Ronaldo does not see Cristy\'s requests, and vice versa', (tester) async {
+    testWidgets('account scoping — Nicanor does not see Perlita\'s requests, and vice versa', (tester) async {
       final requests = await _loaded(tester);
-      await _submitDokyu(requests); // Cristy's
+      await _submitDokyu(requests); // Perlita's
       await requests.submit(
-        applicantId: 'ESP-RES-2024-1102',
-        applicantName: 'Ronaldo Bautista',
+        applicantId: 'ESP-RES-2024-9001',
+        applicantName: 'Nicanor Sarmiento',
         typeName: 'Certificate of Residency',
         category: ServiceCategory.dokyu,
         office: 'Civil Registrar',
@@ -359,23 +359,23 @@ void main() {
         attachments: const [],
       );
 
-      final ronaldoSession = CitizenSessionService();
+      final pendingDemoSession = CitizenSessionService();
       var attempts = 0;
-      while (ronaldoSession.loading) {
+      while (pendingDemoSession.loading) {
         attempts++;
         if (attempts > 100) throw StateError('CitizenSessionService never finished loading.');
         await tester.pump(const Duration(milliseconds: 1));
       }
-      await ronaldoSession.login(MockCatalog.demoAccounts.first); // Ronaldo
+      await pendingDemoSession.login(MockCatalog.demoAccounts.first); // Nicanor
 
-      await pumpMyRequests(tester, requests, ronaldoSession);
+      await pumpMyRequests(tester, requests, pendingDemoSession);
       expect(find.text('Certificate of Residency'), findsOneWidget);
-      expect(find.text('Barangay Clearance'), findsNothing); // Cristy's own request never leaks in
+      expect(find.text('Barangay Clearance'), findsNothing); // Perlita's own request never leaks in
     });
 
     testWidgets('empty state shows when the signed-in resident has no requests yet', (tester) async {
       final requests = await _loaded(tester);
-      final session = await _signedInAsCristy(tester);
+      final session = await _signedInAsVerifiedDemo(tester);
       await pumpMyRequests(tester, requests, session);
       expect(find.text('No requests yet'), findsOneWidget);
     });
@@ -447,7 +447,7 @@ void main() {
                 body: Center(
                   child: ElevatedButton(
                     onPressed: () async {
-                      final result = tulongEligibilityFor(requests, applicantId: _cristyId, typeName: typeName);
+                      final result = tulongEligibilityFor(requests, applicantId: _verifiedDemoId, typeName: typeName);
                       if (result.isEligible) return;
                       final viewRequest = await showTulongBlockedDialog(context, result);
                       if (viewRequest && context.mounted) {
@@ -471,7 +471,7 @@ void main() {
       tester,
     ) async {
       final requests = await _loaded(tester);
-      final session = await _signedInAsCristy(tester);
+      final session = await _signedInAsVerifiedDemo(tester);
       final active = await _submitTulong(requests); // status: Submitted — active
 
       await pumpGate(tester, requests, session, typeName: 'Medical Assistance (AICS)');
@@ -495,8 +495,8 @@ void main() {
       final approved = ServiceRequest(
         id: 'req-approved',
         referenceNumber: 'AR-2026-0001',
-        applicantId: _cristyId,
-        applicantName: _cristyName,
+        applicantId: _verifiedDemoId,
+        applicantName: _verifiedDemoName,
         typeName: 'Medical Assistance (AICS)',
         category: ServiceCategory.tulong,
         office: 'Municipal Social Welfare and Development Office',
@@ -517,7 +517,7 @@ void main() {
         if (attempts > 100) throw StateError('RequestsService never finished loading.');
         await tester.pump(const Duration(milliseconds: 1));
       }
-      final session = await _signedInAsCristy(tester);
+      final session = await _signedInAsVerifiedDemo(tester);
 
       await pumpGate(tester, requests, session, typeName: 'Medical Assistance (AICS)');
       await tester.tap(find.text('Attempt Submit'));
@@ -544,8 +544,8 @@ void main() {
       final rejected = ServiceRequest(
         id: 'req-rejected',
         referenceNumber: 'AR-2026-0002',
-        applicantId: _cristyId,
-        applicantName: _cristyName,
+        applicantId: _verifiedDemoId,
+        applicantName: _verifiedDemoName,
         typeName: 'Medical Assistance (AICS)',
         category: ServiceCategory.tulong,
         office: 'Municipal Social Welfare and Development Office',
@@ -566,7 +566,7 @@ void main() {
         if (attempts > 100) throw StateError('RequestsService never finished loading.');
         await tester.pump(const Duration(milliseconds: 1));
       }
-      final session = await _signedInAsCristy(tester);
+      final session = await _signedInAsVerifiedDemo(tester);
 
       await pumpGate(tester, requests, session, typeName: 'Medical Assistance (AICS)');
       await tester.tap(find.text('Attempt Submit'));

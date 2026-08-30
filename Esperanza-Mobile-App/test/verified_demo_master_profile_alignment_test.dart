@@ -1,8 +1,8 @@
-// Coverage for the Cristy Master Profile + Educational Assistance alignment
+// Coverage for the Perlita Master Profile + Educational Assistance alignment
 // pass: her resident-fact data now matches the Web Admin's own Educational
 // Assistance record (corrected DOB, place of birth, school, family
 // background, income), a calculated Age field on Personal Information,
-// seeded Ramon/Corazon family members, per-requirement Educational
+// seeded Anselmo/Lourdes family members, per-requirement Educational
 // Assistance uploads that start empty, and a migration that safely corrects
 // a device that already persisted the old placeholder profile.
 import 'dart:convert';
@@ -30,8 +30,8 @@ import 'package:esperanza_mobile/theme/app_colors.dart';
 import 'package:esperanza_mobile/utils/age_calculator.dart';
 import 'package:esperanza_mobile/widgets/app_button.dart';
 
-const _cristyId = 'ESP-RES-2024-1044';
-final _cristyDob = DateTime(2001, 3, 15);
+const _verifiedDemoId = 'ESP-RES-2024-9002';
+final _verifiedDemoDob = DateTime(2001, 3, 15);
 
 Attachment _fakeAttachment(String fileName, {AttachmentCategory category = AttachmentCategory.pdf}) {
   return Attachment(
@@ -45,7 +45,7 @@ Attachment _fakeAttachment(String fileName, {AttachmentCategory category = Attac
   );
 }
 
-Future<CitizenSessionService> _signedInAsCristy(WidgetTester tester) async {
+Future<CitizenSessionService> _signedInAsVerifiedDemo(WidgetTester tester) async {
   final session = CitizenSessionService();
   var attempts = 0;
   while (session.loading) {
@@ -53,7 +53,7 @@ Future<CitizenSessionService> _signedInAsCristy(WidgetTester tester) async {
     if (attempts > 100) throw StateError('CitizenSessionService never finished loading.');
     await tester.pump(const Duration(milliseconds: 1));
   }
-  await session.login(MockCatalog.demoAccounts.last); // Cristy — verified
+  await session.login(MockCatalog.demoAccounts.last); // Perlita — verified
   return session;
 }
 
@@ -81,16 +81,16 @@ Future<MasterFileService> _readyMasterFile(WidgetTester tester) async {
 
 void main() {
   group('Resident Master Profile — fresh seed', () {
-    testWidgets("Cristy's freshly-seeded profile matches the Web Admin Educational Assistance record", (
+    testWidgets("Perlita's freshly-seeded profile matches the Web Admin Educational Assistance record", (
       tester,
     ) async {
       SharedPreferences.setMockInitialValues({});
-      final session = await _signedInAsCristy(tester);
+      final session = await _signedInAsVerifiedDemo(tester);
       final profiles = await _readyProfiles(tester);
       final profile = profiles.profileFor(session.account!);
       final personal = profile.personal;
 
-      expect(personal.birthdate, _cristyDob);
+      expect(personal.birthdate, _verifiedDemoDob);
       expect(personal.civilStatus, 'Single');
       expect(personal.occupation, 'Student');
       expect(personal.educationalAttainment, 'Senior High School'); // closest valid option to "...Graduate"
@@ -106,28 +106,28 @@ void main() {
       expect(profile.household.monthlyIncome, '₱9,718');
 
       final father = profile.familyMembers.firstWhere((m) => m.relationshipToHead == 'Father');
-      expect(father.fullName, 'Ramon Bonghanoy');
+      expect(father.fullName, 'Anselmo Quiambao');
       expect(father.occupation, 'Construction Worker');
 
       final mother = profile.familyMembers.firstWhere((m) => m.relationshipToHead == 'Mother');
-      expect(mother.fullName, 'Corazon Bonghanoy');
+      expect(mother.fullName, 'Lourdes Quiambao');
       expect(mother.occupation, 'Sari-Sari Store Vendor');
-      expect(mother.maidenName, 'Pareja');
+      expect(mother.maidenName, 'Escano');
 
-      // Head of Family is untouched — still Cristy herself.
-      expect(profile.headIndividualId, _cristyId);
+      // Head of Family is untouched — still Perlita herself.
+      expect(profile.headIndividualId, _verifiedDemoId);
 
       // Her Web Admin Constituents record's exact Household/Family ids —
       // not the generic hash-derived scheme every other account seeds with.
-      expect(profile.householdId, 'HH-2026-104');
-      expect(profile.familyId, 'FAM-2026-104');
+      expect(profile.householdId, 'HH-2026-9002');
+      expect(profile.familyId, 'FAM-2026-9002');
 
-      expect(profile.emergencyContactName, 'Roberto Pareja');
+      expect(profile.emergencyContactName, 'Rogelio Escano');
       expect(profile.emergencyContactRelationship, 'Brother');
-      expect(profile.emergencyContactNumber, '0919 502 7735');
+      expect(profile.emergencyContactNumber, '0919 000 9012');
     });
 
-    testWidgets("Ronaldo's profile is completely unaffected by Cristy's alignment", (tester) async {
+    testWidgets("Nicanor's profile is completely unaffected by Perlita's alignment", (tester) async {
       SharedPreferences.setMockInitialValues({});
       final session = CitizenSessionService();
       var attempts = 0;
@@ -136,11 +136,11 @@ void main() {
         if (attempts > 100) throw StateError('CitizenSessionService never finished loading.');
         await tester.pump(const Duration(milliseconds: 1));
       }
-      await session.login(MockCatalog.demoAccounts.first); // Ronaldo
+      await session.login(MockCatalog.demoAccounts.first); // Nicanor
       final profiles = await _readyProfiles(tester);
       final profile = profiles.profileFor(session.account!);
 
-      expect(profile.personal.birthdate, isNot(_cristyDob));
+      expect(profile.personal.birthdate, isNot(_verifiedDemoDob));
       expect(profile.personal.placeOfBirth, isEmpty);
       expect(profile.familyMembers, isEmpty);
       expect(profile.household.monthlyIncome, isEmpty);
@@ -148,42 +148,42 @@ void main() {
   });
 
   group('Resident Master Profile — migration for an already-persisted stale device', () {
-    testWidgets('an old placeholder Cristy profile (Nov 29 1988, no family) is corrected on load, unrelated data preserved', (
+    testWidgets('an old placeholder Perlita profile (Nov 29 1988, no family) is corrected on load, unrelated data preserved', (
       tester,
     ) async {
       final staleProfile = ResidentProfile(
-        citizenAccountId: _cristyId,
+        citizenAccountId: _verifiedDemoId,
         personal: Individual(
-          individualId: _cristyId,
-          firstName: 'Cristy',
-          lastName: 'Bonghanoy',
+          individualId: _verifiedDemoId,
+          firstName: 'Perlita',
+          lastName: 'Quiambao',
           sex: 'Female',
           birthdate: DateTime(1988, 11, 29),
           civilStatus: 'Married',
-          mobile: '0919 502 7734',
+          mobile: '0919 000 9002',
           barangay: 'Baras',
           sitioPurok: 'Purok 2',
           completeAddress: 'Purok 2, Barangay Baras, Esperanza, Masbate',
           occupation: 'Market Vendor',
-          householdId: 'HH-2026-104',
+          householdId: 'HH-2026-9002',
         ),
-        familyName: 'Bonghanoy Family',
-        headIndividualId: _cristyId,
-        familyId: 'FAM-2026-104',
-        householdId: 'HH-2026-104',
-        household: Household(householdId: 'HH-2026-104', barangay: 'Baras'),
+        familyName: 'Quiambao Family',
+        headIndividualId: _verifiedDemoId,
+        familyId: 'FAM-2026-9002',
+        householdId: 'HH-2026-9002',
+        household: Household(householdId: 'HH-2026-9002', barangay: 'Baras'),
         personalSaved: true,
         familySaved: true,
       );
       SharedPreferences.setMockInitialValues({
-        'esperanza_resident_profiles': jsonEncode({_cristyId: staleProfile.toJson()}),
+        'esperanza_resident_profiles': jsonEncode({_verifiedDemoId: staleProfile.toJson()}),
       });
 
       final profiles = await _readyProfiles(tester);
-      final session = await _signedInAsCristy(tester);
+      final session = await _signedInAsVerifiedDemo(tester);
       final migrated = profiles.profileFor(session.account!);
 
-      expect(migrated.personal.birthdate, _cristyDob);
+      expect(migrated.personal.birthdate, _verifiedDemoDob);
       expect(migrated.personal.civilStatus, 'Single');
       // Occupation is now itself a Web-Admin-sourced correction target too
       // (an old "Market Vendor" placeholder is explicitly superseded by
@@ -198,39 +198,39 @@ void main() {
       expect(migrated.familyMembers.any((m) => m.relationshipToHead == 'Mother'), isTrue);
       expect(
         migrated.familyMembers.firstWhere((m) => m.relationshipToHead == 'Mother').maidenName,
-        'Pareja',
+        'Escano',
       );
-      expect(migrated.emergencyContactName, 'Roberto Pareja');
+      expect(migrated.emergencyContactName, 'Rogelio Escano');
       expect(migrated.emergencyContactRelationship, 'Brother');
-      expect(migrated.emergencyContactNumber, '0919 502 7735');
+      expect(migrated.emergencyContactNumber, '0919 000 9012');
 
       // Genuinely unrelated pre-existing data (never touched by this
       // alignment) is preserved exactly, not reset.
-      expect(migrated.personal.mobile, '0919 502 7734');
+      expect(migrated.personal.mobile, '0919 000 9002');
       expect(migrated.personalSaved, isTrue);
       expect(migrated.familySaved, isTrue);
 
       // Re-persisted, not just corrected in memory.
       final prefs = await SharedPreferences.getInstance();
       final resaved = jsonDecode(prefs.getString('esperanza_resident_profiles')!) as Map<String, dynamic>;
-      final resavedPersonal = resaved[_cristyId]['personal'] as Map<String, dynamic>;
-      expect(resavedPersonal['birthdate'], _cristyDob.toIso8601String());
-      final resavedMembers = resaved[_cristyId]['familyMembers'] as List;
+      final resavedPersonal = resaved[_verifiedDemoId]['personal'] as Map<String, dynamic>;
+      expect(resavedPersonal['birthdate'], _verifiedDemoDob.toIso8601String());
+      final resavedMembers = resaved[_verifiedDemoId]['familyMembers'] as List;
       expect(resavedMembers.length, 2);
     });
 
-    testWidgets('a device that never ran the old code and has no persisted Cristy profile still seeds correctly', (
+    testWidgets('a device that never ran the old code and has no persisted Perlita profile still seeds correctly', (
       tester,
     ) async {
       SharedPreferences.setMockInitialValues({});
       final profiles = await _readyProfiles(tester);
-      final session = await _signedInAsCristy(tester);
+      final session = await _signedInAsVerifiedDemo(tester);
       final profile = profiles.profileFor(session.account!);
 
-      expect(profile.personal.birthdate, _cristyDob);
+      expect(profile.personal.birthdate, _verifiedDemoDob);
       expect(profile.familyMembers.length, 2);
-      expect(profile.householdId, 'HH-2026-104');
-      expect(profile.familyId, 'FAM-2026-104');
+      expect(profile.householdId, 'HH-2026-9002');
+      expect(profile.familyId, 'FAM-2026-9002');
     });
 
     testWidgets(
@@ -238,21 +238,21 @@ void main() {
       'load, without duplicating or losing family members',
       (tester) async {
         // The old generic hash-derived scheme every account still uses for
-        // ResidentProfile.seedFrom — deliberately NOT HH-2026-104/
-        // FAM-2026-104, to prove the migration actually rewrites a
+        // ResidentProfile.seedFrom — deliberately NOT HH-2026-9002/
+        // FAM-2026-9002, to prove the migration actually rewrites a
         // mismatched id rather than happening to already match.
         const staleHouseholdId = 'HH-2026-741';
         const staleFamilyId = 'FAM-2026-741';
         final staleProfile = ResidentProfile(
-          citizenAccountId: _cristyId,
+          citizenAccountId: _verifiedDemoId,
           personal: Individual(
-            individualId: _cristyId,
-            firstName: 'Cristy',
-            lastName: 'Bonghanoy',
+            individualId: _verifiedDemoId,
+            firstName: 'Perlita',
+            lastName: 'Quiambao',
             sex: 'Female',
-            birthdate: _cristyDob,
+            birthdate: _verifiedDemoDob,
             civilStatus: 'Single',
-            mobile: '0919 502 7734',
+            mobile: '0919 000 9002',
             barangay: 'Baras',
             sitioPurok: 'Purok 2',
             completeAddress: 'Purok 2, Barangay Baras, Esperanza, Masbate',
@@ -261,17 +261,17 @@ void main() {
           ),
           familyMembers: [
             Individual(
-              individualId: 'IND-$_cristyId-FATHER',
-              firstName: 'Ramon',
-              lastName: 'Bonghanoy',
+              individualId: 'IND-$_verifiedDemoId-FATHER',
+              firstName: 'Anselmo',
+              lastName: 'Quiambao',
               relationshipToHead: 'Father',
               occupation: 'Construction Worker',
               familyId: staleFamilyId,
               householdId: staleHouseholdId,
             ),
           ],
-          familyName: 'Bonghanoy Family',
-          headIndividualId: _cristyId,
+          familyName: 'Quiambao Family',
+          headIndividualId: _verifiedDemoId,
           familyId: staleFamilyId,
           householdId: staleHouseholdId,
           household: Household(householdId: staleHouseholdId, barangay: 'Baras', familyIds: [staleFamilyId]),
@@ -279,42 +279,42 @@ void main() {
           familySaved: true,
         );
         SharedPreferences.setMockInitialValues({
-          'esperanza_resident_profiles': jsonEncode({_cristyId: staleProfile.toJson()}),
+          'esperanza_resident_profiles': jsonEncode({_verifiedDemoId: staleProfile.toJson()}),
         });
 
         final profiles = await _readyProfiles(tester);
-        final session = await _signedInAsCristy(tester);
+        final session = await _signedInAsVerifiedDemo(tester);
         final migrated = profiles.profileFor(session.account!);
 
-        expect(migrated.householdId, 'HH-2026-104');
-        expect(migrated.familyId, 'FAM-2026-104');
-        expect(migrated.household.householdId, 'HH-2026-104');
-        expect(migrated.household.familyIds, ['FAM-2026-104']);
+        expect(migrated.householdId, 'HH-2026-9002');
+        expect(migrated.familyId, 'FAM-2026-9002');
+        expect(migrated.household.householdId, 'HH-2026-9002');
+        expect(migrated.household.familyIds, ['FAM-2026-9002']);
         // Mother gets added (was never on this stale device); Father is
         // corrected in place, never duplicated.
         expect(migrated.familyMembers.length, 2);
         final father = migrated.familyMembers.firstWhere((m) => m.relationshipToHead == 'Father');
-        expect(father.familyId, 'FAM-2026-104');
-        expect(father.householdId, 'HH-2026-104');
+        expect(father.familyId, 'FAM-2026-9002');
+        expect(father.householdId, 'HH-2026-9002');
         final mother = migrated.familyMembers.firstWhere((m) => m.relationshipToHead == 'Mother');
-        expect(mother.familyId, 'FAM-2026-104');
-        expect(mother.householdId, 'HH-2026-104');
+        expect(mother.familyId, 'FAM-2026-9002');
+        expect(mother.householdId, 'HH-2026-9002');
 
         // Re-persisted, not just corrected in memory.
         final prefs = await SharedPreferences.getInstance();
         final resaved = jsonDecode(prefs.getString('esperanza_resident_profiles')!) as Map<String, dynamic>;
-        expect(resaved[_cristyId]['householdId'], 'HH-2026-104');
-        expect(resaved[_cristyId]['familyId'], 'FAM-2026-104');
+        expect(resaved[_verifiedDemoId]['householdId'], 'HH-2026-9002');
+        expect(resaved[_verifiedDemoId]['familyId'], 'FAM-2026-9002');
       },
     );
   });
 
   group('Personal Information — Age', () {
-    testWidgets('shows Age calculated live from the corrected March 15, 2001 birthdate, and Civil Status Single', (
+    testWidgets('shows Age calculated live from the corrected February 4, 2001 birthdate, and Civil Status Single', (
       tester,
     ) async {
       SharedPreferences.setMockInitialValues({});
-      final session = await _signedInAsCristy(tester);
+      final session = await _signedInAsVerifiedDemo(tester);
       await tester.pumpWidget(
         MultiProvider(
           providers: [
@@ -328,7 +328,7 @@ void main() {
 
       expect(find.text('Mar 15, 2001'), findsOneWidget);
       expect(find.text('Age'), findsOneWidget);
-      final expectedAge = calculateAge(_cristyDob);
+      final expectedAge = calculateAge(_verifiedDemoDob);
       expect(find.text('$expectedAge years old'), findsOneWidget);
       expect(find.text('Single'), findsWidgets);
       expect(find.text('Student'), findsWidgets);
@@ -339,12 +339,12 @@ void main() {
   });
 
   group('Family Information', () {
-    testWidgets('shows Ramon Bonghanoy (Father) and Corazon Bonghanoy (Mother); the empty-state message is gone', (
+    testWidgets('shows Anselmo Quiambao (Father) and Lourdes Quiambao (Mother); the empty-state message is gone', (
       tester,
     ) async {
       // The default test canvas is too short to fit this screen's now-
       // longer Family Details section (Family ID/Household ID/Mother's
-      // Maiden Name/Emergency Contact — see the Cristy Master Profile Web
+      // Maiden Name/Emergency Contact — see the Perlita Master Profile Web
       // Admin sync) plus the family member tiles below it within a Sliver
       // list's own build/cache extent — a realistic phone viewport keeps
       // everything reachable, same pattern used throughout this suite.
@@ -354,7 +354,7 @@ void main() {
       addTearDown(tester.view.resetDevicePixelRatio);
 
       SharedPreferences.setMockInitialValues({});
-      final session = await _signedInAsCristy(tester);
+      final session = await _signedInAsVerifiedDemo(tester);
       await tester.pumpWidget(
         MultiProvider(
           providers: [
@@ -379,8 +379,8 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.textContaining('No family members added yet'), findsNothing);
-      expect(find.text('Ramon Bonghanoy'), findsOneWidget);
-      expect(find.text('Corazon Bonghanoy'), findsOneWidget);
+      expect(find.text('Anselmo Quiambao'), findsOneWidget);
+      expect(find.text('Lourdes Quiambao'), findsOneWidget);
       // _MemberTile's own subtitle line shows relationship + age + account
       // status only (not occupation — see that widget's subtitleParts) —
       // occupation itself is verified against the underlying data directly
@@ -390,7 +390,7 @@ void main() {
       expect(tester.takeException(), isNull);
     });
 
-    testWidgets('editing Ramon Bonghanoy opens the sheet without crashing (Father/Mother are valid dropdown options)', (
+    testWidgets('editing Anselmo Quiambao opens the sheet without crashing (Father/Mother are valid dropdown options)', (
       tester,
     ) async {
       tester.view.physicalSize = const Size(390, 844);
@@ -399,7 +399,7 @@ void main() {
       addTearDown(tester.view.resetDevicePixelRatio);
 
       SharedPreferences.setMockInitialValues({});
-      final session = await _signedInAsCristy(tester);
+      final session = await _signedInAsVerifiedDemo(tester);
       await tester.pumpWidget(
         MultiProvider(
           providers: [
@@ -411,7 +411,7 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Ramon Bonghanoy'));
+      await tester.tap(find.text('Anselmo Quiambao'));
       await tester.pumpAndSettle();
 
       expect(find.text('Edit Family Member'), findsOneWidget);
@@ -428,7 +428,7 @@ void main() {
       addTearDown(tester.view.resetPhysicalSize);
       addTearDown(tester.view.resetDevicePixelRatio);
 
-      final session = await _signedInAsCristy(tester);
+      final session = await _signedInAsVerifiedDemo(tester);
       final requests = RequestsService(seedDemoData: false);
       var attempts = 0;
       while (!requests.loaded) {
@@ -466,7 +466,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Mar 15, 2001'), findsOneWidget);
-      final expectedAge = calculateAge(_cristyDob);
+      final expectedAge = calculateAge(_verifiedDemoDob);
       expect(find.textContaining('$expectedAge years old'), findsOneWidget);
       expect(find.text('Milagros, Masbate'), findsOneWidget);
       expect(find.text('Single'), findsWidgets);
@@ -479,9 +479,9 @@ void main() {
       await tester.tap(find.widgetWithText(AppButton, 'Continue')); // -> Family Background
       await tester.pumpAndSettle();
 
-      expect(find.text('Ramon Bonghanoy'), findsOneWidget);
+      expect(find.text('Anselmo Quiambao'), findsOneWidget);
       expect(find.text('Construction Worker'), findsOneWidget);
-      expect(find.text('Corazon Bonghanoy'), findsOneWidget);
+      expect(find.text('Lourdes Quiambao'), findsOneWidget);
       expect(find.text('Sari-Sari Store Vendor'), findsOneWidget);
       expect(find.text('9718'), findsOneWidget); // plain digits, not "₱9,718"
       expect(tester.takeException(), isNull);
@@ -504,7 +504,7 @@ void main() {
       expect(find.text('Barangay Certificate of Indigency'), findsOneWidget);
       // Exactly 3 empty upload prompts, each with its own requirement-
       // specific button label — nothing pre-attached, nothing marked
-      // submitted, no "Existing document found" (Cristy's own signup/
+      // submitted, no "Existing document found" (Perlita's own signup/
       // registration ID is a different, unrelated system — see
       // utils/government_id.dart — and is never auto-offered here).
       expect(find.text('Upload Certificate of Enrollment'), findsOneWidget);
@@ -520,7 +520,7 @@ void main() {
       SharedPreferences.setMockInitialValues({});
       final mf = await _readyMasterFile(tester);
       await mf.saveOrUpdate(
-        accountId: _cristyId,
+        accountId: _verifiedDemoId,
         documentType: 'certificate_of_enrollment',
         label: 'Certificate of Enrollment',
         attachment: _fakeAttachment('enrollment_cert.pdf'),
@@ -557,14 +557,14 @@ void main() {
         SharedPreferences.setMockInitialValues({});
         final mf = await _readyMasterFile(tester);
         await mf.saveOrUpdate(
-          accountId: _cristyId,
+          accountId: _verifiedDemoId,
           documentType: 'certificate_of_enrollment',
           label: 'Certificate of Enrollment',
           attachment: _fakeAttachment('enrollment.pdf'),
           origin: 'Test',
         );
         await mf.saveOrUpdate(
-          accountId: _cristyId,
+          accountId: _verifiedDemoId,
           documentType: 'valid_government_id',
           label: 'Valid Government-Issued ID',
           // Category left at the _fakeAttachment default (pdf), not image —
@@ -576,7 +576,7 @@ void main() {
           origin: 'Test',
         );
         await mf.saveOrUpdate(
-          accountId: _cristyId,
+          accountId: _verifiedDemoId,
           documentType: 'barangay_certificate_of_indigency',
           label: 'Barangay Certificate of Indigency',
           attachment: _fakeAttachment('indigency.pdf'),

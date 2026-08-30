@@ -1,6 +1,6 @@
 // Correction pass: "PREFILLED FORM DATA = YES, PRE-UPLOADED REQUIREMENT
 // FILES = NO." A brand-new Dokyu/Tulong application must never open with a
-// requirement already showing as Uploaded — not even when Cristy's Master
+// requirement already showing as Uploaded — not even when Perlita's Master
 // File already has a matching document (that must only ever be OFFERED via
 // "Existing document found" / "Use Existing Document", never auto-selected).
 // Audits both entry points (the multi-step ServiceRequestWizardScreen and
@@ -28,7 +28,7 @@ import 'package:esperanza_mobile/services/resident_profile_service.dart';
 import 'package:esperanza_mobile/theme/app_colors.dart';
 import 'package:esperanza_mobile/widgets/app_button.dart';
 
-const _cristyId = 'ESP-RES-2024-1044';
+const _verifiedDemoId = 'ESP-RES-2024-9002';
 
 Attachment _fakeAttachment(String fileName) {
   return Attachment(
@@ -42,7 +42,7 @@ Attachment _fakeAttachment(String fileName) {
   );
 }
 
-Future<CitizenSessionService> _signedInAsCristy(WidgetTester tester) async {
+Future<CitizenSessionService> _signedInAsVerifiedDemo(WidgetTester tester) async {
   final session = CitizenSessionService();
   var attempts = 0;
   while (session.loading) {
@@ -50,7 +50,7 @@ Future<CitizenSessionService> _signedInAsCristy(WidgetTester tester) async {
     if (attempts > 100) throw StateError('CitizenSessionService never finished loading.');
     await tester.pump(const Duration(milliseconds: 1));
   }
-  await session.login(MockCatalog.demoAccounts.last); // Cristy — verified
+  await session.login(MockCatalog.demoAccounts.last); // Perlita — verified
   return session;
 }
 
@@ -89,7 +89,7 @@ void main() {
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
 
-    final session = await _signedInAsCristy(tester);
+    final session = await _signedInAsVerifiedDemo(tester);
     await tester.pumpWidget(
       MultiProvider(
         providers: [
@@ -119,7 +119,7 @@ void main() {
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
 
-    final session = await _signedInAsCristy(tester);
+    final session = await _signedInAsVerifiedDemo(tester);
     await tester.pumpWidget(
       MultiProvider(
         providers: [
@@ -158,19 +158,19 @@ void main() {
     });
 
     testWidgets(
-      'Barangay Clearance — Cristy already HAS a matching Master File document for both requirements: still offered, never auto-attached',
+      'Barangay Clearance — Perlita already HAS a matching Master File document for both requirements: still offered, never auto-attached',
       (tester) async {
         SharedPreferences.setMockInitialValues({});
         final mf = await _readyMasterFile(tester);
         await mf.saveOrUpdate(
-          accountId: _cristyId,
+          accountId: _verifiedDemoId,
           documentType: 'valid_government_id',
           label: 'One (1) valid government-issued ID',
           attachment: _fakeAttachment('valid_id_from_earlier_service.pdf'),
           origin: 'Personal Information',
         );
         await mf.saveOrUpdate(
-          accountId: _cristyId,
+          accountId: _verifiedDemoId,
           documentType: 'proof_of_residency',
           label: 'Proof of residency',
           attachment: _fakeAttachment('residency_from_earlier_service.pdf'),
@@ -256,7 +256,7 @@ void main() {
       SharedPreferences.setMockInitialValues({});
       final mf = await _readyMasterFile(tester);
       await mf.saveOrUpdate(
-        accountId: _cristyId,
+        accountId: _verifiedDemoId,
         documentType: 'valid_government_id',
         label: 'One (1) valid government-issued ID',
         attachment: _fakeAttachment('old_id.pdf'),
@@ -286,8 +286,8 @@ void main() {
       SharedPreferences.setMockInitialValues({});
       final requests = await _readyRequests(tester);
       final submitted = await requests.submit(
-        applicantId: _cristyId,
-        applicantName: 'Cristy Bonghanoy',
+        applicantId: _verifiedDemoId,
+        applicantName: 'Perlita Quiambao',
         typeName: 'Barangay Clearance',
         category: ServiceCategory.dokyu,
         office: 'Barangay Hall',

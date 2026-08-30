@@ -95,7 +95,7 @@ void main() {
     );
   });
 
-  testWidgets('Scenario B — Ronaldo Bautista: registered but unverified, restricted from Dokyu, allowed into Emergency', (tester) async {
+  testWidgets('Scenario B — Nicanor Sarmiento: registered but unverified, restricted from Dokyu, allowed into Emergency', (tester) async {
     // Onboarding-complete pre-seeded: these scenarios exercise the normal
     // returning-user flow, not the first-run Onboarding screens — see
     // onboarding_flow_test.dart for that.
@@ -104,20 +104,20 @@ void main() {
     await tester.pumpWidget(const EsperanzaMobileApp());
     await tester.pumpAndSettle();
 
-    // 1. Sign in using the Ronaldo Bautista demo account.
-    expect(find.text('Ronaldo Bautista'), findsOneWidget);
-    // Scoped to Ronaldo's own card — the Phase 6 duplicate-account demo
+    // 1. Sign in using the Nicanor Sarmiento demo account.
+    expect(find.text('Nicanor Sarmiento'), findsOneWidget);
+    // Scoped to Nicanor's own card — the Phase 6 duplicate-account demo
     // card also shows "Unverified User" (she's never verified in that
     // simulation either), so an unscoped find would match both.
     expect(
       find.descendant(
-        of: find.ancestor(of: find.text('Ronaldo Bautista'), matching: find.byType(DemoAccountCard)),
+        of: find.ancestor(of: find.text('Nicanor Sarmiento'), matching: find.byType(DemoAccountCard)),
         matching: find.text('Unverified User'),
       ),
       findsOneWidget,
     );
-    await tester.ensureVisible(find.text('Ronaldo Bautista'));
-    await tester.tap(find.text('Ronaldo Bautista'));
+    await tester.ensureVisible(find.text('Nicanor Sarmiento'));
+    await tester.tap(find.text('Nicanor Sarmiento'));
     await tester.pumpAndSettle();
     await _dismissWelcomeBanner(tester);
 
@@ -144,7 +144,7 @@ void main() {
     expect(find.text('Create Account'), findsNothing); // guest-only copy must not appear
     expect(find.text('Sign In'), findsNothing);
 
-    // Emergency only requires being signed in (not verified) — Ronaldo
+    // Emergency only requires being signed in (not verified) — Nicanor
     // must reach the real screen, not another notice.
     await tester.tap(find.text('Emergency'));
     await tester.pumpAndSettle();
@@ -153,7 +153,7 @@ void main() {
     expect(find.text('Report an Incident'), findsOneWidget); // real Sakuna content
   });
 
-  testWidgets('Scenario C — Cristy Bonghanoy: fully verified, full access, no guest/verification warnings', (tester) async {
+  testWidgets('Scenario C — Perlita Quiambao: fully verified, full access, no guest/verification warnings', (tester) async {
     // Onboarding-complete pre-seeded: these scenarios exercise the normal
     // returning-user flow, not the first-run Onboarding screens — see
     // onboarding_flow_test.dart for that.
@@ -162,11 +162,11 @@ void main() {
     await tester.pumpWidget(const EsperanzaMobileApp());
     await tester.pumpAndSettle();
 
-    // 1. Sign in using the Cristy Bonghanoy demo account.
-    expect(find.text('Cristy Bonghanoy'), findsOneWidget);
+    // 1. Sign in using the Perlita Quiambao demo account.
+    expect(find.text('Perlita Quiambao'), findsOneWidget);
     expect(find.text('Verified User'), findsOneWidget); // demo card label
-    await tester.ensureVisible(find.text('Cristy Bonghanoy'));
-    await tester.tap(find.text('Cristy Bonghanoy'));
+    await tester.ensureVisible(find.text('Perlita Quiambao'));
+    await tester.tap(find.text('Perlita Quiambao'));
     await tester.pumpAndSettle();
     await _dismissWelcomeBanner(tester);
 
@@ -196,6 +196,6 @@ void main() {
     await tester.tap(find.text('Home'));
     await tester.pumpAndSettle();
     expect(find.textContaining('Welcome, Guest'), findsNothing);
-    expect(find.textContaining('Magandang araw, Cristy'), findsOneWidget);
+    expect(find.textContaining('Magandang araw, Perlita'), findsOneWidget);
   });
 }

@@ -125,7 +125,7 @@ class NotificationsService extends ChangeNotifier {
   /// The Unverified+Unverified duplicate demo's own resolution — 'A', 'B',
   /// or null if the citizen hasn't chosen which registration to keep yet.
   /// Independent of [duplicateResolutionFor]/[resolveDuplicateAlert] above
-  /// (the Verified-Cristy scenario's own state) — see
+  /// (the Verified-Perlita scenario's own state) — see
   /// MockCatalog.unverifiedDuplicateAccountA's doc comment.
   String? get unverifiedDuplicateKeptAccountId => _unverifiedDuplicateKeptAccountId;
 

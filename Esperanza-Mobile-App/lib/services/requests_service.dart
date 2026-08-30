@@ -23,14 +23,14 @@ class RequestsService extends ChangeNotifier {
   /// The verified demo resident's current identity — see
   /// _seedDemoStatusSimulationsIfNeeded and _migrateStaleDemoIdentity,
   /// which both reference these rather than duplicating the literals.
-  static const _demoApplicantId = 'ESP-RES-2024-1044';
-  static const _demoApplicantName = 'Cristy Bonghanoy';
+  static const _demoApplicantId = 'ESP-RES-2024-9002';
+  static const _demoApplicantName = 'Perlita Quiambao';
 
   /// The demo identity these six seeded requests were originally created
-  /// under, before the Marites-Ferrer-to-Cristy-Bonghanoy correction — see
+  /// under, before the Perlita-Quiambao-to-Perlita-Quiambao correction — see
   /// _migrateStaleDemoIdentity's own doc comment.
   static const _staleDemoApplicantId = 'ESP-RES-2024-1203';
-  static const _staleDemoApplicantName = 'Marites Ferrer';
+  static const _staleDemoApplicantName = 'Perlita Quiambao';
 
   final List<ServiceRequest> _requests = [];
   bool _loaded = false;
@@ -123,7 +123,7 @@ class RequestsService extends ChangeNotifier {
   }
 
   /// A browser that already had the six demo requests seeded before the
-  /// Marites-Ferrer-to-Cristy-Bonghanoy identity correction has them
+  /// Perlita-Quiambao-to-Perlita-Quiambao identity correction has them
   /// permanently persisted under the old applicant id/name —
   /// _seedDemoStatusSimulationsIfNeeded's own "already present, skip" guard
   /// means a source-code fix alone never reaches an existing browser's
@@ -354,7 +354,7 @@ class RequestsService extends ChangeNotifier {
   Future<void> _seedDemoStatusSimulationsIfNeeded() async {
     if (_requests.any((r) => _demoSeedIds.contains(r.id))) return;
 
-    const applicantId = _demoApplicantId; // Cristy Bonghanoy — verified, has Dokyu/Tulong access.
+    const applicantId = _demoApplicantId; // Perlita Quiambao — verified, has Dokyu/Tulong access.
     const applicantName = _demoApplicantName;
     final now = DateTime.now();
     DateTime daysAgo(int d) => now.subtract(Duration(days: d));

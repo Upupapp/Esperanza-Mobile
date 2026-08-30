@@ -30,7 +30,7 @@ Future<ResidentProfileService> _pumpSoloParentWizard(WidgetTester tester, {requi
 
   SharedPreferences.setMockInitialValues({});
   final session = CitizenSessionService();
-  await session.login(MockCatalog.demoAccounts.last); // Cristy — sex: 'Female' on her CitizenAccount
+  await session.login(MockCatalog.demoAccounts.last); // Perlita — sex: 'Female' on her CitizenAccount
 
   final profileService = ResidentProfileService();
   var attempts = 0;
@@ -84,7 +84,7 @@ void main() {
       // Read-only display shows the known value directly, not a selectable
       // dropdown control. This step also has other select fields
       // (Educational Attainment, Employment Status) that legitimately
-      // stay editable — Cristy's Master Profile doesn't have those, or
+      // stay editable — Perlita's Master Profile doesn't have those, or
       // (Employment Status) it was never a master-eligible key at all —
       // so the precise check is that no *Sex* dropdown exists, not that
       // zero AppSelectFields exist anywhere on the step.

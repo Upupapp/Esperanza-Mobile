@@ -169,7 +169,7 @@ class EsperanzaDrawer extends StatelessWidget {
     // `pushAndRemoveUntil(..., (route) => false)` removed _AuthGate from
     // the stack entirely, so any *later* login()/logout() had nothing
     // left to react to, leaving the user stuck on whatever screen was
-    // showing (this was the root cause behind "Ronaldo/Cristy no longer
+    // showing (this was the root cause behind "Nicanor/Perlita no longer
     // opening" when reached via this Sign In / Create Account path).
     nav.popUntil((route) => route.isFirst);
     if (register) {
