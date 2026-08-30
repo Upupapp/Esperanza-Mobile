@@ -216,6 +216,7 @@ class _NewRequestScreenState extends State<NewRequestScreen> {
         title: Text(widget.item.name),
         leading: _showingPayment
             ? IconButton(
+                tooltip: 'Back',
                 icon: const Icon(Icons.arrow_back_rounded),
                 onPressed: () => setState(() => _showingPayment = false),
               )

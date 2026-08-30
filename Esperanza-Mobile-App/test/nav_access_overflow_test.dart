@@ -56,7 +56,7 @@ void main() {
   }
 
   for (final sizeEntry in sizes.entries) {
-    for (final textScale in [1.0, 1.3]) {
+    for (final textScale in [1.0, 1.3, 2.0]) {
       testWidgets('Guest HomeScreen has zero overflow at ${sizeEntry.key}, textScale $textScale', (tester) async {
         SharedPreferences.setMockInitialValues({});
         await pumpAtSize(tester, sizeEntry.value, textScale, providers(child: const HomeScreen()));

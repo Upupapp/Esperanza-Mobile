@@ -732,6 +732,7 @@ class _DocumentTile extends StatelessWidget {
             ),
           ),
           IconButton(
+            tooltip: 'Remove',
             onPressed: onRemove,
             icon: const Icon(Icons.close_rounded, size: 18, color: AppColors.slate400),
             padding: EdgeInsets.zero,

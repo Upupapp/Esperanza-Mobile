@@ -21,9 +21,17 @@ class OnboardingStepIndicator extends StatelessWidget {
       children: [
         Row(
           children: [
-            Text(
-              'Step ${currentStep + 1} of ${stepLabels.length}',
-              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.brand600),
+            // Flexible, not a bare Text: at a large system text scale this
+            // counter cannot shrink and pushed the row past its width
+            // (measured 2026-08-29 — 35px of overflow at 280pt/200%). It keeps
+            // priority over the step label beside it, which ellipsizes first.
+            Flexible(
+              child: Text(
+                'Step ${currentStep + 1} of ${stepLabels.length}',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.brand600),
+              ),
             ),
             const SizedBox(width: AppSpacing.sm),
             Expanded(

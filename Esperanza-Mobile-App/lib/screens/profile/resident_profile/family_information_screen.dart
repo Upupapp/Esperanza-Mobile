@@ -495,6 +495,7 @@ class _MemberTile extends StatelessWidget {
               ),
             ),
             IconButton(
+              tooltip: 'Remove family member',
               onPressed: onRemove,
               icon: const Icon(Icons.delete_outline_rounded, size: 19, color: AppColors.rose500),
               constraints: const BoxConstraints(minWidth: 36, minHeight: 36),

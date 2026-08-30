@@ -51,8 +51,20 @@ class EsperanzaNavItem extends StatelessWidget {
                   child: Text(
                     item.label,
                     maxLines: 1,
+                    // The system text scale is deliberately NOT clamped here.
+                    // It used to be capped at 1.3x. Measured 2026-08-29 (FE 05)
+                    // with the clamp removed, at 280/320/360/412pt:
+                    //   - no overflow at any width, at any scale up to 2.0x;
+                    //   - the label grows 12pt -> 23pt, which is the whole point
+                    //     for a citizen who set large text;
+                    //   - "Profile" already ellipsized at 1.3x *with* the clamp,
+                    //     so the clamp never bought legibility — it only made
+                    //     the same truncated word smaller.
+                    // Ellipsis is visual only: the semantics tree still carries
+                    // the full label, so a screen reader is unaffected. The icon
+                    // above carries the identity regardless.
+                    // nav_access_overflow_test.dart holds this at 2.0x.
                     overflow: TextOverflow.ellipsis,
-                    textScaler: TextScaler.linear(MediaQuery.textScalerOf(context).scale(1).clamp(1.0, 1.3)),
                     style: TextStyle(
                       fontFamily: AppTypography.sans,
                       fontSize: 10.5,

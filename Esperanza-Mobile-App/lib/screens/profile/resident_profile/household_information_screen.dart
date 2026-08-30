@@ -378,12 +378,21 @@ class _FamilyChip extends StatelessWidget {
             ),
           ),
           if (isOwn)
-            const Text(
-              'Your family',
-              style: TextStyle(fontSize: 11, color: AppColors.brand600, fontWeight: FontWeight.w600),
+            // Flexible, not a bare Text: at a large system text scale this
+            // trailing label cannot shrink and pushed the row past its width
+            // (measured 2026-08-29 — 82px of overflow at 280pt/200%). Letting
+            // it wrap keeps the chip intact without shrinking the type, which
+            // would defeat the setting the citizen chose.
+            const Flexible(
+              child: Text(
+                'Your family',
+                textAlign: TextAlign.end,
+                style: TextStyle(fontSize: 11, color: AppColors.brand600, fontWeight: FontWeight.w600),
+              ),
             )
           else if (onRemove != null)
             IconButton(
+              tooltip: 'Remove this family from the household',
               onPressed: onRemove,
               icon: const Icon(Icons.close_rounded, size: 17, color: AppColors.slate400),
               constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
@@ -526,6 +535,7 @@ class _OtherFamilyFormSheetState extends State<_OtherFamilyFormSheet> {
                           ),
                         ),
                         IconButton(
+                          tooltip: 'Remove member',
                           onPressed: () => _removeMemberRow(i),
                           icon: const Icon(Icons.delete_outline_rounded, size: 19, color: AppColors.rose500),
                           constraints: const BoxConstraints(minWidth: 36, minHeight: 36),

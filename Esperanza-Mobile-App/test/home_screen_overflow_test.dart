@@ -26,7 +26,7 @@ void main() {
   };
 
   for (final entry in sizes.entries) {
-    for (final textScale in [1.0, 1.3, 1.6]) {
+    for (final textScale in [1.0, 1.3, 1.6, 2.0]) {
       testWidgets('HomeScreen has zero overflow at ${entry.key}, textScale $textScale', (tester) async {
         SharedPreferences.setMockInitialValues({});
         tester.view.physicalSize = entry.value;
