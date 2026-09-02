@@ -558,6 +558,8 @@ class RequestsService extends ChangeNotifier {
         ReceiptType.maya => 'MY',
         ReceiptType.onsite => 'OR',
         ReceiptType.free => 'FR',
+        // Unreachable: `unknown` is only ever decoded, never generated.
+        ReceiptType.unknown => 'RC',
       };
       return ServiceRequest(
         id: id,
@@ -656,6 +658,8 @@ class RequestsService extends ChangeNotifier {
       ServiceCategory.dokyu => 'DR',
       ServiceCategory.tulong => 'AR',
       ServiceCategory.sakunaIncident => 'IR',
+      // Unreachable: `unknown` is only ever decoded, never generated.
+      ServiceCategory.unknown => 'RQ',
     };
     final year = DateTime.now().year;
     final seq = (_requests.where((r) => r.category == category).length + 1).toString().padLeft(4, '0');
@@ -843,6 +847,8 @@ class RequestsService extends ChangeNotifier {
       ReceiptType.maya => 'MY',
       ReceiptType.onsite => 'OR',
       ReceiptType.free => 'FR',
+      // Unreachable: `unknown` is only ever decoded, never generated.
+      ReceiptType.unknown => 'RC',
     };
     final digits = List.generate(10, (_) => _receiptRandom.nextInt(10)).join();
     return Receipt(

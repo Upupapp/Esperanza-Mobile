@@ -174,6 +174,14 @@ void main() {
   });
 
   group('An enum value this build no longer knows decodes to a fallback, not a throw', () {
+    // Amended by the macOS lane, 2026-09-03. This case originally asserted the
+    // fallback was `ServiceCategory.dokyu`. That kept the record — the right
+    // instinct, and the reason the shape of this test is unchanged — but it
+    // re-filed a citizen's Tulong or Sakuna application as a document request,
+    // which is a false statement about what they filed. The fallback is now
+    // `ServiceCategory.unknown`: the record is still kept and still readable,
+    // and the one field that could not be read is the only one withheld.
+    // See docs/FE01_PERSISTENCE_HARDENING.md and test/service_category_unknown_test.dart.
     testWidgets('an unknown ServiceCategory keeps the rest of the request readable', (tester) async {
       // Everything else in this payload is well-formed; only `category` names
       // a value that a future build could plausibly have renamed or removed.
@@ -205,7 +213,7 @@ void main() {
       // The request survives — the whole list used to be lost to the throw.
       expect(requests.all, hasLength(1));
       expect(requests.all.single.referenceNumber, 'ESP-2026-000001');
-      expect(requests.all.single.category, ServiceCategory.dokyu);
+      expect(requests.all.single.category, ServiceCategory.unknown);
     });
   });
 }

@@ -213,22 +213,53 @@ without the change. The fourth asserts the whole-key discard still happens for a
 wrong-root-type payload, and passes both ways by design: it guards the existing behaviour
 against this addition, rather than testing the addition.
 
-## Open disagreement between the lanes — two `orElse` defaults that assert something false
+## Resolved — the two `orElse` defaults that asserted something false
 
-Raised, not unilaterally reverted: these are this document's own tested decisions, and the
-macOS lane has no standing to overturn them mid-merge. **Both need an owner ruling.**
+**Owner ruling, 2026-09-03: fix them.** Both defaults kept a record rather than losing it,
+which was the right instinct and is preserved. What changed is that neither now names a value
+it could not read.
 
-| Enum | Current default | The concern |
+| Enum | Was | Now |
 |---|---|---|
-| `ReceiptType` | `onsite` | A receipt whose payment type this build cannot read now renders as an **on-site cash payment**. A receipt is the citizen's proof of how they paid; a GCash or Maya payment displaying as cash — or a `free` service displaying as paid on site — is a fabricated statement about money. Both `CLAUDE.md` files and the master command's own guardrail forbid exactly this. |
-| `ServiceCategory` | `dokyu` | A Tulong (assistance) or Sakuna (incident) request whose category was renamed silently becomes a **Dokyu document request** — wrong tab, wrong service, wrong flow. `corrupt_persisted_state_recovery_test.dart` currently asserts this as correct. |
+| `ReceiptType` | `onsite` — an unreadable payment type rendered as an **on-site cash payment** on the citizen's own proof of payment: a completed GCash or Maya payment shown as cash owed, a free service shown as carrying a fee, and the badge reading `DUE ONSITE` for money already taken. | `unknown`, rendered `—` everywhere: no method named, badge neither `PAID` nor `DUE ONSITE`, neutral slate rather than settled-green or owing-amber, and no brand mark. The amount, date, reference and service are still shown, because those are still true. |
+| `ServiceCategory` | `dokyu` — a Tulong (assistance) or Sakuna (incident) application silently became a document request: wrong tab, wrong catalogue, wrong flow. | `unknown`, labelled **Unrecognised**. The record is kept and readable; it is counted under no service and claimed by no tab. |
 
-Both were introduced to stop a record being lost, which is a real and good intent — the
-alternative the macOS lane shipped, skipping the record, loses it instead. **Neither option
-is right.** The honest fix preserves the record *without* naming a value: an explicit
-`unknown` member on each enum, rendered as "—" rather than guessed. That is a larger change
-than a merge should carry, which is why it is filed here rather than done.
+### The second, quieter version of the same bug
 
-`PostMediaType` → `image` and `AttachmentCategory` → `other` are not in dispute:
-`other` is a genuinely neutral member, and a broken media tile is a display bug rather than
-a false statement.
+Fixing only the decode would have moved the false statement rather than removed it. The
+request card derived its chip from `category == dokyu ? 'Dokyu' : 'Tulong'` — a ternary that
+labels **anything** non-Dokyu as Tulong, `unknown` included. There is now one shared
+`ServiceCategoryX.label` on the enum so no screen re-derives it. This is worth remembering as
+a class: an enum fallback is only as honest as the least careful thing that renders it.
+
+### Sites changed
+
+`ReceiptType` — nine, every one found by the analyzer refusing a non-exhaustive switch:
+receipt method label, badge label, badge colours, amount label, payment-mode badge graphic,
+transactions-screen label, export filename, and two generation-side reference prefixes
+(unreachable — `unknown` is only ever decoded, never generated).
+
+`ServiceCategory` — five: the decode, the shared label, the detail-screen accent, the
+generation-side prefix, and the request-card chip's colour and text.
+
+The export filename uses the word `Unknown` rather than the on-screen `—`, because that
+string lands in a filename.
+
+### Evidence
+
+`test/receipt_unknown_type_test.dart` (6) and `test/service_category_unknown_test.dart` (6).
+Break-checked against the previous defaults: **5 of 6** and **4 of 6** fail respectively.
+
+Two upstream tests were touched, both deliberately:
+
+- `corrupt_persisted_state_recovery_test.dart` asserted the `dokyu` fallback as correct. The
+  assertion is amended to `unknown`, with the reason recorded at the test rather than in a
+  commit message nobody will read again. Its shape is unchanged — the intent it was protecting
+  (keep the record) still holds.
+- `design_token_discipline_test.dart` — the FE 06 ratchet caught a raw `Colors.white` added
+  for the new badge glyph and failed the build at 142 against its ceiling of 141. Fixed by
+  using `AppColors.surface`, not by raising the ceiling. The gate did exactly its job.
+
+`PostMediaType` → `image` and `AttachmentCategory` → `other` are unchanged and were never in
+dispute: `other` is a genuinely neutral member, and a broken media tile is a display bug
+rather than a false statement.

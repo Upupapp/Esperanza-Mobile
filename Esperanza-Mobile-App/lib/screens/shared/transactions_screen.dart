@@ -74,6 +74,8 @@ class _TransactionCard extends StatelessWidget {
       // receipts out (see build()) — kept only so this switch stays
       // exhaustive against ReceiptType.
       ReceiptType.free => 'Free',
+      // See ReceiptType.unknown — never guess a method on a payment record.
+      ReceiptType.unknown => '—',
     };
 
     return Padding(

@@ -248,6 +248,8 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
       ServiceCategory.dokyu => AppColors.brand600,
       ServiceCategory.tulong => AppColors.purple700,
       ServiceCategory.sakunaIncident => AppColors.rose600,
+      // Neutral: an accent borrowed from another service would imply one.
+      ServiceCategory.unknown => AppColors.slate600,
     };
     final usesMilestones = request.category != ServiceCategory.sakunaIncident;
 
