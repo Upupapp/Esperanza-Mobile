@@ -11,12 +11,16 @@
 // valid JSON, of the right root type, containing one readable record and one
 // unreadable one. The service must keep the readable one.
 //
-// The failure mode used here is a missing required field rather than an unknown
-// enum, because every persisted enum now carries an `orElse` and therefore no
-// longer throws. `ServiceRequest.fromJson` still casts `statusHistory` and
-// `attachments` with a bare `as List` and no default — unlike
-// `flaggedRequirements` and `formFields`, which both default — so a record
-// written before either field existed is a live, un-hypothetical trigger.
+// Picking a failure mode for these is harder than it looks, and the reason is
+// worth recording. Every persisted enum now carries an `orElse`, so an unknown
+// enum value no longer throws. `statusHistory` and `attachments` used to throw
+// on a bare `as List`, but both now default to empty — that was the follow-on
+// this file's first version relied on, and closing it broke these tests, which
+// is the correct outcome and exactly what a real gate should do.
+//
+// What still throws per record is a required non-null scalar arriving as null,
+// and a malformed `submittedAt`, since `DateTime.parse` rejects it. Both are
+// live version-skew triggers: a field renamed between builds reads as null.
 import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -63,9 +67,11 @@ void main() {
   setUp(PersistenceRecovery.resetForTest);
 
   group('A single unreadable record does not cost the whole collection', () {
-    testWidgets('a request missing a required list survives its neighbour', (tester) async {
+    testWidgets('a request with an unreadable field survives its neighbour', (tester) async {
       final good = _persistedRequest('ESP-2026-000001');
-      final bad = _persistedRequest('ESP-2026-000002')..remove('attachments');
+      // A required non-null scalar arriving as null — what a field renamed
+      // between builds actually looks like on the way back in.
+      final bad = _persistedRequest('ESP-2026-000002')..remove('expectedDays');
 
       SharedPreferences.setMockInitialValues({
         'esperanza_service_requests': jsonEncode([bad, good]),
@@ -83,7 +89,8 @@ void main() {
 
     testWidgets('the key survives — this is a skip, not a discard', (tester) async {
       final good = _persistedRequest('ESP-2026-000003');
-      final bad = _persistedRequest('ESP-2026-000004')..remove('statusHistory');
+      // A date this build cannot parse.
+      final bad = _persistedRequest('ESP-2026-000004')..['submittedAt'] = 'not-a-date';
 
       SharedPreferences.setMockInitialValues({
         'esperanza_service_requests': jsonEncode([bad, good]),

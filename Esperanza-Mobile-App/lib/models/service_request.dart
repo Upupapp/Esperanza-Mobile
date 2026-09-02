@@ -248,8 +248,20 @@ class ServiceRequest {
         purpose: json['purpose'],
         submittedAt: DateTime.parse(json['submittedAt']),
         status: json['status'],
-        statusHistory: (json['statusHistory'] as List).map((e) => StatusHistoryEntry.fromJson(e)).toList(),
-        attachments: (json['attachments'] as List).map((e) => Attachment.fromJson(e)).toList(),
+        // These two were the only unguarded list casts left in any model —
+        // `flaggedRequirements` and `formFields` below already default, as does
+        // every list in Announcement and ResidentProfile. A record written
+        // before either field existed threw on a bare `as List`, and because
+        // nothing awaits the restore that throw used to strand the app; it now
+        // costs the whole record instead. Neither is a good price for a field
+        // whose absence simply means "none recorded".
+        //
+        // Empty is the honest default: a missing history means the history is
+        // unknown, and it must not be invented from `status` + `submittedAt`,
+        // which would assert a time the status was reached. Consumers that
+        // read the latest entry handle empty explicitly rather than assuming.
+        statusHistory: (json['statusHistory'] as List? ?? []).map((e) => StatusHistoryEntry.fromJson(e)).toList(),
+        attachments: (json['attachments'] as List? ?? []).map((e) => Attachment.fromJson(e)).toList(),
         citizenRemarks: json['citizenRemarks'],
         adminRemarks: json['adminRemarks'],
         rejectionGuidance: json['rejectionGuidance'],

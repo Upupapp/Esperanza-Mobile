@@ -27,7 +27,9 @@ class RequestMilestoneTimeline extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isRejected = request.statusHistory.last.status == RequestMilestones.rejected;
+    // No recorded history is not a rejection — `.last` on an empty list threw
+    // here, which would have moved the decode crash into the timeline.
+    final isRejected = request.statusHistory.lastOrNull?.status == RequestMilestones.rejected;
     final isUnderReview = request.status == RequestMilestones.underReview;
 
     if (isUnderReview) {

@@ -755,7 +755,12 @@ class RequestsService extends ChangeNotifier {
   /// [resumeVerification]), never via the linear advance control.
   bool canAdvance(String requestId) {
     final request = _requests.firstWhere((r) => r.id == requestId);
-    final currentIndex = RequestMilestones.sequence.indexOf(request.statusHistory.last.status);
+    // A restored record can have no history at all (see
+    // ServiceRequest.fromJson) — with nothing recorded there is no position in
+    // the sequence to advance from, so the control stays disabled.
+    final latest = request.statusHistory.lastOrNull;
+    if (latest == null) return false;
+    final currentIndex = RequestMilestones.sequence.indexOf(latest.status);
     return currentIndex != -1 && currentIndex < RequestMilestones.sequence.length - 1;
   }
 
@@ -764,7 +769,9 @@ class RequestsService extends ChangeNotifier {
   /// Rejected/Under Review/Cancelled).
   String? nextMilestone(String requestId) {
     final request = _requests.firstWhere((r) => r.id == requestId);
-    final currentIndex = RequestMilestones.sequence.indexOf(request.statusHistory.last.status);
+    final latest = request.statusHistory.lastOrNull;
+    if (latest == null) return null;
+    final currentIndex = RequestMilestones.sequence.indexOf(latest.status);
     if (currentIndex == -1 || currentIndex >= RequestMilestones.sequence.length - 1) return null;
     return RequestMilestones.sequence[currentIndex + 1];
   }

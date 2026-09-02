@@ -263,3 +263,52 @@ Two upstream tests were touched, both deliberately:
 `PostMediaType` → `image` and `AttachmentCategory` → `other` are unchanged and were never in
 dispute: `other` is a genuinely neutral member, and a broken media tile is a display bug
 rather than a false statement.
+
+---
+
+## Closed — the last unguarded list casts, and the crash they would have moved
+
+Filed as a follow-on in the addendum above; closed 2026-09-03.
+
+`ServiceRequest.fromJson` cast `statusHistory` and `attachments` with a bare `as List` and no
+default. An audit of every model found these were the **only** unguarded list casts left:
+`flaggedRequirements` and `formFields` on the same factory already defaulted, as did all seven
+list decodes across `Announcement` and `ResidentProfile`. There were no unguarded `as Map`
+casts anywhere. So this was an inconsistency in one factory, not a pattern.
+
+A record persisted before either field existed therefore threw. Originally that stranded the
+app; after entry-tolerant decoding it cost the whole record. Neither is a reasonable price for
+a field whose absence simply means "none recorded". Both now default to empty.
+
+### The part worth remembering: check what assumes non-empty *before* defaulting to empty
+
+`statusHistory` could not simply be defaulted. Three places assumed it was non-empty and
+called `.last`, which throws `StateError` on an empty list:
+
+- `RequestsService.canAdvance`
+- `RequestsService.nextMilestone`
+- `RequestMilestoneTimeline`'s `isRejected`
+
+Defaulting the decode alone would have **relocated** the crash from restore into the UI rather
+than removing it — the same shape of mistake as the `'Dokyu' : 'Tulong'` ternary in the section
+above, found the same way: by grepping for what consumes the value before changing what it can
+hold. All three now read `.lastOrNull` and treat "no recorded history" as its own case, which
+is not a rejection and not a position in the milestone sequence.
+
+An empty history is also deliberately **not** synthesised from `status` + `submittedAt`. Both
+fields are present and required, so an entry could have been fabricated from them — but that
+would assert a *time* at which the status was reached, which is not known. Unknown history
+stays unknown.
+
+### Evidence
+
+`test/legacy_request_shape_test.dart`, 6 cases, break-checked in two independent halves
+because there are two independent fixes:
+
+| Reverted | Result |
+|---|---|
+| the decode defaults only | **6 of 6 fail** |
+| the empty-safe consumers only, defaults kept | **exactly the 2 UI cases fail** |
+
+The second row is the evidence that the relocated-crash concern was real rather than
+theoretical.
