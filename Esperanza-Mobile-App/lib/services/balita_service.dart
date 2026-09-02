@@ -32,8 +32,11 @@ class BalitaService extends ChangeNotifier {
       final prefs = await SharedPreferences.getInstance();
       final raw = prefs.getString(_key);
       if (raw != null) {
-        final list = (jsonDecode(raw) as List).map((e) => Announcement.fromJson(e)).toList();
-        _posts = list;
+        _posts = PersistenceRecovery.decodeEach(
+          jsonDecode(raw) as List,
+          (e) => Announcement.fromJson(e),
+          what: 'balita post',
+        );
       }
     } catch (error) {
       // A payload persisted by an earlier build can fail to decode after a

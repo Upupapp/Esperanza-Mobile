@@ -181,3 +181,54 @@ precisely what the unguarded code did.
 3. FE 10's storage inventory must cover **10** keys, not the 6 its mandate names.
 4. Three keys are not JSON. Any future audit of "decode safety" that greps for `jsonDecode`
    will miss them — as this one originally did.
+
+---
+
+## Addendum — entry-tolerant collection decoding (macOS lane, 2026-09-03)
+
+Added while merging the macOS lane's concurrent FE 01 into this one. The rest of that
+lane's work was superseded by this document's implementation and was dropped rather than
+carried; this is the one part that was genuinely additive.
+
+**What it changes.** `discardUnreadable` is all-or-nothing: it clears an entire key. That
+is right for a payload that is not a collection at all, and much too blunt for one that
+is — a single bad record cost a citizen *every request they had ever filed*, silently and
+permanently. Their filed history is the part of this app they cannot reconstruct.
+
+`PersistenceRecovery.decodeEach` / `.decodeEntries` decode a collection entry by entry.
+The four collection restores — requests, balita, master file, resident profiles — now use
+them. Each service keeps its own `catch`: entry-tolerance handles a bad *entry*, while a
+payload of the wrong root type has no entries to be tolerant of and still falls through to
+the whole-key discard. A skip is logged but is deliberately **not** recorded as a discard;
+conflating the two would hide whole-key data loss behind routine noise.
+
+**Why this is still reachable now that every enum has an `orElse`.**
+`ServiceRequest.fromJson` casts `statusHistory` and `attachments` with a bare `as List` and
+no default, unlike `flaggedRequirements` and `formFields` which both default. A record
+written before either field existed still throws. That asymmetry is the live trigger and is
+worth closing separately.
+
+Tests: `test/collection_entry_tolerance_test.dart`, 4 cases. Break-checked — 3 of the 4 fail
+without the change. The fourth asserts the whole-key discard still happens for a
+wrong-root-type payload, and passes both ways by design: it guards the existing behaviour
+against this addition, rather than testing the addition.
+
+## Open disagreement between the lanes — two `orElse` defaults that assert something false
+
+Raised, not unilaterally reverted: these are this document's own tested decisions, and the
+macOS lane has no standing to overturn them mid-merge. **Both need an owner ruling.**
+
+| Enum | Current default | The concern |
+|---|---|---|
+| `ReceiptType` | `onsite` | A receipt whose payment type this build cannot read now renders as an **on-site cash payment**. A receipt is the citizen's proof of how they paid; a GCash or Maya payment displaying as cash — or a `free` service displaying as paid on site — is a fabricated statement about money. Both `CLAUDE.md` files and the master command's own guardrail forbid exactly this. |
+| `ServiceCategory` | `dokyu` | A Tulong (assistance) or Sakuna (incident) request whose category was renamed silently becomes a **Dokyu document request** — wrong tab, wrong service, wrong flow. `corrupt_persisted_state_recovery_test.dart` currently asserts this as correct. |
+
+Both were introduced to stop a record being lost, which is a real and good intent — the
+alternative the macOS lane shipped, skipping the record, loses it instead. **Neither option
+is right.** The honest fix preserves the record *without* naming a value: an explicit
+`unknown` member on each enum, rendered as "—" rather than guessed. That is a larger change
+than a merge should carry, which is why it is filed here rather than done.
+
+`PostMediaType` → `image` and `AttachmentCategory` → `other` are not in dispute:
+`other` is a genuinely neutral member, and a broken media tile is a display bug rather than
+a false statement.

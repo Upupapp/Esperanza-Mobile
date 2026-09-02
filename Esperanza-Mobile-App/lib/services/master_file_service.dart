@@ -31,8 +31,14 @@ class MasterFileService extends ChangeNotifier {
       final raw = prefs.getString(_key);
       if (raw != null) {
         final map = jsonDecode(raw) as Map<String, dynamic>;
-        _byAccount = map.map(
-          (accountId, docs) => MapEntry(accountId, (docs as List).map((d) => MasterFileDocument.fromJson(d)).toList()),
+        _byAccount = PersistenceRecovery.decodeEntries(
+          map,
+          (docs) => PersistenceRecovery.decodeEach(
+            docs as List,
+            (d) => MasterFileDocument.fromJson(d),
+            what: 'master file document',
+          ),
+          what: 'master file account',
         );
       }
     } catch (error) {

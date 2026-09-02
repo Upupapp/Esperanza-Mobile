@@ -78,8 +78,11 @@ class RequestsService extends ChangeNotifier {
       final prefs = await SharedPreferences.getInstance();
       final raw = prefs.getString(_key);
       if (raw != null) {
-        final list = (jsonDecode(raw) as List).map((e) => ServiceRequest.fromJson(e)).toList();
-        _requests.addAll(list);
+        _requests.addAll(PersistenceRecovery.decodeEach(
+          jsonDecode(raw) as List,
+          (e) => ServiceRequest.fromJson(e),
+          what: 'service request',
+        ));
       }
       if (retireLegacyDemoRequestSeeds && _removeRetiredDemoRequestSeeds()) await _persist();
       if (_migrateStaleDemoIdentity()) await _persist();
