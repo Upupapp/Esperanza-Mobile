@@ -1,12 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Modify this file to customize your launch splash screen -->
+<!-- The launch window the OS draws before Flutter's first frame. Matches
+     SplashScreen's own navy background so a cold start does not flash white.
+     The app is light-mode only, so values-night intentionally resolves to the
+     same colour rather than an inverted one. -->
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
-    <item android:drawable="?android:colorBackground" />
-
-    <!-- You can insert your own image assets here -->
-    <!-- <item>
-        <bitmap
-            android:gravity="center"
-            android:src="@mipmap/launch_image" />
-    </item> -->
+    <item android:drawable="@color/esperanza_navy_900" />
 </layer-list>

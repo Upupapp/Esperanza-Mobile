@@ -26,7 +26,7 @@ import 'package:esperanza_mobile/services/resident_profile_service.dart';
 import 'package:esperanza_mobile/theme/app_colors.dart';
 import 'package:esperanza_mobile/widgets/app_button.dart';
 
-const _cristyId = 'ESP-RES-2024-1044';
+const _verifiedDemoId = 'ESP-RES-2024-9002';
 
 Attachment _fakeAttachment(String fileName) => Attachment(
   id: 'att-$fileName',
@@ -38,7 +38,7 @@ Attachment _fakeAttachment(String fileName) => Attachment(
   documentTypeLabel: fileName,
 );
 
-Future<CitizenSessionService> _signedInAsCristy(WidgetTester tester) async {
+Future<CitizenSessionService> _signedInAsVerifiedDemo(WidgetTester tester) async {
   final session = CitizenSessionService();
   var attempts = 0;
   while (session.loading) {
@@ -46,7 +46,7 @@ Future<CitizenSessionService> _signedInAsCristy(WidgetTester tester) async {
     if (attempts > 100) throw StateError('CitizenSessionService never finished loading.');
     await tester.pump(const Duration(milliseconds: 1));
   }
-  await session.login(MockCatalog.demoAccounts.last); // Cristy — verified
+  await session.login(MockCatalog.demoAccounts.last); // Perlita — verified
   return session;
 }
 
@@ -84,7 +84,7 @@ void main() {
 
         SharedPreferences.setMockInitialValues({});
         final mf = await _readyMasterFile(tester);
-        final session = await _signedInAsCristy(tester);
+        final session = await _signedInAsVerifiedDemo(tester);
         final requests = await _readyRequests(tester);
         final item = MockCatalog.documentTypes.firstWhere((i) => i.key == 'dokyu_indigency');
 
@@ -108,7 +108,7 @@ void main() {
         await tester.tap(find.widgetWithText(AppButton, 'Continue'));
         await tester.pumpAndSettle();
         // Purpose is a required select on this step, already prefilled for
-        // the verified demo resident (Cristy) via CatalogItem.demoDefaults
+        // the verified demo resident (Perlita) via CatalogItem.demoDefaults
         // — this test's own focus is the Requirements step, not this
         // unrelated field, so it's left as-is rather than re-picked.
         await tester.tap(find.widgetWithText(AppButton, 'Continue'));
@@ -143,7 +143,7 @@ void main() {
 
         SharedPreferences.setMockInitialValues({});
         final mf = await _readyMasterFile(tester);
-        final session = await _signedInAsCristy(tester);
+        final session = await _signedInAsVerifiedDemo(tester);
         final requests = await _readyRequests(tester);
         final item = MockCatalog.assistanceTypes.firstWhere((i) => i.key == 'tulong_financial');
 
@@ -197,7 +197,7 @@ void main() {
         // unavailable real image/file picker — same technique already
         // established in dokyu_requirement_uploads_test.dart.
         await mf.saveOrUpdate(
-          accountId: _cristyId,
+          accountId: _verifiedDemoId,
           documentType: 'valid_government_id',
           label: 'One (1) valid government-issued ID',
           attachment: _fakeAttachment('valid_id.pdf'),
@@ -205,7 +205,7 @@ void main() {
           serviceName: 'Barangay Clearance',
         );
         await mf.saveOrUpdate(
-          accountId: _cristyId,
+          accountId: _verifiedDemoId,
           documentType: 'proof_of_residency',
           label: 'Proof of residency',
           attachment: _fakeAttachment('residency_proof.pdf'),
@@ -213,7 +213,7 @@ void main() {
           serviceName: 'Barangay Clearance',
         );
 
-        final session = await _signedInAsCristy(tester);
+        final session = await _signedInAsVerifiedDemo(tester);
         final requests = await _readyRequests(tester);
         final item = MockCatalog.documentTypes.firstWhere((i) => i.key == 'dokyu_barangay_clearance');
 
@@ -237,7 +237,7 @@ void main() {
         await tester.tap(find.widgetWithText(AppButton, 'Continue'));
         await tester.pumpAndSettle();
         // Clearance Details: Date of Birth already prefilled from her
-        // Resident Profile; Purpose is already prefilled too (Cristy's own
+        // Resident Profile; Purpose is already prefilled too (Perlita's own
         // demoDefaults default to Proof of Residency, matching Web Admin's
         // own submitted request for her) — swap it for a different option
         // to prove it's still a normal editable value.
@@ -321,7 +321,7 @@ void main() {
 
       SharedPreferences.setMockInitialValues({});
       final mf = await _readyMasterFile(tester);
-      final session = await _signedInAsCristy(tester);
+      final session = await _signedInAsVerifiedDemo(tester);
       final requests = await _readyRequests(tester);
       final item = MockCatalog.assistanceTypes.firstWhere((i) => i.key == 'tulong_medical');
 

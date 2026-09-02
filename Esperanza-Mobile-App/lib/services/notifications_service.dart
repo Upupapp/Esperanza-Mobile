@@ -1,7 +1,8 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'persistence_guard.dart';
+
+import 'persistence_recovery.dart';
 
 /// Tracks which notifications a citizen has already opened/viewed — the
 /// notification feed itself is entirely *derived* live from other services
@@ -37,22 +38,54 @@ class NotificationsService extends ChangeNotifier {
   Future<void> _restore() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final rawRead = await readJsonGuarded(prefs, _readKey);
-      if (rawRead is List) {
-        _readIds = rawRead.whereType<String>().toSet();
+      final rawRead = prefs.getString(_readKey);
+      if (rawRead != null) {
+        _readIds = (jsonDecode(rawRead) as List).cast<String>().toSet();
       }
-      final rawDuplicate = await readJsonGuarded(prefs, _duplicateKey);
-      if (rawDuplicate is Map) {
-        _duplicateResolutions = <String, String>{
-          for (final entry in rawDuplicate.entries)
-            if (entry.key is String && entry.value is String) entry.key as String: entry.value as String,
-        };
+      final rawDuplicate = prefs.getString(_duplicateKey);
+      if (rawDuplicate != null) {
+        _duplicateResolutions = Map<String, String>.from(jsonDecode(rawDuplicate) as Map);
       }
       _unverifiedDuplicateKeptAccountId = prefs.getString(_unverifiedDuplicateKey);
+    } catch (error) {
+      // A payload persisted by an earlier build can fail to decode after a
+      // model or enum changes shape. Before this guard that throw escaped an
+      // un-awaited future started in the constructor, so notifyListeners()
+      // never fired and AuthGate spun on the splash forever - recoverable
+      // only by clearing app data. Discard the unreadable state instead; the
+      // migrations here already exist for exactly this class of change.
+      _readIds = {};
+      _duplicateResolutions = {};
+      _unverifiedDuplicateKeptAccountId = null;
+      // This service owns three keys and cannot tell which one failed, so all
+      // three go. Splitting the restore per key would narrow it further; that is
+      // a deliberate follow-up, not an oversight.
+      await PersistenceRecovery.discardUnreadable(
+        service: 'NotificationsService',
+        keys: const [_readKey, _duplicateKey, _unverifiedDuplicateKey],
+        error: error,
+      );
     } finally {
       _loaded = true;
       notifyListeners();
     }
+  }
+
+  /// Clears read-state and duplicate-resolution bookkeeping on sign-out.
+  ///
+  /// Unlike the other services this is not keyed by account: read ids point at
+  /// notifications derived from the requests being erased alongside them, so
+  /// keeping them would leave orphaned references to a citizen who has signed
+  /// out. Clearing all of it is both the private and the correct choice.
+  Future<void> forgetAccount(String accountId) async {
+    _readIds = {};
+    _duplicateResolutions = {};
+    _unverifiedDuplicateKeptAccountId = null;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_readKey);
+    await prefs.remove(_duplicateKey);
+    await prefs.remove(_unverifiedDuplicateKey);
+    notifyListeners();
   }
 
   Future<void> _persist() async {
@@ -92,7 +125,7 @@ class NotificationsService extends ChangeNotifier {
   /// The Unverified+Unverified duplicate demo's own resolution — 'A', 'B',
   /// or null if the citizen hasn't chosen which registration to keep yet.
   /// Independent of [duplicateResolutionFor]/[resolveDuplicateAlert] above
-  /// (the Verified-Cristy scenario's own state) — see
+  /// (the Verified-Perlita scenario's own state) — see
   /// MockCatalog.unverifiedDuplicateAccountA's doc comment.
   String? get unverifiedDuplicateKeptAccountId => _unverifiedDuplicateKeptAccountId;
 

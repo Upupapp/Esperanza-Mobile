@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../theme/app_elevation.dart';
 import '../theme/app_colors.dart';
 import 'esperanza_center_action.dart';
 import 'esperanza_curved_nav_painter.dart';
@@ -59,7 +60,9 @@ class EsperanzaCurvedNavBar extends StatelessWidget {
   // — the only edge with page content actually visible behind it — is
   // where this reads.
   static const Color _border = AppColors.brand100;
-  static const Color _shadow = Color(0x1A0B1B4A); // AppColors.navy900 @ 10%
+  // Was a raw 0x1A0B1B4A literal commented "navy900 @ 10%" — but 0B1B4A is not
+  // navy900 (0B1730). Now actually derived from the token. See AppElevation.
+  static final Color _shadow = AppElevation.navbarShadow;
 
   @override
   Widget build(BuildContext context) {

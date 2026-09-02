@@ -16,7 +16,7 @@ import 'package:esperanza_mobile/services/mock_catalog.dart';
 import 'package:esperanza_mobile/services/resident_profile_service.dart';
 import 'package:esperanza_mobile/widgets/esperanza_drawer.dart';
 
-const _cristyId = 'ESP-RES-2024-1044';
+const _verifiedDemoId = 'ESP-RES-2024-9002';
 
 Attachment _fakeAttachment(String fileName) => Attachment(
   id: 'att-$fileName',
@@ -28,7 +28,7 @@ Attachment _fakeAttachment(String fileName) => Attachment(
   documentTypeLabel: fileName,
 );
 
-Future<CitizenSessionService> _signedInAsCristy(WidgetTester tester) async {
+Future<CitizenSessionService> _signedInAsVerifiedDemo(WidgetTester tester) async {
   final session = CitizenSessionService();
   var attempts = 0;
   while (session.loading) {
@@ -36,7 +36,7 @@ Future<CitizenSessionService> _signedInAsCristy(WidgetTester tester) async {
     if (attempts > 100) throw StateError('CitizenSessionService never finished loading.');
     await tester.pump(const Duration(milliseconds: 1));
   }
-  await session.login(MockCatalog.demoAccounts.last); // Cristy — verified
+  await session.login(MockCatalog.demoAccounts.last); // Perlita — verified
   return session;
 }
 
@@ -52,7 +52,7 @@ Future<MasterFileService> _readyMasterFile(WidgetTester tester) async {
 }
 
 Future<void> _pumpScreen(WidgetTester tester, {required MasterFileService masterFile}) async {
-  final session = await _signedInAsCristy(tester);
+  final session = await _signedInAsVerifiedDemo(tester);
   await tester.pumpWidget(
     MultiProvider(
       providers: [
@@ -82,7 +82,7 @@ void main() {
       SharedPreferences.setMockInitialValues({});
       final mf = await _readyMasterFile(tester);
       await mf.saveOrUpdate(
-        accountId: _cristyId,
+        accountId: _verifiedDemoId,
         documentType: 'valid_government_id',
         label: 'One (1) valid government-issued ID',
         attachment: _fakeAttachment('id_card.pdf'),
@@ -90,7 +90,7 @@ void main() {
         serviceName: 'Barangay Clearance',
       );
       await mf.saveOrUpdate(
-        accountId: _cristyId,
+        accountId: _verifiedDemoId,
         documentType: 'certificate_of_enrollment',
         label: 'Certificate of Enrollment',
         attachment: _fakeAttachment('enrollment.pdf'),
@@ -117,7 +117,7 @@ void main() {
       SharedPreferences.setMockInitialValues({});
       final mf = await _readyMasterFile(tester);
       await mf.saveOrUpdate(
-        accountId: _cristyId,
+        accountId: _verifiedDemoId,
         documentType: 'valid_government_id',
         label: 'One (1) valid government-issued ID',
         attachment: _fakeAttachment('id_card.pdf'),
@@ -125,7 +125,7 @@ void main() {
         serviceName: 'Barangay Clearance',
       );
       await mf.saveOrUpdate(
-        accountId: _cristyId,
+        accountId: _verifiedDemoId,
         documentType: 'certificate_of_enrollment',
         label: 'Certificate of Enrollment',
         attachment: _fakeAttachment('enrollment.pdf'),
@@ -158,7 +158,7 @@ void main() {
 
     testWidgets('is reachable from the hamburger drawer for a signed-in resident', (tester) async {
       SharedPreferences.setMockInitialValues({});
-      final session = await _signedInAsCristy(tester);
+      final session = await _signedInAsVerifiedDemo(tester);
       await tester.pumpWidget(
         MultiProvider(
           providers: [

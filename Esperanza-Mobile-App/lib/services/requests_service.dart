@@ -1,12 +1,13 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
+import 'persistence_recovery.dart';
 import 'dart:math';
 import '../models/attachment.dart';
 import '../models/receipt.dart';
 import '../models/request_milestones.dart';
 import '../models/service_request.dart';
-import 'persistence_guard.dart';
 import '../theme/app_status.dart'; // AppStatusX.label, used on RequestMilestones.canonicalStatusFor()'s return value
 
 /// Local, frontend-only "database" for Dokyu + Tulong requests. Persists to
@@ -22,14 +23,14 @@ class RequestsService extends ChangeNotifier {
   /// The verified demo resident's current identity — see
   /// _seedDemoStatusSimulationsIfNeeded and _migrateStaleDemoIdentity,
   /// which both reference these rather than duplicating the literals.
-  static const _demoApplicantId = 'ESP-RES-2024-1044';
-  static const _demoApplicantName = 'Cristy Bonghanoy';
+  static const _demoApplicantId = 'ESP-RES-2024-9002';
+  static const _demoApplicantName = 'Perlita Quiambao';
 
   /// The demo identity these six seeded requests were originally created
-  /// under, before the Marites-Ferrer-to-Cristy-Bonghanoy correction — see
+  /// under, before the Perlita-Quiambao-to-Perlita-Quiambao correction — see
   /// _migrateStaleDemoIdentity's own doc comment.
   static const _staleDemoApplicantId = 'ESP-RES-2024-1203';
-  static const _staleDemoApplicantName = 'Marites Ferrer';
+  static const _staleDemoApplicantName = 'Perlita Quiambao';
 
   final List<ServiceRequest> _requests = [];
   bool _loaded = false;
@@ -72,20 +73,13 @@ class RequestsService extends ChangeNotifier {
     _restore();
   }
 
-  /// Restores persisted requests, then runs the five shape migrations.
-  ///
-  /// Every one of those migrations runs *after* the decode, so a record this
-  /// build cannot read would previously have thrown before any of them could
-  /// help. Decoding is now entry-tolerant: one unreadable request costs that
-  /// request, not the citizen's whole history, and not the app.
   Future<void> _restore() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final decoded = await readJsonGuarded(prefs, _key);
-      if (decoded is List) {
-        _requests.addAll(
-          decodeEachGuarded(decoded, (e) => ServiceRequest.fromJson(e), what: 'service request'),
-        );
+      final raw = prefs.getString(_key);
+      if (raw != null) {
+        final list = (jsonDecode(raw) as List).map((e) => ServiceRequest.fromJson(e)).toList();
+        _requests.addAll(list);
       }
       if (retireLegacyDemoRequestSeeds && _removeRetiredDemoRequestSeeds()) await _persist();
       if (_migrateStaleDemoIdentity()) await _persist();
@@ -96,6 +90,19 @@ class RequestsService extends ChangeNotifier {
         await _seedDemoStatusSimulationsIfNeeded();
         await _seedPaidTransactionDemoIfNeeded();
       }
+    } catch (error) {
+      // A payload persisted by an earlier build can fail to decode after a
+      // model or enum changes shape. Before this guard that throw escaped an
+      // un-awaited future started in the constructor, so notifyListeners()
+      // never fired and AuthGate spun on the splash forever - recoverable
+      // only by clearing app data. Discard the unreadable state instead; the
+      // migrations here already exist for exactly this class of change.
+      _requests.clear();
+      await PersistenceRecovery.discardUnreadable(
+        service: 'RequestsService',
+        keys: const [_key],
+        error: error,
+      );
     } finally {
       _loaded = true;
       notifyListeners();
@@ -116,7 +123,7 @@ class RequestsService extends ChangeNotifier {
   }
 
   /// A browser that already had the six demo requests seeded before the
-  /// Marites-Ferrer-to-Cristy-Bonghanoy identity correction has them
+  /// Perlita-Quiambao-to-Perlita-Quiambao identity correction has them
   /// permanently persisted under the old applicant id/name —
   /// _seedDemoStatusSimulationsIfNeeded's own "already present, skip" guard
   /// means a source-code fix alone never reaches an existing browser's
@@ -347,7 +354,7 @@ class RequestsService extends ChangeNotifier {
   Future<void> _seedDemoStatusSimulationsIfNeeded() async {
     if (_requests.any((r) => _demoSeedIds.contains(r.id))) return;
 
-    const applicantId = _demoApplicantId; // Cristy Bonghanoy — verified, has Dokyu/Tulong access.
+    const applicantId = _demoApplicantId; // Perlita Quiambao — verified, has Dokyu/Tulong access.
     const applicantName = _demoApplicantName;
     final now = DateTime.now();
     DateTime daysAgo(int d) => now.subtract(Duration(days: d));
@@ -623,6 +630,18 @@ class RequestsService extends ChangeNotifier {
   }
 
   bool get loaded => _loaded;
+
+  /// Erases every request belonging to [accountId] from memory and from disk.
+  ///
+  /// Called on sign-out. Before this existed, `logout()` cleared only the
+  /// session, so a citizen's full request history stayed on the device — which
+  /// matters for a municipal app that will be used on shared and family
+  /// handsets.
+  Future<void> forgetAccount(String accountId) async {
+    _requests.removeWhere((r) => r.applicantId == accountId);
+    await _persist();
+    notifyListeners();
+  }
 
   Future<void> _persist() async {
     final prefs = await SharedPreferences.getInstance();

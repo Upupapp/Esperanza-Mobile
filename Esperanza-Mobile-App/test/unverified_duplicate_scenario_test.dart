@@ -1,5 +1,5 @@
 // Functional coverage for the Unverified + Unverified duplicate-registration
-// demo — independent of the existing Verified-Cristy duplicate scenario
+// demo — independent of the existing Verified-Perlita duplicate scenario
 // (see duplicate_account_simulation_test.dart). FRONTEND SIMULATION ONLY.
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -115,7 +115,7 @@ void main() {
       expect(find.text('Account A'), findsOneWidget);
       expect(find.text('Account B'), findsOneWidget);
       // Masked, not raw — the real addresses/emails are not shown verbatim.
-      expect(find.textContaining('teodoro.villaflor@email.com'), findsNothing);
+      expect(find.textContaining('anacleto.dimaculangan@example.com'), findsNothing);
 
       await tester.tap(find.text('Keep This Account').first);
       await tester.pumpAndSettle();

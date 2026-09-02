@@ -1,9 +1,10 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
+import 'persistence_recovery.dart';
 import '../models/announcement.dart';
 import 'mock_catalog.dart';
-import 'persistence_guard.dart';
 
 /// Local, frontend-only "database" for Balita posts — same shape as
 /// RequestsService: persists to SharedPreferences as JSON so posts created
@@ -29,10 +30,24 @@ class BalitaService extends ChangeNotifier {
   Future<void> _restore() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final decoded = await readJsonGuarded(prefs, _key);
-      if (decoded is List) {
-        _posts = decodeEachGuarded(decoded, (e) => Announcement.fromJson(e), what: 'balita post');
+      final raw = prefs.getString(_key);
+      if (raw != null) {
+        final list = (jsonDecode(raw) as List).map((e) => Announcement.fromJson(e)).toList();
+        _posts = list;
       }
+    } catch (error) {
+      // A payload persisted by an earlier build can fail to decode after a
+      // model or enum changes shape. Before this guard that throw escaped an
+      // un-awaited future started in the constructor, so notifyListeners()
+      // never fired and AuthGate spun on the splash forever - recoverable
+      // only by clearing app data. Discard the unreadable state instead; the
+      // migrations here already exist for exactly this class of change.
+      _posts = [];
+      await PersistenceRecovery.discardUnreadable(
+        service: 'BalitaService',
+        keys: const [_key],
+        error: error,
+      );
     } finally {
       _loaded = true;
       notifyListeners();

@@ -13,7 +13,7 @@ import '../../widgets/app_dialogs.dart';
 /// Unverified + Unverified duplicate-registration demo (FRONTEND
 /// SIMULATION ONLY — see MockCatalog.unverifiedDuplicateAccountA's doc
 /// comment): the same resident registered twice while still Pending
-/// Review both times, so — unlike the Verified-Cristy scenario, where
+/// Review both times, so — unlike the Verified-Perlita scenario, where
 /// one side is already the "real" account — there's no existing verified
 /// account to defer to. Both registrations are shown side by side and the
 /// citizen picks which one continues toward verification.

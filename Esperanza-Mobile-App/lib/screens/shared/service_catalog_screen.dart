@@ -88,6 +88,7 @@ class _ServiceCatalogScreenState extends State<ServiceCatalogScreen> {
         title: Text(appBarTitle),
         leading: crumbs.isNotEmpty
             ? IconButton(
+                tooltip: 'Back',
                 icon: const Icon(Icons.arrow_back_rounded),
                 onPressed: () => setState(() {
                   if (_department != null) {

@@ -27,7 +27,7 @@ class DemoAccountCard extends StatelessWidget {
 
   /// Overrides the primary label (normally [account.fullName]) — used by
   /// the Phase 6 duplicate-account demo button so it reads as clearly
-  /// distinct from the real Cristy Bonghanoy card rather than showing an
+  /// distinct from the real Perlita Quiambao card rather than showing an
   /// identical name twice.
   final String? label;
 

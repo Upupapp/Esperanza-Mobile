@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
+import '../theme/app_elevation.dart';
 import '../theme/app_haptics.dart';
 import '../theme/app_typography.dart';
 import 'esperanza_nav_motion.dart';
@@ -97,6 +98,24 @@ class _ServiceLauncherBubblesState extends State<_ServiceLauncherBubbles> with S
 
   @override
   void dispose() {
+    // A State must not leave a static pointing at itself once disposed.
+    // _openState was previously cleared only on the two dismiss paths, so a
+    // disposal that skipped them left it dangling - after which show()
+    // early-returns for ever (its guard is `_openState != null`) and dismiss()
+    // calls reverse() on a disposed controller.
+    //
+    // Honest scope: this was found by a widget test's tearDown, and NO user
+    // path to it has been demonstrated. The app has a single MaterialApp and
+    // one root navigator, and this entry is inserted with `rootOverlay: true`,
+    // so signing out navigates underneath the entry rather than disposing it;
+    // the scrim also swallows every tap, so the menu cannot be left open while
+    // something else navigates. The fix is here because the invariant should
+    // hold regardless of whether today's tree happens to reach it - it costs
+    // one line, and the failure mode is a permanently dead "+".
+    //
+    // `== this` rather than an unconditional null, so an older menu's teardown
+    // never clears a newer one that has already claimed the slot.
+    if (ServiceLauncherMenu._openState == this) ServiceLauncherMenu._openState = null;
     _controller.dispose();
     super.dispose();
   }
@@ -104,6 +123,9 @@ class _ServiceLauncherBubblesState extends State<_ServiceLauncherBubbles> with S
   Future<void> dismiss() async {
     if (ServiceLauncherMenu._openState != this) return;
     ServiceLauncherMenu._openState = null;
+    // Between deactivate and dispose the State is unmounted but still the
+    // registered one; the controller may already be gone.
+    if (!mounted) return;
     await _controller.reverse().orCancel.catchError((_) {});
     if (mounted) widget.onDismissed();
   }
@@ -217,19 +239,42 @@ class _LauncherBubble extends StatelessWidget {
                 child: Icon(target.icon, color: Colors.white, size: EsperanzaNavMotion.iconSize),
               ),
               const SizedBox(height: 6),
-              Text(
-                target.label,
-                style: const TextStyle(
-                  fontFamily: AppTypography.sans,
-                  fontSize: 11.5,
-                  fontWeight: FontWeight.w700,
-                  // Esperanza primary blue — the same color the navbar's
-                  // own active-tab label uses (EsperanzaNavItem._activeColor)
-                  // — not textPrimary (navy, reads as near-black). Both
-                  // Dokyu and Tulong always use this, regardless of which
-                  // one is currently active.
-                  color: AppColors.brand500,
-                  decoration: TextDecoration.none,
+              // The label carries its own background, for the same reason the
+              // bubble above carries a white ring: the scrim behind this menu
+              // is a deliberate 12% tint rather than a modal barrier, so
+              // whatever the citizen was reading stays visible underneath —
+              // and on Home that is a full-bleed event poster. Observed on a
+              // device 2026-08-30: brand-blue "Dokyu" and "Tulong" rendered
+              // straight onto a dark photograph, over the poster's own white
+              // text. Unreadable, and it looked like a rendering fault.
+              //
+              // Backing the label rather than darkening the scrim keeps that
+              // original decision intact: the menu still reads as a light
+              // overlay, and the labels no longer depend on what is behind
+              // them.
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                decoration: BoxDecoration(
+                  color: AppColors.surface,
+                  borderRadius: BorderRadius.circular(999),
+                  boxShadow: [
+                    BoxShadow(color: AppElevation.tabPillShadow, blurRadius: 6, offset: const Offset(0, 2)),
+                  ],
+                ),
+                child: Text(
+                  target.label,
+                  style: const TextStyle(
+                    fontFamily: AppTypography.sans,
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w700,
+                    // Esperanza primary blue — the same color the navbar's
+                    // own active-tab label uses (EsperanzaNavItem._activeColor)
+                    // — not textPrimary (navy, reads as near-black). Both
+                    // Dokyu and Tulong always use this, regardless of which
+                    // one is currently active.
+                    color: AppColors.brand500,
+                    decoration: TextDecoration.none,
+                  ),
                 ),
               ),
             ],

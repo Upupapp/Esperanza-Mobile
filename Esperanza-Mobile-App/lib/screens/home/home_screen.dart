@@ -25,9 +25,7 @@ import '../../widgets/service_launcher_menu.dart';
 import '../../widgets/status_chip.dart';
 import '../auth/login_screen.dart';
 import '../auth/register_screen.dart';
-import '../dokyu/dokyu_screen.dart';
 import '../profile/resident_profile/resident_profile_overview_screen.dart';
-import '../tulong/tulong_screen.dart';
 import 'root_shell.dart';
 
 /// Mirrors citizen/dashboard.blade.php: navy hero with greeting + barangay
@@ -170,7 +168,17 @@ class _HomeScreenState extends State<HomeScreen> {
                       const SizedBox(width: 12),
                       Expanded(
                         child: StatTile(
-                          label: 'Profile Complete',
+                          // "Account Details", not "Profile Complete": this is
+                          // account.profileCompleteness — the four contact
+                          // fields on Edit Profile (mobile, occupation, purok,
+                          // barangay). The Resident Profile card directly above
+                          // shows overallCompletionPercent, which weighs the
+                          // Personal/Family/Household sections. Both are
+                          // correct and they legitimately differ, but until
+                          // 2026-08-30 they sat on one screen as "Profile
+                          // Complete" and "Resident Profile" with no way for a
+                          // citizen to tell they measure different forms.
+                          label: 'Account Details',
                           value: '${account.profileCompleteness}%',
                           icon: Icons.badge_outlined,
                           color: StatTileColor.gold,
@@ -340,7 +348,21 @@ class _Hero extends StatelessWidget {
               variant: AppButtonVariant.secondary,
               size: AppButtonSize.sm,
               fullWidth: true,
-              onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const TulongScreen())),
+              // Through RootShell's one gateway, exactly like the four other
+              // Home call sites. Until 2026-08-30 this pushed TulongScreen raw
+              // - the tab was gated at AccessLevel.verified while this shortcut
+              // to the identical screen was not, so an Unverified citizen
+              // tapping the Home CTA walked straight into the request flow the
+              // tab refuses them.
+              //
+              // The first fix wrapped the push in the same AccessGuard. That
+              // closed the access hole but left TWO routes to one screen, and
+              // the second still bypassed openService's duplicate-account
+              // interception - whose own doc comment already claimed every Home
+              // tile funnelled through it. Routing here restores both rules at
+              // once, and leaves one path to gate instead of a set to keep in
+              // step.
+              onPressed: () => RootShell.openService(context, ServiceLauncherTarget.tulong),
             );
             final dokyuButton = AppButton(
               label: dokyuLabel,
@@ -348,7 +370,8 @@ class _Hero extends StatelessWidget {
               variant: AppButtonVariant.gold,
               size: AppButtonSize.sm,
               fullWidth: true,
-              onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const DokyuScreen())),
+              // Same gateway - see the Tulong button above.
+              onPressed: () => RootShell.openService(context, ServiceLauncherTarget.dokyu),
             );
 
             // Side by side only if BOTH full labels genuinely fit on one

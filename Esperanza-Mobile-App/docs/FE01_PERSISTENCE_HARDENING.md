@@ -1,107 +1,183 @@
 # FE 01 — Persistence hardening
 
-**Status:** done, 2026-08-29. **Gate:** `flutter analyze` clean · `flutter test` **460 passed**
-(450 baseline + 10 new), 0 failed.
+**Status:** complete
+**Date:** 2026-08-29
+**Base:** `7901100` (Windows/Android lane)
+**Gate:** `flutter analyze` clean · `flutter test` **461 passed** (baseline floor was 450 at the
+time the master command was issued; it had already moved to 458 before this command started)
 
-## The defect
+---
 
-Every service restores itself from `shared_preferences` in a future started from its
-constructor. Nothing awaits that future, so a throw inside it was unhandled: the service's
-`loaded`/`loading` flag was never flipped and `notifyListeners()` never fired.
+## What the defect was
 
-For `CitizenSessionService` the consequence was exact — `_loading` stayed `true`, and
-`AuthGate` ([main.dart:78](../lib/main.dart)) rendered a `CircularProgressIndicator`
-**forever**. Only clearing app data recovered it, which is not something a citizen can be
-talked through on a phone call.
+Every service starts `_restore()` from its own constructor and **nothing awaits that future**.
+The restore did an unguarded `jsonDecode` + `fromJson`, so an undecodable payload threw *inside*
+an unhandled future: the load flag was never flipped, `notifyListeners()` never fired, and
+`AuthGate` (`main.dart:78`) rendered its `CircularProgressIndicator` **forever**. The only
+recovery was clearing app data — not something a citizen can be talked through on a phone call.
 
-This was reachable by ordinary upgrade, not by tampering. The app already ships **five**
-migrations for persisted data whose shape changed, and **every one of them runs after** the
-`fromJson` that would already have thrown.
+The realistic trigger is **version skew**, not corruption. This app already ships five migrations
+for persisted data that changed shape, and every one of them runs *after* the decode that would
+throw.
 
-## The six persisted keys
+---
 
-| Key | Owner | Payload shape |
-|---|---|---|
-| `esperanza_citizen_session` | `CitizenSessionService` | object — one `CitizenAccount` |
-| `esperanza_guest_mode` | `CitizenSessionService` | bool (not JSON; cannot fail to decode) |
-| `esperanza_service_requests` | `RequestsService` | array of `ServiceRequest` |
-| `esperanza_balita_posts` | `BalitaService` | array of `Announcement` |
-| `esperanza_master_file_documents` | `MasterFileService` | object, accountId → array of `MasterFileDocument` |
-| `esperanza_resident_profiles` | `ResidentProfileService` | object, accountId → `ResidentProfile` |
-| `esperanza_read_notification_ids` | `NotificationsService` | array of string |
-| `esperanza_duplicate_alert_resolutions` | `NotificationsService` | object, string → string |
-| `esperanza_unverified_duplicate_kept_account` | `NotificationsService` | plain string (cannot fail to decode) |
+## Correction to the measured baseline: there are 10 keys, not 6
+
+The master command's baseline and the sweep that preceded it both state **6 preference keys**.
+Measured directly (`grep -rhoE "'esperanza_[a-z_]+'" lib/`), there are **10**. FE 10's mandate
+also says "covering all six keys" — that inventory would have shipped four keys short.
+
+| # | Key | Written by | Payload shape | Read is guarded |
+|---|---|---|---|---|
+| 1 | `esperanza_citizen_session` | `CitizenSessionService` | JSON object — `CitizenAccount.toJson()` | yes |
+| 2 | `esperanza_guest_mode` | `CitizenSessionService` | **bool** (typed, not JSON) | yes |
+| 3 | `esperanza_service_requests` | `RequestsService` | JSON array of `ServiceRequest` | yes |
+| 4 | `esperanza_balita_posts` | `BalitaService` | JSON array of `Announcement` | yes |
+| 5 | `esperanza_master_file_documents` | `MasterFileService` | JSON object, `accountId → List<MasterFileDocument>` | yes |
+| 6 | `esperanza_resident_profiles` | `ResidentProfileService` | JSON object, `accountId → ResidentProfile` | yes |
+| 7 | `esperanza_read_notification_ids` | `NotificationsService` | JSON array of `String` | yes |
+| 8 | `esperanza_duplicate_alert_resolutions` | `NotificationsService` | JSON object, `String → String` | yes |
+| 9 | `esperanza_unverified_duplicate_kept_account` | `NotificationsService` | **plain String** (not JSON) | yes |
+| 10 | `esperanza_onboarding_complete` | `OnboardingService` | **bool** (typed, not JSON) | yes — see below |
+
+Three of the ten are **not JSON at all**. That matters: a guard written only around `jsonDecode`
+does not cover them.
+
+---
+
+## Correction to the mandate: there was a seventh unguarded path
+
+FE 01's mandate is framed entirely as "the six `_restore()` bodies" and "every enum
+`firstWhere`". One path has **neither**, and fixing only what the mandate literally says would
+have left the app still hangable:
+
+`SplashScreen._run()` is started from `initState()` and never awaited. It calls
+`OnboardingService.isComplete()`, which does `prefs.getBool(_key)`. Inside
+`shared_preferences` that is a **checked cast**, so a value of the wrong type raises a
+`TypeError`. Verified empirically rather than assumed:
+
+```
+PROBE RESULT: THREW _TypeError: type 'String' is not a subtype of type 'bool?' in type cast
+```
+
+When it throws, `Navigator.pushReplacement` never runs and the citizen sits on the **splash
+screen** forever — one screen earlier than the `AuthGate` hang, and reached by a different
+mechanism (a typed preference read, not a `jsonDecode`).
+
+Guarded in two layers: `OnboardingService.isComplete()` now falls back to `false`, and
+`SplashScreen._run()` wraps the call so anything added to that method later cannot re-open the
+same hole. Falling back to `false` re-shows the three-screen welcome flow — a small annoyance
+against an app that cannot be opened.
+
+---
 
 ## The guard
 
-`lib/services/persistence_guard.dart`, used by all six services.
+`lib/services/persistence_recovery.dart` (new) centralises the recovery so every service does
+the same thing:
 
-- **`readJsonGuarded`** — reads and decodes a key. On failure the key is **removed**, because
-  a value this build cannot read will not become readable next launch and would otherwise fail
-  identically forever. Only the offending key is cleared, never the whole store.
-- **`decodeEachGuarded` / `decodeEntriesGuarded`** — decode a collection **entry by entry**,
-  skipping unreadable records with a logged count. One bad record costs that record, not the
-  citizen's whole history.
-- **Every `_restore()` sets its loaded flag in a `finally`.** This is the change that actually
-  prevents the hang: the flag flips on every path, including one nobody predicted.
+1. **Record and log** the discard — `dart:developer log` for the IDE and `flutter logs`, plus
+   `debugPrint` for a plain `adb logcat`, which is what is actually available when a citizen's
+   handset is the only reproduction. Clearing a key destroys whatever that citizen had saved;
+   it must never be silent.
+2. **Clear only the narrowest keys** that can restore the boot.
+3. **Never throw** — it is called from a `catch`, and a failure here would resurrect the hang it
+   exists to prevent. The inner removal has its own `try`.
 
-`CitizenSessionService` additionally falls back to signed-out on a session whose shape it
-cannot read — half-restoring a session is worse than signing out.
+Each service's `_restore()` now sets its load flag and calls `notifyListeners()` from a
+**`finally`**, not on the success path. That single change is what converts a hang into a
+recoverable empty state.
 
-## Enum fallbacks, and why three of them have none
+| Service | Keys cleared on failure | Fallback state |
+|---|---|---|
+| `CitizenSessionService` | `esperanza_citizen_session` only | signed out |
+| `RequestsService` | `esperanza_service_requests` | empty list |
+| `BalitaService` | `esperanza_balita_posts` | empty list |
+| `MasterFileService` | `esperanza_master_file_documents` | empty map |
+| `ResidentProfileService` | `esperanza_resident_profiles` | empty map |
+| `NotificationsService` | all three of its keys | empty |
+| `OnboardingService` | `esperanza_onboarding_complete` | not complete |
 
-The brief asked for an `orElse` on every enum `firstWhere`. On reading each one, a blanket
-default turned out to be the wrong answer for three of the four:
+`CitizenSessionService` deliberately clears **only** the session key — `esperanza_guest_mode` is
+a separate, still-readable key, and destroying it would be a wider loss than the failure
+requires. There is a test asserting exactly that.
+
+`NotificationsService` is the one that clears more than one key: it restores three keys in a
+single `try` and cannot tell which failed. Narrowing that means splitting the restore per key.
+Recorded as a deliberate follow-up, not an oversight, and noted at the call site.
+
+---
+
+## Enum fallbacks, and why each
+
+Zero `values.firstWhere` without `orElse` remain anywhere in `lib/`.
 
 | Enum | Fallback | Why |
 |---|---|---|
-| `AttachmentCategory` | **`other`** | A genuinely neutral member that already exists for exactly this purpose. An unknown format degrades to a generic file and the attachment survives. |
-| `ServiceCategory` | **none — skip the record** | `{dokyu, tulong, sakunaIncident}` has no neutral member. Any default files the citizen's request under the wrong service. |
-| `ReceiptType` | **none — skip the record** | `{gcash, maya, onsite, free}`. Defaulting to `free` would be a false statement about money; defaulting to a payment method invents one. |
-| `PostMediaType` | **none — skip the record** | `{image, video}`. Rendering a video as an image produces a broken tile rather than a degraded one. |
+| `AttachmentCategory` | `other` | The enum already has an explicit unknown bucket. Correct by construction — no judgement needed. |
+| `PostMediaType` | `image` | The two values are `image` and `video`. An unknown item renders as a still; choosing `video` would offer playback controls for something that may not play. |
+| `ReceiptType` | `onsite` | Values are `gcash`, `maya`, `onsite`, `free`. `onsite` is the only one that asserts neither a specific digital payment channel the citizen may not have used, nor — as `free` would — that they paid nothing. Least-wrong claim about money. |
+| `ServiceCategory` | `dokyu` | **The weakest of the four**, recorded as such. Values are `dokyu`, `tulong`, `sakunaIncident`; a wrong guess files the request under the wrong tab. It is still strictly better than throwing, which lost the *entire* request list. Revisit if a category is ever renamed in practice. |
 
-A silent wrong default is a quieter version of the same bug. Where no honest default exists,
-the record is skipped and the skip is logged.
+The guardrail "a silent wrong default is a quieter version of the same bug" is why
+`ServiceCategory` is flagged here rather than presented as settled.
+
+---
 
 ## Test matrix
 
-`test/persistence_corruption_test.dart` — 10 tests, hostile in three distinct ways because the
-three fail differently.
+`test/corrupt_persisted_state_recovery_test.dart` — 11 cases.
 
-| # | Scenario | Asserts |
+| Case | Payload | Asserts |
 |---|---|---|
-| 1 | Session = `'this is not json'` | `loading` clears; signed out |
-| 2 | Session = valid JSON, wrong shape | `loading` clears; signed out, not half-restored |
-| 3 | Requests = malformed JSON | `loaded` becomes true |
-| 4 | Balita = malformed JSON | `loaded` becomes true |
-| 5 | Master file = malformed JSON | `loaded` becomes true |
-| 6 | Resident profiles = malformed JSON | `loaded` becomes true |
-| 7 | Read notification ids = malformed JSON | `loaded` becomes true |
-| 8 | Request with an unknown `category` | restore completes; that record is skipped, not guessed |
-| 9 | One bad record beside one good one | the good record survives |
-| 10 | Attachment with an unknown `category` | degrades to `AttachmentCategory.other` |
+| `CitizenSessionService` | not JSON | boots signed-out |
+| `CitizenSessionService` | not JSON, guest flag set | session key cleared, **guest flag survives** |
+| `CitizenSessionService` | not JSON | the discard is recorded, not silent |
+| `RequestsService` | JSON object where a list belongs | boots, list empty |
+| `BalitaService` | not JSON | boots |
+| `MasterFileService` | JSON array where a map belongs | boots |
+| `NotificationsService` | not JSON, two keys | boots |
+| `ResidentProfileService` | JSON object of wrong type | boots |
+| `OnboardingService` | `String` under a bool key | returns false, discard recorded |
+| `OnboardingService` | `String` under a bool key | bad flag cleared |
+| `RequestsService` | valid JSON, **unknown enum name** | the request survives — the whole list used to be lost |
 
-Fixtures for 8 and 9 are built from a real `ServiceRequest(...).toJson()` rather than a
-hand-written map, so a new required field on the model breaks the test at compile time instead
-of silently turning it into a no-op. That is not hypothetical: the first draft of these tests
-used hand-written maps and passed test 8 for the wrong reason — the record was being rejected
-for a missing `expectedDays`, not for the unknown enum.
+The last one is the realistic trigger the mandate asks for specifically: a rename, not random
+corruption.
 
-## Break-check
+### Watched failing before being trusted
 
-Run against the original code with `git stash push -- lib/`:
+Per the standing rules, every case was observed red before the fix landed.
 
-```
-00:00 +0 -10: Some tests failed.
-```
+- With `lib/` stashed, **all 8 original cases fail**, each reporting
+  `<Service> never finished loading — the splash would spin forever`.
+- With `onboarding_service.dart` alone stashed, **both new splash cases fail**.
+- With the fix applied, **11/11 pass**.
 
-**10 of 10 failed without the fix; 10 of 10 pass with it.** The guard is load-bearing.
+The helper `_settle` is what encodes "must not hang": it gives up after 100 pumps, which is
+precisely what the unguarded code did.
 
-## Follow-on findings (not fixed here)
+---
 
-- `ServiceRequest.fromJson` casts `json['statusHistory']` and `json['attachments']` with a bare
-  `as List` and no `?? const []`, unlike `flaggedRequirements` and `formFields` which both
-  default. A record persisted before either field existed would throw. Entry-tolerant decoding
-  now contains the blast radius to one record, but the asymmetry is worth closing.
-- The guard clears a key on total corruption. That is a data-loss event for that citizen; it is
-  logged, but there is no user-visible signal. Worth revisiting alongside FE 13's error states.
+## Guardrails observed
+
+- No timeout was wrapped around `AuthGate` — that would hide the throw and ship a slower
+  version of the same bug.
+- Nothing is caught and rethrown into the same unawaited future.
+- All five existing migrations are untouched; they are the record of what shapes have already
+  shipped to devices.
+- Every discard is logged, and the narrowest key that fixes the boot is the one cleared.
+- Suite total went **up** (450 → 461 across this and the preceding sweep), never down.
+
+---
+
+## Follow-ups this opened
+
+1. `NotificationsService` restores three keys under one `try` — split per key to narrow the
+   blast radius.
+2. `ServiceCategory`'s `dokyu` fallback is a judgement call; revisit if categories are ever
+   renamed.
+3. FE 10's storage inventory must cover **10** keys, not the 6 its mandate names.
+4. Three keys are not JSON. Any future audit of "decode safety" that greps for `jsonDecode`
+   will miss them — as this one originally did.

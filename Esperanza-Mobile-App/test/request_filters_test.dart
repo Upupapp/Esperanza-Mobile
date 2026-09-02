@@ -108,7 +108,7 @@ void main() {
     Future<void> pumpDokyuAsVerifiedResident(WidgetTester tester, {required List<ServiceRequest> seed}) async {
       SharedPreferences.setMockInitialValues({});
       final session = CitizenSessionService();
-      await session.login(MockCatalog.demoAccounts.last); // Cristy — Approved/verified
+      await session.login(MockCatalog.demoAccounts.last); // Perlita — Approved/verified
       final requests = RequestsService(seedDemoData: false);
       for (final r in seed) {
         await requests.submit(

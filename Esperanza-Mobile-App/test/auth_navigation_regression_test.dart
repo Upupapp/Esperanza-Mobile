@@ -5,7 +5,7 @@
 // swaps between LoginScreen/RootShell based on CitizenSessionService.
 // Once that root route is gone, any *later* login()/logout() has nothing
 // left listening, so the app gets stuck on whatever screen was showing —
-// this is what made the Ronaldo/Cristy demo accounts appear to "stop
+// this is what made the Nicanor/Perlita demo accounts appear to "stop
 // opening" when reached via Guest -> Sign In, a restricted-feature
 // notice's Sign In button, or a fresh registration's "Continue to App".
 // These tests drive those exact paths end-to-end through the real app.
@@ -61,7 +61,7 @@ Future<void> _dismissWelcomeBanner(WidgetTester tester) async {
 }
 
 void main() {
-  testWidgets('Guest -> drawer "Sign In" -> Ronaldo Bautista reaches Home, not stuck on LoginScreen', (tester) async {
+  testWidgets('Guest -> drawer "Sign In" -> Nicanor Sarmiento reaches Home, not stuck on LoginScreen', (tester) async {
     // Onboarding-complete pre-seeded: these regression cases exercise the
     // normal returning-user flow, not the first-run Onboarding screens —
     // see onboarding_flow_test.dart for that.
@@ -87,7 +87,7 @@ void main() {
     // not a dead end.
     expect(find.text('Welcome back'), findsOneWidget);
 
-    await _tapVisible(tester, find.text('Ronaldo Bautista'));
+    await _tapVisible(tester, find.text('Nicanor Sarmiento'));
 
     // The critical assertion: login() must have actually navigated us
     // into the app. Before the fix, this button press had no visible
@@ -96,7 +96,7 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('Guest -> Dokyu restricted notice -> "Sign In" -> Cristy Bonghanoy reaches Home with full access', (tester) async {
+  testWidgets('Guest -> Dokyu restricted notice -> "Sign In" -> Perlita Quiambao reaches Home with full access', (tester) async {
     // Onboarding-complete pre-seeded: these regression cases exercise the
     // normal returning-user flow, not the first-run Onboarding screens —
     // see onboarding_flow_test.dart for that.
@@ -113,12 +113,12 @@ void main() {
     await _tapVisible(tester, find.text('Sign In'));
     expect(find.text('Welcome back'), findsOneWidget);
 
-    await _tapVisible(tester, find.text('Cristy Bonghanoy'));
+    await _tapVisible(tester, find.text('Perlita Quiambao'));
     await _dismissWelcomeBanner(tester);
     expect(find.text('Welcome back'), findsNothing);
     expect(tester.takeException(), isNull);
 
-    // Now that we're actually in as Cristy, verified-only content must
+    // Now that we're actually in as Perlita, verified-only content must
     // be reachable — proves this isn't just "some screen changed" but
     // the real authenticated app.
     await _openService(tester, 'Dokyu');
@@ -134,13 +134,13 @@ void main() {
     await tester.pumpWidget(const EsperanzaMobileApp());
     await tester.pumpAndSettle();
 
-    // Sign in as Ronaldo (already has an account), then open
+    // Sign in as Nicanor (already has an account), then open
     // RegisterScreen — since an account already exists it jumps straight
     // to the read-only "Verification Status" step, whose "Continue to
     // App" button is exactly the path that used to push a *second*
     // RootShell.withKey() (colliding with the one _AuthGate had already
     // built reactively) or orphan _AuthGate outright.
-    await _tapVisible(tester, find.text('Ronaldo Bautista'));
+    await _tapVisible(tester, find.text('Nicanor Sarmiento'));
     await _dismissWelcomeBanner(tester);
     await _openService(tester, 'Dokyu'); // verification-gated -> RestrictedFeatureNotice
     await _tapVisible(tester, find.text('Continue Verification'));

@@ -27,7 +27,7 @@ import 'package:esperanza_mobile/theme/app_colors.dart';
 import 'package:esperanza_mobile/utils/requirement_document_type.dart';
 import 'package:esperanza_mobile/widgets/app_button.dart';
 
-const _cristyId = 'ESP-RES-2024-1044';
+const _verifiedDemoId = 'ESP-RES-2024-9002';
 const _seniorCitizenIdName = 'Senior Citizen ID Application (OSCA Membership)';
 
 Attachment _fakeAttachment(String fileName) => Attachment(
@@ -40,7 +40,7 @@ Attachment _fakeAttachment(String fileName) => Attachment(
   documentTypeLabel: fileName,
 );
 
-Future<CitizenSessionService> _signedInAsCristy(WidgetTester tester) async {
+Future<CitizenSessionService> _signedInAsVerifiedDemo(WidgetTester tester) async {
   final session = CitizenSessionService();
   var attempts = 0;
   while (session.loading) {
@@ -48,7 +48,7 @@ Future<CitizenSessionService> _signedInAsCristy(WidgetTester tester) async {
     if (attempts > 100) throw StateError('CitizenSessionService never finished loading.');
     await tester.pump(const Duration(milliseconds: 1));
   }
-  await session.login(MockCatalog.demoAccounts.last); // Cristy — verified
+  await session.login(MockCatalog.demoAccounts.last); // Perlita — verified
   return session;
 }
 
@@ -131,28 +131,28 @@ void main() {
         SharedPreferences.setMockInitialValues({});
         final mf = await _readyMasterFile(tester);
         await mf.saveOrUpdate(
-          accountId: _cristyId,
+          accountId: _verifiedDemoId,
           documentType: documentTypeFor('PSA Birth Certificate or valid ID showing birthdate'),
           label: 'PSA Birth Certificate or valid ID showing birthdate',
           attachment: _fakeAttachment('psa_birth_cert.pdf'),
           origin: 'Test',
         );
         await mf.saveOrUpdate(
-          accountId: _cristyId,
+          accountId: _verifiedDemoId,
           documentType: documentTypeFor('2 recent 1x1 ID photos'),
           label: '2 recent 1x1 ID photos',
           attachment: _fakeAttachment('id_photos.jpg'),
           origin: 'Test',
         );
         await mf.saveOrUpdate(
-          accountId: _cristyId,
+          accountId: _verifiedDemoId,
           documentType: 'barangay_certification',
           label: 'Barangay Certification',
           attachment: _fakeAttachment('brgy_cert.pdf'),
           origin: 'Test',
         );
 
-        final session = await _signedInAsCristy(tester);
+        final session = await _signedInAsVerifiedDemo(tester);
         final requests = await _readyRequests(tester);
         final item = MockCatalog.documentTypes.firstWhere((i) => i.key == 'dokyu_senior_citizen_id');
 
@@ -240,8 +240,8 @@ void main() {
       final staleRequest = ServiceRequest(
         id: 'req-1700000000001',
         referenceNumber: 'AR-2026-0007',
-        applicantId: _cristyId,
-        applicantName: 'Cristy Bonghanoy',
+        applicantId: _verifiedDemoId,
+        applicantName: 'Perlita Quiambao',
         typeName: _seniorCitizenIdName,
         category: ServiceCategory.tulong,
         office: 'Office for Senior Citizens Affairs',
@@ -278,7 +278,7 @@ void main() {
       expect(migrated.statusHistory.length, 2);
       expect(migrated.attachments.length, 1);
       expect(migrated.attachments.single.fileName, 'psa_birth_cert.pdf');
-      expect(migrated.applicantName, 'Cristy Bonghanoy');
+      expect(migrated.applicantName, 'Perlita Quiambao');
 
       // Now correctly retrievable under Dokyu, not Tulong.
       expect(requests.byCategory(ServiceCategory.dokyu).any((r) => r.id == 'req-1700000000001'), isTrue);
@@ -295,8 +295,8 @@ void main() {
       final unrelated = ServiceRequest(
         id: 'req-1700000000002',
         referenceNumber: 'AR-2026-0008',
-        applicantId: _cristyId,
-        applicantName: 'Cristy Bonghanoy',
+        applicantId: _verifiedDemoId,
+        applicantName: 'Perlita Quiambao',
         typeName: 'Medical Assistance (AICS)',
         category: ServiceCategory.tulong,
         office: 'Municipal Social Welfare and Development Office',
@@ -320,8 +320,8 @@ void main() {
       final alreadyCorrect = ServiceRequest(
         id: 'req-1700000000003',
         referenceNumber: 'DR-2026-0099',
-        applicantId: _cristyId,
-        applicantName: 'Cristy Bonghanoy',
+        applicantId: _verifiedDemoId,
+        applicantName: 'Perlita Quiambao',
         typeName: _seniorCitizenIdName,
         category: ServiceCategory.dokyu,
         office: 'Office for Senior Citizens Affairs',

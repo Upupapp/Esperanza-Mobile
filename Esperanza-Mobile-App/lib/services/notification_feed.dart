@@ -261,7 +261,7 @@ AppNotification _correctionNotificationFor(
 
 /// Phase 6 — "One Person, One Account" duplicate-account demo (FRONTEND
 /// SIMULATION ONLY, see duplicate_account_details_screen.dart). Two
-/// alert scenarios ('a'/'b') on the real Cristy Bonghanoy's own account so
+/// alert scenarios ('a'/'b') on the real Perlita Quiambao's own account so
 /// both the "Yes, this is me" and "No, this is not me" resolutions can be
 /// demonstrated without resetting the app, plus one informational entry
 /// on the duplicate account itself. Every id is unique and unrelated to
@@ -272,8 +272,8 @@ List<AppNotification> _duplicateAccountNotifications(
   String accountId,
   NotificationsService duplicateAlerts,
 ) {
-  const originalId = 'ESP-RES-2024-1044';
-  final duplicateId = MockCatalog.duplicateCristyAccount.id;
+  const originalId = 'ESP-RES-2024-9002';
+  final duplicateId = MockCatalog.duplicateVerifiedDemoAccount.id;
 
   if (accountId == originalId) {
     const scenarioIds = ['a', 'b'];

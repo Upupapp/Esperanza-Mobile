@@ -1,9 +1,10 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
+import 'persistence_recovery.dart';
 import '../models/citizen_account.dart';
 import '../models/resident_profile.dart';
-import 'persistence_guard.dart';
 
 /// Local, frontend-only "database" for Resident Profiling — same
 /// persistence shape as RequestsService/BalitaService: JSON to
@@ -13,18 +14,18 @@ import 'persistence_guard.dart';
 class ResidentProfileService extends ChangeNotifier {
   static const _key = 'esperanza_resident_profiles';
 
-  /// The verified demo resident whose Master Profile is aligned to her real
+  /// The verified demo resident whose Master Profile is aligned to the synthetic
   /// Web Admin Educational Assistance record — see
-  /// _applyCristyMasterProfileAlignment. Same id RequestsService already
-  /// uses for its own Cristy-specific seeding.
-  static const _cristyVerifiedAccountId = 'ESP-RES-2024-1044';
+  /// _applyVerifiedDemoMasterProfileAlignment. Same id RequestsService already
+  /// uses for its own Perlita-specific seeding.
+  static const _verifiedDemoAccountId = 'ESP-RES-2024-9002';
 
-  /// The exact Household/Family ids from Cristy's Web Admin constituent
-  /// record (see _migrateCristyHouseholdFamilyIds) — distinct from the
+  /// The exact Household/Family ids from Perlita's Web Admin constituent
+  /// record (see _migrateVerifiedDemoHouseholdFamilyIds) — distinct from the
   /// generic hash-derived scheme ResidentProfile.seedFrom uses for every
   /// other account.
-  static const _cristyHouseholdId = 'HH-2026-104';
-  static const _cristyFamilyId = 'FAM-2026-104';
+  static const _verifiedDemoHouseholdId = 'HH-2026-9002';
+  static const _verifiedDemoFamilyId = 'FAM-2026-9002';
 
   Map<String, ResidentProfile> _profiles = {};
   bool _loaded = false;
@@ -38,20 +39,43 @@ class ResidentProfileService extends ChangeNotifier {
   Future<void> _restore() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final decoded = await readJsonGuarded(prefs, _key);
-      if (decoded is Map<String, dynamic>) {
-        _profiles = decodeEntriesGuarded(decoded, (v) => ResidentProfile.fromJson(v), what: 'resident profile');
+      final raw = prefs.getString(_key);
+      if (raw != null) {
+        final map = jsonDecode(raw) as Map<String, dynamic>;
+        _profiles = map.map((k, v) => MapEntry(k, ResidentProfile.fromJson(v)));
       }
-      final cristy = _profiles[_cristyVerifiedAccountId];
-      if (cristy != null) {
-        final fieldsChanged = _applyCristyMasterProfileAlignment(cristy);
-        final idsChanged = _migrateCristyHouseholdFamilyIds();
+      final perlita = _profiles[_verifiedDemoAccountId];
+      if (perlita != null) {
+        final fieldsChanged = _applyVerifiedDemoMasterProfileAlignment(perlita);
+        final idsChanged = _migrateVerifiedDemoHouseholdFamilyIds();
         if (fieldsChanged || idsChanged) await _persist();
       }
+    } catch (error) {
+      // A payload persisted by an earlier build can fail to decode after a
+      // model or enum changes shape. Before this guard that throw escaped an
+      // un-awaited future started in the constructor, so notifyListeners()
+      // never fired and AuthGate spun on the splash forever - recoverable
+      // only by clearing app data. Discard the unreadable state instead; the
+      // migrations here already exist for exactly this class of change.
+      _profiles = {};
+      await PersistenceRecovery.discardUnreadable(
+        service: 'ResidentProfileService',
+        keys: const [_key],
+        error: error,
+      );
     } finally {
       _loaded = true;
       notifyListeners();
     }
+  }
+
+  /// Erases [accountId]'s resident profile — including the base64 profile
+  /// photo, birthdate, address, household and family data — from memory and
+  /// from disk. Called on sign-out.
+  Future<void> forgetAccount(String accountId) async {
+    _profiles.remove(accountId);
+    await _persist();
+    notifyListeners();
   }
 
   Future<void> _persist() async {
@@ -60,39 +84,39 @@ class ResidentProfileService extends ChangeNotifier {
   }
 
   /// Returns the profile for this citizen, creating (and persisting) a
-  /// freshly-seeded one on first access. Cristy's own freshly-seeded
+  /// freshly-seeded one on first access. Perlita's own freshly-seeded
   /// profile additionally gets her Master Profile alignment applied right
-  /// away (see _applyCristyMasterProfileAlignment) — otherwise a device
+  /// away (see _applyVerifiedDemoMasterProfileAlignment) — otherwise a device
   /// that had never opened her profile before this correction would seed a
   /// profile from her (already-corrected) CitizenAccount birthdate but
   /// still be missing the family members / school / family-background
   /// fields that only this alignment step adds.
   ResidentProfile profileFor(CitizenAccount account) {
     return _profiles.putIfAbsent(account.id, () {
-      final isCristy = account.id == _cristyVerifiedAccountId;
+      final isVerifiedDemo = account.id == _verifiedDemoAccountId;
       final profile = ResidentProfile.seedFrom(
         account,
-        familyIdOverride: isCristy ? _cristyFamilyId : null,
-        householdIdOverride: isCristy ? _cristyHouseholdId : null,
+        familyIdOverride: isVerifiedDemo ? _verifiedDemoFamilyId : null,
+        householdIdOverride: isVerifiedDemo ? _verifiedDemoHouseholdId : null,
       );
-      if (isCristy) _applyCristyMasterProfileAlignment(profile);
+      if (isVerifiedDemo) _applyVerifiedDemoMasterProfileAlignment(profile);
       return profile;
     });
   }
 
-  /// The Web-Admin-sourced correction for Cristy Bonghanoy's
-  /// (ESP-RES-2024-1044) resident-fact data. Her seeded profile has gone
+  /// The Web-Admin-sourced correction for Perlita Quiambao's
+  /// (ESP-RES-2024-9002) resident-fact data. Her seeded profile has gone
   /// through two corrections against the Web Admin's own constituent
   /// record: first from a placeholder birthdate (Nov 29, 1988) with no
   /// family members, then from an intermediate birthdate (Jan 13, 2001)
   /// sourced from an Educational Assistance record that has since been
-  /// superseded by her actual Constituents record (March 15, 2001; Single;
+  /// superseded by the current synthetic profile (February 4, 2001; Single;
   /// Student — see mock_catalog.dart's CitizenAccount doc comment). Applied
   /// both to a brand-new profile (see [profileFor]'s seeding closure above)
   /// and, as a migration, to a profile a device already persisted under
   /// either older set of values (see [_restore]) — idempotent either way
   /// via the per-field equality checks below, and only ever invoked for
-  /// Cristy's own specific account id, never applied generically to another
+  /// Perlita's own specific account id, never applied generically to another
   /// resident's real data. Returns whether anything actually changed, so
   /// callers only persist when needed.
   ///
@@ -102,7 +126,7 @@ class ResidentProfileService extends ChangeNotifier {
   /// answers, not resident-identity facts, and stay exactly as they were
   /// even though they aren't part of the Constituents record below (see
   /// this correction's own report for why the two are kept separate).
-  bool _applyCristyMasterProfileAlignment(ResidentProfile p) {
+  bool _applyVerifiedDemoMasterProfileAlignment(ResidentProfile p) {
     var changed = false;
     final personal = p.personal;
 
@@ -160,9 +184,9 @@ class ResidentProfileService extends ChangeNotifier {
       p.familyMembers = [
         ...p.familyMembers,
         Individual(
-          individualId: 'IND-$_cristyVerifiedAccountId-FATHER',
-          firstName: 'Ramon',
-          lastName: 'Bonghanoy',
+          individualId: 'IND-$_verifiedDemoAccountId-FATHER',
+          firstName: 'Anselmo',
+          lastName: 'Quiambao',
           relationshipToHead: 'Father',
           occupation: 'Construction Worker',
           familyId: p.familyId,
@@ -175,10 +199,10 @@ class ResidentProfileService extends ChangeNotifier {
       p.familyMembers = [
         ...p.familyMembers,
         Individual(
-          individualId: 'IND-$_cristyVerifiedAccountId-MOTHER',
-          firstName: 'Corazon',
-          lastName: 'Bonghanoy',
-          maidenName: 'Pareja',
+          individualId: 'IND-$_verifiedDemoAccountId-MOTHER',
+          firstName: 'Lourdes',
+          lastName: 'Quiambao',
+          maidenName: 'Escano',
           relationshipToHead: 'Mother',
           occupation: 'Sari-Sari Store Vendor',
           familyId: p.familyId,
@@ -189,20 +213,20 @@ class ResidentProfileService extends ChangeNotifier {
     }
 
     // Targeted migrations for a device that already persisted Father/Mother
-    // before one of these corrections existed: the earlier "Ramon Cristy" /
-    // "Corazon Cristy" placeholder surname ("Cristy" is her first name, the
-    // family surname is Bonghanoy), and a Mother record saved before her
-    // maiden name (Pareja) was captured at all. The two blocks above only
+    // before one of these corrections existed: the earlier "Anselmo Perlita" /
+    // "Lourdes Perlita" placeholder surname ("Perlita" is her first name, the
+    // family surname is Quiambao), and a Mother record saved before her
+    // maiden name (Escano) was captured at all. The two blocks above only
     // ever *add* a Father/Mother when neither exists yet, so they never
     // reach either of these cases — fix them in place instead, never
     // duplicating the family member.
     for (final m in p.familyMembers) {
-      if ((m.relationshipToHead == 'Father' || m.relationshipToHead == 'Mother') && m.lastName == 'Cristy') {
-        m.lastName = 'Bonghanoy';
+      if ((m.relationshipToHead == 'Father' || m.relationshipToHead == 'Mother') && m.lastName == 'Perlita') {
+        m.lastName = 'Quiambao';
         changed = true;
       }
-      if (m.relationshipToHead == 'Mother' && m.maidenName != 'Pareja') {
-        m.maidenName = 'Pareja';
+      if (m.relationshipToHead == 'Mother' && m.maidenName != 'Escano') {
+        m.maidenName = 'Escano';
         changed = true;
       }
     }
@@ -213,37 +237,37 @@ class ResidentProfileService extends ChangeNotifier {
     // emergencyContactEdited is true, this must never again overwrite
     // whatever they've saved, on this or any later app launch.
     if (!p.emergencyContactEdited) {
-      setPersonal(p.emergencyContactName, 'Roberto Pareja', (v) => p.emergencyContactName = v);
+      setPersonal(p.emergencyContactName, 'Rogelio Escano', (v) => p.emergencyContactName = v);
       setPersonal(p.emergencyContactRelationship, 'Brother', (v) => p.emergencyContactRelationship = v);
-      setPersonal(p.emergencyContactNumber, '0919 502 7735', (v) => p.emergencyContactNumber = v);
+      setPersonal(p.emergencyContactNumber, '0919 000 9012', (v) => p.emergencyContactNumber = v);
     }
 
     return changed;
   }
 
   /// [ResidentProfile.familyId]/[householdId] are immutable (`final`) once
-  /// constructed — a device that already persisted Cristy's profile before
-  /// her Web Admin record's exact ids (HH-2026-104/FAM-2026-104) were known
+  /// constructed — a device that already persisted Perlita's profile before
+  /// her Web Admin record's exact ids (HH-2026-9002/FAM-2026-9002) were known
   /// has them fixed at whatever the old generic hash-derived scheme
   /// produced. Unlike the plain field mutations in
-  /// [_applyCristyMasterProfileAlignment], fixing these requires rebuilding
+  /// [_applyVerifiedDemoMasterProfileAlignment], fixing these requires rebuilding
   /// the whole [ResidentProfile] (and every child record's own
   /// familyId/householdId reference) and replacing the map entry outright —
   /// same reconstruction pattern RequestsService's own identity migration
   /// uses for its immutable fields. Never touches another resident's
-  /// profile, and never invented for Cristy beyond what her Web Admin
+  /// profile, and never invented for Perlita beyond what her Web Admin
   /// record specifies.
-  bool _migrateCristyHouseholdFamilyIds() {
-    final p = _profiles[_cristyVerifiedAccountId];
-    if (p == null || (p.familyId == _cristyFamilyId && p.householdId == _cristyHouseholdId)) return false;
+  bool _migrateVerifiedDemoHouseholdFamilyIds() {
+    final p = _profiles[_verifiedDemoAccountId];
+    if (p == null || (p.familyId == _verifiedDemoFamilyId && p.householdId == _verifiedDemoHouseholdId)) return false;
 
     for (final m in p.familyMembers) {
-      m.familyId = _cristyFamilyId;
-      m.householdId = _cristyHouseholdId;
+      m.familyId = _verifiedDemoFamilyId;
+      m.householdId = _verifiedDemoHouseholdId;
     }
     final household = p.household;
     p.household = Household(
-      householdId: _cristyHouseholdId,
+      householdId: _verifiedDemoHouseholdId,
       barangay: household.barangay,
       sitioPurok: household.sitioPurok,
       completeAddress: household.completeAddress,
@@ -255,17 +279,17 @@ class ResidentProfileService extends ChangeNotifier {
       electricitySource: household.electricitySource,
       hasInternetAccess: household.hasInternetAccess,
       monthlyIncome: household.monthlyIncome,
-      familyIds: [_cristyFamilyId],
+      familyIds: [_verifiedDemoFamilyId],
       otherFamilies: household.otherFamilies,
     );
-    _profiles[_cristyVerifiedAccountId] = ResidentProfile(
+    _profiles[_verifiedDemoAccountId] = ResidentProfile(
       citizenAccountId: p.citizenAccountId,
       personal: p.personal,
       familyMembers: p.familyMembers,
       familyName: p.familyName,
       headIndividualId: p.headIndividualId,
-      familyId: _cristyFamilyId,
-      householdId: _cristyHouseholdId,
+      familyId: _verifiedDemoFamilyId,
+      householdId: _verifiedDemoHouseholdId,
       household: p.household,
       personalSaved: p.personalSaved,
       familySaved: p.familySaved,
@@ -341,8 +365,8 @@ class ResidentProfileService extends ChangeNotifier {
   }
 
   /// Family Information's own Emergency Contact Edit action. Marks
-  /// [ResidentProfile.emergencyContactEdited] so the Cristy Master Profile
-  /// alignment's seeded default (Roberto Pareja / Brother / 0919 502 7735)
+  /// [ResidentProfile.emergencyContactEdited] so the Perlita Master Profile
+  /// alignment's seeded default (Rogelio Escano / Brother / 0919 000 9012)
   /// never overwrites this again on a later app launch — see that
   /// alignment's own guard.
   Future<void> saveEmergencyContact(

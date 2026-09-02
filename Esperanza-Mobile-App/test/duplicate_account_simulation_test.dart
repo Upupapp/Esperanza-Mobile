@@ -1,7 +1,7 @@
 // Functional coverage for Phase 6 — the "One Person, One Account"
 // duplicate-account demo. FRONTEND SIMULATION ONLY: no real identity
 // matching happens; the duplicate is preconfigured demo data. Verifies the
-// demo login button, both scenario alerts on the real Cristy account
+// demo login button, both scenario alerts on the real Perlita account
 // (repeatable — one resolved "Yes", the other "No", without resetting the
 // app), and the duplicate account's own read-only status notification.
 import 'package:flutter/material.dart';
@@ -41,7 +41,7 @@ Future<void> _scrollToAndTap(WidgetTester tester, Finder finder) async {
 }
 
 void main() {
-  testWidgets('Sign In screen offers a clearly labeled duplicate-Cristy demo login, distinct from the real account', (
+  testWidgets('Sign In screen offers a clearly labeled duplicate-Perlita demo login, distinct from the real account', (
     tester,
   ) async {
     SharedPreferences.setMockInitialValues({'esperanza_onboarding_complete': true});
@@ -49,11 +49,11 @@ void main() {
     await tester.pumpWidget(const EsperanzaMobileApp());
     await tester.pumpAndSettle();
 
-    expect(find.text('Cristy Bonghanoy'), findsOneWidget); // the real account's own card
-    expect(find.text('Demo: Duplicate Cristy Account'), findsOneWidget);
+    expect(find.text('Perlita Quiambao'), findsOneWidget); // the real account's own card
+    expect(find.text('Demo: Duplicate Perlita Account'), findsOneWidget);
     // Never the same identifiers as the real account.
-    expect(MockCatalog.duplicateCristyAccount.id, isNot(MockCatalog.demoAccounts.last.id));
-    expect(MockCatalog.duplicateCristyAccount.email, isNot(MockCatalog.demoAccounts.last.email));
+    expect(MockCatalog.duplicateVerifiedDemoAccount.id, isNot(MockCatalog.demoAccounts.last.id));
+    expect(MockCatalog.duplicateVerifiedDemoAccount.email, isNot(MockCatalog.demoAccounts.last.email));
   });
 
   testWidgets('Logging in as the duplicate never grants Verified access, and shows the under-review warning', (
@@ -64,12 +64,12 @@ void main() {
     await tester.pumpWidget(const EsperanzaMobileApp());
     await tester.pumpAndSettle();
 
-    await tester.ensureVisible(find.text('Demo: Duplicate Cristy Account'));
-    await tester.tap(find.text('Demo: Duplicate Cristy Account'));
+    await tester.ensureVisible(find.text('Demo: Duplicate Perlita Account'));
+    await tester.tap(find.text('Demo: Duplicate Perlita Account'));
     await tester.pumpAndSettle(const Duration(seconds: 1));
     await _dismissWelcomeBanner(tester);
 
-    expect(MockCatalog.duplicateCristyAccount.status, isNot('Approved'));
+    expect(MockCatalog.duplicateVerifiedDemoAccount.status, isNot('Approved'));
 
     await _openBell(tester);
     await tester.scrollUntilVisible(
@@ -85,15 +85,15 @@ void main() {
   });
 
   testWidgets(
-    'Real Cristy receives both duplicate-alert scenarios; resolving A as "Yes" and B as "No" works independently, repeatably',
+    'Real Perlita receives both duplicate-alert scenarios; resolving A as "Yes" and B as "No" works independently, repeatably',
     (tester) async {
       SharedPreferences.setMockInitialValues({'esperanza_onboarding_complete': true});
       _setPhoneViewport(tester);
       await tester.pumpWidget(const EsperanzaMobileApp());
       await tester.pumpAndSettle();
 
-      await tester.ensureVisible(find.text('Cristy Bonghanoy'));
-      await tester.tap(find.text('Cristy Bonghanoy'));
+      await tester.ensureVisible(find.text('Perlita Quiambao'));
+      await tester.tap(find.text('Perlita Quiambao'));
       await tester.pumpAndSettle(const Duration(seconds: 1));
       await _dismissWelcomeBanner(tester);
 
@@ -157,9 +157,9 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.textContaining('Flagged for Investigation'), findsOneWidget);
 
-      // Neither scenario silently changed the real Cristy's own account.
-      final realCristy = MockCatalog.demoAccounts.last;
-      expect(realCristy.status, 'Approved');
+      // Neither scenario silently changed the real Perlita's own account.
+      final realVerifiedDemo = MockCatalog.demoAccounts.last;
+      expect(realVerifiedDemo.status, 'Approved');
 
       expect(tester.takeException(), isNull);
     },
@@ -174,8 +174,8 @@ void main() {
       await tester.pumpWidget(const EsperanzaMobileApp());
       await tester.pumpAndSettle();
 
-      await tester.ensureVisible(find.text('Demo: Duplicate Cristy Account'));
-      await tester.tap(find.text('Demo: Duplicate Cristy Account'));
+      await tester.ensureVisible(find.text('Demo: Duplicate Perlita Account'));
+      await tester.tap(find.text('Demo: Duplicate Perlita Account'));
       await tester.pumpAndSettle(const Duration(seconds: 1));
       await _dismissWelcomeBanner(tester);
 
@@ -196,8 +196,8 @@ void main() {
       // Landed on Home, not straight into Dokyu — the signed-in hero
       // greeting is visible without scrolling and only renders for a
       // real (non-guest) account, confirming both "on Home" and "signed
-      // in as the real Cristy now".
-      expect(find.textContaining('Magandang araw, Cristy'), findsOneWidget);
+      // in as the real Perlita now".
+      expect(find.textContaining('Magandang araw, Perlita'), findsOneWidget);
 
       expect(tester.takeException(), isNull);
     },
@@ -211,8 +211,8 @@ void main() {
     await tester.pumpWidget(const EsperanzaMobileApp());
     await tester.pumpAndSettle();
 
-    await tester.ensureVisible(find.text('Demo: Duplicate Cristy Account'));
-    await tester.tap(find.text('Demo: Duplicate Cristy Account'));
+    await tester.ensureVisible(find.text('Demo: Duplicate Perlita Account'));
+    await tester.tap(find.text('Demo: Duplicate Perlita Account'));
     await tester.pumpAndSettle(const Duration(seconds: 1));
     await _dismissWelcomeBanner(tester);
 

@@ -35,7 +35,7 @@ Future<RequestsService> _openFetalDeathWizard(WidgetTester tester) async {
 
   SharedPreferences.setMockInitialValues({});
   final session = CitizenSessionService();
-  await session.login(MockCatalog.demoAccounts.last); // Cristy — verified
+  await session.login(MockCatalog.demoAccounts.last); // Perlita — verified
   final requests = RequestsService(seedDemoData: false);
   await tester.pumpWidget(
     MultiProvider(

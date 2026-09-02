@@ -20,8 +20,8 @@ import 'package:esperanza_mobile/services/mock_catalog.dart';
 import 'package:esperanza_mobile/services/requests_service.dart';
 import 'package:esperanza_mobile/services/resident_profile_service.dart';
 
-const _cristyId = 'ESP-RES-2024-1044';
-const _cristyName = 'Cristy Bonghanoy';
+const _verifiedDemoId = 'ESP-RES-2024-9002';
+const _verifiedDemoName = 'Perlita Quiambao';
 const _rejectionReason = 'Submitted school enrollment document could not be verified for the current academic '
     'term. Please submit an updated Certificate of Enrollment or Registration issued by the school.';
 const _rejectionGuidance = 'Upload an updated school document and submit a new Educational Assistance application.';
@@ -37,7 +37,7 @@ Future<RequestsService> _readyRequests(WidgetTester tester, {required bool seedD
   return requests;
 }
 
-Future<CitizenSessionService> _signedInAsCristy(WidgetTester tester) async {
+Future<CitizenSessionService> _signedInAsVerifiedDemo(WidgetTester tester) async {
   final session = CitizenSessionService();
   var attempts = 0;
   while (session.loading) {
@@ -45,7 +45,7 @@ Future<CitizenSessionService> _signedInAsCristy(WidgetTester tester) async {
     if (attempts > 100) throw StateError('CitizenSessionService never finished loading.');
     await tester.pump(const Duration(milliseconds: 1));
   }
-  await session.login(MockCatalog.demoAccounts.last); // Cristy — verified
+  await session.login(MockCatalog.demoAccounts.last); // Perlita — verified
   return session;
 }
 
@@ -80,7 +80,7 @@ void main() {
     ) async {
       SharedPreferences.setMockInitialValues({});
       final requests = await _readyRequests(tester, seedDemoData: true);
-      final session = await _signedInAsCristy(tester);
+      final session = await _signedInAsVerifiedDemo(tester);
 
       await _pumpDetail(tester, requests, session, 'demo-tulong-educational');
 
@@ -101,7 +101,7 @@ void main() {
     ) async {
       SharedPreferences.setMockInitialValues({});
       final requests = await _readyRequests(tester, seedDemoData: true);
-      final session = await _signedInAsCristy(tester);
+      final session = await _signedInAsVerifiedDemo(tester);
       final original = requests.all.firstWhere((r) => r.id == 'demo-tulong-educational');
       final originalRef = original.referenceNumber;
 
@@ -132,8 +132,8 @@ void main() {
       // the wizard's own submit flow) — this test's own focus is the
       // history/reference-number guarantee, not re-driving the whole form.
       final reapplied = await requests.submit(
-        applicantId: _cristyId,
-        applicantName: _cristyName,
+        applicantId: _verifiedDemoId,
+        applicantName: _verifiedDemoName,
         typeName: 'Educational Assistance',
         category: ServiceCategory.tulong,
         office: 'Office of the Municipal Mayor',
@@ -156,8 +156,8 @@ void main() {
       final rejected = ServiceRequest(
         id: 'demo-tulong-educational',
         referenceNumber: 'AR-2026-DEMO06',
-        applicantId: _cristyId,
-        applicantName: _cristyName,
+        applicantId: _verifiedDemoId,
+        applicantName: _verifiedDemoName,
         typeName: 'Educational Assistance',
         category: ServiceCategory.tulong,
         office: 'Office of the Municipal Mayor',
@@ -173,8 +173,8 @@ void main() {
       final active = ServiceRequest(
         id: 'req-active-educational',
         referenceNumber: 'AR-2026-0002',
-        applicantId: _cristyId,
-        applicantName: _cristyName,
+        applicantId: _verifiedDemoId,
+        applicantName: _verifiedDemoName,
         typeName: 'Educational Assistance',
         category: ServiceCategory.tulong,
         office: 'Office of the Municipal Mayor',
@@ -189,7 +189,7 @@ void main() {
         'esperanza_service_requests': jsonEncode([rejected.toJson(), active.toJson()]),
       });
       final requests = await _readyRequests(tester, seedDemoData: false);
-      final session = await _signedInAsCristy(tester);
+      final session = await _signedInAsVerifiedDemo(tester);
 
       await _pumpDetail(tester, requests, session, 'demo-tulong-educational');
       await tester.ensureVisible(find.text('Apply Again'));
@@ -208,8 +208,8 @@ void main() {
       final noReason = ServiceRequest(
         id: 'req-no-reason',
         referenceNumber: 'DR-2026-0001',
-        applicantId: _cristyId,
-        applicantName: _cristyName,
+        applicantId: _verifiedDemoId,
+        applicantName: _verifiedDemoName,
         typeName: 'Certificate of Indigency',
         category: ServiceCategory.dokyu,
         office: 'Municipal Social Welfare and Development Office',
@@ -224,7 +224,7 @@ void main() {
         'esperanza_service_requests': jsonEncode([noReason.toJson()]),
       });
       final requests = await _readyRequests(tester, seedDemoData: false);
-      final session = await _signedInAsCristy(tester);
+      final session = await _signedInAsVerifiedDemo(tester);
 
       await _pumpDetail(tester, requests, session, 'req-no-reason');
 

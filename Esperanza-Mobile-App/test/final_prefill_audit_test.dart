@@ -6,7 +6,7 @@
 // "technically" has demoDefaults but still shows blanks. Also verifies this
 // pass's own explicit exclusions: logically inapplicable identity
 // attributes (Senior Citizen, PWD/disability, ERPAT's fathers'-program
-// framing, Solo Parent's own circumstance) are never fabricated for Cristy,
+// framing, Solo Parent's own circumstance) are never fabricated for Perlita,
 // even though the ordinary applicant fields on those same forms still
 // legitimately prefill from her Resident Master Profile.
 import 'dart:typed_data';
@@ -60,7 +60,7 @@ Future<RequestsService> _pumpWizard(
     if (attempts > 100) throw StateError('CitizenSessionService never finished loading.');
     await tester.pump(const Duration(milliseconds: 1));
   }
-  await session.login(MockCatalog.demoAccounts.last); // Cristy — verified
+  await session.login(MockCatalog.demoAccounts.last); // Perlita — verified
 
   final requests = RequestsService(seedDemoData: false);
   attempts = 0;
@@ -187,8 +187,8 @@ void main() {
       await tester.pumpAndSettle();
       await _continue(tester); // -> Needs & Emergency Contact
 
-      expect(find.text('Roberto Pareja'), findsOneWidget);
-      expect(find.text('0919 502 7735'), findsOneWidget);
+      expect(find.text('Rogelio Escano'), findsOneWidget);
+      expect(find.text('0919 000 9012'), findsOneWidget);
       expect(tester.takeException(), isNull);
     });
   });
@@ -210,7 +210,7 @@ void main() {
 
       await _continue(tester); // this step's required multiselects are
       // left for the presenter to demonstrate deliberately, or this
-      // service simply isn't part of a Cristy-persona demo — see this
+      // service simply isn't part of a Perlita-persona demo — see this
       // pass's own report.
     });
   });
@@ -234,7 +234,7 @@ void main() {
       // one; this is a fathers' program, but listing her own true household
       // composition isn't "reframing her as a father."
       expect(
-        find.text('Ramon Bonghanoy (Father), Corazon Bonghanoy (Mother), Cristy Pareja Bonghanoy (Self)'),
+        find.text('Anselmo Quiambao (Father), Lourdes Quiambao (Mother), Perlita Quiambao (Self)'),
         findsOneWidget,
       );
       // educationalAttainment — same closest-valid-option fallback used
@@ -260,14 +260,14 @@ void main() {
         await _continue(tester); // Applicant Info -> Person's Details
         // Never fabricated — Web Admin's own record never names the family
         // member, so this pass doesn't invent one either.
-        expect(find.text('Cristy Pareja Bonghanoy'), findsNothing);
-        expect(find.text('Corazon Pareja'), findsNothing); // motherMaidenName, deliberately blank
+        expect(find.text('Perlita Quiambao'), findsNothing);
+        expect(find.text('Lourdes Escano'), findsNothing); // motherMaidenName, deliberately blank
         expect(find.text('Filipino'), findsNothing); // citizenship, deliberately blank
         // Known architectural limitation (documented in mock_catalog.dart
         // and this pass's own report): the generic Master-Profile prefill
-        // matches on field key alone, so these still show Cristy's own
+        // matches on field key alone, so these still show Perlita's own
         // values even though the form is about someone else.
-        expect(find.text('Ramon Bonghanoy'), findsOneWidget); // fatherName, via the generic Father/Mother block
+        expect(find.text('Anselmo Quiambao'), findsOneWidget); // fatherName, via the generic Father/Mother block
         expect(find.text('Mar 15, 2001'), findsOneWidget); // dateOfBirth, auto
         expect(find.text('Milagros, Masbate'), findsOneWidget); // placeOfBirth, auto
         expect(find.text('Female'), findsOneWidget);
@@ -303,14 +303,14 @@ void main() {
         await tester.pump(const Duration(milliseconds: 1));
       }
       await mf.saveOrUpdate(
-        accountId: 'ESP-RES-2024-1044',
+        accountId: 'ESP-RES-2024-9002',
         documentType: 'valid_government_id',
         label: 'One (1) valid government-issued ID',
         attachment: _fakeAttachment('gov_id.pdf'),
         origin: 'Test',
       );
       await mf.saveOrUpdate(
-        accountId: 'ESP-RES-2024-1044',
+        accountId: 'ESP-RES-2024-9002',
         documentType: 'proof_of_business_location_lease_contract_or_land_title',
         label: 'Proof of business location (lease contract or land title)',
         attachment: _fakeAttachment('business_location.pdf'),
@@ -321,10 +321,10 @@ void main() {
       await _pumpWizard(tester, item: item, category: ServiceCategory.dokyu, masterFile: mf);
 
       await _continue(tester); // Applicant Info -> Business Details
-      expect(find.text("Bonghanoy's Sari-Sari Store"), findsOneWidget);
+      expect(find.text("Quiambao's Sari-Sari Store"), findsOneWidget);
 
-      final businessNameField = find.widgetWithText(TextField, "Bonghanoy's Sari-Sari Store");
-      await tester.enterText(businessNameField, "Cristy's Variety Store");
+      final businessNameField = find.widgetWithText(TextField, "Quiambao's Sari-Sari Store");
+      await tester.enterText(businessNameField, "Perlita's Variety Store");
       await tester.pumpAndSettle();
 
       await _continue(tester); // -> Requirements & Attachments
@@ -335,8 +335,8 @@ void main() {
       }
       await _continue(tester); // -> Review & Submit
 
-      expect(find.text("Cristy's Variety Store"), findsOneWidget);
-      expect(find.text("Bonghanoy's Sari-Sari Store"), findsNothing);
+      expect(find.text("Perlita's Variety Store"), findsOneWidget);
+      expect(find.text("Quiambao's Sari-Sari Store"), findsNothing);
       expect(tester.takeException(), isNull);
     });
   });

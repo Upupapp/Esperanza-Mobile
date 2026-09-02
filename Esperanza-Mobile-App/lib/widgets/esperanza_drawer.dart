@@ -1,5 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../services/master_file_service.dart';
+import '../services/notifications_service.dart';
+import '../services/requests_service.dart';
+import '../services/resident_profile_service.dart';
+import '../services/sign_out.dart';
 import '../screens/auth/register_screen.dart';
 import '../screens/directory/directory_screen.dart';
 import '../screens/legal/privacy_policy_screen.dart';
@@ -11,7 +16,6 @@ import '../screens/shared/my_requests_screen.dart';
 import '../screens/shared/transactions_screen.dart';
 import '../screens/support/help_support_screen.dart';
 import '../services/citizen_session_service.dart';
-import '../services/resident_profile_service.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
 import '../utils/demo_resident_photo.dart';
@@ -109,14 +113,33 @@ class EsperanzaDrawer extends StatelessWidget {
                       danger: true,
                       onTap: () async {
                         Navigator.of(context).pop();
+                        // Read the services BEFORE the await - `context` may be gone by the
+                        // time the dialog resolves.
+                        final requests = context.read<RequestsService>();
+                        final profiles = context.read<ResidentProfileService>();
+                        final masterFile = context.read<MasterFileService>();
+                        final notifications = context.read<NotificationsService>();
                         final ok = await AppDialogs.confirm(
                           context,
                           title: 'Sign out?',
-                          message: 'You can sign back in anytime with your registered email.',
+                          // Says what actually happens. Signing out now erases this
+                          // account's profile, photo, requests and documents from the
+                          // device, and there is no backend holding a copy - so the old
+                          // "sign back in anytime" was a promise the app cannot keep.
+                          message: 'Your profile, photo, requests and uploaded documents will be removed '
+                              'from this device. You can register or sign in again anytime.',
                           confirmLabel: 'Sign Out',
                           danger: true,
                         );
-                        if (ok) await session.logout();
+                        if (ok) {
+                          await SignOut.signOut(
+                            session,
+                            requests: requests,
+                            profiles: profiles,
+                            masterFile: masterFile,
+                            notifications: notifications,
+                          );
+                        }
                       },
                     ),
                   ],
@@ -146,7 +169,7 @@ class EsperanzaDrawer extends StatelessWidget {
     // `pushAndRemoveUntil(..., (route) => false)` removed _AuthGate from
     // the stack entirely, so any *later* login()/logout() had nothing
     // left to react to, leaving the user stuck on whatever screen was
-    // showing (this was the root cause behind "Ronaldo/Cristy no longer
+    // showing (this was the root cause behind "Nicanor/Perlita no longer
     // opening" when reached via this Sign In / Create Account path).
     nav.popUntil((route) => route.isFirst);
     if (register) {

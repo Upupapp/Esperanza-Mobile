@@ -1,9 +1,9 @@
 // Coverage for the Mobile <-> Web Admin final alignment pass's
 // CatalogItem.demoDefaults / demoPurpose architecture: realistic
 // service-specific demo answers that appear ONLY for the verified primary
-// demo resident (Cristy), layer strictly below the existing Master
+// demo resident (Perlita), layer strictly below the existing Master
 // Profile prefill (see ServiceRequestWizardScreen's own prefill block and
-// cristy_master_profile_alignment_test.dart), and remain ordinary editable
+// perlita_master_profile_alignment_test.dart), and remain ordinary editable
 // form values — never hintText, never locked, and editing one never
 // touches the Resident Master Profile or any other request.
 import 'dart:typed_data';
@@ -27,7 +27,7 @@ import 'package:esperanza_mobile/services/resident_profile_service.dart';
 import 'package:esperanza_mobile/theme/app_colors.dart';
 import 'package:esperanza_mobile/widgets/app_button.dart';
 
-const _cristyId = 'ESP-RES-2024-1044';
+const _verifiedDemoId = 'ESP-RES-2024-9002';
 
 Attachment _fakeAttachment(String fileName) {
   return Attachment(
@@ -140,19 +140,19 @@ void main() {
     return requests;
   }
 
-  group('demoDefaults / demoPurpose — Cristy only, always editable', () {
+  group('demoDefaults / demoPurpose — Perlita only, always editable', () {
     testWidgets('Barangay Clearance: purpose defaults to Proof of Residency and is freely editable', (tester) async {
       SharedPreferences.setMockInitialValues({});
       final mf = await _readyMasterFile(tester);
       await mf.saveOrUpdate(
-        accountId: _cristyId,
+        accountId: _verifiedDemoId,
         documentType: 'valid_government_id',
         label: 'One (1) valid government-issued ID',
         attachment: _fakeAttachment('gov_id.pdf'),
         origin: 'Test',
       );
       await mf.saveOrUpdate(
-        accountId: _cristyId,
+        accountId: _verifiedDemoId,
         documentType: 'proof_of_residency',
         label: 'Proof of residency',
         attachment: _fakeAttachment('residency_proof.pdf'),
@@ -161,7 +161,7 @@ void main() {
       final item = MockCatalog.documentTypes.firstWhere((i) => i.key == 'dokyu_barangay_clearance');
       final requests = await pumpWizard(
         tester,
-        account: MockCatalog.demoAccounts.last, // Cristy
+        account: MockCatalog.demoAccounts.last, // Perlita
         item: item,
         category: ServiceCategory.dokyu,
         masterFile: mf,
@@ -170,7 +170,7 @@ void main() {
       await tester.tap(find.widgetWithText(AppButton, 'Continue')); // Applicant Info -> Clearance Details
       await tester.pumpAndSettle();
 
-      // Web Admin's own record for Cristy: Purpose defaults to Proof of
+      // Web Admin's own record for Perlita: Purpose defaults to Proof of
       // Residency, not Local Employment.
       expect(find.text('Proof of Residency'), findsOneWidget);
 
@@ -219,7 +219,7 @@ void main() {
       final item = MockCatalog.documentTypes.firstWhere((i) => i.key == 'dokyu_barangay_clearance');
       await pumpWizard(
         tester,
-        account: MockCatalog.demoAccounts.first, // Ronaldo — not the verified demo resident
+        account: MockCatalog.demoAccounts.first, // Nicanor — not the verified demo resident
         item: item,
         category: ServiceCategory.dokyu,
       );
@@ -232,7 +232,7 @@ void main() {
       expect(tester.takeException(), isNull);
     });
 
-    testWidgets('Certificate of Residency: residencyType and purpose both prefill for Cristy', (tester) async {
+    testWidgets('Certificate of Residency: residencyType and purpose both prefill for Perlita', (tester) async {
       SharedPreferences.setMockInitialValues({});
       final item = MockCatalog.documentTypes.firstWhere((i) => i.key == 'dokyu_residency');
       await pumpWizard(
@@ -256,14 +256,14 @@ void main() {
       SharedPreferences.setMockInitialValues({});
       final mf = await _readyMasterFile(tester);
       await mf.saveOrUpdate(
-        accountId: _cristyId,
+        accountId: _verifiedDemoId,
         documentType: 'valid_government_id',
         label: 'One (1) valid government-issued ID',
         attachment: _fakeAttachment('gov_id.pdf'),
         origin: 'Test',
       );
       await mf.saveOrUpdate(
-        accountId: _cristyId,
+        accountId: _verifiedDemoId,
         documentType: 'proof_of_business_location_lease_contract_or_land_title',
         label: 'Proof of business location (lease contract or land title)',
         attachment: _fakeAttachment('business_location.pdf'),
@@ -281,17 +281,17 @@ void main() {
       await tester.tap(find.widgetWithText(AppButton, 'Continue')); // Applicant Info -> Business Details
       await tester.pumpAndSettle();
 
-      expect(find.text("Bonghanoy's Sari-Sari Store"), findsOneWidget);
+      expect(find.text("Quiambao's Sari-Sari Store"), findsOneWidget);
       expect(find.text('Retail - Sari-Sari Store'), findsOneWidget);
       expect(find.text('3'), findsOneWidget);
       expect(find.text('15000'), findsOneWidget);
 
       // Editable: clear and retype the business name field.
-      final businessNameField = find.widgetWithText(TextField, "Bonghanoy's Sari-Sari Store");
-      await tester.enterText(businessNameField, 'Cristy Variety Store');
+      final businessNameField = find.widgetWithText(TextField, "Quiambao's Sari-Sari Store");
+      await tester.enterText(businessNameField, 'Perlita Variety Store');
       await tester.pumpAndSettle();
-      expect(find.text("Bonghanoy's Sari-Sari Store"), findsNothing);
-      expect(find.text('Cristy Variety Store'), findsOneWidget);
+      expect(find.text("Quiambao's Sari-Sari Store"), findsNothing);
+      expect(find.text('Perlita Variety Store'), findsOneWidget);
 
       await tester.tap(find.widgetWithText(AppButton, 'Continue')); // -> Requirements & Attachments
       await tester.pumpAndSettle();
@@ -315,7 +315,7 @@ void main() {
       await tester.pumpAndSettle();
 
       final submitted = requests.all.last;
-      expect(submitted.formFields['businessName'], 'Cristy Variety Store');
+      expect(submitted.formFields['businessName'], 'Perlita Variety Store');
       expect(tester.takeException(), isNull);
     });
 
@@ -357,8 +357,8 @@ void main() {
         await tester.pump(const Duration(milliseconds: 1));
       }
       final request = await requests.submit(
-        applicantId: _cristyId,
-        applicantName: 'Cristy Bonghanoy',
+        applicantId: _verifiedDemoId,
+        applicantName: 'Perlita Quiambao',
         typeName: 'Barangay Clearance', // matches dokyu_barangay_clearance's own demoRejectionReason
         category: ServiceCategory.dokyu,
         office: 'Barangay Hall',
@@ -399,7 +399,7 @@ void main() {
       final item = MockCatalog.documentTypes.firstWhere((i) => i.key == 'dokyu_cedula');
       await pumpNewRequestScreen(
         tester,
-        account: MockCatalog.demoAccounts.first, // Ronaldo
+        account: MockCatalog.demoAccounts.first, // Nicanor
         item: item,
         category: ServiceCategory.dokyu,
       );

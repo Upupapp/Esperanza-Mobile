@@ -83,14 +83,8 @@ class Attachment {
   factory Attachment.fromJson(Map<String, dynamic> json) => Attachment(
         id: json['id'],
         fileName: json['fileName'],
-        // `other` is a genuinely neutral member of this enum, so an unknown
-        // category degrades to a generic file rather than dropping the
-        // attachment. The other three persisted enums have no safe default —
-        // see persistence_guard.dart.
-        category: AttachmentCategory.values.firstWhere(
-          (c) => c.name == json['category'],
-          orElse: () => AttachmentCategory.other,
-        ),
+        category: AttachmentCategory.values
+            .firstWhere((c) => c.name == json['category'], orElse: () => AttachmentCategory.other),
         sizeBytes: json['sizeBytes'],
         localPath: json['localPath'],
         remoteUrl: json['remoteUrl'],

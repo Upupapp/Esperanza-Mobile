@@ -122,7 +122,7 @@ class PostMedia {
 
   factory PostMedia.fromJson(Map<String, dynamic> json) => PostMedia(
         path: json['path'],
-        type: PostMediaType.values.firstWhere((t) => t.name == json['type']),
+        type: PostMediaType.values.firstWhere((t) => t.name == json['type'], orElse: () => PostMediaType.image),
         isAsset: json['isAsset'] ?? false,
         fileName: json['fileName'],
       );

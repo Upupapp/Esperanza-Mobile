@@ -5,7 +5,7 @@ import '../services/citizen_session_service.dart';
 import '../widgets/restricted_feature_notice.dart';
 
 /// Reacting/commenting/sharing are all Verified-only actions — Guest AND
-/// signed-in-but-Unverified (e.g. Ronaldo) both get the same reusable
+/// signed-in-but-Unverified (e.g. Nicanor) both get the same reusable
 /// account/verification notice any other protected interaction shows,
 /// rather than the action silently no-op'ing. Public viewing (including
 /// opening/zooming the post image) stays open to everyone regardless —

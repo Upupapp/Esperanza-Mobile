@@ -1,5 +1,5 @@
 // Functional verification of PostImageViewer — the tap-to-enlarge Balita
-// image overlay — covering Guest gating, Ronaldo's (unverified but
+// image overlay — covering Guest gating, Nicanor's (unverified but
 // signed-in) engagement also being gated the same way, and feed/viewer
 // like-state synchronization.
 import 'package:flutter/material.dart';
@@ -170,15 +170,15 @@ void main() {
   );
 
   testWidgets(
-    'Ronaldo Bautista (signed in, unverified): treated the same as Guest — React/Comment/Share are blocked in the viewer, viewing/zooming stays available',
+    'Nicanor Sarmiento (signed in, unverified): treated the same as Guest — React/Comment/Share are blocked in the viewer, viewing/zooming stays available',
     (tester) async {
       SharedPreferences.setMockInitialValues({'esperanza_onboarding_complete': true});
       _setPhoneViewport(tester);
       await tester.pumpWidget(const EsperanzaMobileApp());
       await tester.pumpAndSettle();
 
-      await tester.ensureVisible(find.text('Ronaldo Bautista'));
-      await tester.tap(find.text('Ronaldo Bautista'));
+      await tester.ensureVisible(find.text('Nicanor Sarmiento'));
+      await tester.tap(find.text('Nicanor Sarmiento'));
       await tester.pumpAndSettle();
       await _waitOutSignInToast(tester);
       await _dismissWelcomeBanner(tester);
@@ -253,8 +253,8 @@ void main() {
       await tester.pumpWidget(const EsperanzaMobileApp());
       await tester.pumpAndSettle();
 
-      await tester.ensureVisible(find.text('Cristy Bonghanoy'));
-      await tester.tap(find.text('Cristy Bonghanoy'));
+      await tester.ensureVisible(find.text('Perlita Quiambao'));
+      await tester.tap(find.text('Perlita Quiambao'));
       await tester.pumpAndSettle();
       await _waitOutSignInToast(tester);
       await _dismissWelcomeBanner(tester);
@@ -291,8 +291,8 @@ void main() {
     await tester.pumpWidget(const EsperanzaMobileApp());
     await tester.pumpAndSettle();
 
-    await tester.ensureVisible(find.text('Cristy Bonghanoy'));
-    await tester.tap(find.text('Cristy Bonghanoy'));
+    await tester.ensureVisible(find.text('Perlita Quiambao'));
+    await tester.tap(find.text('Perlita Quiambao'));
     await tester.pumpAndSettle();
     await _waitOutSignInToast(tester);
     await _dismissWelcomeBanner(tester);

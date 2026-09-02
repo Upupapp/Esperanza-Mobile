@@ -207,6 +207,7 @@ class _ScreenshotField extends StatelessWidget {
                   ),
                 ),
                 IconButton(
+                  tooltip: 'Remove attachment',
                   onPressed: onRemove,
                   icon: const Icon(Icons.close_rounded, size: 18, color: AppColors.slate400),
                   padding: EdgeInsets.zero,

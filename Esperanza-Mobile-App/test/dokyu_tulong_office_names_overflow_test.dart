@@ -47,7 +47,7 @@ const _narrowSizes = <String, Size>{
 Future<void> _pumpWithProviders(WidgetTester tester, Widget home, {bool seedDemoData = true}) async {
   SharedPreferences.setMockInitialValues({});
   final session = CitizenSessionService();
-  await session.login(MockCatalog.demoAccounts.last); // Cristy — verified, full access
+  await session.login(MockCatalog.demoAccounts.last); // Perlita — verified, full access
 
   // Demo seeding (_seedDemoStatusSimulationsIfNeeded) runs asynchronously
   // off the constructor; screens like RequestDetailScreen do a synchronous

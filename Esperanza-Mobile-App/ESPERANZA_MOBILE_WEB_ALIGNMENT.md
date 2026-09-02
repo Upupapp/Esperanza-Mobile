@@ -2,7 +2,17 @@
 
 Living reference for keeping the Esperanza Mobile App (Flutter, this repo) and the Esperanza Web Admin (Laravel, `Esperanza-Web-Platform-frontend--main`, **read-only** — never modified from this project) in sync. Both projects are currently **pure frontend** — no real backend exists for either. This document is what gets handed to the Web Admin / backend developer.
 
-Last updated: 2026-08-11.
+Last updated: **2026-08-29**. Previously 2026-08-11.
+
+> **How to read the dates in this document.** Every claim that is a *measurement* — a count, a
+> parity assertion, a compatibility statement — carries the date it was measured, inline. A claim
+> without a date is either structural (it describes intent, not a fact about the code) or it has
+> not been re-measured since 2026-08-11 and should be treated as inherited rather than verified.
+> Do not mark a claim verified because it was true when it was written: date it or re-measure it.
+>
+> Corrections made on 2026-08-29 by the front-end programme (FE 01 – FE 14) are marked inline
+> where they occur, with the command that made them. The full reasoning for each lives in
+> `docs/FE0*.md`.
 
 ---
 
@@ -10,7 +20,9 @@ Last updated: 2026-08-11.
 
 Extracted read-only from the Web Admin's `resources/css/app.css` (`@theme` block) and `resources/views/components/ui/*.blade.php`. Ported 1:1 into `lib/theme/*.dart`. Never invent colors outside this list.
 
-### Colors (exact hex from `app.css`)
+*Measured 2026-08-29: all 23 navy/brand/gold hexes in `app_colors.dart` match `app.css` exactly. `sky-50/500/700` were added on the same date for the `Resubmitted` badge — not an invented colour, but the Tailwind defaults the Web Admin's own `bg-sky-*` classes resolve to, sourced the same way every other status hex in that file is (FE 04).*
+
+### Colors (exact hex from `app.css`) — verified matching 2026-08-29
 
 | Token | Hex | Used for |
 |---|---|---|
@@ -22,7 +34,11 @@ Extracted read-only from the Web Admin's `resources/css/app.css` (`@theme` block
 
 ### Universal status system (exact, from `badge.blade.php` — never invent new labels)
 
-Draft, Submitted, Pending Review, Under Verification, Assigned, Processing, Waiting Requirements, Approved, Rejected, Ready for Release, Released, Completed, Cancelled, Archived — each with a fixed bg/text/dot color tint (see `lib/theme/app_status.dart`, ported line-for-line from `badge.blade.php`).
+Draft, Submitted, Pending Review, Under Verification, Assigned, Processing, Under Review, Resubmitted, Approved, Verified, Unverified, Rejected, Mark to Release, Released, Completed, Cancelled, Archived — seventeen, each with a fixed bg/text/dot colour tint (see `lib/theme/app_status.dart`, ported line-for-line from `badge.blade.php`).
+
+> **Corrected 2026-08-29 (FE 04).** This list previously named fourteen and included `Ready for Release` and `Waiting Requirements`. Measured against `badge.blade.php` on the web repo's **`origin/main`**: `Ready for Release` has been renamed `Mark to Release`, `Waiting Requirements` no longer exists web-side at all, and `Under Review`, `Resubmitted`, `Verified` and `Unverified` were missing here. Check this list against `origin/main`, never a local clone — a clone a few dozen commits stale still carries the old labels and will make mobile look correct when it is not. `test/status_parity_test.dart` now enforces it.
+>
+> `Waiting Requirements` still exists in mobile's enum **pending an owner decision** — see `docs/FE04_STATUS_PARITY.md`. It is inert in practice: `requests_service.dart` migrates it to `Under Review` on load, so no live request can carry it.
 
 ### Typography
 
@@ -39,7 +55,7 @@ Draft, Submitted, Pending Review, Under Verification, Assigned, Processing, Wait
 | `ui/input.blade.php` | `lib/widgets/app_text_field.dart` |
 | `ui/empty-state.blade.php` | `lib/widgets/empty_state.dart` (+ `SkeletonBox`, `ErrorState`) |
 | `ui/stat-card.blade.php` | `lib/widgets/stat_tile.dart` |
-| `ui/file-picker.blade.php` (category icons: IMG/PDF/DOCX/VID) | `lib/widgets/attachment_picker.dart` (real device picker, not a mock) |
+| `ui/file-picker.blade.php` (category icons: IMG/PDF/DOCX/VID) | `lib/widgets/requirement_uploader.dart` (real device picker, not a mock) — one uploader per requirement. Corrected 2026-08-29: this row named `attachment_picker.dart`, which no screen ever rendered and which was deleted in FE 08. |
 
 ### Brand assets
 
@@ -95,6 +111,58 @@ This is exactly the loop the "Demo: Simulate Web Admin Action" panel fakes local
 
 ---
 
+## Section 4a — Citizen access tiers and per-category capabilities
+
+*Added 2026-08-29, agreed with the backend session. This is the contract FE 13 should consume
+instead of deriving anything client-side.*
+
+Mobile has **three** access tiers (`lib/models/access_level.dart`), and `AccessGuard` compares
+them by enum index, so declaration order is part of the contract:
+
+| Tier | Reaches |
+|---|---|
+| `guest` | Balita, Events |
+| `unverified` | + Sakuna / Emergency — a registered but unapproved citizen may still report an incident |
+| `verified` | + Dokyu, Tulong |
+
+**The server deliberately models only two.** `guest` means no account and therefore no session,
+so there is nothing for `/auth/me` to describe. Authenticated is always exactly Verified or
+Unverified:
+
+    access_level "Verified"    -> AccessLevel.verified
+    access_level "Unverified"  -> AccessLevel.unverified
+    no session                 -> AccessLevel.guest   (client-only, never a server value)
+
+### The tier is a property of the ACCOUNT; the gate is a property of the CATEGORY
+
+Conflating those is what produced the `Verified`-means-locked-out bug in Section 1, and a
+single `full_service_access` boolean would have reintroduced it — it answers Dokyu/Tulong and
+says nothing about incident reporting. So the contract publishes both:
+
+    GET /api/v1/auth/me
+      "status": "Approved",              // the stored value
+      "access_level": "Verified",        // the derived tier — SAME state, different field
+      "capabilities": { "dokyu": false, "tulong": false,
+                        "sakuna_incident": true,
+                        "satisfaction_survey": true, "community_post": true }
+
+    GET /api/v1/statuses
+      "citizen_capability_requirements": { "dokyu": "Verified", "tulong": "Verified",
+                                           "sakuna_incident": "Unverified", ... }
+
+A client reads `capabilities` to **enforce**, and `citizen_capability_requirements` to
+**explain** — which is what mobile's `RestrictionReason.guestOnly` / `needsVerification` copy
+needs, without re-deriving the rule.
+
+`Approved` and `Verified` arrive from *different fields* and both are live. Mobile treats them
+as one state (`CitizenSessionService.accessLevel`), which is the correct reading of two fields
+describing the same account from different angles — not a tolerance for inconsistent input.
+
+Pinned from this side by `test/access_tier_contract_test.dart`, which parses the guards out of
+`root_shell.dart` rather than restating them.
+
+---
+
 ## Section 5 — Missing Web Admin Processes
 
 *(For the Web Admin / backend developer — nothing below was built or implied in the Web Admin project itself.)*
@@ -102,16 +170,19 @@ This is exactly the loop the "Demo: Simulate Web Admin Action" panel fakes local
 ### Dokyu (Document Requests) API
 - **Missing:** `document_requests` table, model, controller, API routes, admin review UI wired to real data (current `admin.document-requests` route is a static Blade mock).
 - **Required fields:** applicant_id, type, office, purpose, submitted_at, status, status_history, attachments (file refs), remarks, admin_remarks.
-- **Required admin actions:** Review, Verify, Approve, Reject, Ready for Release, Release, Archive.
-- **Statuses:** Submitted → Under Verification → Waiting Requirements (optional loop) → Approved → Ready for Release → Released / Rejected.
+- **Required admin actions:** Review, Verify, Approve, Reject, Mark to Release, Release, Archive. *(2026-08-29: `Ready for Release` renamed `Mark to Release` to match the web platform.)*
+- **Statuses:** Submitted → Under Verification → Under Review (optional loop) → Approved → Mark to Release → Released / Rejected. *(2026-08-29: was `Waiting Requirements` → `Ready for Release`; both renamed — see Section 1.)*
 - **Mobile reflection:** status chip + timeline, as built.
 
 ### Tulong (Assistance Requests) API
-- Same shape as Dokyu. **Statuses:** Submitted → Assigned → Processing → Waiting Requirements (optional) → Approved → Released / Rejected → Completed.
+- Same shape as Dokyu. **Statuses:** Submitted → Assigned → Processing → Under Review (optional) → Approved → Released / Rejected → Completed. *(2026-08-29: was `Waiting Requirements` — see Section 1.)*
 
 ### Sakuna Incidents (citizen-reported) API
-- **Missing:** citizen-facing incident submission endpoint. The Web Admin's Sakuna module (Command Center, Incidents, etc.) is itself entirely mock data with no backend — see the separate Laravel readiness audit delivered earlier in this session.
+- **~~Missing~~ — DELIVERED 2026-08-29** (backend `a63a8ae`). This entry was correct: there was no citizen path. The only way to create an incident was `POST /api/v1/admin/sakuna/incidents`, behind an admin permission no citizen holds, so mobile's "Report an Incident" button had nothing to call.
+- **Now available:** `POST /api/v1/citizen/incidents` (session required, **Unverified accounts allowed** — see Section 4a), `GET /api/v1/citizen/incidents` for the citizen's own reports. Throttled 20/min and idempotent on `client_uuid`, so a report replayed after a phone loses signal returns the filed incident (200) rather than creating a duplicate (201). Lands with `source: "Citizen Portal"` and enters the responders' queue on the same verb chain as a field-reported incident.
+- **Body:** `title`, `type`, `severity`, `barangay`, `sitio`, `lat`, `lng`, `description`, `client_uuid`.
 - **Statuses:** Submitted → Validated → Dispatched → Resolved / Closed.
+- The Web Admin's own Sakuna module (Command Center, Incidents) remains mock data — the citizen submission path is what now exists.
 
 ### Citizen Registration & Verification
 - **Missing:** any citizen self-registration endpoint, `residents` table, verification queue for barangay staff. Currently registration only exists as static demo accounts in `config/esperanza_citizens.php`.
@@ -140,6 +211,7 @@ This is exactly the loop the "Demo: Simulate Web Admin Action" panel fakes local
 
 ## Section 7 — Mock Data / Simulation
 
+- **Demo identities are SYNTHETIC** *(FE 02, 2026-08-29)*. The three seeded citizens, their household and family members, their emergency contact, their record ids, contact details, profile images and government-ID scans are all invented. Until that date they were real residents' records and real scans, in a public repository. Artwork is generated by `tool/demo_identity_art/generate.py` and carries no photograph of anyone; `test/no_real_identities_test.dart` fails if a retired real name or record id reappears.
 - All catalog data (document types, assistance programs, incident types, offices, barangays, sample announcements/events) is copied from real values found in the Web Admin's Blade files and config, trimmed to a representative subset rather than the full per-barangay catalogs (e.g., only Labangtaytay's barangay-specific documents exist in the Web Admin; mobile doesn't attempt to replicate that per-barangay branching yet).
 - Session, requests, and profile data persist locally via `shared_preferences` (JSON-encoded), so the demo survives app restarts — mirrors the Web Admin's own `localStorage`-based frontend simulation pattern exactly.
 - Reference numbers (`DR-/AR-/IR-YYYY-####`) are generated locally and are **not** guaranteed unique against a real backend's eventual numbering — this must be reconciled once a real API exists (likely: server assigns the reference number on submit, not the client).
@@ -161,8 +233,8 @@ When the backend developer builds real APIs (see the separate Laravel backend-re
 ## Section 9 — Android/iOS Compatibility Notes
 
 - **Permissions declared:** Camera + photo library (`READ_MEDIA_IMAGES` / `READ_EXTERNAL_STORAGE` on Android; `NSCameraUsageDescription` / `NSPhotoLibraryUsageDescription` on iOS) — see `android/app/src/main/AndroidManifest.xml` and `ios/Runner/Info.plist`.
-- **Attachment picker** (`lib/widgets/attachment_picker.dart`) uses `image_picker` (camera + gallery) and `file_picker` (PDF/DOCX/images), both of which have first-class Android and iOS implementations — no platform-specific code was needed.
+- **Requirement uploader** (`lib/widgets/requirement_uploader.dart`) uses `image_picker` (camera + gallery) and `file_picker` (PDF/DOCX/images), both of which have first-class Android and iOS implementations — no platform-specific code was needed. Corrected 2026-08-29: this named `attachment_picker.dart`, which was unreachable from `main.dart` and was deleted in FE 08; the capability itself was never missing, only misattributed.
 - **Bottom nav IA** deliberately trimmed to 5 items (Home/Dokyu/Tulong/Alerts/Profile) rather than mirroring the Web Admin's 7-item sidebar, since a 7-tab bottom bar doesn't fit comfortably on smaller Android/iOS screens. Balita, Events, Directory, and Help remain fully reachable from Home and Profile.
 - **SafeArea** wraps every screen's scaffold body where content could collide with a notch/Dynamic Island or Android gesture nav.
 - **Keyboard handling:** form screens (`NewRequestScreen`, `RegisterScreen`, `EditProfileScreen`) use `SingleChildScrollView` so the keyboard never covers the active field.
-- **Not yet verified on a physical device or emulator in this environment** — this build environment has no Android SDK cmdline-tools configured and no iOS toolchain (Windows host). `flutter analyze` is clean, `flutter test` passes, and `flutter build web` compiles the full app successfully as a proxy signal, but a real on-device run is still owed — see the final report for exact commands to run this yourself.
+- **Verified on an Android emulator as of 2026-08-29; still not on physical hardware, and never on iOS.** The claim that this environment has no Android SDK is out of date for the Windows lane: `flutter build apk --release` succeeds there and the APK installs and runs on a Pixel 8 emulator (Android 16 / API 36), reaching onboarding with no app-level error in `logcat`. A run on a real handset, and any iOS build at all, are still owed. `flutter analyze` is clean, `flutter test` passes, and `flutter build web` compiles the full app successfully as a proxy signal, but a real on-device run is still owed — see the final report for exact commands to run this yourself.

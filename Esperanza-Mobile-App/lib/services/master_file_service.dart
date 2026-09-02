@@ -1,9 +1,10 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
+import 'persistence_recovery.dart';
 import '../models/attachment.dart';
 import '../models/master_file_document.dart';
-import 'persistence_guard.dart';
 
 /// Local, frontend-only "database" for the resident's Master File — same
 /// persistence shape as ResidentProfileService/RequestsService: JSON to
@@ -27,22 +28,38 @@ class MasterFileService extends ChangeNotifier {
   Future<void> _restore() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final decoded = await readJsonGuarded(prefs, _key);
-      if (decoded is Map<String, dynamic>) {
-        _byAccount = decodeEntriesGuarded(
-          decoded,
-          (docs) => decodeEachGuarded(
-            docs as List,
-            (d) => MasterFileDocument.fromJson(d),
-            what: 'master file document',
-          ),
-          what: 'master file account',
+      final raw = prefs.getString(_key);
+      if (raw != null) {
+        final map = jsonDecode(raw) as Map<String, dynamic>;
+        _byAccount = map.map(
+          (accountId, docs) => MapEntry(accountId, (docs as List).map((d) => MasterFileDocument.fromJson(d)).toList()),
         );
       }
+    } catch (error) {
+      // A payload persisted by an earlier build can fail to decode after a
+      // model or enum changes shape. Before this guard that throw escaped an
+      // un-awaited future started in the constructor, so notifyListeners()
+      // never fired and AuthGate spun on the splash forever - recoverable
+      // only by clearing app data. Discard the unreadable state instead; the
+      // migrations here already exist for exactly this class of change.
+      _byAccount = {};
+      await PersistenceRecovery.discardUnreadable(
+        service: 'MasterFileService',
+        keys: const [_key],
+        error: error,
+      );
     } finally {
       _loaded = true;
       notifyListeners();
     }
+  }
+
+  /// Erases [accountId]'s stored Master File documents from memory and from
+  /// disk. Called on sign-out.
+  Future<void> forgetAccount(String accountId) async {
+    _byAccount.remove(accountId);
+    await _persist();
+    notifyListeners();
   }
 
   Future<void> _persist() async {

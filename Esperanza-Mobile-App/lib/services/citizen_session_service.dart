@@ -5,7 +5,7 @@ import '../models/access_level.dart';
 import '../models/citizen_account.dart';
 import '../theme/app_status.dart';
 import 'mock_catalog.dart';
-import 'persistence_guard.dart';
+import 'persistence_recovery.dart';
 
 /// Frontend-only session simulation — the mobile equivalent of the Web
 /// Admin's `Alpine.store('citizenSession')` in resources/js/app.js. No real
@@ -40,50 +40,60 @@ class CitizenSessionService extends ChangeNotifier {
   AccessLevel get accessLevel {
     final acc = _account;
     if (acc == null) return AccessLevel.guest;
-    return AppStatusX.fromLabel(acc.status) == AppStatus.approved ? AccessLevel.verified : AccessLevel.unverified;
+    final status = AppStatusX.fromLabel(acc.status);
+    // `Approved` and `Verified` are the same state under two names. The Web
+    // Admin stores `Approved` and *displays* `Verified`
+    // (constituents.blade.php: `$acct['status'] === 'Approved' ? 'Verified'`),
+    // and its own comment says `Verified` grants full Dokyu/Tulong access.
+    // Mobile writes only `Approved` today, so this is additive — but before
+    // `verified` existed in AppStatus, a status arriving as `Verified` resolved
+    // to `draft` and locked the citizen OUT of Dokyu, meaning the identical
+    // word granted access on one surface and denied it on the other.
+    final isVerified = status == AppStatus.approved || status == AppStatus.verified;
+    return isVerified ? AccessLevel.verified : AccessLevel.unverified;
   }
 
   CitizenSessionService() {
     _restore();
   }
 
-  /// Restores the signed-in session, or falls back to signed-out.
-  ///
-  /// Nothing awaits this future, so it must not be allowed to throw: an
-  /// escaping error would leave [_loading] true forever and strand `AuthGate`
-  /// on its spinner. [_loading] is therefore cleared in a `finally`, on every
-  /// path including one nobody predicted. Falling back to the sign-in screen
-  /// costs the citizen a sign-in; the alternative costs them the app.
   Future<void> _restore() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final decoded = await readJsonGuarded(prefs, _key);
-      if (decoded != null) {
-        try {
-          _account = CitizenAccount.fromJson(decoded as Map<String, dynamic>);
-          final migrated = _migrateStaleDemoIdentity(_account!);
-          if (migrated != null) {
-            _account = migrated;
-            await prefs.setString(_key, jsonEncode(migrated.toJson()));
-          }
-        } catch (error) {
-          // Readable JSON, unreadable session — a shape this build no longer
-          // understands. Drop it and start signed out rather than half-restored.
-          debugPrint('persistence: unusable session, signing out — $error');
-          _account = null;
-          await prefs.remove(_key);
+      final raw = prefs.getString(_key);
+      if (raw != null) {
+        _account = CitizenAccount.fromJson(jsonDecode(raw));
+        final migrated = _migrateStaleDemoIdentity(_account!);
+        if (migrated != null) {
+          _account = migrated;
+          await prefs.setString(_key, jsonEncode(migrated.toJson()));
         }
-      }
-      if (_account == null) {
+      } else {
         _isGuest = prefs.getBool(_guestKey) ?? false;
       }
+    } catch (error) {
+      // A payload persisted by an earlier build can fail to decode after a
+      // model or enum changes shape. Before this guard that throw escaped an
+      // un-awaited future started in the constructor, so notifyListeners()
+      // never fired and AuthGate spun on the splash forever - recoverable
+      // only by clearing app data. Discard the unreadable state instead; the
+      // migrations here already exist for exactly this class of change.
+      _account = null;
+      _isGuest = false;
+      // Only the session key — the guest flag is a separate, still-readable key.
+      await PersistenceRecovery.discardUnreadable(
+        service: 'CitizenSessionService',
+        keys: const [_key],
+        error: error,
+      );
     } finally {
       _loading = false;
       notifyListeners();
     }
   }
 
-  /// A browser signed in before the Marites-Ferrer-to-Cristy-Bonghanoy demo
+
+  /// A browser signed in before the Perlita-Quiambao-to-Perlita-Quiambao demo
   /// identity correction has that exact stale [CitizenAccount] snapshot
   /// persisted (see [login]'s full-object jsonEncode) — a source-code fix
   /// alone never reaches it, since this only ever reads back whatever was
@@ -92,7 +102,7 @@ class CitizenSessionService extends ChangeNotifier {
   /// returns null for every other account, which is left untouched.
   CitizenAccount? _migrateStaleDemoIdentity(CitizenAccount stale) {
     if (stale.id == 'ESP-RES-2024-1203') return MockCatalog.demoAccounts.last;
-    if (stale.id == 'ESP-RES-2024-1203-DUP') return MockCatalog.duplicateCristyAccount;
+    if (stale.id == 'ESP-RES-2024-1203-DUP') return MockCatalog.duplicateVerifiedDemoAccount;
     return null;
   }
 

@@ -24,8 +24,8 @@ import 'package:esperanza_mobile/services/requests_service.dart';
 import 'package:esperanza_mobile/services/resident_profile_service.dart';
 import 'package:esperanza_mobile/theme/app_colors.dart';
 
-const _cristyId = 'ESP-RES-2024-1044';
-const _cristyName = 'Cristy Bonghanoy';
+const _verifiedDemoId = 'ESP-RES-2024-9002';
+const _verifiedDemoName = 'Perlita Quiambao';
 
 Future<void> _pumpTulongCatalog(WidgetTester tester, {required List<Map<String, dynamic>> seededRequests}) async {
   SharedPreferences.setMockInitialValues({
@@ -38,7 +38,7 @@ Future<void> _pumpTulongCatalog(WidgetTester tester, {required List<Map<String, 
     if (attempts > 100) throw StateError('CitizenSessionService never finished loading.');
     await tester.pump(const Duration(milliseconds: 1));
   }
-  await session.login(MockCatalog.demoAccounts.last); // Cristy — verified
+  await session.login(MockCatalog.demoAccounts.last); // Perlita — verified
 
   final requests = RequestsService(seedDemoData: false);
   attempts = 0;
@@ -73,8 +73,8 @@ Future<void> _pumpTulongCatalog(WidgetTester tester, {required List<Map<String, 
 Map<String, dynamic> _activeMedicalAssistance() => ServiceRequest(
       id: 'req-active-medical',
       referenceNumber: 'AR-2026-0001',
-      applicantId: _cristyId,
-      applicantName: _cristyName,
+      applicantId: _verifiedDemoId,
+      applicantName: _verifiedDemoName,
       typeName: 'Medical Assistance (AICS)',
       category: ServiceCategory.tulong,
       office: 'Municipal Social Welfare and Development Office',

@@ -210,7 +210,7 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
             title: 'What do Pending, Approved and Rejected mean?',
             child: Text(
               'These reflect where your request is in the review process. A request may also show other '
-              'statuses, such as Under Verification, Processing, or Waiting Requirements, depending on how far '
+              'statuses, such as Under Verification, Processing, or Under Review, depending on how far '
               'along it is.',
               style: AppTypography.body,
             ),

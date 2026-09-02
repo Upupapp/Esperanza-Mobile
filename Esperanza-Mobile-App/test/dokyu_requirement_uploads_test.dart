@@ -25,9 +25,8 @@ import 'package:esperanza_mobile/services/mock_catalog.dart';
 import 'package:esperanza_mobile/services/requests_service.dart';
 import 'package:esperanza_mobile/services/resident_profile_service.dart';
 import 'package:esperanza_mobile/theme/app_colors.dart';
-import 'package:esperanza_mobile/widgets/attachment_picker.dart';
 
-const _cristyId = 'ESP-RES-2024-1044';
+const _verifiedDemoId = 'ESP-RES-2024-9002';
 
 Attachment _fakeAttachment(String fileName, {AttachmentCategory category = AttachmentCategory.pdf}) {
   return Attachment(
@@ -83,7 +82,7 @@ Future<RequestsService> _pumpBusinessPermit(WidgetTester tester, {required Maste
     if (attempts > 100) throw StateError('CitizenSessionService never finished loading.');
     await tester.pump(const Duration(milliseconds: 1));
   }
-  await session.login(MockCatalog.demoAccounts.last); // Cristy — verified
+  await session.login(MockCatalog.demoAccounts.last); // Perlita — verified
 
   final requests = RequestsService(seedDemoData: false);
   attempts = 0;
@@ -133,8 +132,10 @@ void main() {
         expect(find.text('Upload $label'), findsOneWidget);
       }
       // The old generic single-uploader affordance must be gone for Dokyu.
+      // Asserted by its label rather than by widget type: AttachmentPicker was
+      // deleted in FE 08 (unreachable from main.dart, its capabilities fully
+      // covered by RequirementUploader), so there is no type left to name.
       expect(find.text('Add photo or document'), findsNothing);
-      expect(find.byType(AttachmentPicker), findsNothing);
       expect(tester.takeException(), isNull);
     });
 
@@ -162,7 +163,7 @@ void main() {
     testWidgets('a matching Master File document offers reuse only under its own requirement', (tester) async {
       final mf = await _readyMasterFile(tester);
       await mf.saveOrUpdate(
-        accountId: _cristyId,
+        accountId: _verifiedDemoId,
         documentType: 'dti_or_sec_registration',
         label: 'DTI or SEC Registration',
         attachment: _fakeAttachment('dti_cert.pdf'),
@@ -186,7 +187,7 @@ void main() {
     ) async {
       final mf = await _readyMasterFile(tester);
       await mf.saveOrUpdate(
-        accountId: _cristyId,
+        accountId: _verifiedDemoId,
         documentType: 'dti_or_sec_registration',
         label: 'DTI or SEC Registration',
         attachment: _fakeAttachment('dti_cert.pdf'),
@@ -204,7 +205,7 @@ void main() {
       expect(find.text('Remove'), findsOneWidget);
 
       final dtiDocs = mf
-          .documentsFor(_cristyId)
+          .documentsFor(_verifiedDemoId)
           .where((d) => d.documentType == 'dti_or_sec_registration')
           .toList();
       expect(dtiDocs.length, 1); // reuse never duplicated the Master File entry
@@ -214,7 +215,7 @@ void main() {
     testWidgets('reusing one requirement leaves the others still requiring their own attachment', (tester) async {
       final mf = await _readyMasterFile(tester);
       await mf.saveOrUpdate(
-        accountId: _cristyId,
+        accountId: _verifiedDemoId,
         documentType: 'cedula',
         label: 'Cedula',
         attachment: _fakeAttachment('cedula_2026.jpg'),
@@ -246,7 +247,7 @@ void main() {
     testWidgets('Remove clears the local attachment without deleting it from the Master File', (tester) async {
       final mf = await _readyMasterFile(tester);
       await mf.saveOrUpdate(
-        accountId: _cristyId,
+        accountId: _verifiedDemoId,
         documentType: 'dti_or_sec_registration',
         label: 'DTI or SEC Registration',
         attachment: _fakeAttachment('dti_cert.pdf'),
@@ -264,13 +265,13 @@ void main() {
       // Back to the (still-available) reuse offer for this one application —
       // the Master File document itself was never touched by Remove.
       expect(find.text('Existing document found'), findsOneWidget);
-      expect(mf.documentsFor(_cristyId).any((d) => d.documentType == 'dti_or_sec_registration'), isTrue);
+      expect(mf.documentsFor(_verifiedDemoId).any((d) => d.documentType == 'dti_or_sec_registration'), isTrue);
     });
 
     testWidgets('"Upload New Document" opens the same source sheet as a first-time upload', (tester) async {
       final mf = await _readyMasterFile(tester);
       await mf.saveOrUpdate(
-        accountId: _cristyId,
+        accountId: _verifiedDemoId,
         documentType: 'dti_or_sec_registration',
         label: 'DTI or SEC Registration',
         attachment: _fakeAttachment('dti_cert.pdf'),

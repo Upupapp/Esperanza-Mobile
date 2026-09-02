@@ -81,7 +81,7 @@ class Individual {
   /// A married woman's birth surname — distinct from [lastName] (her
   /// current/married surname). Only ever populated for a family member
   /// whose Web Admin constituent record actually specifies one (see
-  /// ResidentProfileService's Cristy Master Profile alignment); blank for
+  /// ResidentProfileService's Perlita Master Profile alignment); blank for
   /// every other Individual, since nothing in this app's own forms
   /// currently captures it as a normal editable field.
   String maidenName;
@@ -111,7 +111,7 @@ class Individual {
   /// "classification" treatment as the four flags above, added specifically
   /// so the Web Admin's own vulnerable-sector fact for a constituent can be
   /// reflected here without inventing a new, separate tagging system (see
-  /// ResidentProfileService's Cristy Master Profile alignment).
+  /// ResidentProfileService's Perlita Master Profile alignment).
   bool isFourPsBeneficiary;
   String? photoPath;
   /// The profile photo's own bytes, base64-encoded — the source of truth
@@ -389,7 +389,7 @@ class Household {
   /// Household-level economic fact — currently sourced only from an
   /// Educational Assistance application's "Parents' Monthly Income" (see
   /// ServiceRequestWizardScreen's own prefill block and
-  /// ResidentProfileService's Cristy alignment migration), stored
+  /// ResidentProfileService's Perlita alignment migration), stored
   /// pre-formatted (e.g. "₱9,718") the same way ServiceRequest.fee already
   /// stores its own currency strings pre-formatted rather than as a raw
   /// number. Empty for every profile with nothing on file yet.
@@ -488,15 +488,15 @@ class ResidentProfile {
   /// Information's own Edit action (see FamilyInformationScreen and
   /// ResidentProfileService.saveEmergencyContact), populated by default
   /// only where a constituent's own Web Admin record actually specifies one
-  /// (see ResidentProfileService's Cristy Master Profile alignment). Blank
+  /// (see ResidentProfileService's Perlita Master Profile alignment). Blank
   /// for every profile with nothing on file.
   String emergencyContactName;
   String emergencyContactRelationship;
   String emergencyContactNumber;
 
   /// True once the citizen has explicitly saved their own Emergency Contact
-  /// edit — from that point on, the Cristy Master Profile alignment's own
-  /// seeded default (Roberto Pareja / Brother / 0919 502 7735) must never
+  /// edit — from that point on, the Perlita Master Profile alignment's own
+  /// seeded default (Rogelio Escano / Brother / 0919 000 9012) must never
   /// overwrite it again on a later app launch. Left false for a profile
   /// that has never gone through that save flow, so the seeded default
   /// keeps applying/migrating normally until the citizen actually changes
@@ -537,7 +537,7 @@ class ResidentProfile {
   /// Seeds a brand-new profile from the citizen's existing account so the
   /// Personal Information step starts pre-filled rather than blank.
   /// [familyIdOverride]/[householdIdOverride] let a specific known
-  /// constituent record (see ResidentProfileService's Cristy Master Profile
+  /// constituent record (see ResidentProfileService's Perlita Master Profile
   /// alignment, whose Web Admin record specifies exact ids) seed with those
   /// exact ids immediately rather than the generic hash-derived scheme every
   /// other account still uses.
@@ -581,7 +581,7 @@ class ResidentProfile {
   }
 
   static DateTime? _tryParseDisplayDate(String display) {
-    // Demo accounts store birthdate as "August 22, 1990" — best-effort
+    // Demo accounts store birthdate as "June 8, 1990" — best-effort
     // parse so the seeded profile can pre-fill the date picker; falls
     // back to null (unset) for anything that doesn't parse cleanly.
     try {
@@ -766,9 +766,9 @@ class ResidentProfileOptions {
     'No Formal Education', 'Elementary', 'High School', 'Senior High School', 'Vocational', 'College', 'Post Graduate',
   ];
   // 'Father'/'Mother' (rather than reusing the generic 'Parent' already
-  // below) so the Cristy Master Profile alignment's seeded family members
+  // below) so the Perlita Master Profile alignment's seeded family members
   // can carry the same specific relationship labels the Web Admin source
-  // data uses — see ResidentProfileService's Cristy alignment migration.
+  // data uses — see ResidentProfileService's Perlita alignment migration.
   // Both must be real options here, not just free text a screen happens to
   // display: FamilyMemberFormSheet's edit dropdown asserts its current
   // value is one of these, so a relationship missing from this list would

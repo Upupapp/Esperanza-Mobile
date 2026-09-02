@@ -268,8 +268,8 @@ class _InfoRow extends StatelessWidget {
 }
 
 /// Family Information's own Emergency Contact block — displays the current
-/// Name/Relationship/Contact Number (seeded default for Cristy: Roberto
-/// Pareja / Brother / 0919 502 7735 — see ResidentProfileService's Cristy
+/// Name/Relationship/Contact Number (seeded default for Perlita: Rogelio
+/// Escano / Brother / 0919 000 9012 — see ResidentProfileService's Perlita
 /// Master Profile alignment) with an Edit action that swaps in real
 /// editable fields, pre-populated with the currently saved values, never
 /// hint text. Cancel discards in-progress edits and restores the saved
@@ -336,7 +336,7 @@ class _EmergencyContactSectionState extends State<_EmergencyContactSection> {
   /// Accepts either local (09XXXXXXXXX) or +63 (+639XXXXXXXXX) mobile
   /// format, same "09XX XXX XXXX" shape used as hint text everywhere else
   /// in this app — spaces/dashes are stripped before matching so the
-  /// existing "0919 502 7735" formatting keeps working unchanged.
+  /// existing "0919 000 9012" formatting keeps working unchanged.
   bool _isValidPhMobile(String value) {
     final digits = value.replaceAll(RegExp(r'[\s-]'), '');
     return RegExp(r'^(09\d{9}|\+639\d{9})$').hasMatch(digits);
@@ -495,6 +495,7 @@ class _MemberTile extends StatelessWidget {
               ),
             ),
             IconButton(
+              tooltip: 'Remove family member',
               onPressed: onRemove,
               icon: const Icon(Icons.delete_outline_rounded, size: 19, color: AppColors.rose500),
               constraints: const BoxConstraints(minWidth: 36, minHeight: 36),

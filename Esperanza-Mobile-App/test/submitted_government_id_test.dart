@@ -1,6 +1,6 @@
 // Coverage for the relocated "Submitted Government ID" section — moved
 // from Digital ID (see digital_id_screen.dart and
-// ronaldo_teodoro_media_test.dart / cristy_identity_migration_test.dart's
+// nicanor_anacleto_media_test.dart / perlita_identity_migration_test.dart's
 // now-trimmed Digital ID coverage) to Profile > Personal Information, since
 // the physical ID a resident uploads during registration is a different
 // concept from the Esperanza Digital ID (an issued credential). This
@@ -54,7 +54,7 @@ Future<void> _scrollToBottom(WidgetTester tester) async {
 
 void main() {
   group('Submitted Government ID on Personal Information', () {
-    testWidgets('Cristy (Verified): her demo ID is at the very bottom of the page and is viewable', (tester) async {
+    testWidgets('Perlita (Verified): her demo ID is at the very bottom of the page and is viewable', (tester) async {
       await _pumpPersonalInformation(tester, MockCatalog.demoAccounts.last);
       await _scrollToBottom(tester);
 
@@ -69,7 +69,7 @@ void main() {
       expect(tester.takeException(), isNull);
     });
 
-    testWidgets('Ronaldo (Unverified): his demo ID is still visible here, and he remains Unverified', (tester) async {
+    testWidgets('Nicanor (Unverified): his demo ID is still visible here, and he remains Unverified', (tester) async {
       final session = await _pumpPersonalInformation(tester, MockCatalog.demoAccounts.first);
       await _scrollToBottom(tester);
 
@@ -86,7 +86,7 @@ void main() {
       expect(session.accessLevel, AccessLevel.unverified);
     });
 
-    testWidgets('Teodoro Account A (Unverified duplicate): his demo ID is visible here too', (tester) async {
+    testWidgets('Anacleto Account A (Unverified duplicate): his demo ID is visible here too', (tester) async {
       final session = await _pumpPersonalInformation(tester, MockCatalog.unverifiedDuplicateAccountA);
       await _scrollToBottom(tester);
 
@@ -95,7 +95,7 @@ void main() {
       expect(session.accessLevel, AccessLevel.unverified);
     });
 
-    testWidgets('Teodoro Account B (Unverified duplicate): the same demo ID is visible here', (tester) async {
+    testWidgets('Anacleto Account B (Unverified duplicate): the same demo ID is visible here', (tester) async {
       final session = await _pumpPersonalInformation(tester, MockCatalog.unverifiedDuplicateAccountB);
       await _scrollToBottom(tester);
 

@@ -15,8 +15,8 @@ import 'request_detail_screen.dart';
 /// The signed-in resident's full Dokyu + Tulong request history in one
 /// place — derived straight from [RequestsService], never a separate
 /// hardcoded list, and scoped to the current account's own `applicantId`
-/// so one signed-in resident never sees another's requests (Ronaldo never
-/// sees Teodoro's, neither sees Cristy's, and so on). Tapping a card opens
+/// so one signed-in resident never sees another's requests (Nicanor never
+/// sees Anacleto's, neither sees Perlita's, and so on). Tapping a card opens
 /// the same [RequestDetailScreen] every other "Track"/"View" entry point
 /// already uses — there is no second detail/tracking implementation.
 class MyRequestsScreen extends StatefulWidget {

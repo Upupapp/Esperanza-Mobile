@@ -23,7 +23,7 @@ import 'package:esperanza_mobile/services/notifications_service.dart';
 import 'package:esperanza_mobile/services/requests_service.dart';
 import 'package:esperanza_mobile/services/resident_profile_service.dart';
 
-const _cristyId = 'ESP-RES-2024-1044';
+const _verifiedDemoId = 'ESP-RES-2024-9002';
 
 Future<RequestsService> _readyRequests(WidgetTester tester) async {
   final requests = RequestsService(seedDemoData: false);
@@ -57,7 +57,7 @@ Future<void> _pumpNotifications(
     if (attempts > 100) throw StateError('CitizenSessionService never finished loading.');
     await tester.pump(const Duration(milliseconds: 1));
   }
-  await session.login(MockCatalog.demoAccounts.last); // Cristy — verified
+  await session.login(MockCatalog.demoAccounts.last); // Perlita — verified
   final mf = MasterFileService();
   attempts = 0;
   while (!mf.loaded) {
@@ -88,8 +88,8 @@ void main() {
       SharedPreferences.setMockInitialValues({});
       final requests = await _readyRequests(tester);
       final request = await requests.submit(
-        applicantId: _cristyId,
-        applicantName: 'Cristy Bonghanoy',
+        applicantId: _verifiedDemoId,
+        applicantName: 'Perlita Quiambao',
         typeName: 'Barangay Clearance',
         category: ServiceCategory.dokyu,
         office: 'Barangay Hall',
@@ -155,8 +155,8 @@ void main() {
       SharedPreferences.setMockInitialValues({});
       final requests = await _readyRequests(tester);
       final request = await requests.submit(
-        applicantId: _cristyId,
-        applicantName: 'Cristy Bonghanoy',
+        applicantId: _verifiedDemoId,
+        applicantName: 'Perlita Quiambao',
         typeName: 'Barangay Clearance',
         category: ServiceCategory.dokyu,
         office: 'Barangay Hall',
@@ -207,8 +207,8 @@ void main() {
       SharedPreferences.setMockInitialValues({});
       final requests = await _readyRequests(tester);
       final request = await requests.submit(
-        applicantId: _cristyId,
-        applicantName: 'Cristy Bonghanoy',
+        applicantId: _verifiedDemoId,
+        applicantName: 'Perlita Quiambao',
         typeName: 'Barangay Clearance',
         category: ServiceCategory.dokyu,
         office: 'Barangay Hall',
@@ -254,8 +254,8 @@ void main() {
       SharedPreferences.setMockInitialValues({});
       final requests = await _readyRequests(tester);
       final request = await requests.submit(
-        applicantId: _cristyId,
-        applicantName: 'Cristy Bonghanoy',
+        applicantId: _verifiedDemoId,
+        applicantName: 'Perlita Quiambao',
         typeName: 'Barangay Clearance',
         category: ServiceCategory.dokyu,
         office: 'Barangay Hall',
@@ -303,8 +303,8 @@ void main() {
       SharedPreferences.setMockInitialValues({});
       final requests = await _readyRequests(tester);
       final request = await requests.submit(
-        applicantId: _cristyId,
-        applicantName: 'Cristy Bonghanoy',
+        applicantId: _verifiedDemoId,
+        applicantName: 'Perlita Quiambao',
         typeName: 'Barangay Clearance',
         category: ServiceCategory.dokyu,
         office: 'Barangay Hall',
@@ -353,8 +353,8 @@ void main() {
       SharedPreferences.setMockInitialValues({});
       final requests = await _readyRequests(tester);
       final request = await requests.submit(
-        applicantId: _cristyId,
-        applicantName: 'Cristy Bonghanoy',
+        applicantId: _verifiedDemoId,
+        applicantName: 'Perlita Quiambao',
         typeName: 'Educational Assistance',
         category: ServiceCategory.tulong,
         office: 'Office of the Municipal Mayor',
@@ -388,8 +388,8 @@ void main() {
       SharedPreferences.setMockInitialValues({});
       final requests = await _readyRequests(tester);
       final request = await requests.submit(
-        applicantId: _cristyId,
-        applicantName: 'Cristy Bonghanoy',
+        applicantId: _verifiedDemoId,
+        applicantName: 'Perlita Quiambao',
         typeName: 'Barangay Clearance',
         category: ServiceCategory.dokyu,
         office: 'Barangay Hall',
@@ -427,8 +427,8 @@ void main() {
       SharedPreferences.setMockInitialValues({});
       final requests = await _readyRequests(tester);
       final request = await requests.submit(
-        applicantId: _cristyId,
-        applicantName: 'Cristy Bonghanoy',
+        applicantId: _verifiedDemoId,
+        applicantName: 'Perlita Quiambao',
         typeName: 'Barangay Clearance',
         category: ServiceCategory.dokyu,
         office: 'Barangay Hall',
@@ -471,8 +471,8 @@ void main() {
       SharedPreferences.setMockInitialValues({});
       final requests = await _readyRequests(tester);
       final request = await requests.submit(
-        applicantId: _cristyId,
-        applicantName: 'Cristy Bonghanoy',
+        applicantId: _verifiedDemoId,
+        applicantName: 'Perlita Quiambao',
         typeName: 'Barangay Clearance',
         category: ServiceCategory.dokyu,
         office: 'Barangay Hall',
@@ -515,8 +515,8 @@ void main() {
       SharedPreferences.setMockInitialValues({});
       final requests = await _readyRequests(tester);
       final request = await requests.submit(
-        applicantId: _cristyId,
-        applicantName: 'Cristy Bonghanoy',
+        applicantId: _verifiedDemoId,
+        applicantName: 'Perlita Quiambao',
         typeName: 'Barangay Clearance',
         category: ServiceCategory.dokyu,
         office: 'Barangay Hall',
@@ -557,8 +557,8 @@ void main() {
       // An older request that reached Approved a while ago — a genuinely
       // "older" notification, per the same wording as the reported issue.
       final olderRequest = await requests.submit(
-        applicantId: _cristyId,
-        applicantName: 'Cristy Bonghanoy',
+        applicantId: _verifiedDemoId,
+        applicantName: 'Perlita Quiambao',
         typeName: 'Certificate of Residency',
         category: ServiceCategory.dokyu,
         office: 'Civil Registrar',
@@ -572,8 +572,8 @@ void main() {
       // A brand-new correction event on a different request, created after
       // the above.
       final newerRequest = await requests.submit(
-        applicantId: _cristyId,
-        applicantName: 'Cristy Bonghanoy',
+        applicantId: _verifiedDemoId,
+        applicantName: 'Perlita Quiambao',
         typeName: 'Barangay Clearance',
         category: ServiceCategory.dokyu,
         office: 'Barangay Hall',

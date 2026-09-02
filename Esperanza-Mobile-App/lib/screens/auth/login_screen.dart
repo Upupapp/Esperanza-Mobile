@@ -225,21 +225,21 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                     ),
                     // Phase 6 — "One Person, One Account" duplicate demo:
-                    // a second registration using the real Cristy
-                    // Bonghanoy's identity, kept separate from demoAccounts
-                    // above (see MockCatalog.duplicateCristyAccount's own
+                    // a second registration using the real Perlita
+                    // Quiambao's identity, kept separate from demoAccounts
+                    // above (see MockCatalog.duplicateVerifiedDemoAccount's own
                     // doc comment) so it never gets swept up by call sites
                     // that assume that list is only the two originals.
                     DemoAccountCard(
-                      account: MockCatalog.duplicateCristyAccount,
-                      label: 'Demo: Duplicate Cristy Account',
-                      onTap: _loading ? null : () => _quickLogin(MockCatalog.duplicateCristyAccount),
+                      account: MockCatalog.duplicateVerifiedDemoAccount,
+                      label: 'Demo: Duplicate Perlita Account',
+                      onTap: _loading ? null : () => _quickLogin(MockCatalog.duplicateVerifiedDemoAccount),
                     ),
                     const SizedBox(height: 10),
                     // Unverified + Unverified duplicate demo — both sides
                     // still Pending Review (see MockCatalog.
                     // unverifiedDuplicateAccountA's doc comment), kept
-                    // entirely separate from the Cristy scenario above.
+                    // entirely separate from the Perlita scenario above.
                     DemoAccountCard(
                       account: MockCatalog.unverifiedDuplicateAccountA,
                       label: 'Demo: Unverified Duplicate — Account A',

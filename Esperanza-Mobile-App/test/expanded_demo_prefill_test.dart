@@ -1,6 +1,6 @@
 // Coverage for the expanded demoDefaults/demoPurpose sweep — closing the
 // gap the earlier priority-list-only pass left: every Dokyu/Tulong service
-// where Cristy's own demo persona genuinely fits (not third-party/sensitive,
+// where Perlita's own demo persona genuinely fits (not third-party/sensitive,
 // not gender- or age-mismatched) now prefills its form fields too, on top
 // of the already-covered Requirements-step upload behavior (never
 // pre-attached — see new_application_never_preattaches_test.dart). Also
@@ -27,7 +27,7 @@ import 'package:esperanza_mobile/services/resident_profile_service.dart';
 import 'package:esperanza_mobile/theme/app_colors.dart';
 import 'package:esperanza_mobile/widgets/app_button.dart';
 
-const _cristyId = 'ESP-RES-2024-1044';
+const _verifiedDemoId = 'ESP-RES-2024-9002';
 
 Attachment _fakeAttachment(String fileName) {
   return Attachment(
@@ -72,7 +72,7 @@ void main() {
       if (attempts > 100) throw StateError('CitizenSessionService never finished loading.');
       await tester.pump(const Duration(milliseconds: 1));
     }
-    await session.login(MockCatalog.demoAccounts.last); // Cristy — verified
+    await session.login(MockCatalog.demoAccounts.last); // Perlita — verified
 
     final requests = RequestsService(seedDemoData: false);
     attempts = 0;
@@ -111,10 +111,10 @@ void main() {
 
       // Reframed as a request for her PARENTS' marriage certificate, not
       // her own — she's Single, so 'her own marriage' was inconsistent.
-      // Ramon & Corazon Bonghanoy are already-established facts about her
+      // Anselmo & Lourdes Quiambao are already-established facts about her
       // (see Family Information), married safely before her own birth.
-      expect(find.text('Ramon Bonghanoy'), findsOneWidget);
-      expect(find.text('Corazon Bonghanoy'), findsOneWidget);
+      expect(find.text('Anselmo Quiambao'), findsOneWidget);
+      expect(find.text('Lourdes Quiambao'), findsOneWidget);
       expect(find.text('Esperanza, Masbate'), findsOneWidget);
       // ISO string '1999-05-10' from demoDefaults, parsed via DateTime.parse
       // by the wizard and formatted by AppDateField as "MMM d, y".
@@ -140,12 +140,12 @@ void main() {
       expect(find.text('Purok 2, Barangay Baras, Esperanza, Masbate'), findsOneWidget);
       // Sourced from ResidentProfile's own Emergency Contact fields (see
       // ServiceRequestWizardScreen's generic Master-Profile prefill) —
-      // 'Corazon Cristy' was a stale, service-specific placeholder using
+      // 'Lourdes Perlita' was a stale, service-specific placeholder using
       // the pre-correction surname bug; this form's own emergencyContact*
       // fields now reuse the same real, editable contact shown on Family
       // Information instead of inventing a separate one.
-      expect(find.text('Roberto Pareja'), findsOneWidget);
-      expect(find.text('0919 502 7735'), findsOneWidget);
+      expect(find.text('Rogelio Escano'), findsOneWidget);
+      expect(find.text('0919 000 9012'), findsOneWidget);
       expect(tester.takeException(), isNull);
     });
 
@@ -160,7 +160,7 @@ void main() {
       await tester.tap(find.widgetWithText(AppButton, 'Continue')); // -> Project Details
       await tester.pumpAndSettle();
       expect(find.text('New Development'), findsOneWidget);
-      expect(find.text('Proposed Residential Structure - Bonghanoy Residence'), findsOneWidget);
+      expect(find.text('Proposed Residential Structure - Quiambao Residence'), findsOneWidget);
 
       await tester.tap(find.widgetWithText(AppButton, 'Continue')); // -> Lot Information
       await tester.pumpAndSettle();
@@ -213,7 +213,7 @@ void main() {
 
       await tester.tap(find.widgetWithText(AppButton, 'Continue')); // -> Personal & Household Information
       await tester.pumpAndSettle();
-      // spouseName is deliberately left blank — Cristy's Civil Status is
+      // spouseName is deliberately left blank — Perlita's Civil Status is
       // Single, so a spouse's name here would contradict that same fact
       // (this field previously, inconsistently, prefilled 'Jerome
       // Villaruel' regardless of civil status).
@@ -249,14 +249,14 @@ void main() {
     ) async {
       final mf = await _readyMasterFile(tester);
       await mf.saveOrUpdate(
-        accountId: _cristyId,
+        accountId: _verifiedDemoId,
         documentType: 'valid_government_id',
         label: 'One (1) valid government-issued ID or Birth Certificate',
         attachment: _fakeAttachment('id_or_birth_cert.pdf'),
         origin: 'Test',
       );
       await mf.saveOrUpdate(
-        accountId: _cristyId,
+        accountId: _verifiedDemoId,
         documentType: 'proof_of_residency',
         label: 'Proof of Barangay residency',
         attachment: _fakeAttachment('residency_proof.pdf'),

@@ -81,7 +81,16 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
     await _controller.forward();
     if (!mounted) return;
 
-    final onboardingDone = await OnboardingService.isComplete();
+    // Defence in depth: `_run()` is started from initState and never awaited,
+    // so anything that escapes here strands the citizen on the splash with no
+    // way forward. OnboardingService.isComplete() is itself guarded; this keeps
+    // the invariant true for whatever else lands in this method later.
+    var onboardingDone = false;
+    try {
+      onboardingDone = await OnboardingService.isComplete();
+    } catch (_) {
+      // Show onboarding rather than not navigating at all.
+    }
     if (!mounted) return;
 
     // pushReplacement (never push) — the branding fades into whichever

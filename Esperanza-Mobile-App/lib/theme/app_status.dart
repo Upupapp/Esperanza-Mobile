@@ -1,12 +1,23 @@
+import 'dart:developer' as developer;
+
 import 'package:flutter/material.dart';
 import 'app_colors.dart';
 
-/// The Esperanza platform's universal status system — the exact 14 status
-/// names and color mappings from the Web Admin's
+/// The Esperanza platform's universal status system — the status names and
+/// color mappings from the Web Admin's
 /// `resources/views/components/ui/badge.blade.php`. These names are shared
 /// verbatim across Web Admin and Mobile; never invent new status labels
 /// (see CLAUDE.md's "Universal status system" and
 /// ESPERANZA_MOBILE_WEB_ALIGNMENT.md Section 4).
+///
+/// **Check the canonical set against `origin/main` of the web repo, never a
+/// local clone.** A clone a few dozen commits stale still carries labels that
+/// have since been replaced, and will make this file look correct when it is
+/// not. Measured against `origin/main` on 2026-08-29: `badge.blade.php` styles
+/// **17** labels — two more than either project's CLAUDE.md prose list, which
+/// omits [verified] and [unverified]. `status_parity_test.dart` is what keeps
+/// this honest; the count is deliberately not restated here, because the
+/// previous comment said "the exact 14" for a 15-value enum.
 ///
 /// [underReview] is a deliberate, explicitly-authorized exception (Mobile-
 /// only final request-flow correction pass): the citizen-facing Mobile
@@ -41,6 +52,26 @@ enum AppStatus {
   cancelled,
   archived,
   underReview,
+
+  /// Canonical web-side (`badge.blade.php`, sky) and written into
+  /// `statusHistory` as a literal by `requests_service.dart`. Mobile had no
+  /// value for it, so `fromLabel('Resubmitted')` fell back to [draft] and a
+  /// resubmitted request would have rendered as a grey "Draft".
+  resubmitted,
+
+  /// Account statuses, not request statuses — canonical in the same shared
+  /// badge component. The Web Admin displays an account whose status is
+  /// `Approved` as **`Verified`** (`constituents.blade.php`: `$acct['status']
+  /// === 'Approved' ? 'Verified' : ...`, with its own comment noting that
+  /// `Verified` grants full Dokyu/Tulong access).
+  ///
+  /// That made their absence here a live hazard rather than a missing colour:
+  /// [CitizenSessionService.accessLevel] resolves an account through
+  /// [AppStatusX.fromLabel], so a status arriving as `Verified` used to become
+  /// [draft] and lock the citizen **out** of Dokyu — the exact opposite of what
+  /// the same word means on the web.
+  verified,
+  unverified,
 }
 
 class StatusStyle {
@@ -69,6 +100,9 @@ extension AppStatusX on AppStatus {
     AppStatus.cancelled => 'Cancelled',
     AppStatus.archived => 'Archived',
     AppStatus.underReview => 'Under Review',
+    AppStatus.resubmitted => 'Resubmitted',
+    AppStatus.verified => 'Verified',
+    AppStatus.unverified => 'Unverified',
   };
 
   StatusStyle get style => switch (this) {
@@ -89,6 +123,12 @@ extension AppStatusX on AppStatus {
     // Same meaning/coloring as waitingRequirements — "needs attention, not
     // rejected, not done" — just the Mobile-specific label above it.
     AppStatus.underReview => const StatusStyle(AppColors.orange50, AppColors.orange700, AppColors.orange500),
+    // sky / emerald / amber, 1:1 with badge.blade.php. `Verified` deliberately
+    // shares Approved's emerald and `Unverified` shares Pending Review's amber
+    // — that aliasing is the web's own choice, not a shortcut taken here.
+    AppStatus.resubmitted => const StatusStyle(AppColors.sky50, AppColors.sky700, AppColors.sky500),
+    AppStatus.verified => const StatusStyle(AppColors.emerald50, AppColors.emerald700, AppColors.emerald500),
+    AppStatus.unverified => const StatusStyle(AppColors.amber50, AppColors.amber700, AppColors.amber500),
   };
 
   /// Whether this status represents a finished/terminal state — mirrors the
@@ -101,7 +141,24 @@ extension AppStatusX on AppStatus {
       this == AppStatus.cancelled ||
       this == AppStatus.archived;
 
+  /// Resolves a label to its status, or [AppStatus.draft] if it is unknown.
+  ///
+  /// The fallback is **loud on purpose**. A silent degrade to `Draft` is how
+  /// the missing `Resubmitted` stayed invisible: the timeline printed the raw
+  /// string, so nothing looked wrong, while anything routing through here
+  /// showed a resubmitted request as a grey "Draft". In debug this now trips an
+  /// assertion; in release it logs rather than crashing, because a wrong badge
+  /// colour must never take the app down in a citizen's hand.
   static AppStatus fromLabel(String label) {
-    return AppStatus.values.firstWhere((s) => s.label == label, orElse: () => AppStatus.draft);
+    for (final status in AppStatus.values) {
+      if (status.label == label) return status;
+    }
+    developer.log(
+      'Unknown status label "$label" — falling back to Draft. Check it against '
+      'badge.blade.php on origin/main of the web repo.',
+      name: 'esperanza.status',
+    );
+    assert(false, 'Unknown status label "$label". Never invent a status label; add it to AppStatus if it is canonical.');
+    return AppStatus.draft;
   }
 }
