@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/citizen_account.dart';
 import '../models/resident_profile.dart';
+import 'persistence_guard.dart';
 
 /// Local, frontend-only "database" for Resident Profiling — same
 /// persistence shape as RequestsService/BalitaService: JSON to
@@ -35,20 +36,22 @@ class ResidentProfileService extends ChangeNotifier {
   }
 
   Future<void> _restore() async {
-    final prefs = await SharedPreferences.getInstance();
-    final raw = prefs.getString(_key);
-    if (raw != null) {
-      final map = jsonDecode(raw) as Map<String, dynamic>;
-      _profiles = map.map((k, v) => MapEntry(k, ResidentProfile.fromJson(v)));
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final decoded = await readJsonGuarded(prefs, _key);
+      if (decoded is Map<String, dynamic>) {
+        _profiles = decodeEntriesGuarded(decoded, (v) => ResidentProfile.fromJson(v), what: 'resident profile');
+      }
+      final cristy = _profiles[_cristyVerifiedAccountId];
+      if (cristy != null) {
+        final fieldsChanged = _applyCristyMasterProfileAlignment(cristy);
+        final idsChanged = _migrateCristyHouseholdFamilyIds();
+        if (fieldsChanged || idsChanged) await _persist();
+      }
+    } finally {
+      _loaded = true;
+      notifyListeners();
     }
-    final cristy = _profiles[_cristyVerifiedAccountId];
-    if (cristy != null) {
-      final fieldsChanged = _applyCristyMasterProfileAlignment(cristy);
-      final idsChanged = _migrateCristyHouseholdFamilyIds();
-      if (fieldsChanged || idsChanged) await _persist();
-    }
-    _loaded = true;
-    notifyListeners();
   }
 
   Future<void> _persist() async {

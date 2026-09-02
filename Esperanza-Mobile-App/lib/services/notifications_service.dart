@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'persistence_guard.dart';
 
 /// Tracks which notifications a citizen has already opened/viewed — the
 /// notification feed itself is entirely *derived* live from other services
@@ -34,18 +35,24 @@ class NotificationsService extends ChangeNotifier {
   }
 
   Future<void> _restore() async {
-    final prefs = await SharedPreferences.getInstance();
-    final rawRead = prefs.getString(_readKey);
-    if (rawRead != null) {
-      _readIds = (jsonDecode(rawRead) as List).cast<String>().toSet();
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final rawRead = await readJsonGuarded(prefs, _readKey);
+      if (rawRead is List) {
+        _readIds = rawRead.whereType<String>().toSet();
+      }
+      final rawDuplicate = await readJsonGuarded(prefs, _duplicateKey);
+      if (rawDuplicate is Map) {
+        _duplicateResolutions = <String, String>{
+          for (final entry in rawDuplicate.entries)
+            if (entry.key is String && entry.value is String) entry.key as String: entry.value as String,
+        };
+      }
+      _unverifiedDuplicateKeptAccountId = prefs.getString(_unverifiedDuplicateKey);
+    } finally {
+      _loaded = true;
+      notifyListeners();
     }
-    final rawDuplicate = prefs.getString(_duplicateKey);
-    if (rawDuplicate != null) {
-      _duplicateResolutions = Map<String, String>.from(jsonDecode(rawDuplicate) as Map);
-    }
-    _unverifiedDuplicateKeptAccountId = prefs.getString(_unverifiedDuplicateKey);
-    _loaded = true;
-    notifyListeners();
   }
 
   Future<void> _persist() async {

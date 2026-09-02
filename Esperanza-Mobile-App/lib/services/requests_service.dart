@@ -6,6 +6,7 @@ import '../models/attachment.dart';
 import '../models/receipt.dart';
 import '../models/request_milestones.dart';
 import '../models/service_request.dart';
+import 'persistence_guard.dart';
 import '../theme/app_status.dart'; // AppStatusX.label, used on RequestMilestones.canonicalStatusFor()'s return value
 
 /// Local, frontend-only "database" for Dokyu + Tulong requests. Persists to
@@ -71,24 +72,34 @@ class RequestsService extends ChangeNotifier {
     _restore();
   }
 
+  /// Restores persisted requests, then runs the five shape migrations.
+  ///
+  /// Every one of those migrations runs *after* the decode, so a record this
+  /// build cannot read would previously have thrown before any of them could
+  /// help. Decoding is now entry-tolerant: one unreadable request costs that
+  /// request, not the citizen's whole history, and not the app.
   Future<void> _restore() async {
-    final prefs = await SharedPreferences.getInstance();
-    final raw = prefs.getString(_key);
-    if (raw != null) {
-      final list = (jsonDecode(raw) as List).map((e) => ServiceRequest.fromJson(e)).toList();
-      _requests.addAll(list);
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final decoded = await readJsonGuarded(prefs, _key);
+      if (decoded is List) {
+        _requests.addAll(
+          decodeEachGuarded(decoded, (e) => ServiceRequest.fromJson(e), what: 'service request'),
+        );
+      }
+      if (retireLegacyDemoRequestSeeds && _removeRetiredDemoRequestSeeds()) await _persist();
+      if (_migrateStaleDemoIdentity()) await _persist();
+      if (_migrateEducationalRejectionReason()) await _persist();
+      if (_migrateSeniorCitizenIdCategory()) await _persist();
+      if (_migrateObsoleteTrackingLabels()) await _persist();
+      if (seedDemoData) {
+        await _seedDemoStatusSimulationsIfNeeded();
+        await _seedPaidTransactionDemoIfNeeded();
+      }
+    } finally {
+      _loaded = true;
+      notifyListeners();
     }
-    if (retireLegacyDemoRequestSeeds && _removeRetiredDemoRequestSeeds()) await _persist();
-    if (_migrateStaleDemoIdentity()) await _persist();
-    if (_migrateEducationalRejectionReason()) await _persist();
-    if (_migrateSeniorCitizenIdCategory()) await _persist();
-    if (_migrateObsoleteTrackingLabels()) await _persist();
-    if (seedDemoData) {
-      await _seedDemoStatusSimulationsIfNeeded();
-      await _seedPaidTransactionDemoIfNeeded();
-    }
-    _loaded = true;
-    notifyListeners();
   }
 
   /// Removes exactly the nine known Dokyu/Tulong demo seed ids (see

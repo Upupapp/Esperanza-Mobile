@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/announcement.dart';
 import 'mock_catalog.dart';
+import 'persistence_guard.dart';
 
 /// Local, frontend-only "database" for Balita posts — same shape as
 /// RequestsService: persists to SharedPreferences as JSON so posts created
@@ -26,14 +27,16 @@ class BalitaService extends ChangeNotifier {
   }
 
   Future<void> _restore() async {
-    final prefs = await SharedPreferences.getInstance();
-    final raw = prefs.getString(_key);
-    if (raw != null) {
-      final list = (jsonDecode(raw) as List).map((e) => Announcement.fromJson(e)).toList();
-      _posts = list;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final decoded = await readJsonGuarded(prefs, _key);
+      if (decoded is List) {
+        _posts = decodeEachGuarded(decoded, (e) => Announcement.fromJson(e), what: 'balita post');
+      }
+    } finally {
+      _loaded = true;
+      notifyListeners();
     }
-    _loaded = true;
-    notifyListeners();
   }
 
   Future<void> _persist() async {

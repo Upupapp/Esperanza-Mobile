@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/attachment.dart';
 import '../models/master_file_document.dart';
+import 'persistence_guard.dart';
 
 /// Local, frontend-only "database" for the resident's Master File — same
 /// persistence shape as ResidentProfileService/RequestsService: JSON to
@@ -24,16 +25,24 @@ class MasterFileService extends ChangeNotifier {
   }
 
   Future<void> _restore() async {
-    final prefs = await SharedPreferences.getInstance();
-    final raw = prefs.getString(_key);
-    if (raw != null) {
-      final map = jsonDecode(raw) as Map<String, dynamic>;
-      _byAccount = map.map(
-        (accountId, docs) => MapEntry(accountId, (docs as List).map((d) => MasterFileDocument.fromJson(d)).toList()),
-      );
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final decoded = await readJsonGuarded(prefs, _key);
+      if (decoded is Map<String, dynamic>) {
+        _byAccount = decodeEntriesGuarded(
+          decoded,
+          (docs) => decodeEachGuarded(
+            docs as List,
+            (d) => MasterFileDocument.fromJson(d),
+            what: 'master file document',
+          ),
+          what: 'master file account',
+        );
+      }
+    } finally {
+      _loaded = true;
+      notifyListeners();
     }
-    _loaded = true;
-    notifyListeners();
   }
 
   Future<void> _persist() async {
