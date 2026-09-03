@@ -276,11 +276,23 @@ one reproducible case across three runs:
 
 > `Dokyu → New Request` and `Tulong → New Request` — exactly one match, the FAB is on screen, and
 > two taps change nothing. The **same finder taps the same control successfully later in the same
-> run** during the wizard leg, so the control is inert only on first arrival at the request list —
-> most plausibly while the service is still loading, with nothing on screen to say so.
+> run** during the wizard leg.
 
-That is a real defect worth fixing: a citizen tapping "New Request" the moment the list appears
-gets no response and no feedback.
+### RETRACTED — that is not an app defect
+
+Chased down and disproved. `test/new_request_fab_reachability_test.dart` pumps the request list
+and taps the FAB after **a single frame** — no warm-up, exactly the citizen who taps the moment
+the screen appears — and it opens the catalogue. For both Dokyu and Tulong.
+
+The leading explanation was also wrong and is kept in that file rather than deleted: RootShell
+holds Dokyu and Tulong in an `IndexedStack`, so the guess was that two FABs exist and
+`finder.first` taps the off-screen one. Measured — finders skip offstage widgets, so exactly one
+is found, which matches the walk's own `Matches: 1`.
+
+**So the button is fine and the walk's report is a harness artifact whose mechanism is still
+unexplained.** It is recorded here as an open question about the harness, not as a defect in the
+app, because reporting a working control as broken is the more expensive mistake: it sends the
+other lane to fix something that is not wrong.
 
 **The prototype is not shipped**, and the reason is itself worth recording. Its detector produced a
 **false positive** on the paid wizard: it reported `Barangay Clearance` as having had no effect
