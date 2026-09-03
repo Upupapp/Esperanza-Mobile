@@ -265,6 +265,39 @@ shows up here as a **stalled wizard** rather than as a fixture that silently no 
 anything. This is the same rule the unit tests learned the hard way earlier in this programme:
 build fixtures from the model, so drift breaks the test instead of hollowing it out.
 
+## 11. Correction — "62 destinations, 0 problems" counts taps issued, not effects verified
+
+**Recorded against my own earlier claim in this document.** The walk's `_tapIfPresent` treated a
+tap as successful whenever `tester.tap` did not throw. It does not throw when a tap lands on a
+widget that ignores it, so a control that is present and inert is counted as a visited screen.
+
+A prototype that verified each tap by comparing the screen **before and after** found at least
+one reproducible case across three runs:
+
+> `Dokyu → New Request` and `Tulong → New Request` — exactly one match, the FAB is on screen, and
+> two taps change nothing. The **same finder taps the same control successfully later in the same
+> run** during the wizard leg, so the control is inert only on first arrival at the request list —
+> most plausibly while the service is still loading, with nothing on screen to say so.
+
+That is a real defect worth fixing: a citizen tapping "New Request" the moment the list appears
+gets no response and no feedback.
+
+**The prototype is not shipped**, and the reason is itself worth recording. Its detector produced a
+**false positive** on the paid wizard: it reported `Barangay Clearance` as having had no effect
+while the dump printed `Step 1 of 5` — the wizard was open. A pushed route whose text overlaps the
+route beneath can read as "unchanged". Raising the settle window to 4s did not help, so it is not
+timing. Making the detector non-aborting instead pushed the run past the ten-minute mark.
+
+So the honest position: **the 62 figure is an upper bound.** It is the number of taps issued along
+a route that completes, not the number of screens proven to have rendered. The confirmations via
+`_confirm` (a marker only that screen renders) are the trustworthy part; the raw `visited` count is
+not. Do not quote 62 as verified coverage.
+
+Preserved out-of-repo at `/Users/user/esperanza-fe14-wip/app_walk_test.STASHED-60-25.dart` (macOS
+lane): the paid-service branch, the effect detector, and the tap retry. The paid branch itself
+**works** — it reached `Step 1 of 5`, one step more than the free service, which is the payment
+step. It is the detector around it that is not trustworthy yet.
+
 ## What is blocked, and on what
 
 **Superseded — see section 7.** 13 of 46 screens are now walked automatically. The remaining 33

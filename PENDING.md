@@ -19,7 +19,9 @@ item, move it to **Done** with its commit — do not delete it, so the arc stays
 
 | # | Item | Notes |
 |---|---|---|
-| 14 | **Paid-service wizard flow** | The device walk completes a *free* service end to end. A paid one diverts through a payment step whose button is "Confirm Payment" rather than "Submit Request"; that branch, and the receipt it generates, are unwalked. |
+| 14 | **Paid-service wizard flow** | **In progress, not shipped.** The branch is written and demonstrably enters the paid wizard (`Step 1 of 5` — one step more than the free service, i.e. the payment step), but the walk's tap-effect detector false-positives on it and aborts before submission, so the receipt is still unwalked. Work preserved at `/Users/user/esperanza-fe14-wip/app_walk_test.STASHED-60-25.dart` (macOS lane). See §11 of the FE 03 deliverable. |
+| 18 | **"New Request" is inert on first arrival** | Reproducible across three runs: on first arrival at the Dokyu or Tulong request list, the FAB is on screen and two taps do nothing; the same finder taps it successfully later in the same run. Most plausibly the list is still loading, with nothing on screen saying so. A citizen tapping it immediately gets no response and no feedback. |
+| 19 | **The walk's coverage figure is an upper bound** | `_tapIfPresent` counts a tap as a visit whenever `tester.tap` does not throw — which it does not when a tap lands on an inert widget. The `_confirm` markers are trustworthy; the raw 62 is not. A before/after effect check works but false-positives when a pushed route's text overlaps the route beneath. |
 | 15 | **Tulong wizard end to end** | Only Dokyu is walked to submission. Tulong reaches its request list and catalogue only. |
 | 16 | **Remaining wizard breadth** | 62 destinations are walked. Registration, the resident-profile sub-screens (family, household, review, submission confirmation), report-a-problem and the Sakuna incident flow are reached shallowly or not at all. |
 | 17 | **Backend Master Command** | Offered, not started. Spec Section 5 already enumerates the missing Web-Admin APIs; the front-end contract from FE 13 would feed it. |
