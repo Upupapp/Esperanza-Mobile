@@ -288,3 +288,30 @@ Still genuinely unverified:
 release APK; duplicating it here would prove nothing new.
 
 **No longer blocked on a permission.** Extend `integration_test/app_walk_test.dart`.
+
+---
+
+## 10. Finding 3 is closed — verified on device, not assumed
+
+The Windows lane rebuilt onboarding (`fb4ee65`) in response to the letterbox measurement in
+section 3, and went further than the finding did: it also caught that page two advertised
+**"Business Permit · Approved"** — an outcome this app cannot produce, since there is no backend
+and nothing approves anything — and that the empty grey panel visible in the original screenshot
+was a control mocked up in the artwork and never built.
+
+Re-measured on the same iPhone 17 simulator after merging, by sampling the centre column of a
+fresh screenshot:
+
+| | Before (`37d4068`) | After (`22e3af6`) |
+|---|---|---|
+| Flat-grey letterbox rows | ~31% of the screen | **0 of 262 sampled** |
+| Bottom edge | `rgb(144,144,144)` grey | `rgb(9,17,38)` — navy-950, full bleed |
+| Headline | baked into a 1.4 MB PNG | real `Text`, scales and reaches a screen reader |
+
+The walk was re-run against the rebuilt onboarding before this was accepted: **62 destinations,
+0 problems**, unchanged. That is the point of having the walk in the repo — the other lane can
+replace the first screen of the app and this lane can confirm in four minutes that nothing
+downstream broke.
+
+Merged result gated at `22e3af6`: analyze clean, **615 tests** (587 + 28 from their onboarding
+suite).
