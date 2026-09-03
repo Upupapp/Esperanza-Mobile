@@ -1,5 +1,11 @@
 # Esperanza Mobile — pending register
 
+> **Cross-lane:** `HANDOFF_FROM_WEB_LANE.md` answers the web lane's sweep — the
+> device walk aborts for a **harness** reason (not the onboarding rebuild), and
+> `rectangle_cityhall.jpg` was the LGU sign-in hero on the web side and is fixed
+> there. Read it before the next mobile push.
+
+
 Every unfinished item, with **why** it is unfinished. Updated 2026-09-03 (macOS lane).
 
 This exists because a tracker held only in a chat session is lost when the session ends, and
