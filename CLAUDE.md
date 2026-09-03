@@ -119,7 +119,31 @@ Windows lane in ~4½ min and produces a 94.8 MB fat APK. Two things to know:
   therefore shipped inside every binary, were replaced with generated synthetic ones
   in FE 02.)
 
-iOS has never been built from either lane.
+**iOS now builds** (macOS lane, 2026-09-03): `flutter build ios --simulator --debug` in 36.5s,
+installs, launches and renders on an iPhone 17 simulator with Impeller/Metal, no runtime
+exceptions. Two things to know:
+
+- **The minimum iOS is 15.0, not the 13.0 the project file used to claim.** Flutter 3.47 raises
+  it during the build; measured by reverting to 13.0 and watching it re-raise. iOS 13/14 devices
+  were never actually supported. Excludes iPhone 6s/7/SE-1.
+- `Package.resolved` is committed for both workspaces. Two of the six transitive Swift packages
+  (`DKCamera`, `DKPhotoGallery`, via `file_picker`) track branch `master`, so those revisions are
+  the only thing making an iOS build reproducible.
+
+See `Esperanza-Mobile-App/docs/FE03_DEVICE_VERIFICATION.md`.
+
+**Walking the app is automated — do not do it by hand, and do not wait on an Accessibility
+grant.** `integration_test/app_walk_test.dart` drives the real app from inside its own process
+(taps widgets, not screen coordinates), so it works on either lane's machine:
+
+```sh
+flutter test integration_test/app_walk_test.dart -d <device-id>
+```
+
+13 screens, 0 problems, ~57s. Extend it rather than writing a new one. Two rules it encodes the
+hard way: `ensureVisible` before every tap (a target below the fold is silently missed), and
+confirm a screen by a marker only that screen renders — the first version reported reaching Home
+while still sitting on the sign-in screen.
 
 ## Deploying
 

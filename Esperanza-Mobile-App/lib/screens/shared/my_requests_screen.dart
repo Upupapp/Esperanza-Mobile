@@ -81,8 +81,12 @@ class _MyRequestCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDokyu = request.category == ServiceCategory.dokyu;
-    final categoryColor = isDokyu ? AppColors.brand600 : AppColors.purple700;
+    final categoryColor = switch (request.category) {
+      ServiceCategory.dokyu => AppColors.brand600,
+      ServiceCategory.tulong => AppColors.purple700,
+      ServiceCategory.sakunaIncident => AppColors.rose600,
+      ServiceCategory.unknown => AppColors.slate600,
+    };
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
@@ -102,7 +106,7 @@ class _MyRequestCard extends StatelessWidget {
                     borderRadius: BorderRadius.circular(999),
                   ),
                   child: Text(
-                    isDokyu ? 'Dokyu' : 'Tulong',
+                    request.category.label,
                     style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: categoryColor),
                   ),
                 ),

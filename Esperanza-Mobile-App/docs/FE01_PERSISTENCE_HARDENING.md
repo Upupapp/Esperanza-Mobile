@@ -181,3 +181,134 @@ precisely what the unguarded code did.
 3. FE 10's storage inventory must cover **10** keys, not the 6 its mandate names.
 4. Three keys are not JSON. Any future audit of "decode safety" that greps for `jsonDecode`
    will miss them — as this one originally did.
+
+---
+
+## Addendum — entry-tolerant collection decoding (macOS lane, 2026-09-03)
+
+Added while merging the macOS lane's concurrent FE 01 into this one. The rest of that
+lane's work was superseded by this document's implementation and was dropped rather than
+carried; this is the one part that was genuinely additive.
+
+**What it changes.** `discardUnreadable` is all-or-nothing: it clears an entire key. That
+is right for a payload that is not a collection at all, and much too blunt for one that
+is — a single bad record cost a citizen *every request they had ever filed*, silently and
+permanently. Their filed history is the part of this app they cannot reconstruct.
+
+`PersistenceRecovery.decodeEach` / `.decodeEntries` decode a collection entry by entry.
+The four collection restores — requests, balita, master file, resident profiles — now use
+them. Each service keeps its own `catch`: entry-tolerance handles a bad *entry*, while a
+payload of the wrong root type has no entries to be tolerant of and still falls through to
+the whole-key discard. A skip is logged but is deliberately **not** recorded as a discard;
+conflating the two would hide whole-key data loss behind routine noise.
+
+**Why this is still reachable now that every enum has an `orElse`.**
+`ServiceRequest.fromJson` casts `statusHistory` and `attachments` with a bare `as List` and
+no default, unlike `flaggedRequirements` and `formFields` which both default. A record
+written before either field existed still throws. That asymmetry is the live trigger and is
+worth closing separately.
+
+Tests: `test/collection_entry_tolerance_test.dart`, 4 cases. Break-checked — 3 of the 4 fail
+without the change. The fourth asserts the whole-key discard still happens for a
+wrong-root-type payload, and passes both ways by design: it guards the existing behaviour
+against this addition, rather than testing the addition.
+
+## Resolved — the two `orElse` defaults that asserted something false
+
+**Owner ruling, 2026-09-03: fix them.** Both defaults kept a record rather than losing it,
+which was the right instinct and is preserved. What changed is that neither now names a value
+it could not read.
+
+| Enum | Was | Now |
+|---|---|---|
+| `ReceiptType` | `onsite` — an unreadable payment type rendered as an **on-site cash payment** on the citizen's own proof of payment: a completed GCash or Maya payment shown as cash owed, a free service shown as carrying a fee, and the badge reading `DUE ONSITE` for money already taken. | `unknown`, rendered `—` everywhere: no method named, badge neither `PAID` nor `DUE ONSITE`, neutral slate rather than settled-green or owing-amber, and no brand mark. The amount, date, reference and service are still shown, because those are still true. |
+| `ServiceCategory` | `dokyu` — a Tulong (assistance) or Sakuna (incident) application silently became a document request: wrong tab, wrong catalogue, wrong flow. | `unknown`, labelled **Unrecognised**. The record is kept and readable; it is counted under no service and claimed by no tab. |
+
+### The second, quieter version of the same bug
+
+Fixing only the decode would have moved the false statement rather than removed it. The
+request card derived its chip from `category == dokyu ? 'Dokyu' : 'Tulong'` — a ternary that
+labels **anything** non-Dokyu as Tulong, `unknown` included. There is now one shared
+`ServiceCategoryX.label` on the enum so no screen re-derives it. This is worth remembering as
+a class: an enum fallback is only as honest as the least careful thing that renders it.
+
+### Sites changed
+
+`ReceiptType` — nine, every one found by the analyzer refusing a non-exhaustive switch:
+receipt method label, badge label, badge colours, amount label, payment-mode badge graphic,
+transactions-screen label, export filename, and two generation-side reference prefixes
+(unreachable — `unknown` is only ever decoded, never generated).
+
+`ServiceCategory` — five: the decode, the shared label, the detail-screen accent, the
+generation-side prefix, and the request-card chip's colour and text.
+
+The export filename uses the word `Unknown` rather than the on-screen `—`, because that
+string lands in a filename.
+
+### Evidence
+
+`test/receipt_unknown_type_test.dart` (6) and `test/service_category_unknown_test.dart` (6).
+Break-checked against the previous defaults: **5 of 6** and **4 of 6** fail respectively.
+
+Two upstream tests were touched, both deliberately:
+
+- `corrupt_persisted_state_recovery_test.dart` asserted the `dokyu` fallback as correct. The
+  assertion is amended to `unknown`, with the reason recorded at the test rather than in a
+  commit message nobody will read again. Its shape is unchanged — the intent it was protecting
+  (keep the record) still holds.
+- `design_token_discipline_test.dart` — the FE 06 ratchet caught a raw `Colors.white` added
+  for the new badge glyph and failed the build at 142 against its ceiling of 141. Fixed by
+  using `AppColors.surface`, not by raising the ceiling. The gate did exactly its job.
+
+`PostMediaType` → `image` and `AttachmentCategory` → `other` are unchanged and were never in
+dispute: `other` is a genuinely neutral member, and a broken media tile is a display bug
+rather than a false statement.
+
+---
+
+## Closed — the last unguarded list casts, and the crash they would have moved
+
+Filed as a follow-on in the addendum above; closed 2026-09-03.
+
+`ServiceRequest.fromJson` cast `statusHistory` and `attachments` with a bare `as List` and no
+default. An audit of every model found these were the **only** unguarded list casts left:
+`flaggedRequirements` and `formFields` on the same factory already defaulted, as did all seven
+list decodes across `Announcement` and `ResidentProfile`. There were no unguarded `as Map`
+casts anywhere. So this was an inconsistency in one factory, not a pattern.
+
+A record persisted before either field existed therefore threw. Originally that stranded the
+app; after entry-tolerant decoding it cost the whole record. Neither is a reasonable price for
+a field whose absence simply means "none recorded". Both now default to empty.
+
+### The part worth remembering: check what assumes non-empty *before* defaulting to empty
+
+`statusHistory` could not simply be defaulted. Three places assumed it was non-empty and
+called `.last`, which throws `StateError` on an empty list:
+
+- `RequestsService.canAdvance`
+- `RequestsService.nextMilestone`
+- `RequestMilestoneTimeline`'s `isRejected`
+
+Defaulting the decode alone would have **relocated** the crash from restore into the UI rather
+than removing it — the same shape of mistake as the `'Dokyu' : 'Tulong'` ternary in the section
+above, found the same way: by grepping for what consumes the value before changing what it can
+hold. All three now read `.lastOrNull` and treat "no recorded history" as its own case, which
+is not a rejection and not a position in the milestone sequence.
+
+An empty history is also deliberately **not** synthesised from `status` + `submittedAt`. Both
+fields are present and required, so an entry could have been fabricated from them — but that
+would assert a *time* at which the status was reached, which is not known. Unknown history
+stays unknown.
+
+### Evidence
+
+`test/legacy_request_shape_test.dart`, 6 cases, break-checked in two independent halves
+because there are two independent fixes:
+
+| Reverted | Result |
+|---|---|
+| the decode defaults only | **6 of 6 fail** |
+| the empty-safe consumers only, defaults kept | **exactly the 2 UI cases fail** |
+
+The second row is the evidence that the relocated-crash concern was real rather than
+theoretical.

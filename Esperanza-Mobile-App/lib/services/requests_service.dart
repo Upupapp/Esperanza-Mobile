@@ -78,8 +78,11 @@ class RequestsService extends ChangeNotifier {
       final prefs = await SharedPreferences.getInstance();
       final raw = prefs.getString(_key);
       if (raw != null) {
-        final list = (jsonDecode(raw) as List).map((e) => ServiceRequest.fromJson(e)).toList();
-        _requests.addAll(list);
+        _requests.addAll(PersistenceRecovery.decodeEach(
+          jsonDecode(raw) as List,
+          (e) => ServiceRequest.fromJson(e),
+          what: 'service request',
+        ));
       }
       if (retireLegacyDemoRequestSeeds && _removeRetiredDemoRequestSeeds()) await _persist();
       if (_migrateStaleDemoIdentity()) await _persist();
@@ -555,6 +558,8 @@ class RequestsService extends ChangeNotifier {
         ReceiptType.maya => 'MY',
         ReceiptType.onsite => 'OR',
         ReceiptType.free => 'FR',
+        // Unreachable: `unknown` is only ever decoded, never generated.
+        ReceiptType.unknown => 'RC',
       };
       return ServiceRequest(
         id: id,
@@ -653,6 +658,8 @@ class RequestsService extends ChangeNotifier {
       ServiceCategory.dokyu => 'DR',
       ServiceCategory.tulong => 'AR',
       ServiceCategory.sakunaIncident => 'IR',
+      // Unreachable: `unknown` is only ever decoded, never generated.
+      ServiceCategory.unknown => 'RQ',
     };
     final year = DateTime.now().year;
     final seq = (_requests.where((r) => r.category == category).length + 1).toString().padLeft(4, '0');
@@ -748,7 +755,12 @@ class RequestsService extends ChangeNotifier {
   /// [resumeVerification]), never via the linear advance control.
   bool canAdvance(String requestId) {
     final request = _requests.firstWhere((r) => r.id == requestId);
-    final currentIndex = RequestMilestones.sequence.indexOf(request.statusHistory.last.status);
+    // A restored record can have no history at all (see
+    // ServiceRequest.fromJson) — with nothing recorded there is no position in
+    // the sequence to advance from, so the control stays disabled.
+    final latest = request.statusHistory.lastOrNull;
+    if (latest == null) return false;
+    final currentIndex = RequestMilestones.sequence.indexOf(latest.status);
     return currentIndex != -1 && currentIndex < RequestMilestones.sequence.length - 1;
   }
 
@@ -757,7 +769,9 @@ class RequestsService extends ChangeNotifier {
   /// Rejected/Under Review/Cancelled).
   String? nextMilestone(String requestId) {
     final request = _requests.firstWhere((r) => r.id == requestId);
-    final currentIndex = RequestMilestones.sequence.indexOf(request.statusHistory.last.status);
+    final latest = request.statusHistory.lastOrNull;
+    if (latest == null) return null;
+    final currentIndex = RequestMilestones.sequence.indexOf(latest.status);
     if (currentIndex == -1 || currentIndex >= RequestMilestones.sequence.length - 1) return null;
     return RequestMilestones.sequence[currentIndex + 1];
   }
@@ -840,6 +854,8 @@ class RequestsService extends ChangeNotifier {
       ReceiptType.maya => 'MY',
       ReceiptType.onsite => 'OR',
       ReceiptType.free => 'FR',
+      // Unreachable: `unknown` is only ever decoded, never generated.
+      ReceiptType.unknown => 'RC',
     };
     final digits = List.generate(10, (_) => _receiptRandom.nextInt(10)).join();
     return Receipt(

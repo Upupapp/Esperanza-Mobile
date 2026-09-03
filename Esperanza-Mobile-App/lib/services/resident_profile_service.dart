@@ -42,7 +42,11 @@ class ResidentProfileService extends ChangeNotifier {
       final raw = prefs.getString(_key);
       if (raw != null) {
         final map = jsonDecode(raw) as Map<String, dynamic>;
-        _profiles = map.map((k, v) => MapEntry(k, ResidentProfile.fromJson(v)));
+        _profiles = PersistenceRecovery.decodeEntries(
+          map,
+          (v) => ResidentProfile.fromJson(v),
+          what: 'resident profile',
+        );
       }
       final perlita = _profiles[_verifiedDemoAccountId];
       if (perlita != null) {

@@ -26,6 +26,10 @@ String receiptFilename(Receipt receipt) {
     ReceiptType.maya => 'Maya',
     ReceiptType.onsite => 'Onsite',
     ReceiptType.free => 'Free',
+    // An exported receipt is the copy a citizen keeps or forwards, so this
+    // must not name a method the build could not read. A word rather than
+    // the on-screen em dash, because this one lands in a filename.
+    ReceiptType.unknown => 'Unknown',
   };
   final service = _sanitize(receipt.serviceName);
   final ref = _sanitize(receipt.requestReferenceNumber);

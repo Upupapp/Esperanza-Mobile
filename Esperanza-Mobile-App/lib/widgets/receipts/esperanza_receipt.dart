@@ -201,6 +201,8 @@ class EsperanzaReceipt extends StatelessWidget {
     ReceiptType.maya => 'Maya',
     ReceiptType.onsite => 'Onsite — Municipal Office',
     ReceiptType.free => 'No Payment Required',
+    // Never name a method we cannot read. See ReceiptType.unknown.
+    ReceiptType.unknown => '—',
   };
 
   /// GCash/Maya genuinely completed a (simulated) digital payment, so the
@@ -212,18 +214,25 @@ class EsperanzaReceipt extends StatelessWidget {
     ReceiptType.gcash || ReceiptType.maya => 'PAID',
     ReceiptType.onsite => 'DUE ONSITE',
     ReceiptType.free => 'RECEIVED',
+    // The one that mattered: an unreadable type used to render as
+    // "DUE ONSITE". It must claim neither payment nor debt.
+    ReceiptType.unknown => '—',
   };
 
   (Color, Color) get _badgeColors => switch (receipt.type) {
     ReceiptType.gcash || ReceiptType.maya => (AppColors.emerald50, AppColors.emerald700),
     ReceiptType.onsite => (AppColors.amber50, AppColors.amber700),
     ReceiptType.free => (AppColors.emerald50, AppColors.emerald700),
+    // Neutral, so the badge does not read as settled (green) or owing (amber).
+    ReceiptType.unknown => (AppColors.slate100, AppColors.slate600),
   };
 
   String get _amountLabel => switch (receipt.type) {
     ReceiptType.gcash || ReceiptType.maya => 'Amount Paid',
     ReceiptType.onsite => 'Amount Due',
     ReceiptType.free => 'Amount',
+    // "Amount" is true regardless; "Paid"/"Due" would not be.
+    ReceiptType.unknown => 'Amount',
   };
 
   String _fmt(DateTime d) =>
@@ -270,6 +279,16 @@ class _PaymentModeBadge extends StatelessWidget {
           alignment: Alignment.center,
           decoration: const BoxDecoration(color: AppColors.emerald500, shape: BoxShape.circle),
           child: const Icon(Icons.check_rounded, size: 12, color: Colors.white),
+        );
+      case ReceiptType.unknown:
+        // No brand mark and no storefront glyph — either would assert a
+        // payment method. A neutral question mark says what is true.
+        return Container(
+          width: 18,
+          height: 18,
+          alignment: Alignment.center,
+          decoration: const BoxDecoration(color: AppColors.slate400, shape: BoxShape.circle),
+          child: const Icon(Icons.question_mark_rounded, size: 11, color: AppColors.surface),
         );
     }
   }

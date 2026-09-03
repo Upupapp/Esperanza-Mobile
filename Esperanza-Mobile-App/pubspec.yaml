@@ -71,6 +71,12 @@ flutter_launcher_icons:
 dev_dependencies:
   flutter_test:
     sdk: flutter
+  # Drives the real app on a real device/simulator from inside its own
+  # process — the only way this lane can walk the screens, since OS-level
+  # synthetic taps depend on an Accessibility grant that is not portable
+  # between machines. See docs/FE03_DEVICE_VERIFICATION.md.
+  integration_test:
+    sdk: flutter
 
   # The "flutter_lints" package below contains a set of recommended lints to
   # encourage good coding practices. The lint set provided by the package is

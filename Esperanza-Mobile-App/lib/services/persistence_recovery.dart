@@ -50,6 +50,68 @@ class PersistenceRecovery {
 
   static const _maxRecordedDiscards = 20;
 
+  /// Decodes a persisted collection **entry by entry**, keeping what is readable.
+  ///
+  /// [discardUnreadable] is all-or-nothing by design — it clears a whole key.
+  /// For a collection that is a blunt instrument: one unreadable record costs a
+  /// citizen every request they have ever filed. Their history is the part of
+  /// this app they cannot reconstruct, so a decode failure should cost the
+  /// record that failed and nothing else.
+  ///
+  /// A skip is reported through the same channel as a discard rather than
+  /// silently shrinking the list — a restore that quietly loses half its
+  /// records is its own defect. The caller keeps its `catch`: this handles a
+  /// bad *entry*, while a payload that is not a collection at all still falls
+  /// through to [discardUnreadable].
+  ///
+  /// Per-record failures remain reachable even though every persisted enum now
+  /// carries an `orElse`: `ServiceRequest.fromJson` casts `statusHistory` and
+  /// `attachments` with a bare `as List` and no default, unlike
+  /// `flaggedRequirements` and `formFields`, so a record written before either
+  /// field existed still throws.
+  static List<T> decodeEach<T>(
+    Iterable<dynamic> source,
+    T Function(dynamic entry) decode, {
+    required String what,
+  }) {
+    final decoded = <T>[];
+    var skipped = 0;
+    for (final entry in source) {
+      try {
+        decoded.add(decode(entry));
+      } catch (error) {
+        skipped++;
+        developer.log('Skipping unreadable $what entry: $error', name: 'esperanza.persistence', error: error);
+      }
+    }
+    if (skipped > 0) {
+      debugPrint('[esperanza.persistence] skipped $skipped of ${skipped + decoded.length} $what entries');
+    }
+    return decoded;
+  }
+
+  /// [decodeEach] for a map payload keyed by id.
+  static Map<String, V> decodeEntries<V>(
+    Map<String, dynamic> source,
+    V Function(dynamic value) decode, {
+    required String what,
+  }) {
+    final decoded = <String, V>{};
+    var skipped = 0;
+    source.forEach((key, value) {
+      try {
+        decoded[key] = decode(value);
+      } catch (error) {
+        skipped++;
+        developer.log('Skipping unreadable $what "$key": $error', name: 'esperanza.persistence', error: error);
+      }
+    });
+    if (skipped > 0) {
+      debugPrint('[esperanza.persistence] skipped $skipped of ${skipped + decoded.length} $what entries');
+    }
+    return decoded;
+  }
+
   /// Logs the loss, then removes **only** [keys].
   ///
   /// Pass the narrowest set that can restore the boot — a service that cannot

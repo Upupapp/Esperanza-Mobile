@@ -1,7 +1,40 @@
 import 'attachment.dart';
 import 'receipt.dart';
 
-enum ServiceCategory { dokyu, tulong, sakunaIncident }
+enum ServiceCategory {
+  dokyu,
+  tulong,
+  sakunaIncident,
+
+  /// A persisted request whose service category this build cannot read.
+  ///
+  /// **Never generated** — it exists only so [ServiceRequest.fromJson] has
+  /// something honest to decode into. The previous fallback was [dokyu], which
+  /// silently re-filed a citizen's Tulong (assistance) or Sakuna (incident)
+  /// application as a document request: wrong tab, wrong catalogue, wrong flow,
+  /// and no indication anything was amiss.
+  ///
+  /// The record is kept rather than dropped, because the reference number,
+  /// dates, status history and attachments on it are all still true and the
+  /// citizen cannot reconstruct them. It is excluded from the Dokyu and Tulong
+  /// tabs and counts, and labelled as unrecognised wherever it does appear.
+  unknown,
+}
+
+extension ServiceCategoryX on ServiceCategory {
+  /// The citizen-facing name of this category.
+  ///
+  /// Lives here rather than in each screen because the screens used to derive
+  /// it with `category == dokyu ? 'Dokyu' : 'Tulong'`, which labels anything
+  /// that is not Dokyu as Tulong — including [ServiceCategory.unknown], which
+  /// is precisely the mislabelling `unknown` exists to prevent.
+  String get label => switch (this) {
+    ServiceCategory.dokyu => 'Dokyu',
+    ServiceCategory.tulong => 'Tulong',
+    ServiceCategory.sakunaIncident => 'Sakuna',
+    ServiceCategory.unknown => 'Unrecognised',
+  };
+}
 
 /// One "Flagged for Replacement" event on a single requirement — created by
 /// [RequestsService.flagAdditionalDocuments] and never mutated except to set
@@ -207,13 +240,28 @@ class ServiceRequest {
         applicantId: json['applicantId'],
         applicantName: json['applicantName'],
         typeName: json['typeName'],
-        category: ServiceCategory.values.firstWhere((c) => c.name == json['category'], orElse: () => ServiceCategory.dokyu),
+        // Falls back to `unknown`, never to a real service: see
+        // ServiceCategory.unknown. Guessing re-files the citizen's request.
+        category: ServiceCategory.values
+            .firstWhere((c) => c.name == json['category'], orElse: () => ServiceCategory.unknown),
         office: json['office'],
         purpose: json['purpose'],
         submittedAt: DateTime.parse(json['submittedAt']),
         status: json['status'],
-        statusHistory: (json['statusHistory'] as List).map((e) => StatusHistoryEntry.fromJson(e)).toList(),
-        attachments: (json['attachments'] as List).map((e) => Attachment.fromJson(e)).toList(),
+        // These two were the only unguarded list casts left in any model —
+        // `flaggedRequirements` and `formFields` below already default, as does
+        // every list in Announcement and ResidentProfile. A record written
+        // before either field existed threw on a bare `as List`, and because
+        // nothing awaits the restore that throw used to strand the app; it now
+        // costs the whole record instead. Neither is a good price for a field
+        // whose absence simply means "none recorded".
+        //
+        // Empty is the honest default: a missing history means the history is
+        // unknown, and it must not be invented from `status` + `submittedAt`,
+        // which would assert a time the status was reached. Consumers that
+        // read the latest entry handle empty explicitly rather than assuming.
+        statusHistory: (json['statusHistory'] as List? ?? []).map((e) => StatusHistoryEntry.fromJson(e)).toList(),
+        attachments: (json['attachments'] as List? ?? []).map((e) => Attachment.fromJson(e)).toList(),
         citizenRemarks: json['citizenRemarks'],
         adminRemarks: json['adminRemarks'],
         rejectionGuidance: json['rejectionGuidance'],
