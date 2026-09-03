@@ -30,14 +30,20 @@ import 'package:flutter_test/flutter_test.dart';
 /// Hardcoded `fontSize: 14` / `fontSize: 12.5` outside `lib/theme/`.
 ///
 /// 2026-08-29: 412 at the start of FE 06; 400 after migrating
-/// `request_detail_screen.dart`, the densest single file. Lowered here, as this
-/// file's own header instructs — a ceiling nobody lowers is one nobody works under.
-const _fontSizeCeiling = 400;
+/// `request_detail_screen.dart`, the densest single file. 398 on 2026-08-30,
+/// when the onboarding redesign replaced its inline sizes with the type scale —
+/// the two new tokens it needed (`hero`, `wordmark`) were added to
+/// `app_typography.dart` rather than written as numbers, which is what this
+/// file's own failure message asks for.
+const _fontSizeCeiling = 398;
 
 /// `Colors.white`, `Colors.black26`, `Colors.transparent` outside `lib/theme/`.
 ///
-/// 2026-08-29: 141 at the start of FE 06.
-const _materialColorCeiling = 141;
+/// 2026-08-29: 141 at the start of FE 06. 128 on 2026-08-30: the retired
+/// onboarding artwork needed a dozen `Colors.white`/`Colors.black38` values to
+/// keep overlay text legible against three unknown photographs. The redesign
+/// draws its own surfaces, so it can use palette tokens instead.
+const _materialColorCeiling = 128;
 
 final _fontSizeLiteral = RegExp(r'fontSize:\s*[0-9]');
 
@@ -53,12 +59,20 @@ List<File> _libFilesOutsideTheme() {
       .listSync(recursive: true)
       .whereType<File>()
       .where((f) => f.path.endsWith('.dart'))
-      .where((f) => !f.path.replaceAll(r'\', '/').contains('/lib/theme/') && !f.path.replaceAll(r'\', '/').startsWith('lib/theme/'))
+      .where(
+        (f) =>
+            !f.path.replaceAll(r'\', '/').contains('/lib/theme/') &&
+            !f.path.replaceAll(r'\', '/').startsWith('lib/theme/'),
+      )
       .toList();
   return files;
 }
 
-int _countAcross(List<File> files, RegExp pattern, {List<String>? collectInto}) {
+int _countAcross(
+  List<File> files,
+  RegExp pattern, {
+  List<String>? collectInto,
+}) {
   var total = 0;
   for (final f in files) {
     final matches = pattern.allMatches(f.readAsStringSync()).length;
@@ -76,7 +90,12 @@ void main() {
   test('the scan actually reaches the screens', () {
     // A ratchet that counts nothing passes for ever. Every threshold below is
     // worthless without this.
-    expect(files.length, greaterThan(100), reason: 'only ${files.length} files outside lib/theme/ — the walk is broken');
+    expect(
+      files.length,
+      greaterThan(100),
+      reason:
+          'only ${files.length} files outside lib/theme/ — the walk is broken',
+    );
   });
 
   test('no raw hex colour outside lib/theme/', () {
@@ -108,7 +127,8 @@ void main() {
     expect(
       count,
       greaterThan(_materialColorCeiling - 25),
-      reason: 'Colors.* fell to $count — lower _materialColorCeiling to $count.',
+      reason:
+          'Colors.* fell to $count — lower _materialColorCeiling to $count.',
     );
   });
 
@@ -126,7 +146,8 @@ void main() {
     expect(
       count,
       greaterThan(_fontSizeCeiling - 40),
-      reason: 'fontSize literals fell to $count — lower _fontSizeCeiling to $count.',
+      reason:
+          'fontSize literals fell to $count — lower _fontSizeCeiling to $count.',
     );
   });
 
@@ -136,7 +157,11 @@ void main() {
     // comes straight back.
     final typography = File('lib/theme/app_typography.dart').readAsStringSync();
     for (final size in ['12.5', '13.5', '11.5', '10.5']) {
-      expect(typography, contains('fontSize: $size'), reason: 'the type scale lost its $size style');
+      expect(
+        typography,
+        contains('fontSize: $size'),
+        reason: 'the type scale lost its $size style',
+      );
     }
   });
 }

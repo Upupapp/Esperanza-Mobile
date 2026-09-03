@@ -98,6 +98,16 @@ flutter:
     # build under `flutter test`) rather than left broken, since the office
     # logo fallback added below depends on esperanza-seal.png actually
     # resolving.
+    # Onboarding background plates, built by tool/onboarding_art/generate.py
+    # from the app's own tab banners.
+    #
+    # Listed one by one rather than as a `welcome/` directory, which Flutter
+    # would accept: `reachability_test.dart` checks that every declared asset
+    # is a real file on disk, and a directory entry fails that check. Naming
+    # each plate keeps the gate strict in both directions.
+    - assets/images/welcome/page_1_bg.jpg
+    - assets/images/welcome/page_2_bg.jpg
+    - assets/images/welcome/page_3_bg.jpg
     - assets/images/Logo/esperanza-seal.png
     - assets/images/Logo/labangtaytay-seal.png
     - assets/images/esperanza-aerial.jpg
@@ -109,9 +119,14 @@ flutter:
     - assets/images/Event 2.jpg
     - assets/images/Event 3.png
     - assets/images/News page section.png
-    - assets/images/Welcome Screen 1.png
-    - assets/images/Welcome Screen 2.png
-    - assets/images/Welcome Screen 3.png
+    # The three flattened Welcome Screen composites were retired on
+    # 2026-08-30 when onboarding was rebuilt from native layers. Nothing in
+    # lib/ or test/ references them (verified repo-wide), so they are no
+    # longer bundled — about 4.5 MB that used to ship in every binary.
+    #
+    # The FILES are deliberately still on disk as design references. Deleting
+    # them is a separate, owner-level call; undeclaring them is what stops
+    # them shipping, and is reversible.
     - assets/images/Dokyu Tab.png
     - assets/images/Tulong Tab.png
     - assets/images/Balita Tab.png

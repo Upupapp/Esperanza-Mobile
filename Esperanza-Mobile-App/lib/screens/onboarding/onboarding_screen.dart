@@ -1,26 +1,41 @@
 import 'package:flutter/material.dart';
+
 import '../../main.dart';
 import '../../services/onboarding_service.dart';
+import '../../theme/app_colors.dart';
+import '../../theme/app_haptics.dart';
 import '../../theme/app_spacing.dart';
 import '../../theme/app_typography.dart';
 import '../../utils/esperanza_seal.dart';
 import '../../utils/fade_page_route.dart';
 import '../../widgets/app_button.dart';
+import 'onboarding_page_data.dart';
+import 'widgets/onboarding_parallax_layer.dart';
+import 'widgets/onboarding_progress.dart';
 
-class _OnboardingPageData {
-  final String imagePath;
-  const _OnboardingPageData({required this.imagePath});
-}
-
-/// Three horizontally-swipeable welcome screens shown only on a citizen's
-/// very first use of the app (see [OnboardingService]) — the app-opening
-/// [SplashScreen] appears every launch regardless, this flow is a
-/// separate, one-time thing layered right after it. Each screen is the
-/// final full-bleed artwork itself (no placeholder illustration/headline
-/// column anymore) with a small branding overlay (seal + municipality
-/// name) pinned to the upper middle and Skip/Next/Get Started controls —
-/// the artwork already carries the messaging, so the overlay only adds
-/// identity + navigation, never competing text.
+/// The three first-run welcome screens, shown once (see [OnboardingService])
+/// straight after the every-launch [SplashScreen].
+///
+/// **The pattern is the Servana client's welcome experience**, rebuilt on
+/// Esperanza's palette, seal and voice: a full-bleed photograph per scene
+/// under a navy scrim whose stops interpolate continuously through the swipe,
+/// the photograph lagging the page for depth, and white copy set low over the
+/// dark half of the frame where it is always legible. The retired design put
+/// a boxed illustration above dark-on-light copy; this one lets the
+/// photograph carry the page.
+///
+/// **What the previous design could not do.** Each page used to be a single
+/// flattened PNG — the whole interface, headline and all, baked into one
+/// 1.4 MB image. Screen two advertised **"Business Permit — Approved"**, an
+/// outcome nothing here produces: there is no backend. Its ~0.65 aspect ratio
+/// against a phone's ~0.46 forced `BoxFit.contain`, letterboxing every device,
+/// and each image carried an empty grey panel where a control had been mocked
+/// up and never built. None of the text scaled, none of it reached a screen
+/// reader, and none of it could be tested.
+///
+/// The invariants around it are unchanged and deliberately so: splash runs
+/// every launch, onboarding runs once, Skip and Get Started both complete it,
+/// and completion is persisted before `AuthGate` replaces this route.
 class OnboardingScreen extends StatefulWidget {
   const OnboardingScreen({super.key});
 
@@ -29,38 +44,40 @@ class OnboardingScreen extends StatefulWidget {
 }
 
 class _OnboardingScreenState extends State<OnboardingScreen> {
-  static const _pages = [
-    _OnboardingPageData(imagePath: 'assets/images/Welcome Screen 1.png'),
-    _OnboardingPageData(imagePath: 'assets/images/Welcome Screen 2.png'),
-    _OnboardingPageData(imagePath: 'assets/images/Welcome Screen 3.png'),
-  ];
-
   final _pageController = PageController();
+
+  /// The settled page. Driven by `onPageChanged`; the per-frame scroll
+  /// position is read straight off the controller inside `AnimatedBuilder`s,
+  /// so a swipe never calls `setState`.
   int _page = 0;
   bool _finishing = false;
-  bool _imagesPrecached = false;
+  bool _precached = false;
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    // Decoding a ~1MB welcome-screen PNG takes a frame or two — without
-    // this, swiping/tapping Next to a page whose image hasn't been
-    // decoded yet leaves that frame briefly empty, exposing whatever sits
-    // behind it (this screen's own Scaffold background) until the decode
-    // finishes. Precaching all three up front (cheap: this only runs
-    // once, and the images are already about to be shown regardless)
-    // means every page's image is already decoded before it can ever be
-    // swiped/tapped to. Must build the exact same ResizeImage-wrapped
-    // provider _OnboardingPage's Image.asset(cacheWidth: ...) uses below
-    // — precaching a plain, unwrapped AssetImage would populate a
-    // different image-cache entry and not actually help.
-    if (_imagesPrecached) return;
-    _imagesPrecached = true;
-    final cacheWidth = (MediaQuery.sizeOf(context).width * MediaQuery.devicePixelRatioOf(context)).round();
-    for (final p in _pages) {
-      precacheImage(ResizeImage.resizeIfNeeded(cacheWidth, null, AssetImage(p.imagePath)), context);
+    if (_precached) return;
+    _precached = true;
+    // Decoded at display width, once. Without this the first swipe reaches a
+    // page whose photograph has not decoded and shows the Scaffold instead.
+    final cacheWidth =
+        (MediaQuery.sizeOf(context).width *
+                MediaQuery.devicePixelRatioOf(context))
+            .round();
+    for (final scene in onboardingScenes) {
+      precacheImage(
+        backgroundProvider(scene.backgroundAsset, cacheWidth),
+        context,
+      );
     }
+    precacheImage(const AssetImage(esperanzaSealAsset), context);
   }
+
+  /// One provider shape for precache and render alike. Two different shapes
+  /// populate two different image-cache entries, and the precache silently
+  /// buys nothing.
+  static ImageProvider backgroundProvider(String asset, int cacheWidth) =>
+      ResizeImage.resizeIfNeeded(cacheWidth, null, AssetImage(asset));
 
   @override
   void dispose() {
@@ -73,101 +90,270 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     setState(() => _finishing = true);
     await OnboardingService.markComplete();
     if (!mounted) return;
-    // pushReplacement — AuthGate becomes the new root route, same
-    // invariant SplashScreen's own handoff preserves (see its doc
-    // comment).
+    // pushReplacement — AuthGate becomes the new root route, the same
+    // invariant SplashScreen's own handoff preserves (see its doc comment).
     Navigator.of(context).pushReplacement(fadePageRoute(const AuthGate()));
   }
 
   void _next() {
-    if (_page < _pages.length - 1) {
-      _pageController.nextPage(duration: const Duration(milliseconds: 320), curve: Curves.easeOutCubic);
-    } else {
+    if (_page >= onboardingScenes.length - 1) {
+      AppHaptics.medium();
       _finish();
+      return;
     }
+    AppHaptics.selection();
+    if (MediaQuery.disableAnimationsOf(context)) {
+      // Someone who asked the platform for no animation should not wait out a
+      // 340 ms slide to reach the next page.
+      _pageController.jumpToPage(_page + 1);
+    } else {
+      _pageController.nextPage(
+        duration: const Duration(milliseconds: 340),
+        curve: Curves.easeOutCubic,
+      );
+    }
+  }
+
+  void _skip() {
+    AppHaptics.light();
+    _finish();
+  }
+
+  /// The scrim's three stops, interpolated between the neighbouring scenes so
+  /// the overlay never snaps at a page boundary — Servana's trick, and the
+  /// reason the transition reads as one continuous surface.
+  List<double> _stops() {
+    final progress = OnboardingParallaxLayer.progressOf(_pageController);
+    final lo = progress.floor().clamp(0, onboardingScenes.length - 1);
+    final hi = progress.ceil().clamp(0, onboardingScenes.length - 1);
+    final a = onboardingScenes[lo].gradientStops;
+    if (lo == hi) return a;
+    final b = onboardingScenes[hi].gradientStops;
+    final t = progress - lo;
+    return [for (var i = 0; i < 3; i++) a[i] + (b[i] - a[i]) * t];
   }
 
   @override
   Widget build(BuildContext context) {
-    final isLast = _page == _pages.length - 1;
+    final reduceMotion = MediaQuery.disableAnimationsOf(context);
+    final isLast = _page == onboardingScenes.length - 1;
+    final scene = onboardingScenes[_page];
+    final cacheWidth =
+        (MediaQuery.sizeOf(context).width *
+                MediaQuery.devicePixelRatioOf(context))
+            .round();
+
     return Scaffold(
-      // White, not the app's navy brand color — this is only ever visible
-      // for a stray frame behind a page whose image hasn't fully painted
-      // yet during a transition (see didChangeDependencies' precaching
-      // above, which minimizes how often that happens at all). Navy read
-      // as a jarring dark flash against these light welcome photos; white
-      // is the neutral, barely-noticeable fallback every other loading
-      // state in this app already uses.
-      backgroundColor: Colors.white,
+      // Navy, not white: this is only ever visible for a stray frame, and
+      // against these dark plates a white flash is the jarring one.
+      backgroundColor: AppColors.navy950,
       body: Stack(
+        fit: StackFit.expand,
         children: [
+          // ── Background photographs ────────────────────────────────────
           PageView.builder(
             controller: _pageController,
-            itemCount: _pages.length,
+            itemCount: onboardingScenes.length,
             onPageChanged: (i) => setState(() => _page = i),
-            itemBuilder: (context, i) => _OnboardingPage(data: _pages[i]),
-          ),
-          // Page indicator, just above the bottom action button — small
-          // and out of the way of the artwork itself.
-          Positioned(
-            left: 0,
-            right: 0,
-            bottom: 96,
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [for (int i = 0; i < _pages.length; i++) _PageDot(active: i == _page)],
+            itemBuilder: (context, i) => OnboardingParallaxLayer(
+              transformKey: Key('onboarding_background_$i'),
+              controller: _pageController,
+              pageIndex: i,
+              factor: OnboardingParallax.background,
+              verticalFactor: OnboardingParallax.backgroundVertical,
+              enabled: !reduceMotion,
+              child: Semantics(
+                label: onboardingScenes[i].semanticDescription,
+                image: true,
+                child: SizedBox.expand(
+                  child: Image(
+                    image: backgroundProvider(
+                      onboardingScenes[i].backgroundAsset,
+                      cacheWidth,
+                    ),
+                    fit: BoxFit.cover,
+                    alignment: Alignment.topCenter,
+                    filterQuality: FilterQuality.medium,
+                    excludeFromSemantics: true,
+                    // A missing plate must not show a white void behind white
+                    // text. The palette's darkest ink is the safe fallback.
+                    errorBuilder: (_, _, _) =>
+                        const ColoredBox(color: AppColors.navy950),
+                  ),
+                ),
+              ),
             ),
           ),
+
+          // ── Scrim ─────────────────────────────────────────────────────
+          Positioned.fill(
+            child: IgnorePointer(
+              child: AnimatedBuilder(
+                animation: _pageController,
+                builder: (context, _) => DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        AppColors.navy950.withValues(alpha: 0.05),
+                        AppColors.navy900.withValues(alpha: 0.55),
+                        AppColors.navy950.withValues(alpha: 0.94),
+                      ],
+                      stops: reduceMotion
+                          ? onboardingScenes[_page].gradientStops
+                          : _stops(),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+
+          // ── Top scrim ─────────────────────────────────────────────────
+          //
+          // The main scrim is deliberately near-transparent at the top so the
+          // photograph opens the frame. That leaves the seal and wordmark
+          // sitting on whatever the picture happens to be — a bright ambulance
+          // on page three — so white text has no guaranteed contrast. This
+          // short gradient gives the identity bar its own ground without
+          // darkening the picture.
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            height: 160,
+            child: IgnorePointer(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      AppColors.navy950.withValues(alpha: 0.60),
+                      AppColors.navy950.withValues(alpha: 0),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+
+          // ── Interface ─────────────────────────────────────────────────
+          //
+          // A Column, NOT a full-screen scroll view.
+          //
+          // The first version wrapped this whole layer in a
+          // SingleChildScrollView so it could never overflow. A `Scrollable`
+          // hit-tests opaquely across its entire box, so it sat over the
+          // PageView and swallowed every pointer before the pager could see
+          // one — swiping between pages did nothing at all, on a device as
+          // much as in a test, and only the Next button worked. Measured:
+          // `position.pixels` stayed at exactly 0.0 through a 240px drag.
+          //
+          // The middle of the screen now belongs to an `Align` that
+          // shrink-wraps the copy to the bottom. An Align hit-tests only its
+          // child, so pointers in the empty space above it fall straight
+          // through to the photograph behind, and the swipe works.
+          //
+          // The bottom block is still not a swipe surface, and that is
+          // accepted rather than overlooked: a `Scrollable` hit-tests opaquely
+          // whatever its physics say — `NeverScrollableScrollPhysics` was
+          // tried and changes nothing — and it has to stay a scroll view so
+          // the copy survives text scale 2.0 on a short handset. So the
+          // photograph is the swipe surface, which is how every onboarding of
+          // this shape behaves, and `Next` works everywhere.
+          // `onboarding_redesign_test.dart` pins the photograph area as
+          // swipeable so a future full-screen scroll view cannot quietly take
+          // it away again.
           SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(20, 12, 12, 0),
-              child: Stack(
-                alignment: Alignment.topCenter,
-                children: [
-                  // Esperanza seal + "Municipalidad ng Esperanza" — upper
-                  // middle, per spec — on its own dark pill so it stays
-                  // legible over any part of any photo underneath.
-                  const _BrandBadge(),
-                  // Skip — upper right, only on non-final pages so the
-                  // final page shows just "Get Started".
-                  Align(
-                    alignment: Alignment.topRight,
-                    child: Opacity(
-                      opacity: isLast ? 0 : 1,
-                      child: IgnorePointer(
-                        ignoring: isLast,
-                        child: _PillButton(
-                          onTap: _finishing ? null : _finish,
-                          child: const Text(
-                            'Skip',
-                            style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600, color: Colors.white),
+            child: Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 520),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    _IdentityBar(onSkip: isLast || _finishing ? null : _skip),
+                    // Only the copy scrolls; the button never does.
+                    //
+                    // A first attempt put the CTA inside the scroll view
+                    // too, and at 320x568 with text scale 2.0 it landed at
+                    // y=1437 on a 568-tall screen — reachable only by
+                    // scrolling, which is not what "keep the primary action
+                    // reachable" means.
+                    //
+                    // `Align` rather than a `Spacer`: when the copy is
+                    // shorter than the space, the scroll view shrink-wraps
+                    // and sits at the bottom, and the empty region above it
+                    // belongs to the Align — which hit-tests only its child,
+                    // so pointers there fall through to the photograph and
+                    // the swipe survives.
+                    Expanded(
+                      child: Align(
+                        alignment: Alignment.bottomCenter,
+                        child: SingleChildScrollView(
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              _FeatureChips(
+                                scene: scene,
+                                controller: _pageController,
+                                pageIndex: _page,
+                                reduceMotion: reduceMotion,
+                              ),
+                              const SizedBox(height: AppSpacing.lg),
+                              _CopyBlock(
+                                key: ValueKey('copy_${scene.id}'),
+                                scene: scene,
+                                reduceMotion: reduceMotion,
+                              ),
+                            ],
                           ),
                         ),
                       ),
                     ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          // Next / Get Started — lower middle, per spec — sitting on the
-          // same soft bottom scrim every page uses for legibility (see
-          // _OnboardingPage's gradient) rather than a full-width bar.
-          Positioned(
-            left: 0,
-            right: 0,
-            bottom: 28,
-            child: Center(
-              child: SizedBox(
-                width: 220,
-                child: AppButton(
-                  label: isLast ? 'Get Started' : 'Next',
-                  icon: isLast ? null : Icons.arrow_forward_rounded,
-                  iconTrailing: true,
-                  fullWidth: true,
-                  size: AppButtonSize.lg,
-                  loading: _finishing,
-                  onPressed: _next,
+                    const SizedBox(height: AppSpacing.xxl),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: AppSpacing.xxl,
+                      ),
+                      child: AnimatedSwitcher(
+                        duration: reduceMotion
+                            ? Duration.zero
+                            : const Duration(milliseconds: 220),
+                        child: isLast
+                            ? AppButton(
+                                key: const Key('onboarding_get_started'),
+                                label: 'Get Started',
+                                fullWidth: true,
+                                size: AppButtonSize.lg,
+                                loading: _finishing,
+                                onPressed: _finishing ? null : _next,
+                              )
+                            : AppButton(
+                                key: const Key('onboarding_next'),
+                                label: 'Next',
+                                icon: Icons.arrow_forward_rounded,
+                                iconTrailing: true,
+                                fullWidth: true,
+                                size: AppButtonSize.lg,
+                                onPressed: _finishing ? null : _next,
+                              ),
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.xl),
+                    Center(
+                      child: OnboardingProgress(
+                        key: const Key('onboarding_progress'),
+                        controller: _pageController,
+                        page: _page,
+                        count: onboardingScenes.length,
+                        reduceMotion: reduceMotion,
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.xl),
+                  ],
                 ),
               ),
             ),
@@ -178,95 +364,229 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   }
 }
 
-class _PageDot extends StatelessWidget {
-  final bool active;
-  const _PageDot({required this.active});
+/// Seal, municipality, and Skip — over the photograph, never moving with it.
+class _IdentityBar extends StatelessWidget {
+  const _IdentityBar({required this.onSkip});
+
+  /// Null on the final page, which removes Skip from the tree entirely — not
+  /// merely fades it. A control at zero opacity is still focusable and still
+  /// announced, and "Skip" offered to someone already on the last page is a
+  /// control that does nothing they want.
+  final VoidCallback? onSkip;
 
   @override
   Widget build(BuildContext context) {
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 200),
-      curve: Curves.easeOut,
-      margin: const EdgeInsets.symmetric(horizontal: AppSpacing.xs),
-      width: active ? 22 : 8,
-      height: 8,
-      decoration: BoxDecoration(
-        color: active ? Colors.white : Colors.white.withValues(alpha: 0.4),
-        borderRadius: BorderRadius.circular(999),
-        boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 4)],
+    return Padding(
+      // 16, not 24: at text scale 2.0 on a 320px handset the wordmark and Skip
+      // together need every pixel of the gutter.
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.lg,
+        AppSpacing.md,
+        AppSpacing.md,
+        AppSpacing.sm,
       ),
-    );
-  }
-}
-
-/// Small dark rounded backdrop shared by the Skip control and (via
-/// [_BrandBadge]) the seal/name badge — guarantees legibility over any
-/// part of any onboarding photo without needing to know the image's own
-/// brightness ahead of time.
-class _PillButton extends StatelessWidget {
-  final VoidCallback? onTap;
-  final Widget child;
-  const _PillButton({required this.onTap, required this.child});
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: Colors.black.withValues(alpha: 0.38),
-      borderRadius: BorderRadius.circular(999),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(999),
-        onTap: onTap,
-        child: Padding(padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9), child: child),
-      ),
-    );
-  }
-}
-
-class _BrandBadge extends StatelessWidget {
-  const _BrandBadge();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(6, 6, 14, 6),
-      decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.38), borderRadius: BorderRadius.circular(999)),
       child: Row(
-        mainAxisSize: MainAxisSize.min,
         children: [
           Container(
-            width: 26,
-            height: 26,
+            width: 30,
+            height: 30,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              border: Border.all(color: Colors.white.withValues(alpha: 0.5), width: 1),
+              border: Border.all(color: AppColors.gold300, width: 1.5),
             ),
-            // Source seal is 500x500; displayed at 26 logical px here, so
-            // cap decode to that (x DPR) instead of the full resolution.
             child: ClipOval(
               child: Image.asset(
                 esperanzaSealAsset,
                 fit: BoxFit.cover,
-                cacheWidth: (26 * MediaQuery.devicePixelRatioOf(context)).round(),
+                cacheWidth: (30 * MediaQuery.devicePixelRatioOf(context))
+                    .round(),
+                excludeFromSemantics: true,
+              ),
+            ),
+          ),
+          const SizedBox(width: AppSpacing.sm + 2),
+          // Flexible + ellipsis: this exact Row overflowed once already, when
+          // the wordmark's natural width exceeded what was left beside Skip on
+          // a narrow phone. At text scale 2.0 it would again.
+          Flexible(
+            child: Semantics(
+              header: true,
+              child: Text(
+                onboardingBrandName,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: AppTypography.wordmark.copyWith(
+                  color: AppColors.surface,
+                ),
               ),
             ),
           ),
           const SizedBox(width: AppSpacing.sm),
-          // Flexible + ellipsis: a Row with mainAxisSize.min still demands
-          // its full natural width regardless of what's actually
-          // available — on a narrow phone this text alone can exceed the
-          // room left after the top padding/Skip button, which is exactly
-          // what caused a real RenderFlex overflow here. Flexible lets it
-          // shrink and truncate instead of overflowing.
+          if (onSkip != null)
+            ConstrainedBox(
+              // 48x48, which a bare TextButton does not guarantee at every
+              // text scale.
+              constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+              child: TextButton(
+                key: const Key('onboarding_skip'),
+                onPressed: onSkip,
+                style: TextButton.styleFrom(
+                  foregroundColor: AppColors.surface,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.md,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(AppRadius.full),
+                  ),
+                ),
+                child: Text(
+                  'Skip',
+                  style: AppTypography.label.copyWith(color: AppColors.surface),
+                ),
+              ),
+            )
+          else
+            // Holds the bar's height steady when Skip goes, so the seal and
+            // wordmark do not shift up on the last page.
+            const SizedBox(height: 48),
+        ],
+      ),
+    );
+  }
+}
+
+/// Headline and supporting line, low in the frame over the dark half.
+class _CopyBlock extends StatelessWidget {
+  const _CopyBlock({
+    super.key,
+    required this.scene,
+    required this.reduceMotion,
+  });
+
+  final OnboardingSceneSpec scene;
+  final bool reduceMotion;
+
+  @override
+  Widget build(BuildContext context) {
+    final block = Padding(
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xxl),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            scene.headline,
+            style: AppTypography.hero.copyWith(color: AppColors.surface),
+          ),
+          const SizedBox(height: AppSpacing.md),
+          Text(
+            scene.subtext,
+            style: AppTypography.body.copyWith(
+              color: AppColors.surface.withValues(alpha: 0.82),
+              height: 1.55,
+            ),
+          ),
+          if (scene.note != null) ...[
+            const SizedBox(height: AppSpacing.md),
+            // A limit, marked as one — icon and words, never colour alone.
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(
+                  Icons.verified_user_outlined,
+                  size: 15,
+                  color: AppColors.gold300,
+                ),
+                const SizedBox(width: AppSpacing.sm),
+                Flexible(
+                  child: Text(
+                    scene.note!,
+                    style: AppTypography.captionSmallRegular.copyWith(
+                      color: AppColors.surface.withValues(alpha: 0.72),
+                      height: 1.35,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ],
+      ),
+    );
+
+    if (reduceMotion) return block;
+    return _SceneSwitcher(child: block);
+  }
+}
+
+/// Three capability chips, sitting just above the headline.
+class _FeatureChips extends StatelessWidget {
+  const _FeatureChips({
+    required this.scene,
+    required this.controller,
+    required this.pageIndex,
+    required this.reduceMotion,
+  });
+
+  final OnboardingSceneSpec scene;
+  final PageController controller;
+  final int pageIndex;
+  final bool reduceMotion;
+
+  @override
+  Widget build(BuildContext context) {
+    final row = Padding(
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xxl),
+      child: Wrap(
+        spacing: AppSpacing.sm,
+        runSpacing: AppSpacing.sm,
+        children: [for (final f in scene.features) _Chip(feature: f)],
+      ),
+    );
+
+    return OnboardingParallaxLayer(
+      transformKey: const Key('onboarding_chips'),
+      controller: controller,
+      pageIndex: pageIndex,
+      factor: OnboardingParallax.chips,
+      enabled: !reduceMotion,
+      child: reduceMotion ? row : _SceneSwitcher(child: row),
+    );
+  }
+}
+
+/// Glass chip: translucent white over the photograph, with a hairline edge so
+/// it still reads against a bright sky.
+class _Chip extends StatelessWidget {
+  const _Chip({required this.feature});
+
+  final OnboardingFeature feature;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.md,
+        vertical: AppSpacing.sm,
+      ),
+      decoration: BoxDecoration(
+        color: AppColors.surface.withValues(alpha: 0.14),
+        borderRadius: BorderRadius.circular(AppRadius.full),
+        border: Border.all(color: AppColors.surface.withValues(alpha: 0.28)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // The icon is the second channel that keeps these distinguishable
+          // without relying on colour.
+          Icon(feature.icon, size: 15, color: AppColors.surface),
+          const SizedBox(width: AppSpacing.sm - 2),
           Flexible(
             child: Text(
-              'Municipalidad ng Esperanza',
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                fontFamily: AppTypography.display,
-                fontSize: 12.5,
-                fontWeight: FontWeight.w600,
-                color: Colors.white,
+              feature.label,
+              maxLines: 2,
+              style: AppTypography.captionSmall.copyWith(
+                color: AppColors.surface,
               ),
             ),
           ),
@@ -276,58 +596,31 @@ class _BrandBadge extends StatelessWidget {
   }
 }
 
-class _OnboardingPage extends StatelessWidget {
-  final _OnboardingPageData data;
-  const _OnboardingPage({required this.data});
+/// Cross-fade with a short rise, keyed on the scene so a page change replays
+/// it. Finite by construction — an `AnimatedSwitcher` settles and stops, which
+/// is what keeps `pumpAndSettle` honest.
+class _SceneSwitcher extends StatelessWidget {
+  const _SceneSwitcher({required this.child});
+
+  final Widget child;
 
   @override
   Widget build(BuildContext context) {
-    // Full-bleed background — cap decode to the device's actual physical
-    // width (source art is ~1024px wide, already close to most phones'
-    // physical width, but this keeps decode matched to the screen rather
-    // than the source file on higher-resolution devices).
-    final cacheWidth = (MediaQuery.sizeOf(context).width * MediaQuery.devicePixelRatioOf(context)).round();
-    return Stack(
-      fit: StackFit.expand,
-      children: [
-        // BoxFit.contain, not cover: this artwork's own aspect ratio
-        // (~0.62-0.67, source ~1023x1537) is noticeably wider/shorter than
-        // a real phone's (commonly ~0.45-0.48 — e.g. a Pixel emulator).
-        // Covering a narrower target than the source crops the image's own
-        // *width* to fill the extra height, which — since the messaging is
-        // baked directly into the artwork rather than a separate text
-        // layer — was cutting real content off the left/right edges on an
-        // actual Android emulator/device even though it looked fine on a
-        // wider desktop-web preview window. Contain guarantees the whole
-        // composition is always visible (letterboxed onto this screen's
-        // own white background when the aspect ratio doesn't match
-        // exactly) instead of ever cropping it.
-        Image.asset(data.imagePath, fit: BoxFit.contain, cacheWidth: cacheWidth),
-        // Soft top/bottom scrims so the brand badge/Skip and the page
-        // dots/Next button stay readable regardless of what's directly
-        // behind them in the artwork, without covering the middle of the
-        // image where its own content lives.
-        const DecoratedBox(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [Colors.black38, Colors.transparent],
-              stops: [0.0, 0.22],
-            ),
-          ),
+    return AnimatedSwitcher(
+      duration: const Duration(milliseconds: 420),
+      switchInCurve: Curves.easeOutCubic,
+      switchOutCurve: Curves.easeInCubic,
+      transitionBuilder: (child, animation) => FadeTransition(
+        opacity: animation,
+        child: SlideTransition(
+          position: Tween<Offset>(
+            begin: const Offset(0, 0.07),
+            end: Offset.zero,
+          ).animate(animation),
+          child: child,
         ),
-        const DecoratedBox(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.bottomCenter,
-              end: Alignment.topCenter,
-              colors: [Colors.black45, Colors.transparent],
-              stops: [0.0, 0.28],
-            ),
-          ),
-        ),
-      ],
+      ),
+      child: child,
     );
   }
 }

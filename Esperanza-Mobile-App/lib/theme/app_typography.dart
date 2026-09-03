@@ -74,32 +74,64 @@ class AppTypography {
   /// 12.5 / w400 — running text at the compact size. Note this is the DEFAULT
   /// weight: a bare `TextStyle(fontSize: 12.5)` is w400, so migrating one to
   /// [bodySmall] (w600) would silently embolden it. Both exist for that reason.
-  static const TextStyle bodySmallRegular = TextStyle(fontFamily: sans, fontSize: 12.5, fontWeight: FontWeight.w400);
+  static const TextStyle bodySmallRegular = TextStyle(
+    fontFamily: sans,
+    fontSize: 12.5,
+    fontWeight: FontWeight.w400,
+  );
 
   /// 12.5 / w600 — the app's most common size, by a wide margin. Dense row
   /// labels, chip text, compact metadata.
-  static const TextStyle bodySmall = TextStyle(fontFamily: sans, fontSize: 12.5, fontWeight: FontWeight.w600);
+  static const TextStyle bodySmall = TextStyle(
+    fontFamily: sans,
+    fontSize: 12.5,
+    fontWeight: FontWeight.w600,
+  );
 
   /// 12.5 / w500 — the same size at normal emphasis.
-  static const TextStyle bodySmallMedium = TextStyle(fontFamily: sans, fontSize: 12.5, fontWeight: FontWeight.w500);
+  static const TextStyle bodySmallMedium = TextStyle(
+    fontFamily: sans,
+    fontSize: 12.5,
+    fontWeight: FontWeight.w500,
+  );
 
   /// 13.5 / w600 — section and field labels a step above [bodySmall].
-  static const TextStyle label = TextStyle(fontFamily: sans, fontSize: 13.5, fontWeight: FontWeight.w600);
+  static const TextStyle label = TextStyle(
+    fontFamily: sans,
+    fontSize: 13.5,
+    fontWeight: FontWeight.w600,
+  );
 
   /// 13.5 / w700 — the emphatic form of [label]; equally common in practice.
-  static const TextStyle labelStrong = TextStyle(fontFamily: sans, fontSize: 13.5, fontWeight: FontWeight.w700);
+  static const TextStyle labelStrong = TextStyle(
+    fontFamily: sans,
+    fontSize: 13.5,
+    fontWeight: FontWeight.w700,
+  );
 
   /// 11.5 / w400 — the default-weight form; see [bodySmallRegular] on why the
   /// regular variants exist separately.
-  static const TextStyle captionSmallRegular = TextStyle(fontFamily: sans, fontSize: 11.5, fontWeight: FontWeight.w400);
+  static const TextStyle captionSmallRegular = TextStyle(
+    fontFamily: sans,
+    fontSize: 11.5,
+    fontWeight: FontWeight.w400,
+  );
 
   /// 11.5 / w600 — the smallest size used for real content: badge text,
   /// timestamps, helper lines.
-  static const TextStyle captionSmall = TextStyle(fontFamily: sans, fontSize: 11.5, fontWeight: FontWeight.w600);
+  static const TextStyle captionSmall = TextStyle(
+    fontFamily: sans,
+    fontSize: 11.5,
+    fontWeight: FontWeight.w600,
+  );
 
   /// 10.5 / w600 — navigation labels and the tightest chrome. Below this,
   /// reconsider the layout rather than the type.
-  static const TextStyle micro = TextStyle(fontFamily: sans, fontSize: 10.5, fontWeight: FontWeight.w600);
+  static const TextStyle micro = TextStyle(
+    fontFamily: sans,
+    fontSize: 10.5,
+    fontWeight: FontWeight.w600,
+  );
 
   /// Card/list-tile title text — Balita post headers, request/notification
   /// tiles, evacuation-center rows, and similar "titled item" rows. Added
@@ -125,6 +157,37 @@ class AppTypography {
     color: AppColors.textMuted,
   );
 
+  /// 28 / w700 — one step above [h1], for a full-screen moment that owns the
+  /// whole viewport rather than a section of one: the first-run onboarding
+  /// headlines. [h1] at 24 is tuned for a screen title sitting above content;
+  /// at hero scale it reads as a heading that forgot it was the only thing
+  /// there.
+  ///
+  /// Added rather than written inline as `fontSize: 28` because
+  /// `design_token_discipline_test.dart` says exactly that: "Add the style, do
+  /// not add the number." Inter, not Lora — see [wordmark] for where Lora
+  /// belongs.
+  static const TextStyle hero = TextStyle(
+    fontFamily: sans,
+    fontSize: 32,
+    fontWeight: FontWeight.w700,
+    color: AppColors.textPrimary,
+    letterSpacing: -0.6,
+    height: 1.16,
+  );
+
+  /// 13 / w600 / Lora — the municipal wordmark beside the seal.
+  ///
+  /// The one ceremonial role that recurs across entry screens (splash,
+  /// onboarding, sign-in) rather than a one-off: "Municipalidad ng Esperanza"
+  /// set in the display face while every other word on the same screen stays
+  /// in Inter. Named so those screens stop each writing their own size.
+  static const TextStyle wordmark = TextStyle(
+    fontFamily: display,
+    fontSize: 13,
+    fontWeight: FontWeight.w600,
+  );
+
   static const TextStyle overline = TextStyle(
     fontFamily: sans,
     fontSize: 11,
@@ -133,7 +196,11 @@ class AppTypography {
     letterSpacing: 0.6,
   );
 
-  static const TextStyle button = TextStyle(fontFamily: sans, fontSize: 14, fontWeight: FontWeight.w500);
+  static const TextStyle button = TextStyle(
+    fontFamily: sans,
+    fontSize: 14,
+    fontWeight: FontWeight.w500,
+  );
 
   /// Reserved for ceremonial contexts: document/certificate previews,
   /// official-looking headers — matches the Web Admin's narrow, deliberate
