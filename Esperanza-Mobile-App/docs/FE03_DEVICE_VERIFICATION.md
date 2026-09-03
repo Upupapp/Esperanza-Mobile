@@ -122,28 +122,70 @@ An iOS build is therefore not reproducible from `pubspec.lock` alone. Committing
 
 ---
 
+## 7. The walk is automated, and no longer needs an Accessibility grant
+
+**Update, later the same day.** The blocker below was solved rather than waited on.
+
+OS-level synthetic taps were the wrong tool. `integration_test` (now a dev dependency, shipped
+with the SDK) drives the app **from inside its own process**, so it taps *widgets* rather than
+screen coordinates. It needs no Accessibility permission, works on any machine, runs on a
+simulator or real hardware, and — unlike a manual walk — lives in the repo and can be re-run.
+
+```sh
+flutter test integration_test/app_walk_test.dart -d <simulator-udid>
+```
+
+**Result: 13 screens reached, 0 problems**, in 57s on an iPhone 17 simulator:
+
+Splash → Onboarding → Skip → Sign in → *tap the verified demo account* → Home → Balita →
+Events → Emergency → Home → Drawer → Government Directory → Drawer → Help & Support.
+
+The walk installs a `FlutterError.onError` hook, so a layout overflow on any visited screen is
+recorded rather than allowed to fail the run at the first one. Zero were seen at default text
+scale.
+
+### The bug in the first version of this walk, which is the point
+
+The first run reported reaching **Home**. It had not. It was still on the sign-in screen, and
+the `visited: Home` entry came from an unconditional `visited.add('Home')` in the walk itself —
+the harness asserting a screen it never saw.
+
+Two causes, both worth knowing:
+
+- The verified account's card sits **below the fold**. A target that is off-screen is hit-tested
+  at a location nothing occupies, so the tap silently does nothing. `tester.ensureVisible` before
+  every tap fixes it.
+- `warnIfMissed: false` was silencing the one diagnostic that reports exactly this. It is now on,
+  and a missed tap is recorded as a problem.
+
+Both were only found because the walk dumps every `Text` on screen when a finder misses. **A walk
+that records what it attempted rather than what it confirmed is worse than no walk**, because it
+manufactures evidence. Screens are now confirmed by a marker only that screen renders — Home by
+the nav bar, not by the tap having returned.
+
+Also fixed: `find.textContaining('Perlita')` matched both the verified account and
+"Demo: Duplicate Perlita Account". The exact full name is the correct finder.
+
 ## What is blocked, and on what
 
-**The 46-screen walk cannot be done from this lane.** Synthetic taps fail with `-25204`
-(`errAEEventNotPermitted`) — the process has no Accessibility permission, which only the machine's
-owner can grant in System Settings › Privacy & Security › Accessibility. The app registers no URL
-scheme and sets no `FlutterDeepLinkingEnabled`, so `simctl openurl` is not a way round it.
+**Superseded — see section 7.** 13 of 46 screens are now walked automatically. The remaining 33
+are flows behind a form or a wizard step; extending the harness to them is ordinary work now that
+it exists, not a blocked task.
 
-Seeding preferences reaches the *first* screen of a state (onboarding-complete → sign-in), but
-navigation between tabs and into any flow needs real taps. Screens reached: **splash, onboarding
-page 1, sign-in** — 3 of 46.
-
-Consequently these remain entirely unverified, and all of them need taps:
+Still genuinely unverified:
 
 - Camera capture, gallery pick, document pick (PDF/DOCX)
 - All three permission outcomes — grant, deny, permanently-denied — including
   `protected_action.dart`'s two distinct dialogs, which no permission system has ever triggered
 - `tel:` links, the Google Maps launcher, and all five share targets
 - Keyboard behaviour on the wizard and registration forms
-- Every screen's rendering at 200% text scale (FE 05 depends on this)
+- **200% text scale (FE 05).** Attempted and not working: a second `testWidgets` has to call
+  `app.main()` again, and a second `runApp` in one process hangs — two attempts were killed at
+  ten minutes with no output. The fix is a separate entry point that pumps the tree under a
+  `MediaQuery` rather than re-running `main()`. Deliberately **not** shipped as a skipped test,
+  because a skipped test reads as a passing one in the summary line.
 
 **Android was not attempted from this lane.** The Windows lane owns Play and has already built a
 release APK; duplicating it here would prove nothing new.
 
-**To unblock:** grant Accessibility to the terminal, or have someone walk the app with the
-screenshot commands in `mac-simulator-run-procedure` to hand.
+**No longer blocked on a permission.** Extend `integration_test/app_walk_test.dart`.

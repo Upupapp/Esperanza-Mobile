@@ -130,9 +130,20 @@ exceptions. Two things to know:
   (`DKCamera`, `DKPhotoGallery`, via `file_picker`) track branch `master`, so those revisions are
   the only thing making an iOS build reproducible.
 
-See `Esperanza-Mobile-App/docs/FE03_DEVICE_VERIFICATION.md`. The 46-screen walk is still owed:
-synthetic taps are blocked on this Mac (no Accessibility grant), so only splash, onboarding and
-sign-in have been seen.
+See `Esperanza-Mobile-App/docs/FE03_DEVICE_VERIFICATION.md`.
+
+**Walking the app is automated — do not do it by hand, and do not wait on an Accessibility
+grant.** `integration_test/app_walk_test.dart` drives the real app from inside its own process
+(taps widgets, not screen coordinates), so it works on either lane's machine:
+
+```sh
+flutter test integration_test/app_walk_test.dart -d <device-id>
+```
+
+13 screens, 0 problems, ~57s. Extend it rather than writing a new one. Two rules it encodes the
+hard way: `ensureVisible` before every tap (a target below the fold is silently missed), and
+confirm a screen by a marker only that screen renders — the first version reported reaching Home
+while still sitting on the sign-in screen.
 
 ## Deploying
 
