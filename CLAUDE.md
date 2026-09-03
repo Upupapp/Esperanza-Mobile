@@ -140,10 +140,17 @@ grant.** `integration_test/app_walk_test.dart` drives the real app from inside i
 flutter test integration_test/app_walk_test.dart -d <device-id>
 ```
 
-13 screens, 0 problems, ~57s. Extend it rather than writing a new one. Two rules it encodes the
+**62 destinations, 0 problems, ~4 min** — including the core journey end to end: launcher →
+Dokyu → New Request → scope → department → service → wizard → attach both requirements →
+Submit → confirmation. Extend it rather than writing a new one. Two rules it encodes the
 hard way: `ensureVisible` before every tap (a target below the fold is silently missed), and
 confirm a screen by a marker only that screen renders — the first version reported reaching Home
 while still sitting on the sign-in screen.
+
+Two more things it encodes: `_popToShell` pops in a loop, because one `pageBack()` is not enough
+and a single failed pop cascades into ten false "NOT REACHED" entries; and the wizard's Master
+File fixture is built from `MockCatalog` and the app's own `resolveRequirements()`, so a
+catalogue change stalls the wizard visibly instead of hollowing the fixture out.
 
 ## Deploying
 

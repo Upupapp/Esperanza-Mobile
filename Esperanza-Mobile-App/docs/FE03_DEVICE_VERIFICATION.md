@@ -216,6 +216,55 @@ Both cost a run each, and both are now encoded in the harness:
   existed, a single failed pop left the walk on the wrong screen and reported *every* later
   destination as missing — 10 false "NOT REACHED" entries from one real problem.
 
+## 9. The core product journey now completes on a device
+
+The walk previously stopped at the service catalogue, which is the point at which nothing
+interesting has happened yet. The wizard is where the forms, the validation, the requirement
+attachments and the submission live — and it is the only part of this app a citizen actually
+has to get through.
+
+**62 destinations, 0 problems**, 3m55s. The added leg:
+
+`"+" launcher → Dokyu → New Request → LGU / Municipality → MSWDO → Certificate of Indigency →
+wizard steps 1-3 → attach both requirements → Submit Request → confirmation`
+
+A **free** service is used deliberately: a paid one diverts through a payment step whose
+"Confirm Payment" button is a different flow that deserves its own pass.
+
+### What the first attempt found, and why it was right to stall
+
+Before the Master File was seeded, the walk got four steps in and stopped:
+
+```
+WIZARD STALLED at step 4 — Continue did not advance.
+On screen: Step 3 of 4 | Requirements | ... |
+Please attach: One (1) valid government-issued ID, Barangay Certification of Indigency.
+```
+
+That is the app behaving **correctly** — submission is gated on the required documents. It is
+recorded here because "the walk cannot finish" and "the app is broken" look identical in a
+summary line, and the difference is the whole point of the stall detector.
+
+### How it gets past it without a file picker
+
+Attaching normally means the platform file picker, which no automated walk can drive. But the
+uploader already offers **"Use Existing Document"** when the resident's Master File holds a
+document of the matching type — the path a returning citizen takes. So the walk pre-files the
+two required documents and takes that path. This covers a real journey rather than inventing a
+shortcut around the validation.
+
+The fixture is built from the app's own data, never hand-copied:
+
+- the service is looked up by key from `MockCatalog.documentTypes`;
+- the document types come from the app's own `resolveRequirements()` applied to the
+  catalogue's own requirement text;
+- the account id is `MockCatalog.demoAccounts.last.id`, not a pasted string.
+
+So a change to the catalogue's requirements, to the type resolver, or to the demo identities
+shows up here as a **stalled wizard** rather than as a fixture that silently no longer matches
+anything. This is the same rule the unit tests learned the hard way earlier in this programme:
+build fixtures from the model, so drift breaks the test instead of hollowing it out.
+
 ## What is blocked, and on what
 
 **Superseded — see section 7.** 13 of 46 screens are now walked automatically. The remaining 33

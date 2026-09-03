@@ -15,12 +15,18 @@
 //
 // Run:
 //   flutter test integration_test/app_walk_test.dart -d <simulator-udid>
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:esperanza_mobile/main.dart' as app;
+import 'package:esperanza_mobile/models/attachment.dart';
+import 'package:esperanza_mobile/models/master_file_document.dart';
+import 'package:esperanza_mobile/services/mock_catalog.dart';
+import 'package:esperanza_mobile/utils/requirement_document_type.dart';
 
 /// Screens actually reached, so the report states a measured number rather than
 /// an intended one.
@@ -137,12 +143,109 @@ Future<void> _viaDrawer(WidgetTester tester, String label, Finder marker) async 
   await _popToShell(tester);
 }
 
+
+/// Drives a service request all the way through the wizard to submission.
+///
+/// The walk previously stopped at the catalogue, which is the point at which
+/// nothing interesting has happened yet: the wizard is where the forms, the
+/// validation, the requirement attachments and the receipt live, and it is the
+/// only part of this app a citizen actually has to complete.
+///
+/// A free service is used deliberately — a paid one diverts through a payment
+/// step whose "Confirm Payment" button is a different flow worth its own pass.
+Future<void> _completeDokyuRequest(WidgetTester tester) async {
+  await _goHome(tester);
+  if (!await _tapIfPresent(tester, find.byIcon(Icons.add_rounded), 'Wizard: "+" launcher')) return;
+  if (!await _tapIfPresent(tester, find.text('Dokyu'), 'Wizard: Dokyu')) return;
+  if (!await _tapIfPresent(tester, find.text('New Request'), 'Wizard: New Request')) return;
+
+  // Certificate of Indigency is Free, so there is no payment step.
+  if (!await _tapIfPresent(tester, find.text('LGU / Municipality'), 'Wizard: scope = LGU')) return;
+  await _tapIfPresent(tester, find.textContaining('Social Welfare'), 'Wizard: MSWDO department');
+  if (!await _tapIfPresent(tester, find.text('Certificate of Indigency'), 'Wizard: Certificate of Indigency')) {
+    return;
+  }
+  _confirm(tester, 'Request wizard (step 1)', find.text('Continue'));
+
+  // Advance until submission. Stall detection matters more than the step count:
+  // Continue is validated, so a required field the walk cannot fill stops it
+  // dead — and that is a finding, not a harness bug, so it gets recorded with
+  // whatever the screen was showing at the time.
+  var lastScreen = '';
+  for (var step = 0; step < 12; step++) {
+    if (find.text('Submit Request').evaluate().isNotEmpty) {
+      await _tapIfPresent(tester, find.text('Submit Request'), 'Wizard: Submit Request');
+      await _settle(tester, seconds: 4);
+      _confirm(tester, 'Request submitted', find.byType(Scaffold));
+      await _popToShell(tester);
+      return;
+    }
+    // On the Requirements step each requirement offers "Use Existing Document"
+    // because the Master File was pre-filled; take every one that is offered.
+    while (find.text('Use Existing Document').evaluate().isNotEmpty) {
+      if (!await _tapIfPresent(tester, find.text('Use Existing Document'), 'Wizard: use existing document')) {
+        break;
+      }
+    }
+
+    final screen = _visibleText(tester).join('|');
+    if (screen == lastScreen) {
+      problems.add('WIZARD STALLED at step $step — Continue did not advance. '
+          'On screen: ${_visibleText(tester).take(14).join(" | ")}');
+      break;
+    }
+    lastScreen = screen;
+    if (!await _tapIfPresent(tester, find.text('Continue'), 'Wizard: Continue (step $step)')) break;
+  }
+  await _popToShell(tester);
+}
+
 void main() {
   final binding = IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 
   setUpAll(() async {
-    // Start from a first-run state so the walk always covers onboarding.
-    SharedPreferences.setMockInitialValues({});
+    // Start from a first-run state so the walk always covers onboarding, but
+    // pre-file the documents the Certificate of Indigency wizard requires.
+    //
+    // Without them the wizard correctly refuses to submit ("Please attach:
+    // ...") and the walk cannot get past its Requirements step, because
+    // attaching means the platform file picker, which no automated walk can
+    // drive. With them the uploader offers "Use Existing Document" from the
+    // resident's Master File instead — the same path a returning citizen
+    // takes, so this covers a real journey rather than inventing a shortcut.
+    //
+    // The document types are resolved with the app's own `resolveRequirements`
+    // against the catalogue's own requirement text, so a change to either
+    // shows up here as a stalled wizard rather than a silently wrong fixture.
+    // The verified demo account, taken from the catalogue rather than pasted,
+    // so renaming or re-ordering the demo identities cannot silently orphan
+    // these documents against an account id that no longer exists.
+    final verifiedDemoAccountId = MockCatalog.demoAccounts.last.id;
+    final indigency = MockCatalog.documentTypes.firstWhere((i) => i.key == 'dokyu_indigency');
+    final uploadable = resolveRequirements(indigency.requirements).where((r) => r.requiresUpload);
+
+    final docs = <Map<String, dynamic>>[
+      for (final req in uploadable)
+        MasterFileDocument(
+          id: 'walk-${req.documentType}',
+          documentType: req.documentType,
+          label: req.label,
+          attachment: Attachment(
+            id: 'walk-att-${req.documentType}',
+            fileName: '${req.documentType}.pdf',
+            category: AttachmentCategory.pdf,
+            sizeBytes: 1024,
+            addedAt: DateTime(2026, 3, 1),
+            documentTypeLabel: req.label,
+          ),
+          uploadedAt: DateTime(2026, 3, 1),
+          origin: 'Walk fixture',
+        ).toJson(),
+    ];
+
+    SharedPreferences.setMockInitialValues({
+      'esperanza_master_file_documents': jsonEncode({verifiedDemoAccountId: docs}),
+    });
   });
 
   /// The walk itself, so it can be replayed under different conditions.
@@ -215,6 +318,9 @@ void main() {
     await _viaDrawer(tester, 'Government Directory', find.byType(Scaffold));
     await _viaDrawer(tester, 'Help & Support', find.byType(Scaffold));
     await _viaDrawer(tester, 'Privacy Policy', find.byType(Scaffold));
+
+    // ── The core product flow: a request, filled in and submitted ───────
+    await _completeDokyuRequest(tester);
 
     // ── Report ───────────────────────────────────────────────────────────
     // Printed rather than asserted: the first walk's job is to produce an
