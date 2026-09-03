@@ -289,8 +289,23 @@ holds Dokyu and Tulong in an `IndexedStack`, so the guess was that two FABs exis
 `finder.first` taps the off-screen one. Measured — finders skip offstage widgets, so exactly one
 is found, which matches the walk's own `Matches: 1`.
 
-**So the button is fine and the walk's report is a harness artifact whose mechanism is still
-unexplained.** It is recorded here as an open question about the harness, not as a defect in the
+**So the button is fine and the walk's report is a harness artifact.** Its mechanism was then
+explained by the **web lane**, which hit-tested the failing taps independently and recorded the
+result in `HANDOFF_FROM_WEB_LANE.md` §2:
+
+| Tap | What the hit test found instead |
+|---|---|
+| "Balita" / "Emergency" (bottom nav) | `AbsorbPointer` / `IgnorePointer` / `_RenderTheater` |
+| "New Request" | a **`RenderImage`**, at a different offset entirely |
+
+So the taps are being **intercepted**, not ignored — an overlay or a full-bleed image sits over
+the controls. They also found why the run aborts before printing: `warnIfMissed` reports a miss
+through `FlutterError`, which this walk redirects in order to collect layout errors, so the
+framework believes the test is already failing and kills it. That redirect has to be fixed first;
+until the report survives, nothing else about the walk is measurable.
+
+Worth stating plainly: two lanes reached the same place from opposite directions, and the one that
+did **not** write the harness found the mechanism. That is the argument for the handoff files. It is recorded here as an open question about the harness, not as a defect in the
 app, because reporting a working control as broken is the more expensive mistake: it sends the
 other lane to fix something that is not wrong.
 
