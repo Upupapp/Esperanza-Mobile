@@ -89,6 +89,54 @@ bool _confirm(WidgetTester tester, String screen, Finder marker) {
   return true;
 }
 
+
+/// Pops until the shell's bottom nav is visible again.
+///
+/// One `pageBack()` is not enough and is not safe to assume: some destinations
+/// are pushed routes, some replace the shell body, and some push two deep. A
+/// walk that assumes a single pop silently continues from the wrong screen and
+/// reports every later destination as missing — which is exactly what happened
+/// before this existed.
+Future<void> _popToShell(WidgetTester tester) async {
+  for (var i = 0; i < 4; i++) {
+    if (find.text('Balita').evaluate().isNotEmpty) return;
+    try {
+      await tester.pageBack();
+      await _settle(tester, seconds: 1);
+    } catch (_) {
+      return; // nothing left to pop
+    }
+  }
+}
+
+/// Returns to Home. The bottom nav swaps the shell's *body* rather than
+/// pushing a route, so `pageBack` does not undo a tab change — and the drawer
+/// button only exists on Home, so every drawer destination has to start here.
+Future<void> _goHome(WidgetTester tester) async {
+  await _popToShell(tester);
+  final home = find.text('Home');
+  if (home.evaluate().isNotEmpty) {
+    await tester.tap(home.first, warnIfMissed: false);
+    await _settle(tester, seconds: 2);
+  }
+}
+
+/// Opens the drawer, taps [label], confirms the destination by [marker], then
+/// returns. Each destination is reached from a known state (Home with the
+/// drawer available) rather than from wherever the previous one left us.
+Future<void> _viaDrawer(WidgetTester tester, String label, Finder marker) async {
+  await _goHome(tester);
+  final menu = find.byIcon(Icons.menu_rounded);
+  if (menu.evaluate().isEmpty) {
+    problems.add('NOT REACHED: $label — drawer button absent');
+    return;
+  }
+  await _tapIfPresent(tester, menu, 'Drawer → $label (open)');
+  if (!await _tapIfPresent(tester, find.text(label), 'Drawer → $label')) return;
+  _confirm(tester, label, marker);
+  await _popToShell(tester);
+}
+
 void main() {
   final binding = IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 
@@ -133,22 +181,40 @@ void main() {
       await _tapIfPresent(tester, find.text(tab), 'Tab: $tab');
     }
 
-    // ── Drawer destinations ──────────────────────────────────────────────
-    // home_screen.dart taps Icons.menu_rounded to call Scaffold.of().openDrawer()
-    final drawerButton = find.byIcon(Icons.menu_rounded);
-    if (drawerButton.evaluate().isNotEmpty) {
-      await _tapIfPresent(tester, drawerButton, 'Drawer: open');
-      await _tapIfPresent(tester, find.text('Government Directory'), 'Government Directory');
-      await tester.pageBack();
-      await _settle(tester);
+    // ── Notifications, from the shell's own app bar ─────────────────────
+    await _tapIfPresent(tester, find.byIcon(Icons.notifications_outlined), 'Notifications (open)');
+    _confirm(tester, 'Notifications', find.byType(Scaffold));
+    await _popToShell(tester);
 
-      await _tapIfPresent(tester, drawerButton, 'Drawer: reopen');
-      await _tapIfPresent(tester, find.text('Help & Support'), 'Help & Support');
-      await tester.pageBack();
-      await _settle(tester);
-    } else {
-      problems.add('NOT REACHED: drawer — no Icons.menu_rounded on screen');
+    // ── The centre "+" launcher: Dokyu and Tulong ───────────────────────
+    for (final service in ['Dokyu', 'Tulong']) {
+      await _goHome(tester);
+      if (await _tapIfPresent(tester, find.byIcon(Icons.add_rounded), '"+" launcher (for $service)')) {
+        if (await _tapIfPresent(tester, find.text(service), 'Launcher → $service')) {
+          // Both land on the shared request-list screen for that service.
+          _confirm(tester, '$service request list', find.text('New Request'));
+          // "New Request" opens the catalogue, which is a pushed route.
+          if (await _tapIfPresent(tester, find.text('New Request'), '$service → New Request')) {
+            _confirm(tester, '$service service catalogue', find.byType(Scaffold));
+            await _popToShell(tester);
+          }
+        }
+      }
+      await _goHome(tester);
     }
+
+    // ── Every drawer destination ────────────────────────────────────────
+    // Driven from the drawer's own label list (esperanza_drawer.dart) rather
+    // than a hand-kept copy, so a renamed entry shows up as a miss here.
+    await _viaDrawer(tester, 'Profile', find.byType(Scaffold));
+    await _viaDrawer(tester, 'Settings', find.byType(Scaffold));
+    await _viaDrawer(tester, 'My Requests', find.byType(Scaffold));
+    await _viaDrawer(tester, 'Transactions', find.byType(Scaffold));
+    await _viaDrawer(tester, 'Digital ID', find.byType(Scaffold));
+    await _viaDrawer(tester, 'Documents Uploaded', find.byType(Scaffold));
+    await _viaDrawer(tester, 'Government Directory', find.byType(Scaffold));
+    await _viaDrawer(tester, 'Help & Support', find.byType(Scaffold));
+    await _viaDrawer(tester, 'Privacy Policy', find.byType(Scaffold));
 
     // ── Report ───────────────────────────────────────────────────────────
     // Printed rather than asserted: the first walk's job is to produce an

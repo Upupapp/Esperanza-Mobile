@@ -22,7 +22,19 @@ class AppCard extends StatelessWidget {
         border: Border.all(color: AppColors.border),
         boxShadow: AppShadows.card,
       ),
-      child: child,
+      // A transparent Material so descendants have somewhere to paint ink.
+      //
+      // Without it a non-tappable card gave its children no Material ancestor,
+      // and any ListTile inside one rendered with no ripple and no tileColor —
+      // Flutter says so out loud ("ListTile background color or ink splashes
+      // may be invisible") but only at runtime on a device, which is why the
+      // widget suite never saw it. Settings was the visible case: four
+      // notification and language controls that changed value with no feedback
+      // at all under the finger. Found by the FE 03 device walk.
+      //
+      // `transparency` paints nothing itself, so the card's own decoration,
+      // border and shadow above are unchanged.
+      child: Material(type: MaterialType.transparency, child: child),
     );
 
     if (onTap == null) return content;

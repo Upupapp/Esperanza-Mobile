@@ -166,6 +166,56 @@ the nav bar, not by the tap having returned.
 Also fixed: `find.textContaining('Perlita')` matched both the verified account and
 "Demo: Duplicate Perlita Account". The exact full name is the correct finder.
 
+## 8. The walk now covers 48 destinations — and found a real defect
+
+Extended across the drawer, the centre "+" launcher and the notifications bell.
+
+**48 destinations reached, 0 problems**, in 2m56s. That is every bottom-nav tab, every one of
+the nine drawer destinations (Profile, Settings, My Requests, Transactions, Digital ID,
+Documents Uploaded, Government Directory, Help & Support, Privacy Policy), notifications, and
+both service flows through their request list into the catalogue.
+
+### The defect it found: four controls with no feedback under the finger
+
+The walk reported, four times on the Settings path:
+
+```
+ListTile background color or ink splashes may be invisible.
+```
+
+Four errors, and Settings has exactly four tiles — two notification switches and two language
+radios. Root cause in `widgets/app_card.dart`: `AppCard` wrapped itself in a `Material` **only
+when it had an `onTap`**. A non-tappable card gave its children no `Material` ancestor, so a
+`ListTile` inside one had nowhere to paint ink.
+
+For a citizen that means the notification toggles and the language radios changed value with
+**no ripple and no highlight at all** — controls that look dead while working. On a government
+app whose audience includes people who need clear affordances, that is not cosmetic.
+
+Fixed by wrapping the card's child in `Material(type: MaterialType.transparency)`, which paints
+nothing itself, so the card's own fill, border and shadow are untouched. `AppCard` is used
+throughout the app, so this repairs every non-tappable card containing a tile, not just Settings.
+
+**Why 584 passing widget tests never saw it.** This is a *painting* fault. It needs a real
+render pass on a device; a pumped widget tree does not paint ink. The device walk found it on
+its first extended run.
+
+Regression coverage: `test/app_card_material_test.dart`, 3 cases, break-checked — all 3 fail
+without the fix, including one asserting the Material stays `transparency` so the card's own
+decoration is not quietly taken over.
+
+### Two navigation facts the walk had to learn
+
+Both cost a run each, and both are now encoded in the harness:
+
+- **The bottom nav swaps the shell's body; it does not push a route.** `pageBack()` does not
+  undo a tab change, and the drawer button only exists on Home — so every drawer destination
+  starts with an explicit return to Home.
+- **One `pageBack()` is not enough.** Some destinations are pushed routes, some replace the
+  body, some go two deep. `_popToShell` pops until the nav bar is visible again. Before it
+  existed, a single failed pop left the walk on the wrong screen and reported *every* later
+  destination as missing — 10 false "NOT REACHED" entries from one real problem.
+
 ## What is blocked, and on what
 
 **Superseded — see section 7.** 13 of 46 screens are now walked automatically. The remaining 33
