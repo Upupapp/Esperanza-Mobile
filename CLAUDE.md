@@ -154,6 +154,28 @@ catalogue change stalls the wizard visibly instead of hollowing the fixture out.
 
 ## Deploying
 
+### Run this once per clone, before anything else
+
+```sh
+sh scripts/install-hooks.sh
+```
+
+It points `core.hooksPath` at `scripts/hooks`, so `git push` runs `flutter analyze` and the
+full suite first and refuses the push if either fails. Measured warm on the macOS lane:
+analyze ~4s, tests ~30-70s. Verified by planting a type error and watching the push be
+refused — not assumed.
+
+**Git does not version `.git/hooks`, so this step cannot be automatic.** That is the weak
+link and it is stated here rather than buried: a gate you have to install by hand is a gate
+that is absent until you do, and nothing announces its absence — the push simply succeeds.
+The backend lane lost exactly this way (their instruction was in two documents and was still
+not performed on the repo's first clone). It is written *here* because this file is loaded
+automatically by every agent working this repo, which a README is not.
+
+`--no-verify` bypasses it. That is a protocol violation, not a shortcut; if you use it, say
+so in the push report.
+
+
 The repository-agnostic deploy protocol from whichever lane you are on applies
 here in full: sweep remote → test upstream-only items → merge preserving
 local-only → sweep + test the merged result → push → verify refs. There is no CI

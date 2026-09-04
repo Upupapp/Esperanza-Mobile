@@ -41,6 +41,12 @@ item, move it to **Done** with its commit — do not delete it, so the arc stays
 
 ## Known and accepted, worth not rediscovering
 
+- **The pre-push gate must be installed by hand** (`sh scripts/install-hooks.sh`). Git does not
+  version `.git/hooks`, so a fresh clone has no gate and nothing says so — the push just
+  succeeds. Mitigated by putting the command in `CLAUDE.md`, which agents load automatically;
+  not eliminated. Raised by the backend lane (bus #0004) after losing exactly this way.
+
+
 - **`ServiceRequest.fromJson` scalars.** `statusHistory` and `attachments` now default, but required
   non-null scalars (`expectedDays`, `fee`, `office`, …) still throw per record if absent. Entry-tolerant
   decoding contains the blast radius to one record; the asymmetry is not closed.
