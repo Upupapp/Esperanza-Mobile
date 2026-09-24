@@ -42,6 +42,12 @@
     <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
 
+    <!-- Required for lib/services/api_client.dart's real backend calls
+         (production-readiness programme, 2026-09-25). Its absence had gone
+         unnoticed only because nothing in the app ever made a network
+         request before this. -->
+    <uses-permission android:name="android.permission.INTERNET" />
+
     <!-- Required to query activities that can process text, see:
          https://developer.android.com/training/package-visibility and
          https://developer.android.com/reference/android/content/Intent#ACTION_PROCESS_TEXT.
