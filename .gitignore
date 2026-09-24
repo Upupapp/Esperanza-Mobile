@@ -45,10 +45,10 @@ app.*.map.json
 /android/app/release
 
 # Esperanza Web Admin / Web Platform is a separate project and must never
-# be tracked in this repository (which is the Esperanza Mobile App only).
+# be tracked in this repository (which is the Tereza, Rizal App only).
 /Esperanza-Web-Platform-frontend--main/
 /Esperanza-Web-Admin/
 
 # Third-party design-reference app (Servana), kept locally for inspiration
-# only — not Esperanza's own code, never pushed.
-/Esperanza-Mobile-App/design_reference/
+# only — not Tereza, Rizal's own code, never pushed.
+/Tereza-Rizal-Mobile-App/design_reference/

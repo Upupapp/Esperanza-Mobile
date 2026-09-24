@@ -1,4 +1,4 @@
-# Esperanza Mobile — pending register
+# Tereza, Rizal — pending register
 
 > **Cross-lane:** `HANDOFF_FROM_WEB_LANE.md` answers the web lane's sweep — the
 > device walk aborts for a **harness** reason (not the onboarding rebuild), and
@@ -36,7 +36,7 @@ item, move it to **Done** with its commit — do not delete it, so the arc stays
 
 | # | Item | Decision |
 |---|---|---|
-| 12 | **FE 05 — 200% text-scale walk** | **Cancelled by the owner, 2026-09-03.** Reverted; nothing shipped. The technical blocker *was* solved before cancelling: a second `runApp` in one process hangs, but pumping `EsperanzaMobileApp` directly avoids `runApp`, and `platformDispatcher.textScaleFactorTestValue` propagates. One run reached 44/48 destinations with **no layout overflows** — the 2 misses were drawer entries pushed below the fold by the larger text, unconfirmed. Restorable in one commit if revisited. |
+| 12 | **FE 05 — 200% text-scale walk** | **Cancelled by the owner, 2026-09-03.** Reverted; nothing shipped. The technical blocker *was* solved before cancelling: a second `runApp` in one process hangs, but pumping `TerezaRizalApp` directly avoids `runApp`, and `platformDispatcher.textScaleFactorTestValue` propagates. One run reached 44/48 destinations with **no layout overflows** — the 2 misses were drawer entries pushed below the fold by the larger text, unconfirmed. Restorable in one commit if revisited. |
 | — | **`Waiting Requirements` status** | Mobile carries a status that appears in **zero** files on the current web platform. Inert (migrated to `Under Review` on load) and marked `PENDING OWNER DECISION` in `test/status_parity_test.dart`. Recommendation: retire it. Not this lane's call. |
 
 ## Known and accepted, worth not rediscovering
