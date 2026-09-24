@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../../models/citizen_account.dart';
+import '../../services/api_client.dart';
 import '../../services/citizen_session_service.dart';
 import '../../services/mock_catalog.dart';
 import '../../theme/app_colors.dart';
@@ -50,7 +50,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _email = TextEditingController();
   final _mobile = TextEditingController();
   final _purok = TextEditingController();
+  final _password = TextEditingController();
+  final _otpCode = TextEditingController();
   String? _barangay;
+
+  // Step 5 — Verification Status: the real account POST /auth/citizen/register
+  // created, and the destination it sent the OTP to.
+  String? _accountNo;
+  String? _otpDestination;
 
   // Step 1 — Terms & Conditions
   bool _termsAccepted = false;
@@ -76,7 +83,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   @override
   void dispose() {
-    for (final c in [_firstName, _lastName, _email, _mobile, _purok]) {
+    for (final c in [_firstName, _lastName, _email, _mobile, _purok, _password, _otpCode]) {
       c.dispose();
     }
     super.dispose();
@@ -113,6 +120,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         }
         if (_email.text.trim().isEmpty) return 'Please enter your email address.';
         if (_barangay == null) return 'Please select your barangay.';
+        if (_password.text.length < 10) return 'Password must be at least 10 characters.';
         return null;
       case 1:
         if (!_termsAccepted) return 'Please accept the Terms & Conditions to continue.';
@@ -155,34 +163,67 @@ class _RegisterScreenState extends State<RegisterScreen> {
     });
   }
 
+  /// The account exists on the server but is unusable (still Pending
+  /// Review) until the OTP this issues is confirmed — [_otpCode] and
+  /// [_verifyOtp] below handle that; the wizard's own "Verification
+  /// Status" step (5) still shows afterward, same as before, now driven
+  /// by the real account this created rather than a synthesized one.
   Future<void> _submitForVerification() async {
-    setState(() => _submitting = true);
-    await Future.delayed(const Duration(milliseconds: 900));
-    if (!mounted) return;
-
-    final account = CitizenAccount(
-      id: 'ESP-RES-${DateTime.now().year}-${DateTime.now().millisecondsSinceEpoch % 10000}',
-      firstName: _firstName.text.trim(),
-      lastName: _lastName.text.trim(),
-      email: _email.text.trim(),
-      mobile: _mobile.text.trim(),
-      barangay: _barangay!,
-      purok: _purok.text.trim().isEmpty ? '—' : _purok.text.trim(),
-      address: '${_purok.text.trim()}, Barangay $_barangay, Esperanza, Masbate',
-      birthdate: '—',
-      sex: '—',
-      civilStatus: '—',
-      occupation: '—',
-      profileCompleteness: 35,
-      status: AppStatus.pendingReview.label,
-    );
-
-    await context.read<CitizenSessionService>().login(account);
-    if (!mounted) return;
     setState(() {
-      _submitting = false;
-      _step = 5;
+      _submitting = true;
+      _error = null;
     });
+    try {
+      final session = context.read<CitizenSessionService>();
+      final result = await session.register({
+        'first_name': _firstName.text.trim(),
+        'last_name': _lastName.text.trim(),
+        'email': _email.text.trim().isEmpty ? null : _email.text.trim(),
+        'mobile': _mobile.text.trim().isEmpty ? null : _mobile.text.trim(),
+        'password': _password.text,
+        'barangay': _barangay,
+        'purok': _purok.text.trim().isEmpty ? null : _purok.text.trim(),
+        'address': '${_purok.text.trim()}, Barangay $_barangay, Esperanza, Masbate',
+        'accepts_terms': true,
+      });
+      if (!mounted) return;
+      setState(() {
+        _accountNo = result['account_no'] as String?;
+        _otpDestination = (result['verification'] as Map?)?['destination'] as String?;
+        _submitting = false;
+        _step = 5;
+      });
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _submitting = false;
+        _error = e.message();
+      });
+    }
+  }
+
+  /// Confirms the OTP the registration above issued, then signs the citizen
+  /// in for real (POST /auth/citizen/login) so the app's session reflects
+  /// the account the server actually created.
+  Future<void> _verifyOtp() async {
+    if (_accountNo == null || _otpCode.text.trim().length != 6) return;
+    setState(() {
+      _submitting = true;
+      _error = null;
+    });
+    try {
+      final session = context.read<CitizenSessionService>();
+      await session.verify(accountNo: _accountNo!, code: _otpCode.text.trim());
+      await session.loginWithCredentials(_accountNo!, _password.text);
+      if (!mounted) return;
+      setState(() => _submitting = false);
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _submitting = false;
+        _error = e.message();
+      });
+    }
   }
 
   @override
@@ -311,6 +352,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
         ),
         const SizedBox(height: AppSpacing.lg),
         AppTextField(label: 'Purok / Sitio', controller: _purok, icon: Icons.place_outlined),
+        const SizedBox(height: AppSpacing.lg),
+        AppTextField(
+          label: 'Password',
+          controller: _password,
+          obscureText: true,
+          icon: Icons.lock_outline_rounded,
+          hintText: 'At least 10 characters',
+        ),
         if (_error != null) ...[
           const SizedBox(height: AppSpacing.md),
           Text(_error!, style: const TextStyle(fontSize: 12.5, color: AppColors.rose600)),
@@ -594,8 +643,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
   }
 
   Widget _verificationStatusStep() {
-    final account = context.watch<CitizenSessionService>().account!;
-    final status = AppStatusX.fromLabel(account.status);
+    final account = context.watch<CitizenSessionService>().account;
+    // Between a successful registration and a confirmed OTP, there is no
+    // session yet at all (real login only happens once _verifyOtp()
+    // succeeds) -- show the pending-review styling rather than the earlier
+    // account! that would throw here.
+    final status = account == null ? AppStatus.pendingReview : AppStatusX.fromLabel(account.status);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -620,14 +673,37 @@ class _RegisterScreenState extends State<RegisterScreen> {
         ),
         const SizedBox(height: AppSpacing.xs),
         if (!_alreadyHasAccount)
-          const Text(
-            'Your information has been submitted to Esperanza LGU for verification.',
+          Text(
+            _accountNo != null && _otpDestination != null
+                ? 'Enter the 6-digit code sent to $_otpDestination to confirm your account.'
+                : 'Your information has been submitted to Esperanza LGU for verification.',
             textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 13, color: AppColors.textMuted, height: 1.4),
+            style: const TextStyle(fontSize: 13, color: AppColors.textMuted, height: 1.4),
           ),
+        if (_accountNo != null) ...[
+          const SizedBox(height: AppSpacing.lg),
+          AppTextField(
+            label: '6-digit code',
+            controller: _otpCode,
+            keyboardType: TextInputType.number,
+            icon: Icons.mark_email_read_outlined,
+          ),
+          if (_error != null) ...[
+            const SizedBox(height: AppSpacing.sm),
+            Text(_error!, style: const TextStyle(fontSize: 12.5, color: AppColors.rose600)),
+          ],
+          const SizedBox(height: AppSpacing.md),
+          AppButton(
+            label: 'Confirm Code',
+            fullWidth: true,
+            loading: _submitting,
+            onPressed: _submitting ? null : _verifyOtp,
+          ),
+        ],
         const SizedBox(height: AppSpacing.xl),
         VerificationStatusPanel(status: status),
         const SizedBox(height: AppSpacing.xxl),
+        if (account != null)
         AppButton(
           label: 'Continue to App',
           icon: Icons.arrow_forward_rounded,

@@ -1,16 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../../models/citizen_account.dart';
+import '../../services/api_client.dart';
 import '../../services/citizen_session_service.dart';
-import '../../services/mock_catalog.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_spacing.dart';
 import '../../theme/app_typography.dart';
 import '../../utils/esperanza_seal.dart';
 import '../../widgets/app_button.dart';
-import '../../widgets/app_dialogs.dart';
 import '../../widgets/app_text_field.dart';
-import '../../widgets/demo_account_card.dart';
 import '../../widgets/parallax_header.dart';
 import 'register_screen.dart';
 
@@ -18,10 +15,16 @@ import 'register_screen.dart';
 /// auth.select-portal (Citizen Login vs LGU Personnel Login). The mobile
 /// app is citizen-only by design (Section 5/9 of the alignment doc: never
 /// expose administrator functionality on mobile), so there is no portal
-/// picker here at all — just the citizen flow. Sign-in is entirely a
-/// frontend simulation, same as the Web Admin's authForm Alpine component:
-/// no real backend call is made (the Web Admin has no /api/login of its
-/// own for citizens yet either — see Section 8, Missing Web Admin Processes).
+/// picker here at all — just the citizen flow.
+///
+/// Real sign-in (production-readiness programme, 2026-09-25): calls
+/// POST /auth/citizen/login via CitizenSessionService.loginWithCredentials.
+/// This screen used to carry six "Demo: ..." account cards that let anyone
+/// browse and one-tap sign in as any seeded resident, including two
+/// duplicate-account demo identities -- a real credential-enumeration
+/// surface once this talks to a database, not a preview convenience, so
+/// they are gone along with the mock catalog match this screen used to do
+/// before ever reaching the network.
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
 
@@ -45,39 +48,22 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> _submit() async {
-    final email = _emailController.text.trim();
-    if (email.isEmpty || _passwordController.text.isEmpty) {
-      setState(() => _error = 'Please enter your email and password.');
+    final identifier = _emailController.text.trim();
+    if (identifier.isEmpty || _passwordController.text.isEmpty) {
+      setState(() => _error = 'Please enter your email/resident ID and password.');
       return;
     }
     setState(() {
       _loading = true;
       _error = null;
     });
-    await Future.delayed(const Duration(milliseconds: 700));
-
-    final match = MockCatalog.demoAccounts.where((a) => a.email.toLowerCase() == email.toLowerCase());
-    if (!mounted) return;
-    setState(() => _loading = false);
-
-    if (match.isEmpty) {
-      setState(
-        () => _error =
-            'No resident account found for that email in this demo. Try a quick demo login below, or register.',
-      );
-      return;
-    }
-    await context.read<CitizenSessionService>().login(match.first);
-  }
-
-  Future<void> _quickLogin(CitizenAccount account) async {
-    setState(() => _loading = true);
-    await Future.delayed(const Duration(milliseconds: 400));
-    if (!mounted) return;
-    setState(() => _loading = false);
-    await context.read<CitizenSessionService>().login(account);
-    if (mounted) {
-      AppDialogs.toast(context, 'This app is a frontend simulation — sign-in is mocked for now.');
+    try {
+      await context.read<CitizenSessionService>().loginWithCredentials(identifier, _passwordController.text);
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      setState(() => _error = e.message());
+    } finally {
+      if (mounted) setState(() => _loading = false);
     }
   }
 
@@ -170,11 +156,10 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                     const SizedBox(height: AppSpacing.xl),
                     AppTextField(
-                      label: 'Email address',
-                      hintText: 'juan.delacruz@email.com',
+                      label: 'Resident ID, email, or mobile',
+                      hintText: 'ESP-RES-2026-000123',
                       icon: Icons.mail_outline_rounded,
                       controller: _emailController,
-                      keyboardType: TextInputType.emailAddress,
                     ),
                     const SizedBox(height: AppSpacing.lg),
                     AppTextField(
@@ -202,54 +187,6 @@ class _LoginScreenState extends State<LoginScreen> {
                       variant: AppButtonVariant.ghost,
                       fullWidth: true,
                       onPressed: _loading ? null : _continueAsGuest,
-                    ),
-                    const SizedBox(height: AppSpacing.lg),
-                    Row(
-                      children: [
-                        const Expanded(child: Divider()),
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 10),
-                          child: Text(
-                            'or try a demo account',
-                            style: TextStyle(fontSize: 11, color: AppColors.textMuted),
-                          ),
-                        ),
-                        const Expanded(child: Divider()),
-                      ],
-                    ),
-                    const SizedBox(height: AppSpacing.lg),
-                    ...MockCatalog.demoAccounts.map(
-                      (a) => Padding(
-                        padding: const EdgeInsets.only(bottom: 10),
-                        child: DemoAccountCard(account: a, onTap: _loading ? null : () => _quickLogin(a)),
-                      ),
-                    ),
-                    // Phase 6 — "One Person, One Account" duplicate demo:
-                    // a second registration using the real Perlita
-                    // Quiambao's identity, kept separate from demoAccounts
-                    // above (see MockCatalog.duplicateVerifiedDemoAccount's own
-                    // doc comment) so it never gets swept up by call sites
-                    // that assume that list is only the two originals.
-                    DemoAccountCard(
-                      account: MockCatalog.duplicateVerifiedDemoAccount,
-                      label: 'Demo: Duplicate Perlita Account',
-                      onTap: _loading ? null : () => _quickLogin(MockCatalog.duplicateVerifiedDemoAccount),
-                    ),
-                    const SizedBox(height: 10),
-                    // Unverified + Unverified duplicate demo — both sides
-                    // still Pending Review (see MockCatalog.
-                    // unverifiedDuplicateAccountA's doc comment), kept
-                    // entirely separate from the Perlita scenario above.
-                    DemoAccountCard(
-                      account: MockCatalog.unverifiedDuplicateAccountA,
-                      label: 'Demo: Unverified Duplicate — Account A',
-                      onTap: _loading ? null : () => _quickLogin(MockCatalog.unverifiedDuplicateAccountA),
-                    ),
-                    const SizedBox(height: 10),
-                    DemoAccountCard(
-                      account: MockCatalog.unverifiedDuplicateAccountB,
-                      label: 'Demo: Unverified Duplicate — Account B',
-                      onTap: _loading ? null : () => _quickLogin(MockCatalog.unverifiedDuplicateAccountB),
                     ),
                   ],
                 ),

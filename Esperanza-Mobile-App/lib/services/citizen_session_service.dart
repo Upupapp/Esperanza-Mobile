@@ -4,16 +4,21 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../models/access_level.dart';
 import '../models/citizen_account.dart';
 import '../theme/app_status.dart';
+import 'api_client.dart';
 import 'mock_catalog.dart';
 import 'persistence_recovery.dart';
 
-/// Frontend-only session simulation — the mobile equivalent of the Web
-/// Admin's `Alpine.store('citizenSession')` in resources/js/app.js. No real
-/// backend call is made; the signed-in account is just persisted locally
-/// via SharedPreferences (the mobile analogue of the Web Admin's
-/// localStorage-based session). Registration here creates a local
-/// CitizenAccount the same shape a real backend's `residents` table would
-/// need — see ESPERANZA_MOBILE_WEB_ALIGNMENT.md Section 8.
+/// The real citizen session, backed by the backend's Sanctum bearer tokens
+/// (production-readiness programme, 2026-09-25) — the mobile equivalent of
+/// the Web Admin's `Alpine.store('citizenSession')` in resources/js/app.js,
+/// after that store's own rewrite off its login-simulation.
+///
+/// [login]/[register]/[verify] call the real API via [ApiClient] and cache
+/// the resulting account to SharedPreferences purely as a warm-start copy;
+/// [refresh] always re-fetches GET /citizen/profile and overwrites it, the
+/// same pattern the web client uses, so a status change the LGU made (e.g.
+/// verifying the account) is visible on the next app open, not only after a
+/// manual re-login.
 ///
 /// This is also the single source of truth for [accessLevel] — the only
 /// place in the app that decides Guest vs Authenticated/unverified vs
@@ -115,6 +120,60 @@ class CitizenSessionService extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Real sign-in: POST /auth/citizen/login, then GET /citizen/profile for
+  /// the fields the login response itself does not carry (see AuthController
+  /// ::citizenLogin vs ::me/CitizenPortalController::profile on the
+  /// backend). Throws [ApiException] on failure — the caller's own error
+  /// state is what a login screen shows, same as the web client.
+  Future<void> loginWithCredentials(String identifier, String password) async {
+    final result = await api.post('/auth/citizen/login', body: {'identifier': identifier, 'password': password});
+    final token = result.map['token'] as String?;
+    if (token != null) await api.setToken(token);
+    await refresh();
+  }
+
+  /// POST /auth/citizen/register. Returns the account_no and the OTP
+  /// destination the backend actually sent to — never assume email; the
+  /// citizen may have registered with a mobile number only.
+  Future<Map<String, dynamic>> register(Map<String, dynamic> payload) async {
+    final result = await api.post('/auth/citizen/register', body: payload);
+    return result.map;
+  }
+
+  /// POST /auth/citizen/verify. The account is unusable (Pending Review,
+  /// not yet Verified) until this succeeds — matching what the web
+  /// registration flow now does.
+  Future<void> verify({required String accountNo, required String code}) async {
+    await api.post('/auth/citizen/verify', body: {'account_no': accountNo, 'code': code});
+  }
+
+  /// Re-derive the session from the server. Never trust the cached copy for
+  /// a decision — a status the LGU changed, or a token the server has
+  /// revoked, must take effect on the very next call, not only after a
+  /// manual re-login.
+  Future<void> refresh() async {
+    final result = await api.get('/citizen/profile');
+    final p = result.map;
+    await login(
+      CitizenAccount(
+        id: p['account_no'] as String? ?? '',
+        firstName: p['first_name'] as String? ?? '',
+        lastName: p['last_name'] as String? ?? '',
+        email: p['email'] as String? ?? '',
+        mobile: p['mobile'] as String? ?? '',
+        barangay: p['barangay'] as String? ?? '',
+        purok: p['purok'] as String? ?? '',
+        address: p['address'] as String? ?? '',
+        birthdate: p['birthdate'] as String? ?? '',
+        sex: p['sex'] as String? ?? '',
+        civilStatus: p['civil_status'] as String? ?? '',
+        occupation: p['occupation'] as String? ?? '',
+        profileCompleteness: (p['profile_completeness'] as num?)?.round() ?? 0,
+        status: p['status'] as String? ?? 'Draft',
+      ),
+    );
+  }
+
   /// Section 5/6 — enters the app without an account. Guests get Home +
   /// public Balita only; everything else routes through [AccessGuard].
   Future<void> continueAsGuest() async {
@@ -136,6 +195,13 @@ class CitizenSessionService extends ChangeNotifier {
   }
 
   Future<void> logout() async {
+    try {
+      await api.post('/auth/logout');
+    } catch (_) {
+      // Token already invalid or unreachable — the session is cleared
+      // locally either way, same reasoning as the web client's logout().
+    }
+    await api.setToken(null);
     _account = null;
     _isGuest = false;
     final prefs = await SharedPreferences.getInstance();
