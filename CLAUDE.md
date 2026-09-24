@@ -1,4 +1,4 @@
-# Esperanza Mobile — agent rules
+# Tereza, Rizal — agent rules
 
 ## Read this first: the app is NOT at the repo root
 
@@ -11,10 +11,10 @@ the three screenshots and the duplicate alignment spec. The root now holds only
 The app was deliberately **not** promoted to the root: two lanes work this repository
 and the move rewrites every path in every open branch. Revisit only by agreement.
 
-**The app is `Esperanza-Mobile-App/`.** Every `flutter` command runs from there:
+**The app is `Tereza-Rizal-Mobile-App/`.** Every `flutter` command runs from there:
 
 ```sh
-cd Esperanza-Mobile-App
+cd Tereza-Rizal-Mobile-App
 flutter pub get && flutter analyze && flutter test
 ```
 
@@ -29,11 +29,11 @@ Both lanes run Flutter 3.47.0 / Dart 3.13.0; keep them pinned together.
 
 ## What this project is
 
-A **frontend-only** Flutter citizen app for the Municipality of Esperanza. There is
+A **frontend-only** Flutter citizen app for the Municipality of Tereza, Rizal. There is
 **no HTTP client dependency at all** — auth, requests, notifications and profile are
 simulated and persisted to `shared_preferences`. This is deliberate, not an omission.
 
-`Esperanza-Mobile-App/ESPERANZA_MOBILE_WEB_ALIGNMENT.md` is the spec and the intent
+`Tereza-Rizal-Mobile-App/TEREZA_RIZAL_MOBILE_WEB_ALIGNMENT.md` is the spec and the intent
 authority (there is now exactly one copy; the root duplicate is gone). It also
 names the Web-Admin APIs that do not exist yet. The web counterpart is a separate,
 **read-only** Laravel project (`Esperanza-Web-Platform-frontend`) — never modify it
@@ -86,11 +86,11 @@ Resolved at HEAD (FE 02, 2026-08-29): the three demo identities were real reside
 records — names, birthdates, addresses, household and family ids — and the bundled
 profile photos and ID scans were their real images. All are now synthetic and
 generated (`tool/demo_identity_art/generate.py`). See
-`Esperanza-Mobile-App/docs/FE02_SYNTHETIC_IDENTITIES.md`.
+`Tereza-Rizal-Mobile-App/docs/FE02_SYNTHETIC_IDENTITIES.md`.
 
 **Still unresolved, and owner decisions — do not attempt:**
 
-- `Esperanza-Mobile-App/Reference_forms/` — real residents' scanned documents, untouched.
+- `Tereza-Rizal-Mobile-App/Reference_forms/` — real residents' scanned documents, untouched.
 - **Git history.** FE 02 changed HEAD only. Every retired name is still in the history of
   a public repository and in every existing clone and fork. Removing it means a history
   rewrite, a force-push, and treating the data as already fetched.
@@ -130,7 +130,7 @@ exceptions. Two things to know:
   (`DKCamera`, `DKPhotoGallery`, via `file_picker`) track branch `master`, so those revisions are
   the only thing making an iOS build reproducible.
 
-See `Esperanza-Mobile-App/docs/FE03_DEVICE_VERIFICATION.md`.
+See `Tereza-Rizal-Mobile-App/docs/FE03_DEVICE_VERIFICATION.md`.
 
 **Walking the app is automated — do not do it by hand, and do not wait on an Accessibility
 grant.** `integration_test/app_walk_test.dart` drives the real app from inside its own process

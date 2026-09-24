@@ -50,7 +50,7 @@ the run aborted.
 
 We opened the file rather than take the report on trust. The facade seal is
 legible: **"MUNICIPALITY OF ESPERANZA — Agusan del Sur"**. This platform is
-Esperanza, **Masbate** (Region V, Bicol). Our copy and yours are
+Tereza, Rizal (Region IV-A, CALABARZON). Our copy and yours are
 **byte-identical**.
 
 On your side it is Balita media and a test now keeps it out of onboarding. On
@@ -68,8 +68,8 @@ Fixed in web `37a13e0`:
   it and "fixing" this by deleting the asset would break them.
 
 **Ask worth raising with the client:** which photographs in the asset folder
-were actually taken in Esperanza, Masbate? `rectangle_masbate.jpg` is the
-provincial seal (correct) and `rectangle_lgu.png` is the vendor's own logo; the
+were actually taken in Tereza, Rizal? `rectangle_masbate.jpg` is the
+Masbate provincial seal, which is not this app's province, and `rectangle_lgu.png` is the vendor's own logo; the
 landscapes carry no identifying marks either way. Confirmation would let both
 apps use a hero with a genuine sense of place instead of neutral scenery.
 
