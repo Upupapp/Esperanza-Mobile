@@ -132,6 +132,21 @@ class CitizenSessionService extends ChangeNotifier {
     await refresh();
   }
 
+  /// Registration step 1a: POST /auth/citizen/email/send-code. Runs before
+  /// the account exists. Throws [ApiException] with code `EMAIL_TAKEN` when
+  /// the address already belongs to a citizen, `CODE_TOO_SOON` on a quick
+  /// resend; otherwise a code has been emailed.
+  Future<void> sendEmailCode(String email) async {
+    await api.post('/auth/citizen/email/send-code', body: {'email': email});
+  }
+
+  /// Registration step 1b: POST /auth/citizen/email/verify-code. Returns the
+  /// single-use token that [register] presents as `email_verification_token`.
+  Future<String> verifyEmailCode({required String email, required String code}) async {
+    final result = await api.post('/auth/citizen/email/verify-code', body: {'email': email, 'code': code});
+    return result.map['verification_token'] as String;
+  }
+
   /// POST /auth/citizen/register. Returns the account_no and the OTP
   /// destination the backend actually sent to — never assume email; the
   /// citizen may have registered with a mobile number only.

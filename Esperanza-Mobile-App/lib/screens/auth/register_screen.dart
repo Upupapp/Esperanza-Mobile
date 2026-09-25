@@ -6,10 +6,13 @@ import '../../services/mock_catalog.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_spacing.dart';
 import '../../theme/app_status.dart';
+import '../../utils/password_standard.dart';
 import '../../utils/protected_action.dart';
+import '../../utils/registration_error_text.dart';
 import '../../widgets/app_button.dart';
 import '../../widgets/app_text_field.dart';
 import '../../widgets/onboarding_step_indicator.dart';
+import '../../widgets/password_requirements.dart';
 import '../../widgets/verification_status_panel.dart';
 
 /// Citizen registration, restructured (Section 9) from one long form into
@@ -54,6 +57,16 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _otpCode = TextEditingController();
   String? _barangay;
 
+  // Step 0 — the email is proven before the account exists: send a code,
+  // confirm it, and keep the single-use token registration presents as proof.
+  final _emailCode = TextEditingController();
+  bool _emailSending = false;
+  bool _emailCodeSent = false;
+  bool _emailConfirming = false;
+  bool _emailVerified = false;
+  String? _emailError;
+  String? _emailToken;
+
   // Step 5 — Verification Status: the real account POST /auth/citizen/register
   // created, and the destination it sent the OTP to.
   String? _accountNo;
@@ -83,7 +96,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   @override
   void dispose() {
-    for (final c in [_firstName, _lastName, _email, _mobile, _purok, _password, _otpCode]) {
+    for (final c in [_firstName, _lastName, _email, _mobile, _purok, _password, _otpCode, _emailCode]) {
       c.dispose();
     }
     super.dispose();
@@ -119,8 +132,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
           return 'Please enter your first and last name.';
         }
         if (_email.text.trim().isEmpty) return 'Please enter your email address.';
+        if (!_emailVerified) return 'Paki-verify muna ang iyong email bago magpatuloy.';
         if (_barangay == null) return 'Please select your barangay.';
-        if (_password.text.length < 10) return 'Password must be at least 10 characters.';
+        final unmet = PasswordStandard.unmetMessages(_password.text);
+        if (unmet.isNotEmpty) return unmet.map((m) => '• $m').join('\n');
         return null;
       case 1:
         if (!_termsAccepted) return 'Please accept the Terms & Conditions to continue.';
@@ -133,6 +148,81 @@ class _RegisterScreenState extends State<RegisterScreen> {
         return null;
       default:
         return null;
+    }
+  }
+
+  /// What the server signs a citizen in with. It matches an email address or a
+  /// mobile number - not the ESP-RES account number - so use the contact the
+  /// citizen just registered with.
+  String _signInIdentifier() => _email.text.trim().isNotEmpty ? _email.text.trim() : _mobile.text.trim();
+
+  static final _emailShape = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$');
+
+  /// Editing the address invalidates any code or proof issued for the old one.
+  void _onEmailChanged(String _) {
+    if (!_emailCodeSent && !_emailVerified && _emailError == null) return;
+    setState(() {
+      _emailCodeSent = false;
+      _emailVerified = false;
+      _emailToken = null;
+      _emailError = null;
+      _emailCode.clear();
+    });
+  }
+
+  Future<void> _sendEmailCode() async {
+    final email = _email.text.trim();
+    if (!_emailShape.hasMatch(email)) {
+      setState(() => _emailError = 'Hindi valid ang email. Tingnan kung tama ang pagkakasulat (halimbawa: name@gmail.com).');
+      return;
+    }
+    setState(() {
+      _emailSending = true;
+      _emailError = null;
+    });
+    try {
+      await context.read<CitizenSessionService>().sendEmailCode(email);
+      if (!mounted) return;
+      setState(() {
+        _emailSending = false;
+        _emailCodeSent = true;
+        _emailCode.clear();
+      });
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _emailSending = false;
+        _emailError = e.code == 'EMAIL_TAKEN'
+            ? 'Naka-register na ang email na ito. Gumamit ng ibang email.'
+            : registrationErrorText(e);
+      });
+    }
+  }
+
+  Future<void> _confirmEmailCode() async {
+    final code = _emailCode.text.trim();
+    if (code.length != 6) {
+      setState(() => _emailError = 'Ilagay ang 6-digit code na ipinadala sa iyong email.');
+      return;
+    }
+    setState(() {
+      _emailConfirming = true;
+      _emailError = null;
+    });
+    try {
+      final token = await context.read<CitizenSessionService>().verifyEmailCode(email: _email.text.trim(), code: code);
+      if (!mounted) return;
+      setState(() {
+        _emailConfirming = false;
+        _emailVerified = true;
+        _emailToken = token;
+      });
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _emailConfirming = false;
+        _emailError = e.message();
+      });
     }
   }
 
@@ -185,10 +275,24 @@ class _RegisterScreenState extends State<RegisterScreen> {
         'purok': _purok.text.trim().isEmpty ? null : _purok.text.trim(),
         'address': '${_purok.text.trim()}, Barangay $_barangay, Esperanza, Masbate',
         'accepts_terms': true,
+        'email_verification_token': _emailToken,
       });
       if (!mounted) return;
+      final accountNo = result['account_no'] as String?;
+      final needsCode = ((result['verification'] as Map?)?['required'] as bool?) ?? true;
+      if (!needsCode && accountNo != null) {
+        // The email was proven in step 1, so there is no second code: sign
+        // straight in and show the Pending Review status.
+        await session.loginWithCredentials(_signInIdentifier(), _password.text);
+        if (!mounted) return;
+        setState(() {
+          _submitting = false;
+          _step = 5;
+        });
+        return;
+      }
       setState(() {
-        _accountNo = result['account_no'] as String?;
+        _accountNo = accountNo;
         _otpDestination = (result['verification'] as Map?)?['destination'] as String?;
         _submitting = false;
         _step = 5;
@@ -197,7 +301,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       if (!mounted) return;
       setState(() {
         _submitting = false;
-        _error = e.message();
+        _error = registrationErrorText(e);
       });
     }
   }
@@ -214,7 +318,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     try {
       final session = context.read<CitizenSessionService>();
       await session.verify(accountNo: _accountNo!, code: _otpCode.text.trim());
-      await session.loginWithCredentials(_accountNo!, _password.text);
+      await session.loginWithCredentials(_signInIdentifier(), _password.text);
       if (!mounted) return;
       setState(() => _submitting = false);
     } on ApiException catch (e) {
@@ -327,12 +431,77 @@ class _RegisterScreenState extends State<RegisterScreen> {
           ],
         ),
         const SizedBox(height: AppSpacing.lg),
-        AppTextField(
-          label: 'Email address',
-          controller: _email,
-          keyboardType: TextInputType.emailAddress,
-          icon: Icons.mail_outline_rounded,
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: AppTextField(
+                label: 'Email address',
+                controller: _email,
+                keyboardType: TextInputType.emailAddress,
+                icon: Icons.mail_outline_rounded,
+                error: _emailError,
+                onChanged: _onEmailChanged,
+              ),
+            ),
+            const SizedBox(width: AppSpacing.md),
+            // 26 = the label above the field (13px text + 8px gap), so the
+            // button sits level with the input itself.
+            Padding(
+              padding: const EdgeInsets.only(top: 26),
+              child: SizedBox(
+                height: 48,
+                child: _emailVerified
+                    ? const Row(
+                        children: [
+                          Icon(Icons.verified_rounded, color: AppColors.emerald700, size: 20),
+                          SizedBox(width: 4),
+                          Text(
+                            'Verified',
+                            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.emerald700),
+                          ),
+                        ],
+                      )
+                    : AppButton(
+                        label: _emailCodeSent ? 'Resend' : 'Verify',
+                        variant: _emailCodeSent ? AppButtonVariant.secondary : AppButtonVariant.primary,
+                        loading: _emailSending,
+                        onPressed: _emailSending ? null : _sendEmailCode,
+                      ),
+              ),
+            ),
+          ],
         ),
+        if (_emailCodeSent && !_emailVerified) ...[
+          const SizedBox(height: AppSpacing.lg),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: AppTextField(
+                  label: 'Verification code',
+                  controller: _emailCode,
+                  keyboardType: TextInputType.number,
+                  icon: Icons.mark_email_read_outlined,
+                  hintText: '6-digit code',
+                  hint: 'Ipinadala ang code sa ${_email.text.trim()}. Tingnan din ang spam folder.',
+                ),
+              ),
+              const SizedBox(width: AppSpacing.md),
+              Padding(
+                padding: const EdgeInsets.only(top: 26),
+                child: SizedBox(
+                  height: 48,
+                  child: AppButton(
+                    label: 'Confirm',
+                    loading: _emailConfirming,
+                    onPressed: _emailConfirming ? null : _confirmEmailCode,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
         const SizedBox(height: AppSpacing.lg),
         AppTextField(
           label: 'Mobile number',
@@ -358,8 +527,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
           controller: _password,
           obscureText: true,
           icon: Icons.lock_outline_rounded,
-          hintText: 'At least 10 characters',
+          hintText: 'At least 8 characters',
+          onChanged: (_) => setState(() {}),
         ),
+        const SizedBox(height: AppSpacing.md),
+        PasswordRequirements(password: _password.text),
         if (_error != null) ...[
           const SizedBox(height: AppSpacing.md),
           Text(_error!, style: const TextStyle(fontSize: 12.5, color: AppColors.rose600)),
@@ -676,7 +848,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
           Text(
             _accountNo != null && _otpDestination != null
                 ? 'Enter the 6-digit code sent to $_otpDestination to confirm your account.'
-                : 'Your information has been submitted to Esperanza LGU for verification.',
+                : 'Na-verify na ang iyong email. Naipasa na ang iyong impormasyon sa Esperanza LGU para ma-review.',
             textAlign: TextAlign.center,
             style: const TextStyle(fontSize: 13, color: AppColors.textMuted, height: 1.4),
           ),
