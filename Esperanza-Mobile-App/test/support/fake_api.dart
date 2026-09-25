@@ -32,8 +32,34 @@ class FakeApiError implements Exception {
   final String messageFil;
 }
 
+/// A request as seen by an [FakeApi.installFull] handler -- everything a
+/// POST/PUT-driven screen (submitting a request, resubmitting, replacing a
+/// flagged requirement) needs to branch on that a plain GET never did:
+/// which HTTP method, and the decoded JSON body. [body] is null for a GET/
+/// DELETE, and for a multipart request (package:http's simple [MockClient]
+/// hands the handler the request's raw encoded bytes as [http.Request.body]
+/// rather than parsed fields, so multipart requests are matched on
+/// [method]/[path] only -- no test in this suite has needed to assert on a
+/// multipart request's own field values).
+class FakeApiRequest {
+  const FakeApiRequest({required this.method, required this.path, required this.query, this.body});
+
+  final String method;
+  final String path;
+  final Map<String, String> query;
+  final Map<String, dynamic>? body;
+}
+
 class FakeApi {
   FakeApi._();
+
+  // No /api/v1 prefix here on purpose: screens call api.get('/sakuna/centers')
+  // etc. with paths that already assume the real baseUrl's /api/v1 is part
+  // of it. If this fake baseUrl repeated that prefix, request.url.path
+  // would come back as '/api/v1/sakuna/centers' and never match a
+  // handler written to check for the plain '/sakuna/centers' a screen
+  // actually asked for.
+  static const _fakeBaseUrl = 'https://test.invalid';
 
   static ApiClient _build(dynamic Function(String path, Map<String, String> query) handler) {
     final client = MockClient((request) async {
@@ -53,13 +79,41 @@ class FakeApi {
         );
       }
     });
-    // No /api/v1 prefix here on purpose: screens call api.get('/sakuna/centers')
-    // etc. with paths that already assume the real baseUrl's /api/v1 is part
-    // of it. If this fake baseUrl repeated that prefix, request.url.path
-    // would come back as '/api/v1/sakuna/centers' and never match a
-    // handler written to check for the plain '/sakuna/centers' a screen
-    // actually asked for.
-    return ApiClient(httpClient: client, baseUrl: 'https://test.invalid');
+    return ApiClient(httpClient: client, baseUrl: _fakeBaseUrl);
+  }
+
+  static ApiClient _buildFull(dynamic Function(FakeApiRequest request) handler) {
+    final client = MockClient((request) async {
+      try {
+        Map<String, dynamic>? body;
+        if (request.body.isNotEmpty) {
+          try {
+            final decoded = jsonDecode(request.body);
+            if (decoded is Map<String, dynamic>) body = decoded;
+          } catch (_) {
+            // Multipart (or otherwise non-JSON) body -- see FakeApiRequest's
+            // own doc comment. Left null rather than thrown, so a handler
+            // that only cares about method/path still works unmodified.
+          }
+        }
+        final data = handler(
+          FakeApiRequest(method: request.method, path: request.url.path, query: request.url.queryParameters, body: body),
+        );
+        return http.Response(jsonEncode({'data': data}), 200, headers: {'content-type': 'application/json'});
+      } on FakeApiError catch (e) {
+        return http.Response(
+          jsonEncode({
+            'error': {
+              'code': e.code,
+              'message': {'en': e.messageEn, 'fil': e.messageFil},
+            },
+          }),
+          e.status,
+          headers: {'content-type': 'application/json'},
+        );
+      }
+    });
+    return ApiClient(httpClient: client, baseUrl: _fakeBaseUrl);
   }
 
   static final ApiClient _defaultFake = _build(
@@ -81,6 +135,15 @@ class FakeApi {
   /// `List` for a collection endpoint, a `Map` for a single resource.
   static void install(dynamic Function(String path, Map<String, String> query) handler) {
     api = _build(handler);
+  }
+
+  /// Same as [install], but for a screen that submits, resubmits, or
+  /// replaces something -- [handler] gets the HTTP method and decoded JSON
+  /// body too (see [FakeApiRequest]), so it can branch on more than just
+  /// path/query. `RequestsService.submit`/`resubmit`/`replaceRequirement`
+  /// are the callers this exists for.
+  static void installFull(dynamic Function(FakeApiRequest request) handler) {
+    api = _buildFull(handler);
   }
 
   /// Puts the suite back on [_defaultFake] -- not the real network client,
