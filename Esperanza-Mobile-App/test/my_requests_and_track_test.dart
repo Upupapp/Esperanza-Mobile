@@ -61,8 +61,11 @@ Map<String, dynamic> _summary({
 }) => {'ref': ref, 'type': type, 'service': service, 'status': status, 'submitted': submitted};
 
 /// Installs the fake backend with [seeded] already present and returns a
-/// [RequestsService] that has loaded them.
-Future<RequestsService> _loadedWith(WidgetTester tester, List<Map<String, dynamic>> seeded) async {
+/// [RequestsService] that has loaded them. No [WidgetTester] parameter --
+/// nothing here pumps a widget, and a plain awaited Future doesn't need
+/// one; see the "Tulong reapplication rule" group below, which is plain
+/// test() for the same reason.
+Future<RequestsService> _loadedWith(List<Map<String, dynamic>> seeded) async {
   SharedPreferences.setMockInitialValues({});
   DokyuTulongFixtures.install(requests: seeded);
   final requests = RequestsService();
@@ -73,9 +76,16 @@ Future<RequestsService> _loadedWith(WidgetTester tester, List<Map<String, dynami
 void main() {
   tearDown(FakeApi.restore);
 
+  // Plain test(), not testWidgets() -- nothing here pumps a widget, just
+  // awaits RequestsService.loadRequests() directly. A testWidgets with zero
+  // tester.pump calls anywhere can hang on ApiClient's own 15s Timer-based
+  // .timeout() until it times out, since flutter_test's fake-async zone
+  // apparently never services that Timer unless something has already
+  // pumped in that test (found while fixing service_category_unknown_test.dart's
+  // equivalent case) -- test() has no such zone and isn't affected.
   group('Tulong reapplication rule — status-based, per assistance type', () {
-    testWidgets('Case A — no previous application for this assistance is eligible', (tester) async {
-      final requests = await _loadedWith(tester, []);
+    test('Case A — no previous application for this assistance is eligible', () async {
+      final requests = await _loadedWith([]);
       final result = tulongEligibilityFor(requests, typeName: 'Medical Assistance (AICS)');
       expect(result.isEligible, isTrue);
       expect(result.blockingRequest, isNull);
@@ -91,8 +101,8 @@ void main() {
       'Resubmitted',
       'Approved',
     ]) {
-      testWidgets('Case B/C — a "$activeStatus" application for this assistance blocks a new one', (tester) async {
-        final requests = await _loadedWith(tester, [
+      test('Case B/C — a "$activeStatus" application for this assistance blocks a new one', () async {
+        final requests = await _loadedWith([
           _summary(ref: 'AR-2026-0001', type: 'tulong', service: 'Medical Assistance (AICS)', status: activeStatus),
         ]);
         final result = tulongEligibilityFor(requests, typeName: 'Medical Assistance (AICS)');
@@ -101,9 +111,9 @@ void main() {
       });
     }
 
-    testWidgets('Case C — Mark to Release/Released also block a new application', (tester) async {
+    test('Case C — Mark to Release/Released also block a new application', () async {
       for (final status in ['Mark to Release', 'Released']) {
-        final requests = await _loadedWith(tester, [
+        final requests = await _loadedWith([
           _summary(ref: 'AR-2026-0001', type: 'tulong', service: 'Medical Assistance (AICS)', status: status),
         ]);
         final result = tulongEligibilityFor(requests, typeName: 'Medical Assistance (AICS)');
@@ -112,26 +122,24 @@ void main() {
       }
     });
 
-    testWidgets('Case D — a Rejected application allows reapplying to the same assistance', (tester) async {
-      final requests = await _loadedWith(tester, [
+    test('Case D — a Rejected application allows reapplying to the same assistance', () async {
+      final requests = await _loadedWith([
         _summary(ref: 'AR-2026-0001', type: 'tulong', service: 'Medical Assistance (AICS)', status: 'Rejected'),
       ]);
       final result = tulongEligibilityFor(requests, typeName: 'Medical Assistance (AICS)');
       expect(result.isEligible, isTrue);
     });
 
-    testWidgets('a Cancelled application also allows reapplying', (tester) async {
-      final requests = await _loadedWith(tester, [
+    test('a Cancelled application also allows reapplying', () async {
+      final requests = await _loadedWith([
         _summary(ref: 'AR-2026-0001', type: 'tulong', service: 'Medical Assistance (AICS)', status: 'Cancelled'),
       ]);
       final result = tulongEligibilityFor(requests, typeName: 'Medical Assistance (AICS)');
       expect(result.isEligible, isTrue);
     });
 
-    testWidgets('the restriction is per assistance type — an active Medical Assistance never blocks Educational Assistance', (
-      tester,
-    ) async {
-      final requests = await _loadedWith(tester, [
+    test('the restriction is per assistance type — an active Medical Assistance never blocks Educational Assistance', () async {
+      final requests = await _loadedWith([
         _summary(ref: 'AR-2026-0001', type: 'tulong', service: 'Medical Assistance (AICS)', status: 'Pending Review'),
       ]);
       expect(tulongEligibilityFor(requests, typeName: 'Medical Assistance (AICS)').isEligible, isFalse);
@@ -154,7 +162,7 @@ void main() {
     }
 
     testWidgets('shows Dokyu + Tulong together under All, and each filter narrows correctly', (tester) async {
-      final requests = await _loadedWith(tester, [
+      final requests = await _loadedWith([
         _summary(ref: 'DR-2026-0001', type: 'dokyu', service: 'Barangay Clearance', status: 'Submitted'),
         _summary(ref: 'AR-2026-0001', type: 'tulong', service: 'Medical Assistance (AICS)', status: 'Submitted'),
       ]);
@@ -177,7 +185,7 @@ void main() {
     });
 
     testWidgets('sorts newest submission first', (tester) async {
-      final requests = await _loadedWith(tester, [
+      final requests = await _loadedWith([
         _summary(
           ref: 'DR-2026-0001',
           type: 'dokyu',
@@ -205,7 +213,7 @@ void main() {
     });
 
     testWidgets('tapping a request card opens the existing RequestDetailScreen for that exact request', (tester) async {
-      final requests = await _loadedWith(tester, [
+      final requests = await _loadedWith([
         _summary(ref: 'DR-2026-0001', type: 'dokyu', service: 'Barangay Clearance', status: 'Submitted'),
       ]);
       final session = await _signedInAsVerifiedDemo(tester);
@@ -220,7 +228,7 @@ void main() {
     });
 
     testWidgets('empty state shows when the signed-in resident has no requests yet', (tester) async {
-      final requests = await _loadedWith(tester, []);
+      final requests = await _loadedWith([]);
       final session = await _signedInAsVerifiedDemo(tester);
       await pumpMyRequests(tester, requests, session);
       expect(find.text('No requests yet'), findsOneWidget);
@@ -232,7 +240,7 @@ void main() {
       'tapping Track This Request opens the exact just-submitted request, not a different/older one, with no navigation error',
       (tester) async {
         final seeded = [_summary(ref: 'DR-2026-OLDER', type: 'dokyu', service: 'Barangay Clearance', status: 'Submitted')];
-        final requests = await _loadedWith(tester, seeded);
+        final requests = await _loadedWith(seeded);
         DokyuTulongFixtures.install(
           requests: seeded,
           onSubmit: (body) {
@@ -332,7 +340,7 @@ void main() {
     testWidgets('an active application shows "Active Application Exists" with View Existing Request / Close', (
       tester,
     ) async {
-      final requests = await _loadedWith(tester, [
+      final requests = await _loadedWith([
         _summary(ref: 'AR-2026-ACTIVE', type: 'tulong', service: 'Medical Assistance (AICS)', status: 'Submitted'),
       ]);
       final session = await _signedInAsVerifiedDemo(tester);
@@ -355,7 +363,7 @@ void main() {
     testWidgets('an already-received assistance shows "Assistance Already Received" with View Previous Request / Close', (
       tester,
     ) async {
-      final requests = await _loadedWith(tester, [
+      final requests = await _loadedWith([
         _summary(ref: 'AR-2026-0001', type: 'tulong', service: 'Medical Assistance (AICS)', status: 'Approved'),
       ]);
       final session = await _signedInAsVerifiedDemo(tester);
@@ -382,7 +390,7 @@ void main() {
     });
 
     testWidgets('does not gate a rejected-only history — Attempt Submit proceeds with no dialog', (tester) async {
-      final requests = await _loadedWith(tester, [
+      final requests = await _loadedWith([
         _summary(ref: 'AR-2026-0002', type: 'tulong', service: 'Medical Assistance (AICS)', status: 'Rejected'),
       ]);
       final session = await _signedInAsVerifiedDemo(tester);
