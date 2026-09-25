@@ -1,14 +1,29 @@
-// Coverage for: the new "My Requests" hamburger screen, the Dokyu
-// (unlimited) vs Tulong (status-based reapplication) repeat-request rules,
-// and the "Track This Request" fix (it must open the exact
-// just-submitted request, never a stale/wrong one).
-import 'dart:convert';
+// Coverage for: the new "My Requests" hamburger screen, the Tulong
+// status-based reapplication rule, and the "Track This Request" fix (it
+// must open the exact just-submitted request, never a stale/wrong one).
+//
+// Dokyu's own "repeat-request rule" (no cap on how many times the same
+// document can be requested) used to have its own group here, submitting
+// the same service 4 times through RequestsService directly and checking
+// each got its own reference number. That was really exercising the fake
+// backend's willingness to accept duplicates, not any mobile-side logic --
+// there is no Dokyu-side gate to test (unlike Tulong's tulongEligibilityFor,
+// Dokyu genuinely has none), so it added no coverage beyond what the "Track
+// This Request" case below already proves (two submissions, two distinct
+// requests). Dropped rather than converted.
+//
+// The old "account scoping" cases (Nicanor never sees Perlita's requests,
+// and vice versa) are gone too -- that was local-simulation-only isolation.
+// GET /citizen/requests is already scoped to the signed-in citizen by the
+// bearer token (production-readiness programme, 2026-09-25), so there is
+// nothing left for the client to isolate, and no way to simulate "two
+// accounts' requests coexisting" against a fake backend that just returns
+// whatever list a test configures regardless of which account is signed in.
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'package:esperanza_mobile/models/service_request.dart';
 import 'package:esperanza_mobile/screens/shared/my_requests_screen.dart';
 import 'package:esperanza_mobile/screens/shared/request_detail_screen.dart';
 import 'package:esperanza_mobile/screens/shared/request_submitted_screen.dart';
@@ -20,17 +35,8 @@ import 'package:esperanza_mobile/utils/tulong_eligibility.dart';
 import 'package:esperanza_mobile/widgets/app_button.dart';
 import 'package:esperanza_mobile/widgets/segmented_tabs.dart';
 
-Future<RequestsService> _loaded(WidgetTester tester, {bool seedDemoData = false}) async {
-  SharedPreferences.setMockInitialValues({});
-  final requests = RequestsService(seedDemoData: seedDemoData);
-  var attempts = 0;
-  while (!requests.loaded) {
-    attempts++;
-    if (attempts > 100) throw StateError('RequestsService never finished loading.');
-    await tester.pump(const Duration(milliseconds: 1));
-  }
-  return requests;
-}
+import 'support/dokyu_tulong_fixtures.dart';
+import 'support/fake_api.dart';
 
 Future<CitizenSessionService> _signedInAsVerifiedDemo(WidgetTester tester) async {
   final session = CitizenSessionService();
@@ -44,82 +50,33 @@ Future<CitizenSessionService> _signedInAsVerifiedDemo(WidgetTester tester) async
   return session;
 }
 
-const _verifiedDemoId = 'ESP-RES-2024-9002';
-const _verifiedDemoName = 'Perlita Quiambao';
+// GET /citizen/requests' own thin summary shape (ref/type/service/status/
+// submitted) -- see RequestsService._requestFromSummary.
+Map<String, dynamic> _summary({
+  required String ref,
+  required String type,
+  required String service,
+  required String status,
+  String submitted = '2026-01-01T00:00:00.000',
+}) => {'ref': ref, 'type': type, 'service': service, 'status': status, 'submitted': submitted};
 
-Future<ServiceRequest> _submitDokyu(RequestsService requests, {String typeName = 'Barangay Clearance'}) {
-  return requests.submit(
-    applicantId: _verifiedDemoId,
-    applicantName: _verifiedDemoName,
-    typeName: typeName,
-    category: ServiceCategory.dokyu,
-    office: 'Barangay Hall',
-    purpose: 'Test purpose',
-    expectedDays: '1-2 working days',
-    attachments: const [],
-  );
-}
-
-Future<ServiceRequest> _submitTulong(RequestsService requests, {String typeName = 'Medical Assistance (AICS)'}) {
-  return requests.submit(
-    applicantId: _verifiedDemoId,
-    applicantName: _verifiedDemoName,
-    typeName: typeName,
-    category: ServiceCategory.tulong,
-    office: 'Municipal Social Welfare and Development Office',
-    purpose: 'Test purpose',
-    expectedDays: '3-5 working days',
-    attachments: const [],
-  );
+/// Installs the fake backend with [seeded] already present and returns a
+/// [RequestsService] that has loaded them.
+Future<RequestsService> _loadedWith(WidgetTester tester, List<Map<String, dynamic>> seeded) async {
+  SharedPreferences.setMockInitialValues({});
+  DokyuTulongFixtures.install(requests: seeded);
+  final requests = RequestsService();
+  await requests.loadRequests();
+  return requests;
 }
 
 void main() {
-  group('Dokyu repeat-request rule — unlimited', () {
-    testWidgets('the same Dokyu service can be requested any number of times, each with its own reference number', (
-      tester,
-    ) async {
-      final requests = await _loaded(tester);
-      final r1 = await _submitDokyu(requests);
-      final r2 = await _submitDokyu(requests);
-      final r3 = await _submitDokyu(requests);
-      final r4 = await _submitDokyu(requests);
-
-      final refs = {r1.referenceNumber, r2.referenceNumber, r3.referenceNumber, r4.referenceNumber};
-      expect(refs.length, 4); // every reference number is unique
-      expect(requests.all.where((r) => r.typeName == 'Barangay Clearance').length, 4);
-      // Older requests are preserved independently, never overwritten.
-      expect(requests.all.any((r) => r.id == r1.id), isTrue);
-      expect(requests.all.any((r) => r.id == r2.id), isTrue);
-    });
-  });
+  tearDown(FakeApi.restore);
 
   group('Tulong reapplication rule — status-based, per assistance type', () {
-    ServiceRequest tulongRequest({
-      required String id,
-      required String status,
-      String typeName = 'Medical Assistance (AICS)',
-      String applicantId = _verifiedDemoId,
-    }) {
-      return ServiceRequest(
-        id: id,
-        referenceNumber: 'AR-2026-$id',
-        applicantId: applicantId,
-        applicantName: _verifiedDemoName,
-        typeName: typeName,
-        category: ServiceCategory.tulong,
-        office: 'Municipal Social Welfare and Development Office',
-        purpose: 'Test',
-        submittedAt: DateTime(2026, 1, 1),
-        status: status,
-        statusHistory: [StatusHistoryEntry(status: status, at: DateTime(2026, 1, 1), actor: 'Citizen')],
-        attachments: const [],
-        expectedDays: '3-5 working days',
-      );
-    }
-
     testWidgets('Case A — no previous application for this assistance is eligible', (tester) async {
-      final requests = await _loaded(tester);
-      final result = tulongEligibilityFor(requests, applicantId: _verifiedDemoId, typeName: 'Medical Assistance (AICS)');
+      final requests = await _loadedWith(tester, []);
+      final result = tulongEligibilityFor(requests, typeName: 'Medical Assistance (AICS)');
       expect(result.isEligible, isTrue);
       expect(result.blockingRequest, isNull);
     });
@@ -130,110 +87,55 @@ void main() {
       'Under Verification',
       'Assigned',
       'Processing',
-      'Waiting Requirements',
+      'Under Review',
+      'Resubmitted',
       'Approved',
     ]) {
       testWidgets('Case B/C — a "$activeStatus" application for this assistance blocks a new one', (tester) async {
-        SharedPreferences.setMockInitialValues({
-          'esperanza_service_requests': jsonEncode([tulongRequest(id: 'r1', status: activeStatus).toJson()]),
-        });
-        final requests = RequestsService(seedDemoData: false);
-        var attempts = 0;
-        while (!requests.loaded) {
-          attempts++;
-          if (attempts > 100) throw StateError('RequestsService never finished loading.');
-          await tester.pump(const Duration(milliseconds: 1));
-        }
-        final result = tulongEligibilityFor(requests, applicantId: _verifiedDemoId, typeName: 'Medical Assistance (AICS)');
+        final requests = await _loadedWith(tester, [
+          _summary(ref: 'AR-2026-0001', type: 'tulong', service: 'Medical Assistance (AICS)', status: activeStatus),
+        ]);
+        final result = tulongEligibilityFor(requests, typeName: 'Medical Assistance (AICS)');
         expect(result.isEligible, isFalse);
-        expect(result.blockingRequest?.id, 'r1');
+        expect(result.blockingRequest?.referenceNumber, 'AR-2026-0001');
       });
     }
 
-    testWidgets('Case C — Completed/Released also block a new application', (tester) async {
-      for (final status in ['Ready for Release', 'Released', 'Completed']) {
-        SharedPreferences.setMockInitialValues({
-          'esperanza_service_requests': jsonEncode([tulongRequest(id: 'r1', status: status).toJson()]),
-        });
-        final requests = RequestsService(seedDemoData: false);
-        var attempts = 0;
-        while (!requests.loaded) {
-          attempts++;
-          if (attempts > 100) throw StateError('RequestsService never finished loading.');
-          await tester.pump(const Duration(milliseconds: 1));
-        }
-        final result = tulongEligibilityFor(requests, applicantId: _verifiedDemoId, typeName: 'Medical Assistance (AICS)');
+    testWidgets('Case C — Mark to Release/Released also block a new application', (tester) async {
+      for (final status in ['Mark to Release', 'Released']) {
+        final requests = await _loadedWith(tester, [
+          _summary(ref: 'AR-2026-0001', type: 'tulong', service: 'Medical Assistance (AICS)', status: status),
+        ]);
+        final result = tulongEligibilityFor(requests, typeName: 'Medical Assistance (AICS)');
         expect(result.isEligible, isFalse, reason: 'status=$status');
         expect(result.status, TulongEligibility.blockedReceived, reason: 'status=$status');
       }
     });
 
     testWidgets('Case D — a Rejected application allows reapplying to the same assistance', (tester) async {
-      SharedPreferences.setMockInitialValues({
-        'esperanza_service_requests': jsonEncode([tulongRequest(id: 'r1', status: 'Rejected').toJson()]),
-      });
-      final requests = RequestsService(seedDemoData: false);
-      var attempts = 0;
-      while (!requests.loaded) {
-        attempts++;
-        if (attempts > 100) throw StateError('RequestsService never finished loading.');
-        await tester.pump(const Duration(milliseconds: 1));
-      }
-      final result = tulongEligibilityFor(requests, applicantId: _verifiedDemoId, typeName: 'Medical Assistance (AICS)');
+      final requests = await _loadedWith(tester, [
+        _summary(ref: 'AR-2026-0001', type: 'tulong', service: 'Medical Assistance (AICS)', status: 'Rejected'),
+      ]);
+      final result = tulongEligibilityFor(requests, typeName: 'Medical Assistance (AICS)');
       expect(result.isEligible, isTrue);
-
-      // Reapplying creates a brand-new request/reference number and never
-      // touches the rejected one, which must remain in history.
-      final reapplied = await _submitTulong(requests);
-      expect(requests.all.any((r) => r.id == 'r1' && r.status == 'Rejected'), isTrue);
-      expect(reapplied.id, isNot('r1'));
     });
 
     testWidgets('a Cancelled application also allows reapplying', (tester) async {
-      final requests = await _loaded(tester);
-      final r1 = await _submitTulong(requests);
-      await requests.cancel(r1.id);
-      final result = tulongEligibilityFor(requests, applicantId: _verifiedDemoId, typeName: 'Medical Assistance (AICS)');
+      final requests = await _loadedWith(tester, [
+        _summary(ref: 'AR-2026-0001', type: 'tulong', service: 'Medical Assistance (AICS)', status: 'Cancelled'),
+      ]);
+      final result = tulongEligibilityFor(requests, typeName: 'Medical Assistance (AICS)');
       expect(result.isEligible, isTrue);
     });
 
     testWidgets('the restriction is per assistance type — an active Medical Assistance never blocks Educational Assistance', (
       tester,
     ) async {
-      SharedPreferences.setMockInitialValues({
-        'esperanza_service_requests': jsonEncode([tulongRequest(id: 'r1', status: 'Pending Review').toJson()]),
-      });
-      final requests = RequestsService(seedDemoData: false);
-      var attempts = 0;
-      while (!requests.loaded) {
-        attempts++;
-        if (attempts > 100) throw StateError('RequestsService never finished loading.');
-        await tester.pump(const Duration(milliseconds: 1));
-      }
-      expect(tulongEligibilityFor(requests, applicantId: _verifiedDemoId, typeName: 'Medical Assistance (AICS)').isEligible, isFalse);
-      expect(tulongEligibilityFor(requests, applicantId: _verifiedDemoId, typeName: 'Educational Assistance').isEligible, isTrue);
-    });
-
-    testWidgets('eligibility is scoped per resident — another account with an active application is separate', (
-      tester,
-    ) async {
-      SharedPreferences.setMockInitialValues({
-        'esperanza_service_requests': jsonEncode([
-          tulongRequest(id: 'r1', status: 'Pending Review', applicantId: 'ESP-RES-2024-9001').toJson(),
-        ]),
-      });
-      final requests = RequestsService(seedDemoData: false);
-      var attempts = 0;
-      while (!requests.loaded) {
-        attempts++;
-        if (attempts > 100) throw StateError('RequestsService never finished loading.');
-        await tester.pump(const Duration(milliseconds: 1));
-      }
-      expect(tulongEligibilityFor(requests, applicantId: _verifiedDemoId, typeName: 'Medical Assistance (AICS)').isEligible, isTrue);
-      expect(
-        tulongEligibilityFor(requests, applicantId: 'ESP-RES-2024-9001', typeName: 'Medical Assistance (AICS)').isEligible,
-        isFalse,
-      );
+      final requests = await _loadedWith(tester, [
+        _summary(ref: 'AR-2026-0001', type: 'tulong', service: 'Medical Assistance (AICS)', status: 'Pending Review'),
+      ]);
+      expect(tulongEligibilityFor(requests, typeName: 'Medical Assistance (AICS)').isEligible, isFalse);
+      expect(tulongEligibilityFor(requests, typeName: 'Educational Assistance').isEligible, isTrue);
     });
   });
 
@@ -252,11 +154,11 @@ void main() {
     }
 
     testWidgets('shows Dokyu + Tulong together under All, and each filter narrows correctly', (tester) async {
-      final requests = await _loaded(tester);
+      final requests = await _loadedWith(tester, [
+        _summary(ref: 'DR-2026-0001', type: 'dokyu', service: 'Barangay Clearance', status: 'Submitted'),
+        _summary(ref: 'AR-2026-0001', type: 'tulong', service: 'Medical Assistance (AICS)', status: 'Submitted'),
+      ]);
       final session = await _signedInAsVerifiedDemo(tester);
-
-      await _submitDokyu(requests, typeName: 'Barangay Clearance');
-      await _submitTulong(requests, typeName: 'Medical Assistance (AICS)');
 
       await pumpMyRequests(tester, requests, session);
 
@@ -274,52 +176,23 @@ void main() {
       expect(find.text('Medical Assistance (AICS)'), findsOneWidget);
     });
 
-    testWidgets('sorts newest submission first, using deterministic pre-seeded timestamps', (tester) async {
-      // Real back-to-back submit() calls can land within the same
-      // OS-clock tick on Windows, making DateTime.now()-based ordering
-      // flaky — pre-seed two requests with explicit, unambiguous
-      // submittedAt values instead of relying on real-time gaps between
-      // calls.
-      final older = ServiceRequest(
-        id: 'req-older',
-        referenceNumber: 'DR-2026-0001',
-        applicantId: _verifiedDemoId,
-        applicantName: _verifiedDemoName,
-        typeName: 'Barangay Clearance',
-        category: ServiceCategory.dokyu,
-        office: 'Barangay Hall',
-        purpose: 'Test',
-        submittedAt: DateTime(2026, 1, 1),
-        status: 'Submitted',
-        statusHistory: [StatusHistoryEntry(status: 'Submitted', at: DateTime(2026, 1, 1), actor: 'Citizen')],
-        attachments: const [],
-        expectedDays: '1-2 working days',
-      );
-      final newer = ServiceRequest(
-        id: 'req-newer',
-        referenceNumber: 'AR-2026-0001',
-        applicantId: _verifiedDemoId,
-        applicantName: _verifiedDemoName,
-        typeName: 'Medical Assistance (AICS)',
-        category: ServiceCategory.tulong,
-        office: 'Municipal Social Welfare and Development Office',
-        purpose: 'Test',
-        submittedAt: DateTime(2026, 6, 1),
-        status: 'Submitted',
-        statusHistory: [StatusHistoryEntry(status: 'Submitted', at: DateTime(2026, 6, 1), actor: 'Citizen')],
-        attachments: const [],
-        expectedDays: '3-5 working days',
-      );
-      SharedPreferences.setMockInitialValues({
-        'esperanza_service_requests': jsonEncode([older.toJson(), newer.toJson()]),
-      });
-      final requests = RequestsService(seedDemoData: false);
-      var attempts = 0;
-      while (!requests.loaded) {
-        attempts++;
-        if (attempts > 100) throw StateError('RequestsService never finished loading.');
-        await tester.pump(const Duration(milliseconds: 1));
-      }
+    testWidgets('sorts newest submission first', (tester) async {
+      final requests = await _loadedWith(tester, [
+        _summary(
+          ref: 'DR-2026-0001',
+          type: 'dokyu',
+          service: 'Barangay Clearance',
+          status: 'Submitted',
+          submitted: '2026-01-01T00:00:00.000',
+        ),
+        _summary(
+          ref: 'AR-2026-0001',
+          type: 'tulong',
+          service: 'Medical Assistance (AICS)',
+          status: 'Submitted',
+          submitted: '2026-06-01T00:00:00.000',
+        ),
+      ]);
       final session = await _signedInAsVerifiedDemo(tester);
 
       await pumpMyRequests(tester, requests, session);
@@ -332,49 +205,22 @@ void main() {
     });
 
     testWidgets('tapping a request card opens the existing RequestDetailScreen for that exact request', (tester) async {
-      final requests = await _loaded(tester);
+      final requests = await _loadedWith(tester, [
+        _summary(ref: 'DR-2026-0001', type: 'dokyu', service: 'Barangay Clearance', status: 'Submitted'),
+      ]);
       final session = await _signedInAsVerifiedDemo(tester);
-      final submitted = await _submitDokyu(requests);
 
       await pumpMyRequests(tester, requests, session);
       await tester.tap(find.text('Barangay Clearance'));
       await tester.pumpAndSettle();
 
       expect(find.byType(RequestDetailScreen), findsOneWidget);
-      expect(tester.widget<RequestDetailScreen>(find.byType(RequestDetailScreen)).requestId, submitted.id);
-      expect(find.text(submitted.referenceNumber), findsOneWidget);
-    });
-
-    testWidgets('account scoping — Nicanor does not see Perlita\'s requests, and vice versa', (tester) async {
-      final requests = await _loaded(tester);
-      await _submitDokyu(requests); // Perlita's
-      await requests.submit(
-        applicantId: 'ESP-RES-2024-9001',
-        applicantName: 'Nicanor Sarmiento',
-        typeName: 'Certificate of Residency',
-        category: ServiceCategory.dokyu,
-        office: 'Civil Registrar',
-        purpose: 'Test purpose',
-        expectedDays: '1-2 working days',
-        attachments: const [],
-      );
-
-      final pendingDemoSession = CitizenSessionService();
-      var attempts = 0;
-      while (pendingDemoSession.loading) {
-        attempts++;
-        if (attempts > 100) throw StateError('CitizenSessionService never finished loading.');
-        await tester.pump(const Duration(milliseconds: 1));
-      }
-      await pendingDemoSession.login(MockCatalog.demoAccounts.first); // Nicanor
-
-      await pumpMyRequests(tester, requests, pendingDemoSession);
-      expect(find.text('Certificate of Residency'), findsOneWidget);
-      expect(find.text('Barangay Clearance'), findsNothing); // Perlita's own request never leaks in
+      expect(tester.widget<RequestDetailScreen>(find.byType(RequestDetailScreen)).requestId, 'DR-2026-0001');
+      expect(find.text('DR-2026-0001'), findsOneWidget);
     });
 
     testWidgets('empty state shows when the signed-in resident has no requests yet', (tester) async {
-      final requests = await _loaded(tester);
+      final requests = await _loadedWith(tester, []);
       final session = await _signedInAsVerifiedDemo(tester);
       await pumpMyRequests(tester, requests, session);
       expect(find.text('No requests yet'), findsOneWidget);
@@ -385,14 +231,30 @@ void main() {
     testWidgets(
       'tapping Track This Request opens the exact just-submitted request, not a different/older one, with no navigation error',
       (tester) async {
-        final requests = await _loaded(tester);
-        final older = await _submitDokyu(requests, typeName: 'Barangay Clearance');
-        // A real (not fake-clock) gap — submit()'s id is derived from
-        // DateTime.now().microsecondsSinceEpoch, which two back-to-back
-        // calls can otherwise collide on.
-        await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 5)));
-        final justSubmitted = await _submitDokyu(requests, typeName: 'Certificate of Residency');
-        expect(justSubmitted.id, isNot(older.id));
+        final seeded = [_summary(ref: 'DR-2026-OLDER', type: 'dokyu', service: 'Barangay Clearance', status: 'Submitted')];
+        final requests = await _loadedWith(tester, seeded);
+        DokyuTulongFixtures.install(
+          requests: seeded,
+          onSubmit: (body) {
+            final newest = _summary(
+              ref: 'DR-2026-NEWEST',
+              type: 'dokyu',
+              service: 'Certificate of Residency',
+              status: 'Submitted',
+            );
+            // The fixture's GET /citizen/requests/{ref} (what
+            // RequestDetailScreen's own loadDetail hits after Track This
+            // Request navigates) reads from this same list -- without
+            // adding the new request to it, that follow-up fetch 404s.
+            seeded.add(newest);
+            return newest;
+          },
+        );
+        final justSubmitted = await requests.submit(
+          serviceKey: 'dokyu_certificate_of_residency',
+          formData: {'purpose': 'Test purpose'},
+        );
+        expect(justSubmitted.id, isNot('DR-2026-OLDER'));
 
         await tester.pumpWidget(
           ChangeNotifierProvider<RequestsService>.value(
@@ -418,8 +280,8 @@ void main() {
         expect(find.byType(RequestDetailScreen), findsOneWidget);
         expect(tester.widget<RequestDetailScreen>(find.byType(RequestDetailScreen)).requestId, justSubmitted.id);
         expect(find.text('Certificate of Residency'), findsOneWidget);
-        // Proves it did NOT open the older seeded/other request.
-        expect(find.text(older.referenceNumber), findsNothing);
+        // Proves it did NOT open the older seeded request.
+        expect(find.text('DR-2026-OLDER'), findsNothing);
       },
     );
   });
@@ -447,7 +309,7 @@ void main() {
                 body: Center(
                   child: ElevatedButton(
                     onPressed: () async {
-                      final result = tulongEligibilityFor(requests, applicantId: _verifiedDemoId, typeName: typeName);
+                      final result = tulongEligibilityFor(requests, typeName: typeName);
                       if (result.isEligible) return;
                       final viewRequest = await showTulongBlockedDialog(context, result);
                       if (viewRequest && context.mounted) {
@@ -470,9 +332,10 @@ void main() {
     testWidgets('an active application shows "Active Application Exists" with View Existing Request / Close', (
       tester,
     ) async {
-      final requests = await _loaded(tester);
+      final requests = await _loadedWith(tester, [
+        _summary(ref: 'AR-2026-ACTIVE', type: 'tulong', service: 'Medical Assistance (AICS)', status: 'Submitted'),
+      ]);
       final session = await _signedInAsVerifiedDemo(tester);
-      final active = await _submitTulong(requests); // status: Submitted — active
 
       await pumpGate(tester, requests, session, typeName: 'Medical Assistance (AICS)');
       await tester.tap(find.text('Attempt Submit'));
@@ -486,37 +349,15 @@ void main() {
       await tester.tap(find.text('View Existing Request'));
       await tester.pumpAndSettle();
       expect(find.byType(RequestDetailScreen), findsOneWidget);
-      expect(tester.widget<RequestDetailScreen>(find.byType(RequestDetailScreen)).requestId, active.id);
+      expect(tester.widget<RequestDetailScreen>(find.byType(RequestDetailScreen)).requestId, 'AR-2026-ACTIVE');
     });
 
     testWidgets('an already-received assistance shows "Assistance Already Received" with View Previous Request / Close', (
       tester,
     ) async {
-      final approved = ServiceRequest(
-        id: 'req-approved',
-        referenceNumber: 'AR-2026-0001',
-        applicantId: _verifiedDemoId,
-        applicantName: _verifiedDemoName,
-        typeName: 'Medical Assistance (AICS)',
-        category: ServiceCategory.tulong,
-        office: 'Municipal Social Welfare and Development Office',
-        purpose: 'Test',
-        submittedAt: DateTime(2026, 1, 1),
-        status: 'Approved',
-        statusHistory: [StatusHistoryEntry(status: 'Approved', at: DateTime(2026, 1, 1), actor: 'MSWDO Staff')],
-        attachments: const [],
-        expectedDays: '3-5 working days',
-      );
-      SharedPreferences.setMockInitialValues({
-        'esperanza_service_requests': jsonEncode([approved.toJson()]),
-      });
-      final requests = RequestsService(seedDemoData: false);
-      var attempts = 0;
-      while (!requests.loaded) {
-        attempts++;
-        if (attempts > 100) throw StateError('RequestsService never finished loading.');
-        await tester.pump(const Duration(milliseconds: 1));
-      }
+      final requests = await _loadedWith(tester, [
+        _summary(ref: 'AR-2026-0001', type: 'tulong', service: 'Medical Assistance (AICS)', status: 'Approved'),
+      ]);
       final session = await _signedInAsVerifiedDemo(tester);
 
       await pumpGate(tester, requests, session, typeName: 'Medical Assistance (AICS)');
@@ -541,31 +382,9 @@ void main() {
     });
 
     testWidgets('does not gate a rejected-only history — Attempt Submit proceeds with no dialog', (tester) async {
-      final rejected = ServiceRequest(
-        id: 'req-rejected',
-        referenceNumber: 'AR-2026-0002',
-        applicantId: _verifiedDemoId,
-        applicantName: _verifiedDemoName,
-        typeName: 'Medical Assistance (AICS)',
-        category: ServiceCategory.tulong,
-        office: 'Municipal Social Welfare and Development Office',
-        purpose: 'Test',
-        submittedAt: DateTime(2026, 1, 1),
-        status: 'Rejected',
-        statusHistory: [StatusHistoryEntry(status: 'Rejected', at: DateTime(2026, 1, 1), actor: 'MSWDO Staff')],
-        attachments: const [],
-        expectedDays: '3-5 working days',
-      );
-      SharedPreferences.setMockInitialValues({
-        'esperanza_service_requests': jsonEncode([rejected.toJson()]),
-      });
-      final requests = RequestsService(seedDemoData: false);
-      var attempts = 0;
-      while (!requests.loaded) {
-        attempts++;
-        if (attempts > 100) throw StateError('RequestsService never finished loading.');
-        await tester.pump(const Duration(milliseconds: 1));
-      }
+      final requests = await _loadedWith(tester, [
+        _summary(ref: 'AR-2026-0002', type: 'tulong', service: 'Medical Assistance (AICS)', status: 'Rejected'),
+      ]);
       final session = await _signedInAsVerifiedDemo(tester);
 
       await pumpGate(tester, requests, session, typeName: 'Medical Assistance (AICS)');

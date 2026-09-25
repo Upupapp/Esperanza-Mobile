@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../models/service_request.dart';
-import '../../services/citizen_session_service.dart';
 import '../../services/requests_service.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_spacing.dart';
@@ -14,11 +13,18 @@ import 'request_detail_screen.dart';
 
 /// The signed-in resident's full Dokyu + Tulong request history in one
 /// place — derived straight from [RequestsService], never a separate
-/// hardcoded list, and scoped to the current account's own `applicantId`
-/// so one signed-in resident never sees another's requests (Nicanor never
-/// sees Anacleto's, neither sees Perlita's, and so on). Tapping a card opens
-/// the same [RequestDetailScreen] every other "Track"/"View" entry point
-/// already uses — there is no second detail/tracking implementation.
+/// hardcoded list. Tapping a card opens the same [RequestDetailScreen]
+/// every other "Track"/"View" entry point already uses — there is no
+/// second detail/tracking implementation.
+///
+/// No client-side account filter anymore -- GET /citizen/requests is
+/// already scoped to the signed-in citizen by the bearer token
+/// (production-readiness programme, 2026-09-25), and RequestsService never
+/// populates applicantId from the real API at all. Filtering by it here (as
+/// this screen used to) was load-bearing under the old local simulation,
+/// which held every demo account's requests in one shared pool; against the
+/// real API it always compared against an empty string and would have
+/// always shown "No requests yet", even for a citizen with real ones.
 class MyRequestsScreen extends StatefulWidget {
   const MyRequestsScreen({super.key});
 
@@ -31,15 +37,12 @@ class _MyRequestsScreenState extends State<MyRequestsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final account = context.watch<CitizenSessionService>().account;
     final requests = context.watch<RequestsService>();
 
     // "All" here means "all Dokyu + Tulong" — Sakuna incident reports are a
     // separate concern (see ServiceCategory.sakunaIncident) not covered by
     // this Dokyu/Tulong service-history screen.
-    var mine = requests.all
-        .where((r) => r.applicantId == account?.id && r.category != ServiceCategory.sakunaIncident)
-        .toList();
+    var mine = requests.all.where((r) => r.category != ServiceCategory.sakunaIncident).toList();
     if (_tab == 1) mine = mine.where((r) => r.category == ServiceCategory.dokyu).toList();
     if (_tab == 2) mine = mine.where((r) => r.category == ServiceCategory.tulong).toList();
     mine.sort((a, b) => b.submittedAt.compareTo(a.submittedAt));
