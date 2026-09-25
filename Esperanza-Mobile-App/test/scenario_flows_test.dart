@@ -11,6 +11,9 @@ import 'package:esperanza_mobile/models/citizen_account.dart';
 import 'package:esperanza_mobile/services/citizen_session_service.dart';
 import 'package:esperanza_mobile/services/mock_catalog.dart';
 
+import 'support/dokyu_tulong_fixtures.dart';
+import 'support/fake_api.dart';
+
 /// The demo-account login cards were removed from LoginScreen (see
 /// PRODUCTION_READINESS.md 4(d)) as a credential-enumeration surface once
 /// the screen talks to a real backend. These scenarios exist to drive
@@ -66,6 +69,8 @@ Future<void> _openService(WidgetTester tester, String label) async {
 }
 
 void main() {
+  tearDown(FakeApi.restore);
+
   testWidgets('Scenario A — Guest: Home -> Balita public -> Dokyu shows restricted notice', (tester) async {
     // Onboarding-complete pre-seeded: these scenarios exercise the normal
     // returning-user flow, not the first-run Onboarding screens — see
@@ -162,6 +167,12 @@ void main() {
     // returning-user flow, not the first-run Onboarding screens — see
     // onboarding_flow_test.dart for that.
     SharedPreferences.setMockInitialValues({'esperanza_onboarding_complete': true});
+    // Scenarios A and B never reach the real DokyuScreen/TulongScreen (both
+    // are blocked by RestrictedFeatureNotice first), but Perlita is fully
+    // verified and does -- and both screens fetch their catalog/request
+    // list for real now (production-readiness programme, 2026-09-25), so
+    // this scenario needs a fake backend where A/B didn't.
+    DokyuTulongFixtures.install();
     _setPhoneViewport(tester);
     await tester.pumpWidget(const EsperanzaMobileApp());
     await tester.pumpAndSettle();

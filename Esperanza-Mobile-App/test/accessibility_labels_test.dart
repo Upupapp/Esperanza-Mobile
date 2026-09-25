@@ -47,10 +47,16 @@ void main() {
     }
 
     // Never pass over an empty scan: if the pattern stops matching, this test
-    // would go green while checking nothing at all.
+    // would go green while checking nothing at all. Lowered from 10 to 5
+    // (production-readiness programme, 2026-09-25) -- the real count
+    // genuinely dropped to 9 once the receipt/payment/Transactions feature
+    // (ReceiptScreen, TransactionsScreen, and their own IconButtons) was
+    // removed outright, since receipt issuance is admin-only and no citizen
+    // payment/receipt flow exists to wire up. Still comfortably above zero,
+    // so a regex that stopped matching entirely would still be caught.
     expect(
       examined,
-      greaterThanOrEqualTo(10),
+      greaterThanOrEqualTo(5),
       reason: 'found only $examined IconButton call sites — the pattern is broken, not the code',
     );
 
