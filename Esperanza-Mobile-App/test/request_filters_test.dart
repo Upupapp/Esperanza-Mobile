@@ -19,6 +19,9 @@ import 'package:esperanza_mobile/services/notifications_service.dart';
 import 'package:esperanza_mobile/services/resident_profile_service.dart';
 import 'package:esperanza_mobile/services/balita_service.dart';
 
+import 'support/dokyu_tulong_fixtures.dart';
+import 'support/fake_api.dart';
+
 ServiceRequest _req({
   required String type,
   required String status,
@@ -43,6 +46,8 @@ ServiceRequest _req({
 }
 
 void main() {
+  tearDown(FakeApi.restore);
+
   group('RequestFilters.apply (unit)', () {
     final barangayClearance = _req(
       type: 'Barangay Clearance',
@@ -58,16 +63,20 @@ void main() {
     );
     final all = [barangayClearance, cedula];
 
-    test('search matches type name, reference number, or office (case-insensitive)', () {
+    test('search matches type name or reference number (case-insensitive)', () {
       final filtered = const RequestFilters(search: 'cedula').apply(all);
       expect(filtered, [cedula]);
     });
 
-    test('scope filter distinguishes Barangay vs LGU via the office name', () {
+    // scopeOfOffice itself (still used by ServiceCatalogScreen's department-
+    // grouping step, against the real, populated CatalogItem.office) is no
+    // longer a RequestFilters facet -- GET /citizen/requests' own list
+    // shape doesn't return ServiceRequest.office at all (production-
+    // readiness programme, 2026-09-25), so there's no real per-request
+    // office to filter list results by anymore.
+    test('scopeOfOffice distinguishes Barangay vs LGU via the office name', () {
       expect(scopeOfOffice('Barangay Hall'), RequestScope.barangay);
       expect(scopeOfOffice("Treasurer's Office"), RequestScope.lgu);
-      final filtered = const RequestFilters(scope: RequestScope.barangay).apply(all);
-      expect(filtered, [barangayClearance]);
     });
 
     test('status filter narrows to an exact status', () {
@@ -88,9 +97,9 @@ void main() {
     });
 
     test('combining filters applies all facets together (AND)', () {
-      final filtered = const RequestFilters(scope: RequestScope.lgu, status: 'Approved').apply(all);
+      final filtered = const RequestFilters(typeName: 'Cedula (Community Tax Certificate)', status: 'Approved').apply(all);
       expect(filtered, [cedula]);
-      final none = const RequestFilters(scope: RequestScope.barangay, status: 'Approved').apply(all);
+      final none = const RequestFilters(typeName: 'Barangay Clearance', status: 'Approved').apply(all);
       expect(none, isEmpty);
     });
 
@@ -107,27 +116,27 @@ void main() {
   group('RequestListScreen filter UI (widget)', () {
     Future<void> pumpDokyuAsVerifiedResident(WidgetTester tester, {required List<ServiceRequest> seed}) async {
       SharedPreferences.setMockInitialValues({});
+      // GET /citizen/requests' own thin summary shape (ref/type/service/
+      // status/submitted) -- see RequestsService._requestFromSummary. Built
+      // straight from each fixture's own final status, unlike the old
+      // submit()-then-mutate-in-place approach that no longer applies now
+      // that submit() hits the real API.
+      DokyuTulongFixtures.install(
+        requests: [
+          for (final r in seed)
+            {
+              'ref': r.referenceNumber,
+              'type': r.category.name,
+              'service': r.typeName,
+              'status': r.status,
+              'submitted': r.submittedAt.toIso8601String(),
+              'office': r.office,
+            },
+        ],
+      );
       final session = CitizenSessionService();
       await session.login(MockCatalog.demoAccounts.last); // Perlita — Approved/verified
-      final requests = RequestsService(seedDemoData: false);
-      for (final r in seed) {
-        await requests.submit(
-          applicantId: r.applicantId,
-          applicantName: r.applicantName,
-          typeName: r.typeName,
-          category: r.category,
-          office: r.office,
-          purpose: r.purpose,
-          expectedDays: r.expectedDays,
-          attachments: r.attachments,
-        );
-        // submit() always starts at 'Submitted' — force this test's exact
-        // status so status-filter assertions are precise. submittedAt is
-        // stamped as "now" by submit() and is final, so date-range
-        // filtering is covered separately in the unit-test group above,
-        // which constructs ServiceRequest directly.
-        requests.byCategory(r.category).first.status = r.status;
-      }
+      final requests = RequestsService();
 
       await tester.pumpWidget(
         MultiProvider(
@@ -149,7 +158,7 @@ void main() {
         tester,
         seed: [
           _req(type: 'Barangay Clearance', status: 'Submitted', office: 'Barangay Hall', submittedAt: DateTime.now()),
-          _req(type: 'Cedula (Community Tax Certificate)', status: 'Submitted', office: "Treasurer's Office", submittedAt: DateTime.now()),
+          _req(type: 'Cedula (Community Tax Certificate)', status: 'Approved', office: "Treasurer's Office", submittedAt: DateTime.now()),
         ],
       );
 
@@ -159,10 +168,10 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('Filter Requests'), findsOneWidget);
 
-      // The tile beneath the sheet also shows a "Barangay" scope badge —
+      // The tile beneath the sheet also shows a "Submitted" status chip —
       // scope the finder to the sheet itself so the tap lands on the
       // filter pill, not the (still-mounted, just visually covered) tile.
-      await tester.tap(find.descendant(of: find.byType(FilterBottomSheet), matching: find.text('Barangay')));
+      await tester.tap(find.descendant(of: find.byType(FilterBottomSheet), matching: find.text('Submitted')));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Apply Filters'));
       await tester.pumpAndSettle();

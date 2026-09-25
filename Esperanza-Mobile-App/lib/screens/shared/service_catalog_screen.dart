@@ -266,11 +266,7 @@ class _ItemList extends StatelessWidget {
     if (category == ServiceCategory.tulong) {
       final account = context.read<CitizenSessionService>().account;
       if (account != null) {
-        final result = tulongEligibilityFor(
-          context.read<RequestsService>(),
-          applicantId: account.id,
-          typeName: item.name,
-        );
+        final result = tulongEligibilityFor(context.read<RequestsService>(), typeName: item.name);
         if (!result.isEligible) {
           final viewRequest = await showTulongBlockedDialog(context, result);
           if (viewRequest && context.mounted) {

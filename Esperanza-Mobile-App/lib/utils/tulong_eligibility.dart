@@ -47,19 +47,22 @@ class TulongEligibilityResult {
 const _successfulTulongStatuses = {'Approved', RequestMilestones.markToRelease, RequestMilestones.released};
 const _reapplicableTulongStatuses = {'Rejected', 'Cancelled'};
 
-/// Whether [applicantId] may currently apply for the Tulong assistance
-/// [typeName] — checks every one of their own past requests for this exact
-/// assistance (newest first) and blocks on the first one that isn't
-/// Rejected/Cancelled. A different assistance type is never affected; it
-/// has its own independent history.
-TulongEligibilityResult tulongEligibilityFor(
-  RequestsService requests, {
-  required String applicantId,
-  required String typeName,
-}) {
-  final matches = requests.all
-      .where((r) => r.applicantId == applicantId && r.category == ServiceCategory.tulong && r.typeName == typeName)
-      .toList()
+/// Whether the signed-in citizen may currently apply for the Tulong
+/// assistance [typeName] — checks every one of their own past requests for
+/// this exact assistance (newest first) and blocks on the first one that
+/// isn't Rejected/Cancelled. A different assistance type is never affected;
+/// it has its own independent history.
+///
+/// No longer filters by applicant id: GET /citizen/requests is scoped to the
+/// signed-in citizen by the bearer token, so [requests].all already contains
+/// only their own requests (production-readiness programme, 2026-09-25).
+/// Filtering by id client-side was load-bearing under the old local
+/// simulation, which held every demo account's requests in one shared pool
+/// and needed it to isolate "mine" -- RequestsService never populates
+/// applicantId from the real API at all now, so keeping that check would
+/// have silently matched nothing and made this gate a permanent no-op.
+TulongEligibilityResult tulongEligibilityFor(RequestsService requests, {required String typeName}) {
+  final matches = requests.all.where((r) => r.category == ServiceCategory.tulong && r.typeName == typeName).toList()
     ..sort((a, b) => b.submittedAt.compareTo(a.submittedAt));
 
   for (final r in matches) {

@@ -535,7 +535,7 @@ class _ServiceRequestWizardScreenState extends State<ServiceRequestWizardScreen>
     final requestsService = context.read<RequestsService>();
 
     if (widget.category == ServiceCategory.tulong) {
-      final result = tulongEligibilityFor(requestsService, applicantId: account.id, typeName: widget.item.name);
+      final result = tulongEligibilityFor(requestsService, typeName: widget.item.name);
       if (!result.isEligible) {
         final viewRequest = await showTulongBlockedDialog(context, result);
         if (viewRequest && mounted) {

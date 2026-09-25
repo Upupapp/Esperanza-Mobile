@@ -8,8 +8,8 @@ import 'app_text_field.dart';
 /// The shared filtering UI for Dokyu and Tulong (and reusable for any
 /// future request-style list) — keeps the main list screen clean per the
 /// nav spec's "don't display every possible filter directly on the main
-/// screen" by moving Search/Barangay-LGU/Type/Status/Date/Sort into one
-/// bottom sheet behind a single "Filter" button. Edits a working copy of
+/// screen" by moving Search/Type/Status/Date/Sort into one bottom sheet
+/// behind a single "Filter" button. Edits a working copy of
 /// [RequestFilters] and returns the new value on "Apply Filters"; the
 /// caller applies it, this sheet never touches the request list itself.
 class FilterBottomSheet extends StatefulWidget {
@@ -91,30 +91,10 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
                     children: [
                       AppTextField(
                         label: 'Search',
-                        hintText: 'Reference number, type, office...',
+                        hintText: 'Reference number, type...',
                         icon: Icons.search_rounded,
                         controller: _searchController,
                         onChanged: (v) => setState(() => _draft = _draft.copyWith(search: v)),
-                      ),
-                      const SizedBox(height: AppSpacing.xl),
-                      _sectionLabel('Barangay / LGU'),
-                      const SizedBox(height: 10),
-                      Wrap(
-                        spacing: 8,
-                        runSpacing: 8,
-                        children: [
-                          for (final scope in RequestScope.values)
-                            _Pill(
-                              label: scope.label,
-                              selected: _draft.scope == scope,
-                              accent: widget.accent,
-                              onTap: () => setState(
-                                () => _draft = _draft.scope == scope
-                                    ? _draft.copyWith(clearScope: true)
-                                    : _draft.copyWith(scope: scope),
-                              ),
-                            ),
-                        ],
                       ),
                       if (widget.typeOptions.isNotEmpty) ...[
                         const SizedBox(height: AppSpacing.xl),

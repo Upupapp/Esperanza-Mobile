@@ -33,13 +33,19 @@ const double _kFloatingActionButtonHeight = 56.0; // Material's standard extende
 /// Tulong (Assistance Requests) — same shape as the Web Admin's
 /// document-requests.blade.php / assistance-requests.blade.php (All /
 /// Active / Done tabs, reference number, type, status), plus search,
-/// filtering (Barangay/LGU, Type, Status, Date, Sort — behind a "Filter"
-/// button so the main screen stays clean, per the filtering spec), active
-/// filter chips, and sharing the currently filtered results via the
-/// device's native share sheet. One implementation parameterized by
-/// [category]/[catalog] rather than two near-identical screens, per the
-/// "reuse before duplicating" rule this project follows throughout its
-/// own component library.
+/// filtering (Type, Status, Date, Sort — behind a "Filter" button so the
+/// main screen stays clean, per the filtering spec), active filter chips,
+/// and sharing the currently filtered results via the device's native
+/// share sheet. One implementation parameterized by [category]/[catalog]
+/// rather than two near-identical screens, per the "reuse before
+/// duplicating" rule this project follows throughout its own component
+/// library.
+///
+/// No Barangay/LGU scope filter anymore -- GET /citizen/requests' own list
+/// shape doesn't include `office` at all (production-readiness programme,
+/// 2026-09-25; only the per-request detail fetch does), so there was never
+/// real data here to filter or badge by. Dropped rather than left showing
+/// a blank office line and an always-wrong "LGU" badge on every card.
 class RequestListScreen extends StatefulWidget {
   final ServiceCategory category;
   final String title;
@@ -211,12 +217,6 @@ class _RequestListScreenState extends State<RequestListScreen> {
                               accent: widget.accent,
                               onRemove: () => setState(() => _filters = _filters.copyWith(search: '')),
                             ),
-                          if (_filters.scope != null)
-                            ActiveFilterChip(
-                              label: _filters.scope!.label,
-                              accent: widget.accent,
-                              onRemove: () => setState(() => _filters = _filters.copyWith(clearScope: true)),
-                            ),
                           if (_filters.typeName != null)
                             ActiveFilterChip(
                               label: _filters.typeName!,
@@ -380,15 +380,6 @@ class _RequestTile extends StatelessWidget {
                 fontFeatures: [FontFeature.tabularFigures()],
               ),
             ),
-            const SizedBox(height: 2),
-            Row(
-              children: [
-                Expanded(
-                  child: Text(request.office, style: const TextStyle(fontSize: 12, color: AppColors.textMuted)),
-                ),
-                _ScopeTag(office: request.office),
-              ],
-            ),
             const Divider(height: AppSpacing.xl),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -425,33 +416,4 @@ class _RequestTile extends StatelessWidget {
   }
 
   String _fmt(DateTime d) => '${d.month}/${d.day}/${d.year}';
-}
-
-/// Small "Barangay" / "LGU" badge next to the office line — makes the
-/// Barangay-vs-Municipality distinction visually understandable on every
-/// tile, not just inside the filter sheet.
-class _ScopeTag extends StatelessWidget {
-  final String office;
-  const _ScopeTag({required this.office});
-
-  @override
-  Widget build(BuildContext context) {
-    final scope = scopeOfOffice(office);
-    final isBarangay = scope == RequestScope.barangay;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-      decoration: BoxDecoration(
-        color: isBarangay ? AppColors.emerald50 : AppColors.indigo50,
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: Text(
-        isBarangay ? 'Barangay' : 'LGU',
-        style: TextStyle(
-          fontSize: 10,
-          fontWeight: FontWeight.w700,
-          color: isBarangay ? AppColors.emerald700 : AppColors.indigo700,
-        ),
-      ),
-    );
-  }
 }

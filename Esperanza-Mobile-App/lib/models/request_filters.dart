@@ -1,14 +1,20 @@
 import 'package:flutter/material.dart';
 import 'service_request.dart';
 
-/// Barangay-level vs LGU/Municipality-level — derived from
-/// [ServiceRequest.office] rather than stored as a new persisted field, so
-/// existing saved requests (SharedPreferences JSON) never need a schema
-/// migration. Matches how Philippine LGU offices are actually named: a
-/// "Barangay Hall" issues barangay-level documents/assistance; every other
-/// office (Treasurer's, Municipal Social Welfare and Development Office,
-/// Civil Registrar, Business Permits and Licensing Office, etc.) is a
+/// Barangay-level vs LGU/Municipality-level — derived from an office name.
+/// Matches how Philippine LGU offices are actually named: a "Barangay Hall"
+/// issues barangay-level documents/assistance; every other office
+/// (Treasurer's, Municipal Social Welfare and Development Office, Civil
+/// Registrar, Business Permits and Licensing Office, etc.) is a
 /// municipal/LGU-level office.
+///
+/// Only [ServiceCatalogScreen]'s department-grouping step uses this now,
+/// against [CatalogItem.office] (real, populated from GET /services). It
+/// used to also drive a scope filter/badge on the request list screens,
+/// against [ServiceRequest.office] -- removed (production-readiness
+/// programme, 2026-09-25) once GET /citizen/requests' own list shape turned
+/// out not to include `office` at all, which made that specific usage
+/// always compare against an empty string.
 enum RequestScope { barangay, lgu }
 
 extension RequestScopeX on RequestScope {
@@ -30,15 +36,21 @@ extension RequestSortX on RequestSort {
       };
 }
 
-/// One immutable snapshot of the active Dokyu/Tulong filter state —
-/// search text, barangay/LGU scope, request type, status, submitted-date
-/// range, and sort order. [RequestListScreen] applies this to its
-/// category's requests; [FilterBottomSheet] edits a working copy and
-/// returns a new instance rather than mutating in place.
+/// One immutable snapshot of the active Dokyu/Tulong filter state — search
+/// text, request type, status, submitted-date range, and sort order.
+/// [RequestListScreen] applies this to its category's requests;
+/// [FilterBottomSheet] edits a working copy and returns a new instance
+/// rather than mutating in place.
+///
+/// No Barangay/LGU scope facet anymore -- it used to be derived from
+/// [ServiceRequest.office], which GET /citizen/requests' own list shape
+/// doesn't return at all (production-readiness programme, 2026-09-25; only
+/// the per-request detail fetch does). Dropped along with the office line
+/// and scope badge on each list card, rather than filtering by data that's
+/// always empty against the real API.
 @immutable
 class RequestFilters {
   final String search;
-  final RequestScope? scope;
   final String? typeName;
   final String? status; // AppStatus.label string, or null for "any"
   final DateTimeRange? dateRange;
@@ -46,22 +58,19 @@ class RequestFilters {
 
   const RequestFilters({
     this.search = '',
-    this.scope,
     this.typeName,
     this.status,
     this.dateRange,
     this.sort = RequestSort.newest,
   });
 
-  bool get isActive =>
-      search.trim().isNotEmpty || scope != null || typeName != null || status != null || dateRange != null;
+  bool get isActive => search.trim().isNotEmpty || typeName != null || status != null || dateRange != null;
 
   /// How many distinct filter facets are active — drives the "Filter (3)"
   /// badge and the active-chip row, not counting sort (sort always has a
   /// value, so it's never "off").
   int get activeCount => [
         search.trim().isNotEmpty,
-        scope != null,
         typeName != null,
         status != null,
         dateRange != null,
@@ -69,8 +78,6 @@ class RequestFilters {
 
   RequestFilters copyWith({
     String? search,
-    RequestScope? scope,
-    bool clearScope = false,
     String? typeName,
     bool clearTypeName = false,
     String? status,
@@ -81,7 +88,6 @@ class RequestFilters {
   }) {
     return RequestFilters(
       search: search ?? this.search,
-      scope: clearScope ? null : (scope ?? this.scope),
       typeName: clearTypeName ? null : (typeName ?? this.typeName),
       status: clearStatus ? null : (status ?? this.status),
       dateRange: clearDateRange ? null : (dateRange ?? this.dateRange),
@@ -93,12 +99,9 @@ class RequestFilters {
     var result = requests.where((r) {
       if (search.trim().isNotEmpty) {
         final q = search.trim().toLowerCase();
-        final matches = r.typeName.toLowerCase().contains(q) ||
-            r.referenceNumber.toLowerCase().contains(q) ||
-            r.office.toLowerCase().contains(q);
+        final matches = r.typeName.toLowerCase().contains(q) || r.referenceNumber.toLowerCase().contains(q);
         if (!matches) return false;
       }
-      if (scope != null && scopeOfOffice(r.office) != scope) return false;
       if (typeName != null && r.typeName != typeName) return false;
       if (status != null && r.status != status) return false;
       if (dateRange != null) {
