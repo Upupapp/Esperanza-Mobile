@@ -135,27 +135,6 @@ class _MyRequestCard extends StatelessWidget {
               'Submitted ${_fmt(request.submittedAt)}',
               style: const TextStyle(fontSize: 12, color: AppColors.textMuted),
             ),
-            if (request.requiresPayment) ...[
-              const SizedBox(height: 6),
-              Row(
-                children: [
-                  Icon(
-                    request.receipt != null ? Icons.check_circle_rounded : Icons.hourglass_top_rounded,
-                    size: 13,
-                    color: request.receipt != null ? AppColors.emerald700 : AppColors.amber700,
-                  ),
-                  const SizedBox(width: 4),
-                  Text(
-                    request.receipt != null ? 'Paid • ${request.fee}' : 'Fee ${request.fee} • Payment pending',
-                    style: TextStyle(
-                      fontSize: 11.5,
-                      fontWeight: FontWeight.w600,
-                      color: request.receipt != null ? AppColors.emerald700 : AppColors.amber700,
-                    ),
-                  ),
-                ],
-              ),
-            ],
             const Divider(height: AppSpacing.xl),
             Row(
               mainAxisAlignment: MainAxisAlignment.end,

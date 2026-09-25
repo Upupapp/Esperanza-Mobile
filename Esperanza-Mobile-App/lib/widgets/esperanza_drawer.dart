@@ -13,7 +13,6 @@ import '../screens/profile/profile_screen.dart';
 import '../screens/profile/settings_screen.dart';
 import '../screens/shared/documents_uploaded_screen.dart';
 import '../screens/shared/my_requests_screen.dart';
-import '../screens/shared/transactions_screen.dart';
 import '../screens/support/help_support_screen.dart';
 import '../services/citizen_session_service.dart';
 import '../theme/app_colors.dart';
@@ -59,11 +58,6 @@ class EsperanzaDrawer extends StatelessWidget {
                       icon: Icons.assignment_outlined,
                       label: 'My Requests',
                       onTap: () => _push(context, const MyRequestsScreen()),
-                    ),
-                    _DrawerTile(
-                      icon: Icons.receipt_long_outlined,
-                      label: 'Transactions',
-                      onTap: () => _push(context, const TransactionsScreen()),
                     ),
                     _DrawerTile(
                       icon: Icons.badge_outlined,
