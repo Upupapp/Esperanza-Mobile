@@ -22,6 +22,9 @@ import 'package:esperanza_mobile/services/requests_service.dart';
 import 'package:esperanza_mobile/services/resident_profile_service.dart';
 import 'package:esperanza_mobile/theme/app_colors.dart';
 
+import 'support/dokyu_tulong_fixtures.dart';
+import 'support/fake_api.dart';
+
 Future<RequestsService> _openFetalDeathWizard(WidgetTester tester) async {
   // The default 800x600 test canvas is unusually wide/short and puts the
   // Civil Registrar item list's later entries (this service included) at a y-offset
@@ -36,7 +39,7 @@ Future<RequestsService> _openFetalDeathWizard(WidgetTester tester) async {
   SharedPreferences.setMockInitialValues({});
   final session = CitizenSessionService();
   await session.login(MockCatalog.demoAccounts.last); // Perlita — verified
-  final requests = RequestsService(seedDemoData: false);
+  final requests = RequestsService();
   await tester.pumpWidget(
     MultiProvider(
       providers: [
@@ -91,15 +94,30 @@ Future<void> _continue(WidgetTester tester) async {
 }
 
 void main() {
+  setUp(() {
+    DokyuTulongFixtures.install(
+      onSubmit: (body) => {
+        'ref': 'ESP-2026-00FD1',
+        'type': 'dokyu',
+        'service': 'Certificate of Fetal Death',
+        'status': 'Submitted',
+        'submitted': '2026-01-01T00:00:00Z',
+        'office': 'Office of the Municipal Civil Registrar',
+      },
+    );
+  });
+  tearDown(FakeApi.restore);
+
   testWidgets('Certificate of Fetal Death appears in Dokyu and opens the multi-step wizard', (tester) async {
     await _openFetalDeathWizard(tester);
 
     expect(find.byType(ServiceRequestWizardScreen), findsOneWidget);
     // Applicant Info -> Fetal Information -> Mother's Information ->
     // Father's Information -> Supporting Information -> Requirements ->
-    // Review -> Payment (this service has a real ₱200.00 fee — see the
-    // Mobile-only final request-flow correction pass) = 8 steps.
-    expect(find.text('Step 1 of 8'), findsOneWidget);
+    // Review = 7 steps. No Payment step anymore -- receipt issuance is
+    // admin-only, so there is no citizen payment/receipt flow to wire up
+    // (production-readiness programme, 2026-09-25).
+    expect(find.text('Step 1 of 7'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
@@ -107,7 +125,7 @@ void main() {
     await _openFetalDeathWizard(tester);
     await _continue(tester); // Applicant Info (prefilled) -> Fetal Information
 
-    expect(find.text('Step 2 of 8'), findsOneWidget);
+    expect(find.text('Step 2 of 7'), findsOneWidget);
     expect(find.text('Fetal Information'), findsWidgets);
 
     // Hidden by default — Type of Delivery hasn't been set yet.
@@ -198,23 +216,23 @@ void main() {
     await tester.enterText(supportingTextareas.at(2), 'Delayed due to family only recently obtaining documents.');
     await _continue(tester);
 
-    // Requirements & Attachments — this service has no formSpec field
-    // keyed 'purpose', so the step's free-text field is labeled "Purpose"
-    // and is itself required; fill it so the *attachment* gate (what this
-    // assertion actually targets) is what's left blocking Continue. Skip
-    // attaching a real file (covered by RequirementUploader's own tests) —
-    // this suite is about the service's own fields, so it's enough to
-    // confirm Dokyu's per-requirement gate still applies rather than trying
-    // to bypass it.
+    // Requirements — this service has no formSpec field keyed 'purpose', so
+    // the step's free-text field is labeled "Purpose" and is itself
+    // required; the requirements list below it is informational only now
+    // (no submission-time upload endpoint exists — see
+    // ServiceRequestWizardScreen's own doc comment), so filling Purpose is
+    // enough to reach Review.
     expect(find.textContaining('Requirements'), findsWidgets);
     await tester.enterText(find.widgetWithText(TextField, '').first, 'Requesting a copy for PSA registration.');
-    await tester.tap(find.text('Continue'));
+    await _continue(tester); // -> Review
+
+    expect(find.text('Review Your Request'), findsOneWidget);
+    await tester.tap(find.text('Submit Request'));
     await tester.pumpAndSettle();
-    expect(find.textContaining('Please attach'), findsOneWidget);
 
     expect(tester.takeException(), isNull);
-    // No request submitted yet — the attachment gate correctly blocked it.
-    expect(requests.all, isEmpty);
-    expect(find.byType(RequestSubmittedScreen), findsNothing);
+    expect(find.byType(RequestSubmittedScreen), findsOneWidget);
+    expect(requests.all, hasLength(1));
+    expect(requests.all.single.referenceNumber, 'ESP-2026-00FD1');
   });
 }

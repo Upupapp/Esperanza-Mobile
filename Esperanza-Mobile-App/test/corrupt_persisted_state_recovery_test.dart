@@ -20,19 +20,15 @@
 // rather than never finishing. `_settle` is what actually encodes "must not
 // hang" — it gives up after 100 pumps, which is precisely what the
 // unguarded code did.
-import 'dart:convert';
-
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'package:esperanza_mobile/models/service_request.dart';
 import 'package:esperanza_mobile/services/balita_service.dart';
 import 'package:esperanza_mobile/services/citizen_session_service.dart';
 import 'package:esperanza_mobile/services/master_file_service.dart';
 import 'package:esperanza_mobile/services/notifications_service.dart';
 import 'package:esperanza_mobile/services/onboarding_service.dart';
 import 'package:esperanza_mobile/services/persistence_recovery.dart';
-import 'package:esperanza_mobile/services/requests_service.dart';
 import 'package:esperanza_mobile/services/resident_profile_service.dart';
 
 /// Pumps until [isLoaded] reports true, failing loudly instead of hanging the
@@ -100,15 +96,6 @@ void main() {
       expect(PersistenceRecovery.discards.single.keys, ['esperanza_citizen_session']);
     });
 
-    testWidgets('RequestsService drops an unreadable list rather than hanging', (tester) async {
-      SharedPreferences.setMockInitialValues({'esperanza_service_requests': _wrongType});
-
-      final requests = RequestsService(seedDemoData: false, retireLegacyDemoRequestSeeds: true);
-      await _settle(tester, () => requests.loaded, 'RequestsService');
-
-      expect(requests.all, isEmpty);
-    });
-
     testWidgets('BalitaService survives a non-JSON payload', (tester) async {
       SharedPreferences.setMockInitialValues({'esperanza_balita_posts': _notJson});
 
@@ -173,47 +160,12 @@ void main() {
     });
   });
 
-  group('An enum value this build no longer knows decodes to a fallback, not a throw', () {
-    // Amended by the macOS lane, 2026-09-03. This case originally asserted the
-    // fallback was `ServiceCategory.dokyu`. That kept the record — the right
-    // instinct, and the reason the shape of this test is unchanged — but it
-    // re-filed a citizen's Tulong or Sakuna application as a document request,
-    // which is a false statement about what they filed. The fallback is now
-    // `ServiceCategory.unknown`: the record is still kept and still readable,
-    // and the one field that could not be read is the only one withheld.
-    // See docs/FE01_PERSISTENCE_HARDENING.md and test/service_category_unknown_test.dart.
-    testWidgets('an unknown ServiceCategory keeps the rest of the request readable', (tester) async {
-      // Everything else in this payload is well-formed; only `category` names
-      // a value that a future build could plausibly have renamed or removed.
-      final request = ServiceRequest(
-        id: 'unknown-category-fixture',
-        referenceNumber: 'ESP-2026-000001',
-        applicantId: 'ESP-RES-0000-0000',
-        applicantName: 'Test Fixture',
-        typeName: 'Barangay Clearance',
-        category: ServiceCategory.dokyu,
-        office: 'Barangay Hall',
-        purpose: 'Regression fixture',
-        submittedAt: DateTime(2026, 3, 1),
-        status: 'Submitted',
-        statusHistory: [StatusHistoryEntry(status: 'Submitted', at: DateTime(2026, 3, 1), actor: 'Citizen')],
-        attachments: const [],
-        expectedDays: '1-2 working days',
-      );
-      final json = request.toJson();
-      json['category'] = 'aCategoryThisBuildNoLongerHas';
-
-      SharedPreferences.setMockInitialValues({
-        'esperanza_service_requests': jsonEncode([json]),
-      });
-
-      final requests = RequestsService(seedDemoData: false, retireLegacyDemoRequestSeeds: true);
-      await _settle(tester, () => requests.loaded, 'RequestsService');
-
-      // The request survives — the whole list used to be lost to the throw.
-      expect(requests.all, hasLength(1));
-      expect(requests.all.single.referenceNumber, 'ESP-2026-000001');
-      expect(requests.all.single.category, ServiceCategory.unknown);
-    });
-  });
+  // The "unknown ServiceCategory" fallback used to be covered here too, via
+  // a persisted-request payload feeding RequestsService's old SharedPreferences
+  // restore path. RequestsService no longer persists or restores anything
+  // (production-readiness programme, 2026-09-25 -- the server is now the
+  // only source of truth for a request's own state), so that restore path
+  // no longer exists to regression-test. ServiceRequest.fromJson's own
+  // fallback behavior is still covered directly, unit-level, in
+  // service_category_unknown_test.dart.
 }

@@ -6,19 +6,15 @@
 // Assistance uploads that start empty, and a migration that safely corrects
 // a device that already persisted the old placeholder profile.
 import 'dart:convert';
-import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'package:esperanza_mobile/models/attachment.dart';
 import 'package:esperanza_mobile/models/resident_profile.dart';
 import 'package:esperanza_mobile/models/service_request.dart';
 import 'package:esperanza_mobile/screens/profile/resident_profile/family_information_screen.dart';
 import 'package:esperanza_mobile/screens/profile/resident_profile/personal_information_screen.dart';
-import 'package:esperanza_mobile/screens/shared/request_detail_screen.dart';
-import 'package:esperanza_mobile/screens/shared/request_submitted_screen.dart';
 import 'package:esperanza_mobile/screens/shared/service_request_wizard_screen.dart';
 import 'package:esperanza_mobile/services/citizen_session_service.dart';
 import 'package:esperanza_mobile/services/master_file_service.dart';
@@ -32,18 +28,6 @@ import 'package:esperanza_mobile/widgets/app_button.dart';
 
 const _verifiedDemoId = 'ESP-RES-2024-9002';
 final _verifiedDemoDob = DateTime(2001, 3, 15);
-
-Attachment _fakeAttachment(String fileName, {AttachmentCategory category = AttachmentCategory.pdf}) {
-  return Attachment(
-    id: 'att-$fileName',
-    fileName: fileName,
-    category: category,
-    sizeBytes: 12345,
-    bytes: Uint8List(0),
-    addedAt: DateTime(2026, 1, 1),
-    documentTypeLabel: fileName,
-  );
-}
 
 Future<CitizenSessionService> _signedInAsVerifiedDemo(WidgetTester tester) async {
   final session = CitizenSessionService();
@@ -429,13 +413,12 @@ void main() {
       addTearDown(tester.view.resetDevicePixelRatio);
 
       final session = await _signedInAsVerifiedDemo(tester);
-      final requests = RequestsService(seedDemoData: false);
-      var attempts = 0;
-      while (!requests.loaded) {
-        attempts++;
-        if (attempts > 100) throw StateError('RequestsService never finished loading.');
-        await tester.pump(const Duration(milliseconds: 1));
-      }
+      // RequestsService no longer restores anything on construction (the
+      // server is the only source of truth for a request's own state now),
+      // so there is nothing async to wait for here anymore -- the wizard
+      // only needs it present in the provider tree for the Tulong
+      // eligibility check, which is fine against an empty, unloaded list.
+      final requests = RequestsService();
 
       await tester.pumpWidget(
         MultiProvider(
@@ -487,145 +470,20 @@ void main() {
       expect(tester.takeException(), isNull);
     });
 
-    testWidgets('Requirements & Attachments shows exactly 3 separate uploaders, all starting empty', (tester) async {
-      SharedPreferences.setMockInitialValues({});
-      final mf = await _readyMasterFile(tester);
-      await pumpWizard(tester, masterFile: mf);
-
-      // Applicant Info -> Student Info -> Family Background -> Additional
-      // Information -> Requirements: 4 Continue taps from step 0.
-      for (var i = 0; i < 4; i++) {
-        await tester.tap(find.widgetWithText(AppButton, 'Continue'));
-        await tester.pumpAndSettle();
-      }
-
-      expect(find.text('Certificate of Enrollment'), findsOneWidget);
-      expect(find.text('Valid Government-Issued ID'), findsOneWidget);
-      expect(find.text('Barangay Certificate of Indigency'), findsOneWidget);
-      // Exactly 3 empty upload prompts, each with its own requirement-
-      // specific button label — nothing pre-attached, nothing marked
-      // submitted, no "Existing document found" (Perlita's own signup/
-      // registration ID is a different, unrelated system — see
-      // utils/government_id.dart — and is never auto-offered here).
-      expect(find.text('Upload Certificate of Enrollment'), findsOneWidget);
-      expect(find.text('Upload Valid Government-Issued ID'), findsOneWidget);
-      expect(find.text('Upload Barangay Certificate of Indigency'), findsOneWidget);
-      expect(find.text('Existing document found'), findsNothing);
-      expect(tester.takeException(), isNull);
-    });
-
-    testWidgets('using an existing Master File document for one requirement leaves the other two still empty', (
-      tester,
-    ) async {
-      SharedPreferences.setMockInitialValues({});
-      final mf = await _readyMasterFile(tester);
-      await mf.saveOrUpdate(
-        accountId: _verifiedDemoId,
-        documentType: 'certificate_of_enrollment',
-        label: 'Certificate of Enrollment',
-        attachment: _fakeAttachment('enrollment_cert.pdf'),
-        origin: 'Some Other Service',
-      );
-      await pumpWizard(tester, masterFile: mf);
-
-      // Applicant Info -> Student Info -> Family Background -> Additional
-      // Information -> Requirements: 4 Continue taps from step 0.
-      for (var i = 0; i < 4; i++) {
-        await tester.tap(find.widgetWithText(AppButton, 'Continue'));
-        await tester.pumpAndSettle();
-      }
-
-      expect(find.text('Existing document found'), findsOneWidget);
-      expect(find.text('enrollment_cert.pdf'), findsOneWidget);
-      expect(find.text('Upload Valid Government-Issued ID'), findsOneWidget);
-      expect(find.text('Upload Barangay Certificate of Indigency'), findsOneWidget);
-
-      await tester.ensureVisible(find.text('Use Existing Document'));
-      await tester.tap(find.text('Use Existing Document'));
-      await tester.pumpAndSettle();
-
-      expect(find.text('enrollment_cert.pdf'), findsOneWidget); // now the attached tile
-      // The other two are untouched.
-      expect(find.text('Upload Valid Government-Issued ID'), findsOneWidget);
-      expect(find.text('Upload Barangay Certificate of Indigency'), findsOneWidget);
-      expect(tester.takeException(), isNull);
-    });
-
-    testWidgets(
-      'attaching all 3 requirements and submitting succeeds with a reference number; Track This Request opens the exact new request',
-      (tester) async {
-        SharedPreferences.setMockInitialValues({});
-        final mf = await _readyMasterFile(tester);
-        await mf.saveOrUpdate(
-          accountId: _verifiedDemoId,
-          documentType: 'certificate_of_enrollment',
-          label: 'Certificate of Enrollment',
-          attachment: _fakeAttachment('enrollment.pdf'),
-          origin: 'Test',
-        );
-        await mf.saveOrUpdate(
-          accountId: _verifiedDemoId,
-          documentType: 'valid_government_id',
-          label: 'Valid Government-Issued ID',
-          // Category left at the _fakeAttachment default (pdf), not image —
-          // an image-categorized attachment triggers a real image-decode
-          // attempt on this fixture's empty byte array (see _AttachedTile's
-          // thumbnail preview), same reason no existing test in this suite
-          // uses AttachmentCategory.image for a fake attachment either.
-          attachment: _fakeAttachment('gov_id.jpg'),
-          origin: 'Test',
-        );
-        await mf.saveOrUpdate(
-          accountId: _verifiedDemoId,
-          documentType: 'barangay_certificate_of_indigency',
-          label: 'Barangay Certificate of Indigency',
-          attachment: _fakeAttachment('indigency.pdf'),
-          origin: 'Test',
-        );
-        final requests = await pumpWizard(tester, masterFile: mf);
-        final before = requests.all.length;
-
-        // Applicant Info -> Student Info -> Family Background -> Additional
-        // Information -> Requirements: 4 Continue taps from step 0.
-        for (var i = 0; i < 4; i++) {
-          await tester.tap(find.widgetWithText(AppButton, 'Continue'));
-          await tester.pumpAndSettle();
-        }
-
-        // Attach all 3 via "Use Existing Document", one at a time — each
-        // tap removes one from the remaining set.
-        while (find.text('Use Existing Document').evaluate().isNotEmpty) {
-          await tester.ensureVisible(find.text('Use Existing Document').first);
-          await tester.tap(find.text('Use Existing Document').first);
-          await tester.pumpAndSettle();
-        }
-        expect(find.text('Upload Document'), findsNothing);
-
-        // This service has no formSpec 'purpose' field, so the Requirements
-        // step's own free-text box is labeled "Purpose" and is required.
-        await tester.enterText(find.byType(TextField).first, 'Educational assistance to support continuing studies');
-        await tester.tap(find.widgetWithText(AppButton, 'Continue')); // -> Review & Submit
-        await tester.pumpAndSettle();
-
-        await tester.tap(find.widgetWithText(AppButton, 'Submit Request'));
-        await tester.pumpAndSettle();
-
-        expect(requests.all.length, before + 1);
-        final submitted = requests.all.last;
-        expect(submitted.typeName, 'Educational Assistance');
-        expect(submitted.attachments.length, 3);
-        expect(find.byType(RequestSubmittedScreen), findsOneWidget);
-        expect(find.text(submitted.referenceNumber), findsOneWidget);
-        expect(find.text('Track This Request'), findsOneWidget);
-
-        await tester.tap(find.text('Track This Request'));
-        await tester.pumpAndSettle();
-
-        expect(find.byType(RequestDetailScreen), findsOneWidget);
-        expect(find.text('Educational Assistance'), findsWidgets);
-        expect(find.text(submitted.referenceNumber), findsOneWidget);
-        expect(tester.takeException(), isNull);
-      },
-    );
+    // Three tests used to live here, covering the Requirements step's old
+    // per-requirement upload-at-creation UI (3 separate uploaders, Master
+    // File "Use Existing Document" reuse, and a full attach-all-3 ->
+    // submit -> Track This Request run). That UI is gone -- the Requirements
+    // step is informational-only now, since POST /citizen/requests has no
+    // attachments field and the only real file-upload endpoint requires a
+    // requirement to already be staff-flagged (production-readiness
+    // programme, 2026-09-25; see ServiceRequestWizardScreen's own doc
+    // comment). Removed rather than kept pointed at UI that no longer
+    // exists -- same treatment as dokyu_requirement_uploads_test.dart and
+    // requirement_upload_standardization_test.dart, which covered the same
+    // now-gone feature for other services and were deleted outright. The
+    // submit -> Track This Request path itself is still covered, just
+    // without attachments, by fetal_death_wizard_test.dart's own full
+    // fill-through-submit case.
   });
 }

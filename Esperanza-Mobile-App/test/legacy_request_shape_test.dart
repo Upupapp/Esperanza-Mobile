@@ -11,19 +11,23 @@
 // whose absence just means "none recorded".
 //
 // The second half of this file is the part worth keeping. Defaulting
-// `statusHistory` to `[]` is only safe if nothing assumes it is non-empty, and
-// three places did: `canAdvance`, `nextMilestone` and the timeline's
-// `isRejected` all called `.last`, which throws `StateError` on an empty list.
-// Fixing the decode alone would have relocated the crash from restore into the
-// UI rather than removing it.
-import 'dart:convert';
-
+// `statusHistory` to `[]` is only safe if nothing assumes it is non-empty --
+// the timeline's own `isRejected` called `.last`, which throws `StateError`
+// on an empty list. Fixing the decode alone would have relocated the crash
+// from restore into the UI rather than removing it.
+//
+// This file used to also cover RequestsService actually restoring such a
+// record from SharedPreferences, plus two now-deleted local-simulation
+// methods (`canAdvance`/`nextMilestone`) treating an empty history as "not
+// advanceable" rather than throwing. RequestsService no longer persists or
+// restores anything, and neither method exists anymore (production-readiness
+// programme, 2026-09-25 -- the server is the only source of truth for a
+// request's own state now), so both cases were removed rather than kept
+// pointed at a restore path that no longer exists.
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:esperanza_mobile/models/service_request.dart';
-import 'package:esperanza_mobile/services/requests_service.dart';
 import 'package:esperanza_mobile/theme/app_colors.dart';
 import 'package:esperanza_mobile/widgets/request_milestone_timeline.dart';
 
@@ -51,14 +55,6 @@ Map<String, dynamic> _persisted({List<String> dropFields = const []}) {
   return json;
 }
 
-Future<void> _settle(WidgetTester tester, bool Function() isLoaded) async {
-  var attempts = 0;
-  while (!isLoaded()) {
-    if (attempts++ > 100) throw StateError('RequestsService never finished loading.');
-    await tester.pump(const Duration(milliseconds: 1));
-  }
-}
-
 void main() {
   group('a record written before a list field existed still decodes', () {
     test('a missing attachments list defaults to empty', () {
@@ -84,36 +80,9 @@ void main() {
       expect(request.attachments, isEmpty);
       expect(request.typeName, 'Barangay Clearance');
     });
-
-    testWidgets('such a record is restored rather than skipped', (tester) async {
-      SharedPreferences.setMockInitialValues({
-        'esperanza_service_requests': jsonEncode([_persisted(dropFields: ['statusHistory', 'attachments'])]),
-      });
-
-      final requests = RequestsService(seedDemoData: false);
-      await _settle(tester, () => requests.loaded);
-
-      // Entry-tolerant decoding meant this record was skipped rather than
-      // fatal; defaulting the fields means it is not lost at all.
-      expect(requests.all, hasLength(1));
-      expect(requests.all.single.referenceNumber, 'DR-2026-000007');
-    });
   });
 
   group('an empty history does not move the crash into the UI', () {
-    testWidgets('the demo advance controls treat no history as not advanceable', (tester) async {
-      SharedPreferences.setMockInitialValues({
-        'esperanza_service_requests': jsonEncode([_persisted(dropFields: ['statusHistory'])]),
-      });
-
-      final requests = RequestsService(seedDemoData: false);
-      await _settle(tester, () => requests.loaded);
-
-      // Both of these called `.last` on the history and threw StateError.
-      expect(requests.canAdvance('legacy-shape-fixture'), isFalse);
-      expect(requests.nextMilestone('legacy-shape-fixture'), isNull);
-    });
-
     testWidgets('the timeline renders an empty history without throwing', (tester) async {
       final request = ServiceRequest.fromJson(_persisted(dropFields: ['statusHistory']));
 
