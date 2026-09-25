@@ -6,10 +6,26 @@
 // app), and the duplicate account's own read-only status notification.
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:esperanza_mobile/main.dart';
+import 'package:esperanza_mobile/models/citizen_account.dart';
+import 'package:esperanza_mobile/services/citizen_session_service.dart';
 import 'package:esperanza_mobile/services/mock_catalog.dart';
+
+/// The demo-account login cards (including the dedicated "Demo: Duplicate
+/// Perlita Account" button this file's premise used to rely on) were
+/// removed from LoginScreen (see PRODUCTION_READINESS.md 4(d)) as a
+/// credential-enumeration surface once the screen talks to a real backend.
+/// These tests exist to drive the duplicate-account scenario itself, not
+/// the on-ramp, so they sign in the same way the removed cards used to --
+/// by calling CitizenSessionService.login() directly.
+Future<void> _loginAs(WidgetTester tester, CitizenAccount account) async {
+  final ctx = tester.element(find.byType(MaterialApp));
+  await ctx.read<CitizenSessionService>().login(account);
+  await tester.pumpAndSettle();
+}
 
 void _setPhoneViewport(WidgetTester tester) {
   tester.view.physicalSize = const Size(390, 844);
@@ -41,7 +57,7 @@ Future<void> _scrollToAndTap(WidgetTester tester, Finder finder) async {
 }
 
 void main() {
-  testWidgets('Sign In screen offers a clearly labeled duplicate-Perlita demo login, distinct from the real account', (
+  testWidgets('Sign In screen no longer offers any demo-account login, duplicate-Perlita included', (
     tester,
   ) async {
     SharedPreferences.setMockInitialValues({'esperanza_onboarding_complete': true});
@@ -49,9 +65,14 @@ void main() {
     await tester.pumpWidget(const EsperanzaMobileApp());
     await tester.pumpAndSettle();
 
-    expect(find.text('Perlita Quiambao'), findsOneWidget); // the real account's own card
-    expect(find.text('Demo: Duplicate Perlita Account'), findsOneWidget);
-    // Never the same identifiers as the real account.
+    // Inverted from this file's original premise: a one-tap
+    // sign-in-as-anyone card (including this one, labeled as a *duplicate*
+    // registration of a real account) is a credential-enumeration surface
+    // now that this screen talks to a real backend, so its absence is the
+    // correct behavior to assert for, not its presence.
+    expect(find.text('Perlita Quiambao'), findsNothing); // the real account's former demo card
+    expect(find.text('Demo: Duplicate Perlita Account'), findsNothing);
+    // The two accounts remain distinct at the model level regardless.
     expect(MockCatalog.duplicateVerifiedDemoAccount.id, isNot(MockCatalog.demoAccounts.last.id));
     expect(MockCatalog.duplicateVerifiedDemoAccount.email, isNot(MockCatalog.demoAccounts.last.email));
   });
@@ -64,9 +85,7 @@ void main() {
     await tester.pumpWidget(const EsperanzaMobileApp());
     await tester.pumpAndSettle();
 
-    await tester.ensureVisible(find.text('Demo: Duplicate Perlita Account'));
-    await tester.tap(find.text('Demo: Duplicate Perlita Account'));
-    await tester.pumpAndSettle(const Duration(seconds: 1));
+    await _loginAs(tester, MockCatalog.duplicateVerifiedDemoAccount);
     await _dismissWelcomeBanner(tester);
 
     expect(MockCatalog.duplicateVerifiedDemoAccount.status, isNot('Approved'));
@@ -92,9 +111,7 @@ void main() {
       await tester.pumpWidget(const EsperanzaMobileApp());
       await tester.pumpAndSettle();
 
-      await tester.ensureVisible(find.text('Perlita Quiambao'));
-      await tester.tap(find.text('Perlita Quiambao'));
-      await tester.pumpAndSettle(const Duration(seconds: 1));
+      await _loginAs(tester, MockCatalog.demoAccounts.last); // real Perlita Quiambao
       await _dismissWelcomeBanner(tester);
 
       await _openBell(tester);
@@ -174,9 +191,7 @@ void main() {
       await tester.pumpWidget(const EsperanzaMobileApp());
       await tester.pumpAndSettle();
 
-      await tester.ensureVisible(find.text('Demo: Duplicate Perlita Account'));
-      await tester.tap(find.text('Demo: Duplicate Perlita Account'));
-      await tester.pumpAndSettle(const Duration(seconds: 1));
+      await _loginAs(tester, MockCatalog.duplicateVerifiedDemoAccount);
       await _dismissWelcomeBanner(tester);
 
       await tester.tap(find.byKey(const ValueKey('nav-center-action')));
@@ -211,9 +226,7 @@ void main() {
     await tester.pumpWidget(const EsperanzaMobileApp());
     await tester.pumpAndSettle();
 
-    await tester.ensureVisible(find.text('Demo: Duplicate Perlita Account'));
-    await tester.tap(find.text('Demo: Duplicate Perlita Account'));
-    await tester.pumpAndSettle(const Duration(seconds: 1));
+    await _loginAs(tester, MockCatalog.duplicateVerifiedDemoAccount);
     await _dismissWelcomeBanner(tester);
 
     await tester.tap(find.byKey(const ValueKey('nav-center-action')));

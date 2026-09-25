@@ -11,10 +11,26 @@
 // These tests drive those exact paths end-to-end through the real app.
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:esperanza_mobile/main.dart';
+import 'package:esperanza_mobile/models/citizen_account.dart';
+import 'package:esperanza_mobile/services/citizen_session_service.dart';
+import 'package:esperanza_mobile/services/mock_catalog.dart';
 import 'package:esperanza_mobile/widgets/app_button.dart';
+
+/// The demo-account login cards were removed from LoginScreen (see
+/// PRODUCTION_READINESS.md 4(d)) as a credential-enumeration surface once
+/// the screen talks to a real backend. These tests exist to drive the
+/// post-login navigation, not the on-ramp itself, so they sign in the same
+/// way the removed cards used to -- by calling CitizenSessionService.login()
+/// directly -- rather than re-testing the (now gone) tap target.
+Future<void> _loginAs(WidgetTester tester, CitizenAccount account) async {
+  final ctx = tester.element(find.byType(MaterialApp));
+  await ctx.read<CitizenSessionService>().login(account);
+  await tester.pumpAndSettle();
+}
 
 void _setPhoneViewport(WidgetTester tester) {
   tester.view.physicalSize = const Size(390, 844);
@@ -87,7 +103,7 @@ void main() {
     // not a dead end.
     expect(find.text('Welcome back'), findsOneWidget);
 
-    await _tapVisible(tester, find.text('Nicanor Sarmiento'));
+    await _loginAs(tester, MockCatalog.demoAccounts.first); // Nicanor Sarmiento
 
     // The critical assertion: login() must have actually navigated us
     // into the app. Before the fix, this button press had no visible
@@ -113,7 +129,7 @@ void main() {
     await _tapVisible(tester, find.text('Sign In'));
     expect(find.text('Welcome back'), findsOneWidget);
 
-    await _tapVisible(tester, find.text('Perlita Quiambao'));
+    await _loginAs(tester, MockCatalog.demoAccounts.last); // Perlita Quiambao
     await _dismissWelcomeBanner(tester);
     expect(find.text('Welcome back'), findsNothing);
     expect(tester.takeException(), isNull);
@@ -140,7 +156,7 @@ void main() {
     // App" button is exactly the path that used to push a *second*
     // RootShell.withKey() (colliding with the one _AuthGate had already
     // built reactively) or orphan _AuthGate outright.
-    await _tapVisible(tester, find.text('Nicanor Sarmiento'));
+    await _loginAs(tester, MockCatalog.demoAccounts.first); // Nicanor Sarmiento
     await _dismissWelcomeBanner(tester);
     await _openService(tester, 'Dokyu'); // verification-gated -> RestrictedFeatureNotice
     await _tapVisible(tester, find.text('Continue Verification'));

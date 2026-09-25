@@ -4,12 +4,27 @@
 // like-state synchronization.
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:esperanza_mobile/main.dart';
+import 'package:esperanza_mobile/models/citizen_account.dart';
 import 'package:esperanza_mobile/screens/balita/post_image_viewer.dart';
+import 'package:esperanza_mobile/services/citizen_session_service.dart';
 import 'package:esperanza_mobile/services/mock_catalog.dart';
 import 'package:esperanza_mobile/widgets/restricted_feature_notice.dart';
+
+/// The demo-account login cards were removed from LoginScreen (see
+/// PRODUCTION_READINESS.md 4(d)) as a credential-enumeration surface once
+/// the screen talks to a real backend. These tests exist to drive Balita's
+/// access gating, not the on-ramp itself, so they sign in the same way the
+/// removed cards used to -- by calling CitizenSessionService.login()
+/// directly -- rather than re-testing the (now gone) tap target.
+Future<void> _loginAs(WidgetTester tester, CitizenAccount account) async {
+  final ctx = tester.element(find.byType(MaterialApp));
+  await ctx.read<CitizenSessionService>().login(account);
+  await tester.pumpAndSettle();
+}
 
 void _setPhoneViewport(WidgetTester tester) {
   tester.view.physicalSize = const Size(390, 844);
@@ -24,19 +39,6 @@ Future<void> _dismissWelcomeBanner(WidgetTester tester) async {
     await tester.tap(closeButton, warnIfMissed: false);
     await tester.pumpAndSettle();
   }
-}
-
-/// Demo-account sign-in (LoginScreen._quickLogin) shows a "this app is a
-/// frontend simulation" SnackBar via the app-level ScaffoldMessenger, which
-/// — unlike a route — persists across navigation for its default ~4s
-/// duration. Its static (non-animating) middle stretch doesn't schedule
-/// any frame, so `pumpAndSettle()` alone doesn't wait it out, same class of
-/// gap as a raw `Future.delayed` — it can still be sitting at the bottom of
-/// the screen, over real content, several steps later. Advance the clock
-/// straight past it before interacting with anything near the bottom edge.
-Future<void> _waitOutSignInToast(WidgetTester tester) async {
-  await tester.pump(const Duration(seconds: 5));
-  await tester.pumpAndSettle();
 }
 
 /// The first Balita post ('bal-mangrove-award' in mock_catalog.dart) — has
@@ -177,10 +179,7 @@ void main() {
       await tester.pumpWidget(const EsperanzaMobileApp());
       await tester.pumpAndSettle();
 
-      await tester.ensureVisible(find.text('Nicanor Sarmiento'));
-      await tester.tap(find.text('Nicanor Sarmiento'));
-      await tester.pumpAndSettle();
-      await _waitOutSignInToast(tester);
+      await _loginAs(tester, MockCatalog.demoAccounts.first); // Nicanor Sarmiento
       await _dismissWelcomeBanner(tester);
 
       // Viewing/zooming the image itself stays available — the gate only
@@ -253,10 +252,7 @@ void main() {
       await tester.pumpWidget(const EsperanzaMobileApp());
       await tester.pumpAndSettle();
 
-      await tester.ensureVisible(find.text('Perlita Quiambao'));
-      await tester.tap(find.text('Perlita Quiambao'));
-      await tester.pumpAndSettle();
-      await _waitOutSignInToast(tester);
+      await _loginAs(tester, MockCatalog.demoAccounts.last); // Perlita Quiambao
       await _dismissWelcomeBanner(tester);
 
       await tester.tap(find.text('Balita'));
@@ -291,10 +287,7 @@ void main() {
     await tester.pumpWidget(const EsperanzaMobileApp());
     await tester.pumpAndSettle();
 
-    await tester.ensureVisible(find.text('Perlita Quiambao'));
-    await tester.tap(find.text('Perlita Quiambao'));
-    await tester.pumpAndSettle();
-    await _waitOutSignInToast(tester);
+    await _loginAs(tester, MockCatalog.demoAccounts.last); // Perlita Quiambao
     await _dismissWelcomeBanner(tester);
 
     // 'bal-mangrove-award' starts with no comments (untouched by any

@@ -3,10 +3,25 @@
 // (see duplicate_account_simulation_test.dart). FRONTEND SIMULATION ONLY.
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:esperanza_mobile/main.dart';
+import 'package:esperanza_mobile/models/citizen_account.dart';
+import 'package:esperanza_mobile/services/citizen_session_service.dart';
 import 'package:esperanza_mobile/services/mock_catalog.dart';
+
+/// The demo-account login cards (Account A/B included) were removed from
+/// LoginScreen (see PRODUCTION_READINESS.md 4(d)) as a credential-
+/// enumeration surface once the screen talks to a real backend. These
+/// tests exist to drive the duplicate-registration scenario itself, not
+/// the on-ramp, so they sign in the same way the removed cards used to --
+/// by calling CitizenSessionService.login() directly.
+Future<void> _loginAs(WidgetTester tester, CitizenAccount account) async {
+  final ctx = tester.element(find.byType(MaterialApp));
+  await ctx.read<CitizenSessionService>().login(account);
+  await tester.pumpAndSettle();
+}
 
 void _setPhoneViewport(WidgetTester tester) {
   tester.view.physicalSize = const Size(390, 844);
@@ -29,7 +44,7 @@ Future<void> _openBell(WidgetTester tester) async {
 }
 
 void main() {
-  testWidgets('Sign In offers both Account A and Account B demo logins, sharing the same underlying identity', (
+  testWidgets('Sign In no longer offers Account A/B demo logins, though they still share the same underlying identity', (
     tester,
   ) async {
     SharedPreferences.setMockInitialValues({'esperanza_onboarding_complete': true});
@@ -37,8 +52,12 @@ void main() {
     await tester.pumpWidget(const EsperanzaMobileApp());
     await tester.pumpAndSettle();
 
-    expect(find.text('Demo: Unverified Duplicate — Account A'), findsOneWidget);
-    expect(find.text('Demo: Unverified Duplicate — Account B'), findsOneWidget);
+    // Inverted from this file's original premise: a one-tap
+    // sign-in-as-anyone card is a credential-enumeration surface now that
+    // this screen talks to a real backend, so its absence is the correct
+    // behavior to assert for, not its presence.
+    expect(find.text('Demo: Unverified Duplicate — Account A'), findsNothing);
+    expect(find.text('Demo: Unverified Duplicate — Account B'), findsNothing);
 
     final a = MockCatalog.unverifiedDuplicateAccountA;
     final b = MockCatalog.unverifiedDuplicateAccountB;
@@ -58,9 +77,7 @@ void main() {
     await tester.pumpWidget(const EsperanzaMobileApp());
     await tester.pumpAndSettle();
 
-    await tester.ensureVisible(find.text('Demo: Unverified Duplicate — Account A'));
-    await tester.tap(find.text('Demo: Unverified Duplicate — Account A'));
-    await tester.pumpAndSettle(const Duration(seconds: 1));
+    await _loginAs(tester, MockCatalog.unverifiedDuplicateAccountA);
     await _dismissWelcomeBanner(tester);
 
     await _openBell(tester);
@@ -97,9 +114,7 @@ void main() {
       await tester.pumpWidget(const EsperanzaMobileApp());
       await tester.pumpAndSettle();
 
-      await tester.ensureVisible(find.text('Demo: Unverified Duplicate — Account A'));
-      await tester.tap(find.text('Demo: Unverified Duplicate — Account A'));
-      await tester.pumpAndSettle(const Duration(seconds: 1));
+      await _loginAs(tester, MockCatalog.unverifiedDuplicateAccountA);
       await _dismissWelcomeBanner(tester);
 
       await _openBell(tester);

@@ -3,10 +3,26 @@
 // (EsperanzaMobileApp) with real taps — not just code review.
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:esperanza_mobile/main.dart';
-import 'package:esperanza_mobile/widgets/demo_account_card.dart';
+import 'package:esperanza_mobile/models/citizen_account.dart';
+import 'package:esperanza_mobile/services/citizen_session_service.dart';
+import 'package:esperanza_mobile/services/mock_catalog.dart';
+
+/// The demo-account login cards were removed from LoginScreen (see
+/// PRODUCTION_READINESS.md 4(d)) as a credential-enumeration surface once
+/// the screen talks to a real backend. These scenarios exist to drive
+/// post-login access control, not the on-ramp itself, so they sign in the
+/// same way the removed cards used to -- by calling
+/// CitizenSessionService.login() directly -- rather than re-testing the
+/// (now gone) tap target.
+Future<void> _loginAs(WidgetTester tester, CitizenAccount account) async {
+  final ctx = tester.element(find.byType(MaterialApp));
+  await ctx.read<CitizenSessionService>().login(account);
+  await tester.pumpAndSettle();
+}
 
 /// The default test viewport (800x600) is shorter than a real phone and
 /// cuts off the login screen's demo-account cards below the fold, making
@@ -104,21 +120,9 @@ void main() {
     await tester.pumpWidget(const EsperanzaMobileApp());
     await tester.pumpAndSettle();
 
-    // 1. Sign in using the Nicanor Sarmiento demo account.
-    expect(find.text('Nicanor Sarmiento'), findsOneWidget);
-    // Scoped to Nicanor's own card — the Phase 6 duplicate-account demo
-    // card also shows "Unverified User" (she's never verified in that
-    // simulation either), so an unscoped find would match both.
-    expect(
-      find.descendant(
-        of: find.ancestor(of: find.text('Nicanor Sarmiento'), matching: find.byType(DemoAccountCard)),
-        matching: find.text('Unverified User'),
-      ),
-      findsOneWidget,
-    );
-    await tester.ensureVisible(find.text('Nicanor Sarmiento'));
-    await tester.tap(find.text('Nicanor Sarmiento'));
-    await tester.pumpAndSettle();
+    // 1. Sign in as Nicanor Sarmiento — registered but unverified
+    // (MockCatalog.demoAccounts.first, status 'Pending Review').
+    await _loginAs(tester, MockCatalog.demoAccounts.first);
     await _dismissWelcomeBanner(tester);
 
     // 2 & 3. Confirm registered-but-unverified is recognized, and status
@@ -162,12 +166,9 @@ void main() {
     await tester.pumpWidget(const EsperanzaMobileApp());
     await tester.pumpAndSettle();
 
-    // 1. Sign in using the Perlita Quiambao demo account.
-    expect(find.text('Perlita Quiambao'), findsOneWidget);
-    expect(find.text('Verified User'), findsOneWidget); // demo card label
-    await tester.ensureVisible(find.text('Perlita Quiambao'));
-    await tester.tap(find.text('Perlita Quiambao'));
-    await tester.pumpAndSettle();
+    // 1. Sign in as Perlita Quiambao — fully verified
+    // (MockCatalog.demoAccounts.last, status 'Approved').
+    await _loginAs(tester, MockCatalog.demoAccounts.last);
     await _dismissWelcomeBanner(tester);
 
     // 2. Confirm recognized as fully verified.
