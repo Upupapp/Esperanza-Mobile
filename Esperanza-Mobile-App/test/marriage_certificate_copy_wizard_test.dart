@@ -19,6 +19,7 @@ import 'package:esperanza_mobile/services/notifications_service.dart';
 import 'package:esperanza_mobile/services/requests_service.dart';
 import 'package:esperanza_mobile/services/resident_profile_service.dart';
 import 'package:esperanza_mobile/theme/app_colors.dart';
+import 'package:esperanza_mobile/widgets/app_button.dart';
 
 Future<void> _pumpDokyuAsVerifiedDemo(WidgetTester tester) async {
   tester.view.physicalSize = const Size(390, 844);
@@ -33,7 +34,7 @@ Future<void> _pumpDokyuAsVerifiedDemo(WidgetTester tester) async {
     MultiProvider(
       providers: [
         ChangeNotifierProvider<CitizenSessionService>.value(value: session),
-        ChangeNotifierProvider(create: (_) => RequestsService(seedDemoData: false)),
+        ChangeNotifierProvider(create: (_) => RequestsService()),
         ChangeNotifierProvider(create: (_) => ResidentProfileService()),
         ChangeNotifierProvider(create: (_) => MasterFileService()),
         ChangeNotifierProvider(create: (_) => NotificationsService()),
@@ -98,16 +99,17 @@ void main() {
 
     expect(find.byType(ServiceRequestWizardScreen), findsOneWidget);
     // Applicant Info -> Marriage Record Information -> Requirements ->
-    // Review -> Payment (this service has a real ₱155.00 fee — see the
-    // Mobile-only final request-flow correction pass) = 5 steps, not a
-    // giant multi-step replica of the certificate's full
-    // Husband/Wife/parents/witnesses/registrar layout.
-    expect(find.text('Step 1 of 5'), findsOneWidget);
+    // Review = 4 steps (no separate Payment step -- the wizard dropped it
+    // along with every local receipt/payment simulation, production-
+    // readiness programme, 2026-09-25), not a giant multi-step replica of
+    // the certificate's full Husband/Wife/parents/witnesses/registrar
+    // layout.
+    expect(find.text('Step 1 of 4'), findsOneWidget);
 
     await tester.tap(find.text('Continue'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Step 2 of 5'), findsOneWidget);
+    expect(find.text('Step 2 of 4'), findsOneWidget);
     expect(find.text('Marriage Record Information'), findsWidgets);
     expect(find.text("Husband's Full Name"), findsOneWidget);
     expect(find.text("Wife's Full Name"), findsOneWidget);
@@ -163,13 +165,15 @@ void main() {
     await tester.pumpAndSettle();
 
     // Requirements & Attachments — Purpose is already prefilled too
-    // (demoPurpose); attachments are still left for the resident to
-    // upload live, so Dokyu's per-requirement gate still applies.
+    // (demoPurpose). This step is informational-only now (no per-
+    // requirement upload/gate -- the wizard dropped attachment-at-creation
+    // along with Payment, see above), so Continue reaches Review directly.
     expect(find.textContaining('Requirements'), findsWidgets);
     expect(find.textContaining('For submission as proof of civil status'), findsOneWidget);
     await tester.tap(find.text('Continue'));
     await tester.pumpAndSettle();
-    expect(find.textContaining('Please attach'), findsOneWidget);
+    expect(find.text('Step 4 of 4'), findsOneWidget); // Review & Submit
+    expect(find.widgetWithText(AppButton, 'Submit Request'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 }

@@ -5,7 +5,6 @@
 // its own _ItemList._open. A blocked assistance never reaches
 // NewRequestScreen/ServiceRequestWizardScreen; a different, eligible
 // assistance is completely unaffected.
-import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
@@ -24,13 +23,15 @@ import 'package:esperanza_mobile/services/requests_service.dart';
 import 'package:esperanza_mobile/services/resident_profile_service.dart';
 import 'package:esperanza_mobile/theme/app_colors.dart';
 
-const _verifiedDemoId = 'ESP-RES-2024-9002';
-const _verifiedDemoName = 'Perlita Quiambao';
+import 'support/dokyu_tulong_fixtures.dart';
 
 Future<void> _pumpTulongCatalog(WidgetTester tester, {required List<Map<String, dynamic>> seededRequests}) async {
-  SharedPreferences.setMockInitialValues({
-    if (seededRequests.isNotEmpty) 'esperanza_service_requests': jsonEncode(seededRequests),
-  });
+  SharedPreferences.setMockInitialValues({});
+  // GET /citizen/requests is scoped to the signed-in citizen by the bearer
+  // token, so seeding it here (rather than a per-request applicant field) is
+  // what "this is Perlita's own request history" now means.
+  DokyuTulongFixtures.install(requests: seededRequests);
+
   final session = CitizenSessionService();
   var attempts = 0;
   while (session.loading) {
@@ -40,13 +41,8 @@ Future<void> _pumpTulongCatalog(WidgetTester tester, {required List<Map<String, 
   }
   await session.login(MockCatalog.demoAccounts.last); // Perlita — verified
 
-  final requests = RequestsService(seedDemoData: false);
-  attempts = 0;
-  while (!requests.loaded) {
-    attempts++;
-    if (attempts > 100) throw StateError('RequestsService never finished loading.');
-    await tester.pump(const Duration(milliseconds: 1));
-  }
+  final requests = RequestsService();
+  await requests.loadRequests();
 
   await tester.pumpWidget(
     MultiProvider(
@@ -70,21 +66,17 @@ Future<void> _pumpTulongCatalog(WidgetTester tester, {required List<Map<String, 
   await tester.pumpAndSettle();
 }
 
-Map<String, dynamic> _activeMedicalAssistance() => ServiceRequest(
-      id: 'req-active-medical',
-      referenceNumber: 'AR-2026-0001',
-      applicantId: _verifiedDemoId,
-      applicantName: _verifiedDemoName,
-      typeName: 'Medical Assistance (AICS)',
-      category: ServiceCategory.tulong,
-      office: 'Municipal Social Welfare and Development Office',
-      purpose: 'Hospital bill',
-      submittedAt: DateTime(2026, 1, 1),
-      status: 'Pending Review',
-      statusHistory: [StatusHistoryEntry(status: 'Pending Review', at: DateTime(2026, 1, 1), actor: 'Citizen')],
-      attachments: const [],
-      expectedDays: '3-5 working days',
-    ).toJson();
+// GET /citizen/requests' own thin summary shape (ref/type/service/status/
+// submitted only -- see RequestsService._requestFromSummary), not
+// ServiceRequest.toJson()'s full persisted shape, which nothing sends or
+// reads anymore.
+Map<String, dynamic> _activeMedicalAssistance() => {
+      'ref': 'req-active-medical',
+      'type': 'tulong',
+      'service': 'Medical Assistance (AICS)',
+      'status': 'Pending Review',
+      'submitted': DateTime(2026, 1, 1).toIso8601String(),
+    };
 
 void main() {
   testWidgets('an assistance with an active application is blocked at the catalog screen, before any form opens', (

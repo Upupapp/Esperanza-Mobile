@@ -31,7 +31,7 @@ Future<void> _pumpDokyuAsVerifiedDemo(WidgetTester tester) async {
     MultiProvider(
       providers: [
         ChangeNotifierProvider<CitizenSessionService>.value(value: session),
-        ChangeNotifierProvider(create: (_) => RequestsService(seedDemoData: false)),
+        ChangeNotifierProvider(create: (_) => RequestsService()),
         ChangeNotifierProvider(create: (_) => ResidentProfileService()),
         ChangeNotifierProvider(create: (_) => MasterFileService()),
         ChangeNotifierProvider(create: (_) => NotificationsService()),
@@ -63,11 +63,11 @@ void main() {
     expect(find.byType(NewRequestScreen), findsNothing);
 
     // Step count/labels are data-driven from this item's formSpec: Applicant
-    // Info -> Clearance Details -> Requirements -> Review -> Payment (this
-    // service has a real ₱50.00 fee — see the Mobile-only final request-
-    // flow correction pass) = 5 steps, not the fixed 6-step Registration
-    // template.
-    expect(find.text('Step 1 of 5'), findsOneWidget);
+    // Info -> Clearance Details -> Requirements -> Review = 4 steps (no
+    // separate Payment step -- the wizard dropped it along with every
+    // local receipt/payment simulation, production-readiness programme,
+    // 2026-09-25), not the fixed 6-step Registration template.
+    expect(find.text('Step 1 of 4'), findsOneWidget);
     expect(find.text('Applicant Info'), findsWidgets);
 
     // Applicant Info is prefilled from the signed-in account (Perlita Quiambao).
@@ -83,7 +83,7 @@ void main() {
     // auto-computed Age display. Perlita' Date of Birth already exists in
     // her Resident Profile, so it's prefilled rather than asking her to
     // re-enter it, and Age is computed from it immediately.
-    expect(find.text('Step 2 of 5'), findsOneWidget);
+    expect(find.text('Step 2 of 4'), findsOneWidget);
     expect(find.text('Clearance Details'), findsWidgets);
     expect(find.text('Mar 15, 2001'), findsOneWidget); // her prefilled birthdate
     expect(find.textContaining('years old'), findsOneWidget);
@@ -120,22 +120,17 @@ void main() {
     await tester.tap(find.text('Continue'));
     await tester.pumpAndSettle();
 
-    // Step 3: Requirements & Attachments — Dokyu's own per-requirement
-    // uploaders, one per this item's own requirements (no attachment yet
-    // for either), so Continue must identify exactly what's missing rather
-    // than a generic "attach at least one" message.
-    expect(find.text('Step 3 of 5'), findsOneWidget);
+    // Step 3: Requirements & Attachments — informational only now (no
+    // submission-time upload endpoint exists, so the wizard dropped
+    // Requirements-at-creation along with Payment, see above): this item's
+    // own requirements are just listed, with no per-requirement uploader
+    // and nothing blocking Continue.
+    expect(find.text('Step 3 of 4'), findsOneWidget);
     expect(find.text('One (1) valid government-issued ID'), findsOneWidget);
     expect(find.text('Proof of residency'), findsOneWidget);
-    // Requirement-specific button label, not a generic "Upload Document".
-    expect(find.text('Upload One (1) valid government-issued ID'), findsOneWidget);
-    expect(find.text('Upload Proof of residency'), findsOneWidget);
     await tester.tap(find.text('Continue'));
     await tester.pumpAndSettle();
-    expect(
-      find.text('Please attach: One (1) valid government-issued ID, Proof of residency.'),
-      findsOneWidget,
-    );
+    expect(find.text('Step 4 of 4'), findsOneWidget); // Review & Submit
     expect(tester.takeException(), isNull);
   });
 

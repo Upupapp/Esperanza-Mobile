@@ -14,13 +14,12 @@
 // request card derived its chip from `category == dokyu ? 'Dokyu' : 'Tulong'`,
 // which labels *anything* non-Dokyu as Tulong. Fixing only the decode would
 // have moved the false statement rather than removed it.
-import 'dart:convert';
-
 import 'package:flutter_test/flutter_test.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:esperanza_mobile/models/service_request.dart';
 import 'package:esperanza_mobile/services/requests_service.dart';
+
+import 'support/dokyu_tulong_fixtures.dart';
 
 Map<String, dynamic> _persistedRequest({required String category}) => ServiceRequest(
       id: 'fixture-unknown-category',
@@ -38,14 +37,6 @@ Map<String, dynamic> _persistedRequest({required String category}) => ServiceReq
       expectedDays: '3-5 working days',
     ).toJson()
       ..['category'] = category;
-
-Future<void> _settle(WidgetTester tester, bool Function() isLoaded) async {
-  var attempts = 0;
-  while (!isLoaded()) {
-    if (attempts++ > 100) throw StateError('RequestsService never finished loading.');
-    await tester.pump(const Duration(milliseconds: 1));
-  }
-}
 
 void main() {
   group('an unreadable category decodes to unknown, not to a real service', () {
@@ -96,17 +87,37 @@ void main() {
   });
 
   group('an unknown request is claimed by no service', () {
-    testWidgets('it is counted under neither Dokyu nor Tulong', (tester) async {
-      SharedPreferences.setMockInitialValues({
-        'esperanza_service_requests': jsonEncode([_persistedRequest(category: 'tulongV2')]),
-      });
+    // Plain test(), not testWidgets() -- nothing here pumps a widget, and
+    // testWidgets' fake-async zone never lets api_client.dart's real
+    // `.timeout(Duration(seconds: 15))` Timer resolve without a pump to
+    // drive it, which hung this exact case for a solid 10 minutes before
+    // timing out. A real async zone (what plain test() runs in) has no such
+    // problem -- the underlying MockClient future still completes almost
+    // immediately, same as it did under testWidgets, just without a fake
+    // clock stalling the Timer race around it.
+    test('it is counted under neither Dokyu nor Tulong', () async {
+      // GET /citizen/requests' own type field drives the fallback now (see
+      // RequestsService._categoryFromType), not ServiceRequest.fromJson's
+      // category string -- nothing decodes a persisted request anymore.
+      DokyuTulongFixtures.install(
+        requests: [
+          {
+            'ref': 'AR-2026-000042',
+            'type': 'tulongV2',
+            'service': 'Medical Assistance',
+            'status': 'Submitted',
+            'submitted': DateTime(2026, 3, 1).toIso8601String(),
+          },
+        ],
+      );
 
-      final requests = RequestsService(seedDemoData: false);
-      await _settle(tester, () => requests.loaded);
+      final requests = RequestsService();
+      await requests.loadRequests();
 
       // Kept, because the record is real...
       expect(requests.all, hasLength(1));
       expect(requests.all.single.referenceNumber, 'AR-2026-000042');
+      expect(requests.all.single.category, ServiceCategory.unknown);
       // ...but never counted as a service it may not belong to.
       expect(requests.byCategory(ServiceCategory.dokyu), isEmpty);
       expect(requests.byCategory(ServiceCategory.tulong), isEmpty);

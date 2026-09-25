@@ -53,7 +53,7 @@ Future<ResidentProfileService> _pumpSoloParentWizard(WidgetTester tester, {requi
       providers: [
         ChangeNotifierProvider<CitizenSessionService>.value(value: session),
         ChangeNotifierProvider<ResidentProfileService>.value(value: profileService),
-        ChangeNotifierProvider(create: (_) => RequestsService(seedDemoData: false)),
+        ChangeNotifierProvider(create: (_) => RequestsService()),
         ChangeNotifierProvider(create: (_) => NotificationsService()),
       ],
       child: MaterialApp(

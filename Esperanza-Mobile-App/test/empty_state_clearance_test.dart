@@ -22,6 +22,8 @@ import 'package:esperanza_mobile/theme/app_theme.dart';
 import 'package:esperanza_mobile/widgets/empty_state.dart';
 import 'package:esperanza_mobile/widgets/new_request_fab.dart';
 
+import 'support/dokyu_tulong_fixtures.dart';
+
 Future<void> _dismissWelcomeBanner(WidgetTester tester) async {
   final closeButton = find.byIcon(Icons.close_rounded);
   if (closeButton.evaluate().isNotEmpty) {
@@ -52,6 +54,11 @@ Future<void> _pumpSignedInAsVerifiedDemo(WidgetTester tester, Size size) async {
   addTearDown(tester.view.resetPhysicalSize);
   addTearDown(tester.view.resetDevicePixelRatio);
 
+  // DokyuScreen/TulongScreen both call loadCatalog()+loadRequests() as soon
+  // as they build -- an empty requests list is exactly what "No active
+  // requests" needs.
+  DokyuTulongFixtures.install();
+
   final session = CitizenSessionService();
   await session.login(MockCatalog.demoAccounts.last); // Perlita — verified, no requests yet
 
@@ -59,7 +66,7 @@ Future<void> _pumpSignedInAsVerifiedDemo(WidgetTester tester, Size size) async {
     MultiProvider(
       providers: [
         ChangeNotifierProvider<CitizenSessionService>.value(value: session),
-        ChangeNotifierProvider(create: (_) => RequestsService(seedDemoData: false)),
+        ChangeNotifierProvider(create: (_) => RequestsService()),
         ChangeNotifierProvider(create: (_) => BalitaService()),
         ChangeNotifierProvider(create: (_) => ResidentProfileService()),
         ChangeNotifierProvider(create: (_) => NotificationsService()),

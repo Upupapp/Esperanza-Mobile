@@ -3,8 +3,8 @@
 // `CitizenSessionService.logout()` cleared two of the app's ten preference
 // keys: the session and the guest flag. Everything else stayed — the resident
 // profile (birthdate, address, household, family, and the base64 profile
-// photo), the whole request history, uploaded Master File documents, and the
-// notification bookkeeping. All of it in plaintext XML on Android.
+// photo), uploaded Master File documents, and the notification bookkeeping.
+// All of it in plaintext XML on Android.
 //
 // That is not an abstract concern for this app. It is a municipal service used
 // on shared and family handsets, and on a barangay-hall device the next person
@@ -13,21 +13,31 @@
 // rendered" is not "erased".
 //
 // These tests assert against **what is left in SharedPreferences**, not against
-// the code path. Trusting the code path is how the gap existed in the first
-// place: `logout()` looked like it cleaned up, and did, for its own two keys.
+// the code path, for every service that still persists there. Trusting the
+// code path is how the gap existed in the first place: `logout()` looked like
+// it cleaned up, and did, for its own two keys.
+//
+// RequestsService itself is no longer part of that persisted-data story: it
+// stopped writing anything to SharedPreferences once Dokyu/Tulong moved to the
+// real API (production-readiness programme, 2026-09-25) -- the server is the
+// only source of truth for a request's own state now, so there is nothing on
+// disk left to erase. `SignOut.signOut` still takes it and still calls
+// `requests.clear()`, so this file still confirms that wiring, just against
+// in-memory state instead of a SharedPreferences key that no longer exists.
 import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:esperanza_mobile/models/citizen_account.dart';
-import 'package:esperanza_mobile/models/service_request.dart';
 import 'package:esperanza_mobile/services/citizen_session_service.dart';
 import 'package:esperanza_mobile/services/master_file_service.dart';
 import 'package:esperanza_mobile/services/notifications_service.dart';
 import 'package:esperanza_mobile/services/requests_service.dart';
 import 'package:esperanza_mobile/services/resident_profile_service.dart';
 import 'package:esperanza_mobile/services/sign_out.dart';
+
+import 'support/dokyu_tulong_fixtures.dart';
 
 const _accountId = 'ESP-TEST-SIGNOUT';
 
@@ -48,21 +58,16 @@ CitizenAccount _account() => CitizenAccount(
       status: 'Approved',
     );
 
-ServiceRequest _request() => ServiceRequest(
-      id: 'req-signout-fixture',
-      referenceNumber: 'ESP-2026-999999',
-      applicantId: _accountId,
-      applicantName: 'Test Resident',
-      typeName: 'Barangay Clearance',
-      category: ServiceCategory.dokyu,
-      office: 'Barangay Hall',
-      purpose: 'Sign-out erasure fixture',
-      submittedAt: DateTime(2026, 3, 1),
-      status: 'Submitted',
-      statusHistory: [StatusHistoryEntry(status: 'Submitted', at: DateTime(2026, 3, 1), actor: 'Citizen')],
-      attachments: const [],
-      expectedDays: '1-2 working days',
-    );
+// GET /citizen/requests' own thin summary shape -- see
+// RequestsService._requestFromSummary. Nothing sends or reads
+// ServiceRequest.toJson()'s full persisted shape anymore.
+const _requestSummary = {
+  'ref': 'ESP-2026-999999',
+  'type': 'dokyu',
+  'service': 'Barangay Clearance',
+  'status': 'Submitted',
+  'submitted': '2026-03-01T00:00:00.000',
+};
 
 Future<void> _settle(WidgetTester tester, bool Function() ready, String what) async {
   var attempts = 0;
@@ -84,23 +89,23 @@ void main() {
     Future<void> setUpSignedIn(WidgetTester tester) async {
       SharedPreferences.setMockInitialValues({
         // A device that already holds this citizen's data, as a real one would.
-        'esperanza_service_requests': jsonEncode([_request().toJson()]),
         'esperanza_read_notification_ids': jsonEncode(['notif-1', 'notif-2']),
         'esperanza_duplicate_alert_resolutions': jsonEncode({'scenario-a': 'kept'}),
         'esperanza_onboarding_complete': true,
       });
+      DokyuTulongFixtures.install(requests: [_requestSummary]);
 
       session = CitizenSessionService();
-      requests = RequestsService(seedDemoData: false, retireLegacyDemoRequestSeeds: false);
+      requests = RequestsService();
       profiles = ResidentProfileService();
       masterFile = MasterFileService();
       notifications = NotificationsService();
 
       await _settle(tester, () => !session.loading, 'CitizenSessionService');
-      await _settle(tester, () => requests.loaded, 'RequestsService');
       await _settle(tester, () => profiles.loaded, 'ResidentProfileService');
       await _settle(tester, () => masterFile.loaded, 'MasterFileService');
       await _settle(tester, () => notifications.loaded, 'NotificationsService');
+      await requests.loadRequests();
 
       await session.login(_account());
     }
@@ -113,23 +118,19 @@ void main() {
           notifications: notifications,
         );
 
-    testWidgets('the request history is gone from disk, not just from the screen', (tester) async {
+    testWidgets('the request history is gone in memory, not just from the screen', (tester) async {
       await setUpSignedIn(tester);
       expect(requests.all, hasLength(1), reason: 'fixture should be loaded before we test erasure');
 
       await signOut();
       await tester.pump(const Duration(milliseconds: 1));
 
+      // Nothing to check on disk anymore -- RequestsService never wrote
+      // 'esperanza_service_requests' in the first place (see this file's own
+      // header comment). SignOut still coordinates requests.clear(), so the
+      // in-memory list is what proves that wiring still runs.
       expect(requests.all, isEmpty);
-
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.reload();
-      final raw = prefs.getString('esperanza_service_requests');
-      expect(
-        raw == null || !raw.contains(_accountId),
-        isTrue,
-        reason: 'the stored bytes still name the signed-out citizen: $raw',
-      );
+      expect(requests.loaded, isFalse);
     });
 
     testWidgets('notification bookkeeping is cleared', (tester) async {
@@ -171,12 +172,11 @@ void main() {
     testWidgets('signing out with no account signed in does not throw', (tester) async {
       SharedPreferences.setMockInitialValues({});
       session = CitizenSessionService();
-      requests = RequestsService(seedDemoData: false, retireLegacyDemoRequestSeeds: false);
+      requests = RequestsService();
       profiles = ResidentProfileService();
       masterFile = MasterFileService();
       notifications = NotificationsService();
       await _settle(tester, () => !session.loading, 'CitizenSessionService');
-      await _settle(tester, () => requests.loaded, 'RequestsService');
       await _settle(tester, () => profiles.loaded, 'ResidentProfileService');
       await _settle(tester, () => masterFile.loaded, 'MasterFileService');
       await _settle(tester, () => notifications.loaded, 'NotificationsService');

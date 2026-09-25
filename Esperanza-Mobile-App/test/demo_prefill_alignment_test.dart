@@ -16,7 +16,6 @@ import 'package:esperanza_mobile/models/attachment.dart';
 import 'package:esperanza_mobile/models/catalog_item.dart';
 import 'package:esperanza_mobile/models/service_request.dart';
 import 'package:esperanza_mobile/screens/shared/new_request_screen.dart';
-import 'package:esperanza_mobile/screens/shared/request_detail_screen.dart';
 import 'package:esperanza_mobile/screens/shared/service_request_wizard_screen.dart';
 import 'package:esperanza_mobile/services/citizen_session_service.dart';
 import 'package:esperanza_mobile/services/master_file_service.dart';
@@ -26,6 +25,8 @@ import 'package:esperanza_mobile/services/requests_service.dart';
 import 'package:esperanza_mobile/services/resident_profile_service.dart';
 import 'package:esperanza_mobile/theme/app_colors.dart';
 import 'package:esperanza_mobile/widgets/app_button.dart';
+
+import 'support/dokyu_tulong_fixtures.dart';
 
 const _verifiedDemoId = 'ESP-RES-2024-9002';
 
@@ -53,16 +54,11 @@ Future<CitizenSessionService> _signedInAs(WidgetTester tester, dynamic account) 
   return session;
 }
 
-Future<RequestsService> _readyRequests(WidgetTester tester) async {
-  final requests = RequestsService(seedDemoData: false);
-  var attempts = 0;
-  while (!requests.loaded) {
-    attempts++;
-    if (attempts > 100) throw StateError('RequestsService never finished loading.');
-    await tester.pump(const Duration(milliseconds: 1));
-  }
-  return requests;
-}
+/// RequestsService no longer restores/loads anything on construction (the
+/// server is the only source of truth for a request's own state now) --
+/// there is nothing async to wait for unless a test actually submits, in
+/// which case it installs its own DokyuTulongFixtures first.
+RequestsService _readyRequests() => RequestsService();
 
 Future<MasterFileService> _readyMasterFile(WidgetTester tester) async {
   final mf = MasterFileService();
@@ -89,7 +85,7 @@ void main() {
     addTearDown(tester.view.resetDevicePixelRatio);
 
     final session = await _signedInAs(tester, account);
-    final requests = await _readyRequests(tester);
+    final requests = _readyRequests();
     final mf = masterFile ?? await _readyMasterFile(tester);
 
     await tester.pumpWidget(
@@ -122,7 +118,7 @@ void main() {
     addTearDown(tester.view.resetDevicePixelRatio);
 
     final session = await _signedInAs(tester, account);
-    final requests = await _readyRequests(tester);
+    final requests = _readyRequests();
 
     await tester.pumpWidget(
       MultiProvider(
@@ -158,8 +154,22 @@ void main() {
         attachment: _fakeAttachment('residency_proof.pdf'),
         origin: 'Test',
       );
+      Map<String, dynamic>? submittedBody;
+      DokyuTulongFixtures.install(
+        onSubmit: (body) {
+          submittedBody = body;
+          return {
+            'ref': 'DR-2026-TEST-001',
+            'type': 'dokyu',
+            'service': 'Barangay Clearance',
+            'status': 'Submitted',
+            'submitted': DateTime.now().toIso8601String(),
+          };
+        },
+      );
+
       final item = MockCatalog.documentTypes.firstWhere((i) => i.key == 'dokyu_barangay_clearance');
-      final requests = await pumpWizard(
+      await pumpWizard(
         tester,
         account: MockCatalog.demoAccounts.last, // Perlita
         item: item,
@@ -188,29 +198,30 @@ void main() {
       await tester.tap(find.widgetWithText(AppButton, 'Continue')); // -> Requirements & Attachments
       await tester.pumpAndSettle();
 
-      while (find.text('Use Existing Document').evaluate().isNotEmpty) {
-        await tester.ensureVisible(find.text('Use Existing Document').first);
-        await tester.tap(find.text('Use Existing Document').first);
-        await tester.pumpAndSettle();
-      }
-
       await tester.tap(find.widgetWithText(AppButton, 'Continue')); // -> Review & Submit
       await tester.pumpAndSettle();
 
-      // Barangay Clearance has a real configured fee, so Review leads to a
-      // Payment Method step before submission (see the Mobile-only final
-      // request-flow correction pass) — never straight to "Submit Request".
-      await tester.tap(find.widgetWithText(AppButton, 'Continue')); // -> Payment Method
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Pay at Municipal Office'));
-      await tester.pumpAndSettle();
-      await tester.tap(find.widgetWithText(AppButton, 'Confirm Payment'));
+      // No Payment Method step anymore -- the wizard dropped it along with
+      // every local receipt/payment simulation (production-readiness
+      // programme, 2026-09-25); Review is the last step, and its own button
+      // already reads "Submit Request".
+      await tester.tap(find.widgetWithText(AppButton, 'Submit Request'));
       await tester.pumpAndSettle();
 
-      final submitted = requests.all.last;
-      expect(submitted.formFields['purpose'], 'Travel Abroad');
-      expect(submitted.purpose, contains('Travel Abroad'));
-      expect(submitted.purpose, isNot(contains('Local Employment')));
+      // POST /citizen/requests doesn't echo form_data back, and the client
+      // never re-reads it after submitting (RequestSubmittedScreen only
+      // needs referenceNumber/typeName/requestId) -- so what actually
+      // reached the server is what this asserts on, not a field on the
+      // round-tripped response object.
+      expect(submittedBody, isNotNull);
+      expect(submittedBody!['service_key'], 'dokyu_barangay_clearance');
+      final formData = submittedBody!['form_data'] as Map;
+      // The select value and the notes field (itself prefilled from
+      // demoPurpose for Perlita) are combined by _resolvePurpose -- exact
+      // match would be coupled to that combination, so assert on presence/
+      // absence the same way the pre-conversion test did.
+      expect(formData['purpose'], contains('Travel Abroad'));
+      expect(formData['purpose'], isNot(contains('Local Employment')));
       expect(tester.takeException(), isNull);
     });
 
@@ -269,8 +280,22 @@ void main() {
         attachment: _fakeAttachment('business_location.pdf'),
         origin: 'Test',
       );
+      Map<String, dynamic>? submittedBody;
+      DokyuTulongFixtures.install(
+        onSubmit: (body) {
+          submittedBody = body;
+          return {
+            'ref': 'DR-2026-TEST-002',
+            'type': 'dokyu',
+            'service': 'Barangay Business Clearance',
+            'status': 'Submitted',
+            'submitted': DateTime.now().toIso8601String(),
+          };
+        },
+      );
+
       final item = MockCatalog.documentTypes.firstWhere((i) => i.key == 'dokyu_barangay_business_clearance');
-      final requests = await pumpWizard(
+      await pumpWizard(
         tester,
         account: MockCatalog.demoAccounts.last,
         item: item,
@@ -296,26 +321,17 @@ void main() {
       await tester.tap(find.widgetWithText(AppButton, 'Continue')); // -> Requirements & Attachments
       await tester.pumpAndSettle();
 
-      while (find.text('Use Existing Document').evaluate().isNotEmpty) {
-        await tester.ensureVisible(find.text('Use Existing Document').first);
-        await tester.tap(find.text('Use Existing Document').first);
-        await tester.pumpAndSettle();
-      }
-
       await tester.tap(find.widgetWithText(AppButton, 'Continue')); // -> Review & Submit
       await tester.pumpAndSettle();
 
-      // Barangay Business Clearance has a real configured fee too — same
-      // Payment Method step before submission.
-      await tester.tap(find.widgetWithText(AppButton, 'Continue')); // -> Payment Method
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Pay at Municipal Office'));
-      await tester.pumpAndSettle();
-      await tester.tap(find.widgetWithText(AppButton, 'Confirm Payment'));
+      // No Payment Method step anymore -- see the Barangay Clearance test
+      // above for why. Review's own button already reads "Submit Request".
+      await tester.tap(find.widgetWithText(AppButton, 'Submit Request'));
       await tester.pumpAndSettle();
 
-      final submitted = requests.all.last;
-      expect(submitted.formFields['businessName'], 'Perlita Variety Store');
+      expect(submittedBody, isNotNull);
+      final formData = submittedBody!['form_data'] as Map;
+      expect(formData['businessName'], 'Perlita Variety Store');
       expect(tester.takeException(), isNull);
     });
 
@@ -342,57 +358,12 @@ void main() {
       expect(tester.takeException(), isNull);
     });
 
-    testWidgets('Reject (Demo) on RequestDetailScreen uses the service-specific realistic reason', (tester) async {
-      tester.view.physicalSize = const Size(390, 844);
-      tester.view.devicePixelRatio = 1.0;
-      addTearDown(tester.view.resetPhysicalSize);
-      addTearDown(tester.view.resetDevicePixelRatio);
-
-      SharedPreferences.setMockInitialValues({});
-      final requests = RequestsService(seedDemoData: false);
-      var attempts = 0;
-      while (!requests.loaded) {
-        attempts++;
-        if (attempts > 100) throw StateError('RequestsService never finished loading.');
-        await tester.pump(const Duration(milliseconds: 1));
-      }
-      final request = await requests.submit(
-        applicantId: _verifiedDemoId,
-        applicantName: 'Perlita Quiambao',
-        typeName: 'Barangay Clearance', // matches dokyu_barangay_clearance's own demoRejectionReason
-        category: ServiceCategory.dokyu,
-        office: 'Barangay Hall',
-        purpose: 'Local Employment',
-        expectedDays: '1-2 working days',
-        attachments: const [],
-        requiresPayment: false,
-        fee: '₱50.00',
-      );
-      await tester.pumpWidget(
-        ChangeNotifierProvider<RequestsService>.value(
-          value: requests,
-          child: MaterialApp(home: RequestDetailScreen(requestId: request.id)),
-        ),
-      );
-      await tester.pumpAndSettle();
-
-      final scrollable = find.byType(Scrollable).first;
-      tester.state<ScrollableState>(scrollable).position.jumpTo(
-        tester.state<ScrollableState>(scrollable).position.maxScrollExtent,
-      );
-      await tester.pumpAndSettle();
-
-      await tester.tap(find.text('Reject Request (Demo)'));
-      await tester.pumpAndSettle();
-      await tester.tap(find.widgetWithText(AppButton, 'Reject (Demo)'));
-      await tester.pumpAndSettle();
-
-      final rejected = requests.all.firstWhere((r) => r.id == request.id);
-      expect(rejected.status, 'Rejected');
-      expect(rejected.adminRemarks, contains('Proof of Residency'));
-      expect(rejected.adminRemarks, isNot(contains('did not match the information shown on your valid ID')));
-      expect(tester.takeException(), isNull);
-    });
+    // 'Reject (Demo) on RequestDetailScreen...' removed -- RequestsService.
+    // rejectDemo() and RequestDetailScreen's "Reject Request (Demo)" button
+    // are both gone (production-readiness programme, 2026-09-25): rejection
+    // is a real admin-side decision now, made through the Web Admin against
+    // the real backend, not a client-side simulation this app can trigger on
+    // itself. Nothing left client-side to test.
 
     testWidgets('Cedula: a non-verified account sees a blank Purpose field', (tester) async {
       SharedPreferences.setMockInitialValues({});

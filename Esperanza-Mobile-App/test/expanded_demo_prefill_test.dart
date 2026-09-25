@@ -27,6 +27,8 @@ import 'package:esperanza_mobile/services/resident_profile_service.dart';
 import 'package:esperanza_mobile/theme/app_colors.dart';
 import 'package:esperanza_mobile/widgets/app_button.dart';
 
+import 'support/dokyu_tulong_fixtures.dart';
+
 const _verifiedDemoId = 'ESP-RES-2024-9002';
 
 Attachment _fakeAttachment(String fileName) {
@@ -74,13 +76,11 @@ void main() {
     }
     await session.login(MockCatalog.demoAccounts.last); // Perlita — verified
 
-    final requests = RequestsService(seedDemoData: false);
-    attempts = 0;
-    while (!requests.loaded) {
-      attempts++;
-      if (attempts > 100) throw StateError('RequestsService never finished loading.');
-      await tester.pump(const Duration(milliseconds: 1));
-    }
+    // RequestsService no longer restores/loads anything on construction (the
+    // server is the only source of truth for a request's own state now) --
+    // nothing async to wait for unless a test submits, which installs its
+    // own DokyuTulongFixtures first.
+    final requests = RequestsService();
     final mf = masterFile ?? await _readyMasterFile(tester);
 
     await tester.pumpWidget(
@@ -262,27 +262,39 @@ void main() {
         attachment: _fakeAttachment('residency_proof.pdf'),
         origin: 'Test',
       );
+      Map<String, dynamic>? submittedBody;
+      DokyuTulongFixtures.install(
+        onSubmit: (body) {
+          submittedBody = body;
+          return {
+            'ref': 'DR-2026-TEST-003',
+            'type': 'dokyu',
+            'service': 'First Time Job Seeker Certificate',
+            'status': 'Submitted',
+            'submitted': DateTime.now().toIso8601String(),
+          };
+        },
+      );
+
       final item = MockCatalog.documentTypes.firstWhere((i) => i.key == 'dokyu_first_time_jobseeker');
-      final requests = await pumpWizard(tester, item: item, category: ServiceCategory.dokyu, masterFile: mf);
+      await pumpWizard(tester, item: item, category: ServiceCategory.dokyu, masterFile: mf);
 
       await tester.tap(find.widgetWithText(AppButton, 'Continue')); // Applicant Info -> Applicant Details
       await tester.pumpAndSettle();
       await tester.tap(find.widgetWithText(AppButton, 'Continue')); // -> Requirements & Attachments
       await tester.pumpAndSettle();
 
-      while (find.text('Use Existing Document').evaluate().isNotEmpty) {
-        await tester.ensureVisible(find.text('Use Existing Document').first);
-        await tester.tap(find.text('Use Existing Document').first);
-        await tester.pumpAndSettle();
-      }
-
       await tester.tap(find.widgetWithText(AppButton, 'Continue')); // -> Review & Submit
       await tester.pumpAndSettle();
       await tester.tap(find.widgetWithText(AppButton, 'Submit Request'));
       await tester.pumpAndSettle();
 
-      final submitted = requests.all.last;
-      expect(submitted.formFields['confirmFirstTime'], true);
+      // POST /citizen/requests doesn't echo form_data back, so this asserts
+      // on what actually reached the server, not a field on the round-
+      // tripped response object (see demo_prefill_alignment_test.dart).
+      expect(submittedBody, isNotNull);
+      final formData = submittedBody!['form_data'] as Map;
+      expect(formData['confirmFirstTime'], true);
       expect(tester.takeException(), isNull);
     });
   });

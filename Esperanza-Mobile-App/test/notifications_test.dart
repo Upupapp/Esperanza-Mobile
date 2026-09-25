@@ -40,7 +40,7 @@ Future<void> _pump(WidgetTester tester, {CitizenAccount? account, ResidentProfil
     MultiProvider(
       providers: [
         ChangeNotifierProvider<CitizenSessionService>.value(value: session),
-        ChangeNotifierProvider(create: (_) => RequestsService(seedDemoData: false)),
+        ChangeNotifierProvider(create: (_) => RequestsService()),
         ChangeNotifierProvider<ResidentProfileService>.value(value: residentProfileService ?? ResidentProfileService()),
         ChangeNotifierProvider(create: (_) => NotificationsService()),
       ],

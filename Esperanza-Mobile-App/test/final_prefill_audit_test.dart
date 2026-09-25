@@ -62,13 +62,10 @@ Future<RequestsService> _pumpWizard(
   }
   await session.login(MockCatalog.demoAccounts.last); // Perlita — verified
 
-  final requests = RequestsService(seedDemoData: false);
-  attempts = 0;
-  while (!requests.loaded) {
-    attempts++;
-    if (attempts > 100) throw StateError('RequestsService never finished loading.');
-    await tester.pump(const Duration(milliseconds: 1));
-  }
+  // RequestsService no longer restores/loads anything on construction (the
+  // server is the only source of truth for a request's own state now), and
+  // nothing in this file submits, so there is nothing async to wait for.
+  final requests = RequestsService();
   final mf = masterFile ?? MasterFileService();
   attempts = 0;
   while (!mf.loaded) {

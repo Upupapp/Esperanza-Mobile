@@ -32,7 +32,7 @@ import 'package:esperanza_mobile/theme/app_colors.dart';
 
 Widget _host(Widget child) => MultiProvider(
       providers: [
-        ChangeNotifierProvider(create: (_) => RequestsService(seedDemoData: false)),
+        ChangeNotifierProvider(create: (_) => RequestsService()),
         ChangeNotifierProvider(create: (_) => CitizenSessionService()),
         ChangeNotifierProvider(create: (_) => MasterFileService()),
         ChangeNotifierProvider(create: (_) => ResidentProfileService()),
