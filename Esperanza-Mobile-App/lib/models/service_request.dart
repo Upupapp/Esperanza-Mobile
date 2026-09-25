@@ -158,6 +158,14 @@ class ServiceRequest {
   /// with this list either empty or fully resolved (the "Needs Manual
   /// Verification" flavor — see RequestsService.flagManualVerification).
   final List<FlaggedRequirement> flaggedRequirements;
+
+  /// The server's own computed answer (GET /citizen/requests/{ref}'s
+  /// `can_resubmit`): true only when Under Review and every flagged
+  /// requirement has been resolved. Not persisted/decoded -- always
+  /// re-fetched with the rest of a request's detail, since it can change
+  /// server-side between one detail fetch and the next.
+  bool canResubmit = false;
+
   final String expectedDays;
   final Map<String, dynamic> formFields;
 

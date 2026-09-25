@@ -49,7 +49,10 @@ class SignOut {
     final accountId = session.account?.id;
 
     if (accountId != null) {
-      await requests.forgetAccount(accountId);
+      // In-memory only now -- requests are no longer persisted to
+      // SharedPreferences, so there is nothing on disk left to erase; the
+      // next sign-in's own loadRequests() replaces this from the server.
+      requests.clear();
       await profiles.forgetAccount(accountId);
       await masterFile.forgetAccount(accountId);
       await notifications.forgetAccount(accountId);

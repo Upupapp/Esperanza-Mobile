@@ -4,9 +4,9 @@ import '../../models/attachment.dart';
 import '../../models/catalog_item.dart';
 import '../../models/request_milestones.dart';
 import '../../models/service_request.dart';
+import '../../services/api_client.dart';
 import '../../services/citizen_session_service.dart';
 import '../../services/master_file_service.dart';
-import '../../services/mock_catalog.dart';
 import '../../services/requests_service.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_haptics.dart';
@@ -17,25 +17,25 @@ import '../../utils/tulong_eligibility.dart';
 import '../../widgets/app_button.dart';
 import '../../widgets/app_card.dart';
 import '../../widgets/app_dialogs.dart';
+import '../../widgets/async_state_view.dart';
 import '../../widgets/request_milestone_timeline.dart';
 import '../../widgets/requirement_uploader.dart';
 import '../../widgets/status_chip.dart';
 import '../../utils/requirement_document_type.dart';
 import 'new_request_screen.dart';
-import 'receipt_screen.dart';
 import 'service_request_wizard_screen.dart';
 
-/// Full request detail + status timeline — status/history is always
-/// whatever [RequestsService] currently holds for this request, so a
-/// future Web Admin/backend integration updating that data is reflected
-/// here automatically; nothing citizen-facing on this screen is demo-only.
-///
-/// Dokyu/Tulong requests get the richer [RequestMilestoneTimeline] (Phase
-/// 5 — frontend simulation, see docs) plus a clearly-separated "Demo
-/// Controls" card for manually advancing the simulation during
-/// presentations; Sakuna incident reports keep the older, simpler
-/// newest-first history list since the milestone/payment system was never
-/// meant to apply there.
+/// Full request detail + real status history, against
+/// GET /citizen/requests/{ref} (production-readiness programme,
+/// 2026-09-25). Previously showed [RequestsService]'s own local
+/// milestone simulation, with a "Demo Controls" card that let the citizen
+/// drive their own request's status themselves -- a real deployment's
+/// status changes only ever come from the Web Admin, so that card and
+/// every other "(Demo)" control (Reject, Flag Additional Documents, Cancel
+/// Request, Continue Verification) are gone along with the simulation
+/// they drove. What's real and stays wired: replacing a specific flagged
+/// requirement (POST .../requirements/{key}/replace) and resubmitting once
+/// every flag is resolved (POST .../resubmit).
 class RequestDetailScreen extends StatefulWidget {
   final String requestId;
 
@@ -55,7 +55,7 @@ class RequestDetailScreen extends StatefulWidget {
 }
 
 class _RequestDetailScreenState extends State<RequestDetailScreen> {
-  bool _demoBusy = false;
+  bool _busy = false;
   final _flaggedCardKeys = <String, GlobalKey>{};
 
   GlobalKey _keyFor(String flaggedId) => _flaggedCardKeys.putIfAbsent(flaggedId, () => GlobalKey());
@@ -78,110 +78,35 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
     });
   }
 
-  Future<void> _advance(RequestsService service) async {
-    final next = service.nextMilestone(widget.requestId);
-    if (next == null) return;
-    setState(() => _demoBusy = true);
-    AppHaptics.medium();
-    await service.advanceMilestone(widget.requestId);
-    if (mounted) setState(() => _demoBusy = false);
-  }
-
-  /// Prefers the requested service's own [CatalogItem.demoRejectionReason]
-  /// (a realistic, service-specific reason — see A15 of the Mobile <-> Web
-  /// Admin final alignment pass) and falls back to a generic-but-still-
-  /// realistic ID-mismatch reason for any service that doesn't have one,
-  /// so every Dokyu/Tulong request type keeps a working reject simulation.
-  String _rejectionReasonFor(ServiceRequest request) {
-    final catalog = request.category == ServiceCategory.dokyu ? MockCatalog.documentTypes : MockCatalog.assistanceTypes;
-    for (final item in catalog) {
-      if (item.name == request.typeName && item.demoRejectionReason != null) {
-        return item.demoRejectionReason!;
-      }
-    }
-    return 'The information you submitted did not match the information shown on your valid ID. '
-        'Please review your details and submit the correct information.';
-  }
-
-  Future<void> _reject(RequestsService service, ServiceRequest request) async {
-    final ok = await AppDialogs.confirm(
-      context,
-      title: 'Reject this request? (Demo)',
-      message: 'This simulates an admin rejecting the request, for demonstration purposes only. It cannot be undone.',
-      confirmLabel: 'Reject (Demo)',
-      danger: true,
-    );
-    if (!ok || !mounted) return;
-    setState(() => _demoBusy = true);
-    AppHaptics.warning();
-    await service.rejectDemo(widget.requestId, reason: _rejectionReasonFor(request));
-    if (mounted) setState(() => _demoBusy = false);
-  }
-
-  /// The next genuinely-uploadable requirement for this request's own
-  /// catalog item (skipping staff/office-process lines — see
-  /// RequirementInfo.requiresUpload) that isn't already awaiting a
-  /// replacement — the one a live demo of "Flagged for Replacement" flags
-  /// next, so the walkthrough is deterministic and repeatable across every
-  /// Dokyu/Tulong service without a separate per-service config, and so
-  /// pressing the demo trigger again (while one is already flagged) flags a
-  /// *different* requirement rather than re-flagging the same one —
-  /// how the "multiple flagged documents" scenario is demoed. Null once
-  /// every uploadable requirement is already flagged-and-unresolved, or if
-  /// the item somehow has none at all (none currently do).
-  RequirementInfo? _flaggableRequirementFor(ServiceRequest request) {
-    final alreadyFlagged = request.flaggedRequirements.where((f) => !f.isResolved).map((f) => f.requirementLabel).toSet();
-    final catalog = request.category == ServiceCategory.dokyu ? MockCatalog.documentTypes : MockCatalog.assistanceTypes;
-    for (final item in catalog) {
-      if (item.name != request.typeName) continue;
-      final requirements = resolveRequirements(item.requirements);
-      for (final r in requirements) {
-        if (r.requiresUpload && !alreadyFlagged.contains(r.label)) return r;
-      }
-    }
-    return null;
-  }
-
-  Future<void> _flagAdditionalDocuments(RequestsService service, ServiceRequest request) async {
-    final requirement = _flaggableRequirementFor(request);
-    if (requirement == null) return;
-    final ok = await AppDialogs.confirm(
-      context,
-      title: 'Request additional documents? (Demo)',
-      message: 'This simulates an admin flagging "${requirement.label}" as needing a new upload. The request stays '
-          'active — it is not rejected.',
-      confirmLabel: 'Flag Document (Demo)',
-    );
-    if (!ok || !mounted) return;
-    setState(() => _demoBusy = true);
-    AppHaptics.warning();
-    await service.flagAdditionalDocuments(
-      widget.requestId,
-      requirementLabel: requirement.label,
-      reason: 'The submitted "${requirement.label}" could not be verified. Please upload a clearer or updated copy.',
-    );
-    if (mounted) setState(() => _demoBusy = false);
-  }
-
-  Future<void> _resumeVerification(RequestsService service) async {
-    setState(() => _demoBusy = true);
-    AppHaptics.medium();
-    await service.resumeVerification(widget.requestId);
-    if (mounted) setState(() => _demoBusy = false);
-  }
-
   Future<void> _replaceFlagged(RequestsService service, String flaggedId, Attachment newAttachment) async {
-    setState(() => _demoBusy = true);
+    final path = newAttachment.localPath;
+    if (path == null) {
+      AppDialogs.toast(context, 'Could not read the selected file. Please pick it again.', success: false);
+      return;
+    }
+    setState(() => _busy = true);
     AppHaptics.success();
-    await service.replaceFlaggedRequirement(widget.requestId, flaggedId: flaggedId, newAttachment: newAttachment);
-    if (mounted) setState(() => _demoBusy = false);
+    try {
+      await service.replaceRequirement(widget.requestId, requirementKey: flaggedId, filePath: path);
+      if (mounted) AppDialogs.toast(context, 'Document replaced.');
+    } on ApiException catch (e) {
+      if (mounted) AppDialogs.toast(context, e.message(), success: false);
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
   }
 
-  Future<void> _resubmitApplication(RequestsService service) async {
-    setState(() => _demoBusy = true);
+  Future<void> _resubmit(RequestsService service) async {
+    setState(() => _busy = true);
     AppHaptics.success();
-    await service.resubmitApplication(widget.requestId);
-    if (mounted) setState(() => _demoBusy = false);
+    try {
+      await service.resubmit(widget.requestId);
+      if (mounted) AppDialogs.toast(context, 'Application resubmitted.');
+    } on ApiException catch (e) {
+      if (mounted) AppDialogs.toast(context, e.message(), success: false);
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
   }
 
   /// "Apply Again" on a Rejected request's own Application Rejected panel —
@@ -195,10 +120,10 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
   /// looking at an earlier rejected one, and that must still block here
   /// exactly as it would from the catalog. Dokyu has no such restriction.
   /// The rejected request itself is never touched — submitting always
-  /// creates a brand-new ServiceRequest with its own id/reference number
-  /// (see RequestsService.submit).
-  Future<void> _applyAgain(BuildContext context, ServiceRequest request, Color accent) async {
-    final catalog = request.category == ServiceCategory.dokyu ? MockCatalog.documentTypes : MockCatalog.assistanceTypes;
+  /// creates a brand-new ServiceRequest with its own ref (see
+  /// RequestsService.submit).
+  Future<void> _applyAgain(BuildContext context, RequestsService service, ServiceRequest request, Color accent) async {
+    final catalog = request.category == ServiceCategory.dokyu ? service.dokyuCatalog : service.tulongCatalog;
     CatalogItem? item;
     for (final i in catalog) {
       if (i.name == request.typeName) {
@@ -211,11 +136,7 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
     if (request.category == ServiceCategory.tulong) {
       final account = context.read<CitizenSessionService>().account;
       if (account != null) {
-        final result = tulongEligibilityFor(
-          context.read<RequestsService>(),
-          applicantId: account.id,
-          typeName: item.name,
-        );
+        final result = tulongEligibilityFor(service, applicantId: account.id, typeName: item.name);
         if (!result.isEligible) {
           final viewRequest = await showTulongBlockedDialog(context, result);
           if (viewRequest && context.mounted) {
@@ -242,7 +163,19 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
   @override
   Widget build(BuildContext context) {
     final service = context.watch<RequestsService>();
-    final request = service.all.firstWhere((r) => r.id == widget.requestId);
+
+    return Scaffold(
+      appBar: AppBar(title: Text(widget.requestId)),
+      body: SafeArea(
+        child: AsyncStateView<ServiceRequest>(
+          loader: () => service.loadDetail(widget.requestId),
+          builder: (context, request, reload) => _buildBody(context, service, request),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBody(BuildContext context, RequestsService service, ServiceRequest request) {
     final status = AppStatusX.fromLabel(request.status);
     final accent = switch (request.category) {
       ServiceCategory.dokyu => AppColors.brand600,
@@ -253,112 +186,83 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
     };
     final usesMilestones = request.category != ServiceCategory.sakunaIncident;
 
-    return Scaffold(
-      appBar: AppBar(title: Text(request.referenceNumber)),
-      body: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
-          children: [
-            AppCard(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
+      children: [
+        AppCard(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
                 children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          request.typeName,
-                          style: const TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.textPrimary,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 6),
-                      // Flexible, not a bare fixed-size child — a longer
-                      // status label ("Under Verification") plus a longer
-                      // typeName together can exceed a narrow phone's width
-                      // (see the matching fix in request_list_screen.dart's
-                      // own _RequestTile row).
-                      Flexible(child: StatusChip(status: status)),
-                    ],
-                  ),
-                  const SizedBox(height: 6),
-                  Text(request.office, style: AppTypography.bodySmallRegular.copyWith(color: AppColors.textMuted)),
-                  const Divider(height: AppSpacing.xxl),
-                  _infoRow('Purpose', request.purpose),
-                  _infoRow('Expected processing time', request.expectedDays),
-                  _infoRow('Submitted', _fmtFull(request.submittedAt)),
-                  if (request.requiresPayment) _infoRow('Fee', request.fee),
-                  if (request.paymentMethod != null) _infoRow('Payment method', request.paymentMethod!),
-                  if (!usesMilestones && request.adminRemarks != null) _infoRow('Admin remarks', request.adminRemarks!),
-                  // Permanently visible for the rest of this demo session
-                  // once generated — not tied to the current milestone, so
-                  // it stays reachable even after the request moves past
-                  // Receipt Generated to Paid/Mark to Release/Released.
-                  if (request.receipt != null) ...[
-                    const SizedBox(height: AppSpacing.sm),
-                    AppButton(
-                      label: 'View Receipt',
-                      icon: Icons.receipt_long_rounded,
-                      variant: AppButtonVariant.secondary,
-                      fullWidth: true,
-                      onPressed: () => Navigator.of(context).push(
-                        MaterialPageRoute(builder: (_) => ReceiptScreen(receipt: request.receipt!)),
-                      ),
+                  Expanded(
+                    child: Text(
+                      request.typeName,
+                      style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
                     ),
-                  ],
+                  ),
+                  const SizedBox(width: 6),
+                  // Flexible, not a bare fixed-size child — a longer status
+                  // label ("Under Verification") plus a longer typeName
+                  // together can exceed a narrow phone's width (see the
+                  // matching fix in request_list_screen.dart's own
+                  // _RequestTile row).
+                  Flexible(child: StatusChip(status: status)),
                 ],
               ),
-            ),
-            // Noticeable, but only ever for a genuinely Rejected request
-            // that actually has a reason on file — a seeded/older Rejected
-            // demo request with no adminRemarks set simply doesn't show
-            // this panel, exactly like before this feature existed.
-            if (request.status == 'Rejected' && request.adminRemarks != null) ...[
-              const SizedBox(height: AppSpacing.xl),
-              _RejectedApplicationCard(
-                reason: request.adminRemarks!,
-                guidance: request.rejectionGuidance ?? 'Submit a new ${request.typeName} application.',
-                onApplyAgain: () => _applyAgain(context, request, accent),
-              ),
+              const SizedBox(height: 6),
+              Text(request.office, style: AppTypography.bodySmallRegular.copyWith(color: AppColors.textMuted)),
+              const Divider(height: AppSpacing.xxl),
+              _infoRow('Submitted', _fmtFull(request.submittedAt)),
+              if (!usesMilestones && request.adminRemarks != null) _infoRow('Admin remarks', request.adminRemarks!),
             ],
-            // Distinct from Rejected above — the request is still active,
-            // not terminal, and resumable. Under Review covers two flavors
-            // (see RequestsService.flagAdditionalDocuments/
-            // flagManualVerification): one or more specific flagged
-            // requirements each get their own re-upload control; no flagged
-            // requirement at all means "needs manual verification" —
-            // nothing for the citizen to do, so no upload control, just the
-            // explanation.
-            if (request.status == RequestMilestones.underReview) ...[
-              const SizedBox(height: AppSpacing.xl),
-              if (request.flaggedRequirements.isNotEmpty)
-                _CorrectionsSection(
-                  request: request,
-                  accent: accent,
-                  busy: _demoBusy,
-                  keyFor: _keyFor,
-                  onReplace: (flaggedId, a) => _replaceFlagged(service, flaggedId, a),
-                  onResubmit: () => _resubmitApplication(service),
-                  onFlagAnother: _flaggableRequirementFor(request) != null
-                      ? () => _flagAdditionalDocuments(service, request)
-                      : null,
+          ),
+        ),
+        // Noticeable, but only ever for a genuinely Rejected request that
+        // actually has a reason on file.
+        if (request.status == 'Rejected' && request.adminRemarks != null) ...[
+          const SizedBox(height: AppSpacing.xl),
+          _RejectedApplicationCard(
+            reason: request.adminRemarks!,
+            guidance: 'Submit a new ${request.typeName} application.',
+            onApplyAgain: () => _applyAgain(context, service, request, accent),
+          ),
+        ],
+        // Distinct from Rejected above — the request is still active, not
+        // terminal, and resumable. One or more specific flagged
+        // requirements each get their own re-upload control; no flagged
+        // requirement at all means the server's own "needs manual
+        // verification" flavor — nothing for the citizen to upload, just
+        // the explanation from decision_remarks.
+        if (request.status == RequestMilestones.underReview) ...[
+          const SizedBox(height: AppSpacing.xl),
+          if (request.flaggedRequirements.isNotEmpty)
+            _CorrectionsSection(
+              request: request,
+              accent: accent,
+              busy: _busy,
+              keyFor: _keyFor,
+              onReplace: (flaggedId, a) => _replaceFlagged(service, flaggedId, a),
+              onResubmit: request.canResubmit ? () => _resubmit(service) : null,
+            )
+          else
+            _ManualVerificationCard(
+              reason: request.adminRemarks ?? 'The request requires additional verification.',
+            ),
+        ],
+        const SizedBox(height: AppSpacing.xl),
+        Text(
+          usesMilestones ? 'Request Timeline' : 'Status Timeline',
+          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
+        ),
+        const SizedBox(height: AppSpacing.md),
+        AppCard(
+          child: request.statusHistory.isEmpty
+              ? const Padding(
+                  padding: EdgeInsets.symmetric(vertical: AppSpacing.md),
+                  child: Text('No history recorded yet.', style: TextStyle(color: AppColors.textMuted, fontSize: 12)),
                 )
-              else
-                _ManualVerificationCard(
-                  reason: request.adminRemarks ?? 'The request requires additional verification.',
-                ),
-            ],
-            const SizedBox(height: AppSpacing.xl),
-            Text(
-              usesMilestones ? 'Request Timeline' : 'Status Timeline',
-              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
-            ),
-            const SizedBox(height: AppSpacing.md),
-            AppCard(
-              child: usesMilestones
+              : usesMilestones
                   ? RequestMilestoneTimeline(request: request, accent: accent)
                   : Column(
                       children: [
@@ -370,82 +274,8 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
                           ),
                       ],
                     ),
-            ),
-            if (usesMilestones && service.canAdvance(widget.requestId)) ...[
-              const SizedBox(height: AppSpacing.xl),
-              _DemoControlsCard(
-                nextMilestone: service.nextMilestone(widget.requestId),
-                busy: _demoBusy,
-                onAdvance: () => _advance(service),
-                onReject: () => _reject(service, request),
-                onFlagDocs: _flaggableRequirementFor(request) != null
-                    ? () => _flagAdditionalDocuments(service, request)
-                    : null,
-              ),
-            ],
-            // Under Review's own demo resolve action for the "needs manual
-            // verification" flavor — the flagged-requirement flavor
-            // resolves via the re-upload control in its own card above
-            // instead, not this button.
-            if (usesMilestones && request.status == RequestMilestones.underReview && request.flaggedRequirements.isEmpty) ...[
-              const SizedBox(height: AppSpacing.md),
-              AppButton(
-                label: 'Continue Verification (Demo)',
-                icon: Icons.skip_next_rounded,
-                variant: AppButtonVariant.secondary,
-                fullWidth: true,
-                loading: _demoBusy,
-                onPressed: _demoBusy ? null : () => _resumeVerification(service),
-              ),
-            ],
-            const SizedBox(height: AppSpacing.xl),
-            Text(
-              'Attachments (${request.attachments.length})',
-              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
-            ),
-            const SizedBox(height: AppSpacing.md),
-            AppCard(
-              padding: const EdgeInsets.all(10),
-              child: Column(
-                children: request.attachments
-                    .map(
-                      (a) => ListTile(
-                        dense: true,
-                        leading: Icon(_iconFor(a.category), color: accent, size: 18),
-                        title: Text(a.fileName, style: AppTypography.bodySmallMedium),
-                        subtitle: Text(
-                          '${a.category.shortLabel} · ${a.readableSize}',
-                          style: const TextStyle(fontSize: 11),
-                        ),
-                      ),
-                    )
-                    .toList(),
-              ),
-            ),
-            if (!status.isDone) ...[
-              const SizedBox(height: AppSpacing.xxl),
-              AppButton(
-                label: 'Cancel Request',
-                variant: AppButtonVariant.danger,
-                onPressed: () async {
-                  final ok = await AppDialogs.confirm(
-                    context,
-                    title: 'Cancel this request?',
-                    message: 'This cannot be undone. You will need to submit a new request if you change your mind.',
-                    confirmLabel: 'Cancel Request',
-                    danger: true,
-                  );
-                  if (ok && context.mounted) {
-                    await context.read<RequestsService>().cancel(widget.requestId);
-                    if (context.mounted) AppDialogs.toast(context, 'Request cancelled.', success: false);
-                  }
-                },
-                fullWidth: true,
-              ),
-            ],
-          ],
         ),
-      ),
+      ],
     );
   }
 
@@ -472,20 +302,10 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
 
   String _fmtFull(DateTime d) =>
       '${d.month}/${d.day}/${d.year} at ${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')}';
-
-  IconData _iconFor(AttachmentCategory c) => switch (c) {
-    AttachmentCategory.image => Icons.image_outlined,
-    AttachmentCategory.pdf => Icons.picture_as_pdf_outlined,
-    AttachmentCategory.docx => Icons.description_outlined,
-    AttachmentCategory.video => Icons.videocam_outlined,
-    AttachmentCategory.other => Icons.insert_drive_file_outlined,
-  };
 }
 
 /// The rejected-request explanation panel — reason, a suggested next step,
-/// and Apply Again. FRONTEND SIMULATION ONLY: the reason/guidance text is
-/// plain seeded/admin-entered data (see RequestsService's demo seed and
-/// RequestDetailScreen._reject), never generated or inferred here.
+/// and Apply Again. `reason` is the server's real `decision_remarks`.
 class _RejectedApplicationCard extends StatelessWidget {
   final String reason;
   final String guidance;
@@ -534,25 +354,17 @@ class _RejectedApplicationCard extends StatelessWidget {
 
 /// Distinct from [_RejectedApplicationCard] — the request is still active,
 /// not terminal. Wraps one [_FlaggedRequirementCard] per still-unresolved
-/// [FlaggedRequirement] (supports more than one at once — see
-/// RequestsService.flagAdditionalDocuments's own doc comment), a header
-/// showing how many still need correction, and the explicit "Resubmit
-/// Application" action — disabled until every one of them is replaced.
-/// Replacing a document never resubmits by itself (see
-/// RequestsService.replaceFlaggedRequirement); only this button does.
+/// [FlaggedRequirement], a header showing how many still need correction,
+/// and the explicit "Resubmit Application" action — disabled until the
+/// server's own `can_resubmit` says every one of them is replaced.
+/// Replacing a document never resubmits by itself; only this button does.
 class _CorrectionsSection extends StatelessWidget {
   final ServiceRequest request;
   final Color accent;
   final bool busy;
   final GlobalKey Function(String flaggedId) keyFor;
   final void Function(String flaggedId, Attachment newAttachment) onReplace;
-  final VoidCallback onResubmit;
-
-  /// Demo-only — flags one more (still-unflagged) requirement without
-  /// leaving this screen, so a presenter can build up the "multiple flagged
-  /// documents" scenario. Null once every uploadable requirement is already
-  /// flagged.
-  final VoidCallback? onFlagAnother;
+  final VoidCallback? onResubmit;
 
   const _CorrectionsSection({
     required this.request,
@@ -561,7 +373,6 @@ class _CorrectionsSection extends StatelessWidget {
     required this.keyFor,
     required this.onReplace,
     required this.onResubmit,
-    required this.onFlagAnother,
   });
 
   @override
@@ -599,7 +410,7 @@ class _CorrectionsSection extends StatelessWidget {
                     : '1 document requires correction.',
             style: AppTypography.captionSmallRegular.copyWith(color: AppColors.slate500, height: 1.4),
           ),
-          for (final flagged in request.flaggedRequirements.where((f) => !f.isResolved).toList())
+          for (final flagged in unresolved)
             Padding(
               key: keyFor(flagged.id),
               padding: const EdgeInsets.only(top: AppSpacing.md),
@@ -621,17 +432,6 @@ class _CorrectionsSection extends StatelessWidget {
             loading: busy,
             onPressed: allResolved && !busy ? onResubmit : null,
           ),
-          if (onFlagAnother != null) ...[
-            const SizedBox(height: AppSpacing.sm),
-            TextButton(
-              onPressed: busy ? null : onFlagAnother,
-              style: TextButton.styleFrom(foregroundColor: AppColors.orange700),
-              child: const Text(
-                'Flag Another Document (Demo)',
-                style: AppTypography.bodySmall,
-              ),
-            ),
-          ],
         ],
       ),
     );
@@ -739,10 +539,10 @@ class _FlaggedRequirementCard extends StatelessWidget {
   }
 }
 
-/// The other flavor of Under Review — "Needs Manual Verification" (see
-/// RequestsService.flagManualVerification). No specific requirement is
-/// flagged and there's nothing for the citizen to upload or correct, so
-/// unlike [_AdditionalDocumentsCard] this never embeds a
+/// "Needs manual verification" — the server's own Under Review with no
+/// specific requirement flagged (decision_remarks explains why, but
+/// needs_correction is empty). Nothing for the citizen to upload or
+/// correct, so unlike the corrections section this never embeds a
 /// [RequirementUploader] — just the plain-language explanation. Never
 /// styled or worded like a rejection.
 class _ManualVerificationCard extends StatelessWidget {
@@ -780,93 +580,6 @@ class _ManualVerificationCard extends StatelessWidget {
             'The request requires additional verification. This is still an active request, not a rejection — no '
             'action is needed from you at this time.',
             style: AppTypography.captionSmallRegular.copyWith(color: AppColors.slate500, height: 1.4),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// Clearly demonstration-only controls for manually driving the frontend
-/// milestone simulation — deliberately styled to read as "not a normal
-/// resident action" (dashed amber border, a "DEMO" tag) so a citizen using
-/// the real app would never mistake this for something they control. See
-/// Phase 5 docs: a real deployment's status changes come from the Web
-/// Admin/backend, never a button in the citizen's own app.
-class _DemoControlsCard extends StatelessWidget {
-  final String? nextMilestone;
-  final bool busy;
-  final VoidCallback onAdvance;
-  final VoidCallback onReject;
-
-  /// Null when this request's catalog item has no genuinely-uploadable
-  /// requirement to flag (none currently lack one) — omits the button
-  /// entirely rather than showing it disabled.
-  final VoidCallback? onFlagDocs;
-
-  const _DemoControlsCard({
-    required this.nextMilestone,
-    required this.busy,
-    required this.onAdvance,
-    required this.onReject,
-    required this.onFlagDocs,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final next = nextMilestone;
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: AppColors.amber50,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.amber500.withValues(alpha: 0.4), width: 1.2),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              const Icon(Icons.science_outlined, size: 16, color: AppColors.amber700),
-              const SizedBox(width: AppSpacing.sm),
-              const Text(
-                'DEMONSTRATION CONTROLS',
-                style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: AppColors.amber700, letterSpacing: 0.5),
-              ),
-            ],
-          ),
-          const SizedBox(height: AppSpacing.xs),
-          Text(
-            next == null
-                ? 'For client demonstrations only — not a real resident control.'
-                : 'For client demonstrations only — not a real resident control. Next: $next',
-            style: AppTypography.captionSmallRegular.copyWith(color: AppColors.slate600, height: 1.35),
-          ),
-          const SizedBox(height: AppSpacing.md),
-          AppButton(
-            label: 'Next Demo Step',
-            icon: Icons.skip_next_rounded,
-            variant: AppButtonVariant.secondary,
-            fullWidth: true,
-            loading: busy,
-            onPressed: busy ? null : onAdvance,
-          ),
-          if (onFlagDocs != null) ...[
-            const SizedBox(height: AppSpacing.sm),
-            TextButton(
-              onPressed: busy ? null : onFlagDocs,
-              style: TextButton.styleFrom(foregroundColor: AppColors.orange700),
-              child: const Text(
-                'Request Additional Documents (Demo)',
-                style: AppTypography.bodySmall,
-              ),
-            ),
-          ],
-          const SizedBox(height: AppSpacing.sm),
-          TextButton(
-            onPressed: busy ? null : onReject,
-            style: TextButton.styleFrom(foregroundColor: AppColors.rose600),
-            child: const Text('Reject Request (Demo)', style: AppTypography.bodySmall),
           ),
         ],
       ),

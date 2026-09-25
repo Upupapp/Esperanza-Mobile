@@ -1,13 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
-import '../../models/attachment.dart';
 import '../../models/catalog_item.dart';
 import '../../models/resident_profile.dart';
 import '../../models/service_form_spec.dart';
 import '../../models/service_request.dart';
+import '../../services/api_client.dart';
 import '../../services/citizen_session_service.dart';
-import '../../services/master_file_service.dart';
 import '../../services/mock_catalog.dart';
 import '../../services/requests_service.dart';
 import '../../services/resident_profile_service.dart';
@@ -21,10 +20,7 @@ import '../../widgets/app_date_field.dart';
 import '../../widgets/app_text_field.dart';
 import '../../widgets/form_section.dart';
 import '../../widgets/onboarding_step_indicator.dart';
-import '../../widgets/payment_method_tile.dart';
-import '../../widgets/requirement_uploader.dart';
 import '../profile/resident_profile/personal_information_screen.dart';
-import 'receipt_screen.dart';
 import 'request_detail_screen.dart';
 import 'request_submitted_screen.dart';
 
@@ -66,32 +62,22 @@ class _ServiceRequestWizardScreenState extends State<ServiceRequestWizardScreen>
   int get _requirementsStep => _serviceSteps.length + 1;
   int get _reviewStep => _serviceSteps.length + 2;
 
-  /// Every Dokyu service with a real configured fee gets its own Payment
-  /// Method step, after Review — Tulong never does (assistance
-  /// applications have no payment concept), and a Free Dokyu service
-  /// skips straight from Review to submission. See the Mobile-only final
-  /// request-flow correction pass: payment now happens during the
-  /// application/submission flow itself, before a request exists at all,
-  /// never as a later tracking milestone.
-  bool get _isPaidDokyu => widget.category == ServiceCategory.dokyu && widget.item.fee != 'Free';
-  int get _paymentStep => _reviewStep + 1;
-  int get _lastStep => _isPaidDokyu ? _paymentStep : _reviewStep;
+  // Payment happens after real submission (issuing a receipt is admin-only,
+  // see PRODUCTION_READINESS.md's mobile section) -- there is no citizen
+  // payment endpoint to collect a method for, so Review is always the last
+  // step regardless of whether this service has a fee.
+  int get _lastStep => _reviewStep;
 
   late final List<String> _stepLabels = [
     'Applicant Info',
     for (final s in _serviceSteps) s.label,
     'Requirements',
     'Review',
-    if (_isPaidDokyu) 'Payment',
   ];
 
   int _step = 0;
   String? _error;
   bool _submitting = false;
-
-  /// 'GCash' / 'Maya' / 'Onsite' — chosen on the Payment Method step, only
-  /// ever meaningful when [_isPaidDokyu].
-  String? _paymentMethod;
 
   // Applicant info (step 0) — prefilled from the signed-in account, still
   // editable since a request's details can differ from the base profile
@@ -121,18 +107,15 @@ class _ServiceRequestWizardScreenState extends State<ServiceRequestWizardScreen>
   Individual? _personal;
   final Set<String> _prefilledFromProfile = {};
 
-  // Requirements & Attachments step.
+  // Requirements step — informational only now: POST /citizen/requests has
+  // no attachments field, and the only real file-upload endpoint
+  // (.../requirements/{key}/replace) requires a requirement to already be
+  // staff-flagged, so there is no way to attach one at creation time (see
+  // PRODUCTION_READINESS.md's mobile section, and RequestDetailScreen's own
+  // correction-flow upload, which stays real). The wizard's Purpose/Notes
+  // field is still real -- it flows into form_data.
   final _notesController = TextEditingController();
-
-  /// One entry per requirement, keyed by its own label (unique within a
-  /// single catalog item) — every Dokyu and Tulong service uses this same
-  /// per-requirement architecture (see RequirementUploader and the Dokyu +
-  /// Tulong requirement-upload standardization pass); there is no separate
-  /// flat/generic attachment list anymore.
   late final List<RequirementInfo> _requirementInfos = resolveRequirements(widget.item.requirements);
-  final Map<String, Attachment?> _requirementAttachments = {};
-
-  int get _attachmentCount => _requirementAttachments.values.whereType<Attachment>().length;
 
   bool get _hasPurposeField => _serviceSteps.any((s) => s.fields.any((f) => f.key == 'purpose'));
 
@@ -419,22 +402,6 @@ class _ServiceRequestWizardScreenState extends State<ServiceRequestWizardScreen>
       if (!_hasPurposeField && _notesController.text.trim().isEmpty) {
         return 'Please describe the purpose of this request.';
       }
-      // requiresUpload excludes a requirement that isn't something the
-      // resident attaches a file for (a staff/office process, or
-      // descriptive text already captured elsewhere) — see RequirementInfo
-      // .requiresUpload's own doc comment. Never counted as "missing".
-      final missing = _requirementInfos
-          .where((r) => r.isRequired && r.requiresUpload && _requirementAttachments[r.label] == null)
-          .toList();
-      if (missing.isNotEmpty) {
-        return missing.length == 1
-            ? 'Please attach your ${missing.first.label}.'
-            : 'Please attach: ${missing.map((r) => r.label).join(', ')}.';
-      }
-      return null;
-    }
-    if (step == _paymentStep) {
-      if (_paymentMethod == null) return 'Please choose a payment method.';
       return null;
     }
     return null; // review step
@@ -586,60 +553,34 @@ class _ServiceRequestWizardScreenState extends State<ServiceRequestWizardScreen>
     });
 
     final profileService = context.read<ResidentProfileService>();
-    await Future.delayed(const Duration(milliseconds: 900)); // simulated network/processing delay
     await _backfillMasterProfile(profileService, account.id);
 
-    final attachments = _requirementAttachments.values.whereType<Attachment>().toList();
+    final formData = _buildFormFields();
+    formData['purpose'] = _resolvePurpose();
 
-    final request = await requestsService.submit(
-      applicantId: account.id,
-      applicantName: _fullName.text.trim(),
-      typeName: widget.item.name,
-      category: widget.category,
-      office: widget.item.office,
-      purpose: _resolvePurpose(),
-      expectedDays: widget.item.days,
-      attachments: attachments,
-      formFields: _buildFormFields(),
-      requiresPayment: widget.item.fee != 'Free',
-      fee: widget.item.fee,
-      paymentMethod: _isPaidDokyu ? _paymentMethod : null,
-    );
+    try {
+      final request = await requestsService.submit(serviceKey: widget.item.key, formData: formData);
 
-    if (!mounted) return;
-    setState(() => _submitting = false);
+      if (!mounted) return;
+      setState(() => _submitting = false);
 
-    // Every Dokyu request (paid or free) gets a receipt at submission time
-    // now (see RequestsService.submit) — Tulong never does, so it keeps
-    // going straight to the existing Request Submitted screen.
-    if (widget.category == ServiceCategory.dokyu) {
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(
-          // routeContext, not this wizard State's own `context` — by the
-          // time "Done" is actually tapped, pushReplacement has already
-          // unmounted this wizard screen, so capturing `context` here would
-          // throw "This widget has been unmounted" the moment onDone runs.
-          builder: (routeContext) => ReceiptScreen(
-            receipt: request.receipt!,
-            onDone: () => Navigator.of(routeContext).pushReplacement(
-              MaterialPageRoute(builder: (_) => RequestDetailScreen(requestId: request.id)),
-            ),
+          builder: (_) => RequestSubmittedScreen(
+            referenceNumber: request.referenceNumber,
+            typeName: request.typeName,
+            accent: widget.accent,
+            requestId: request.id,
           ),
         ),
       );
-      return;
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _submitting = false;
+        _error = e.message();
+      });
     }
-
-    Navigator.of(context).pushReplacement(
-      MaterialPageRoute(
-        builder: (_) => RequestSubmittedScreen(
-          referenceNumber: request.referenceNumber,
-          typeName: request.typeName,
-          accent: widget.accent,
-          requestId: request.id,
-        ),
-      ),
-    );
   }
 
   @override
@@ -672,9 +613,7 @@ class _ServiceRequestWizardScreenState extends State<ServiceRequestWizardScreen>
                   Expanded(
                     flex: 2,
                     child: AppButton(
-                      label: _step != _lastStep
-                          ? 'Continue'
-                          : (_isPaidDokyu ? 'Confirm Payment' : 'Submit Request'),
+                      label: _step != _lastStep ? 'Continue' : 'Submit Request',
                       icon: _step == _lastStep ? Icons.send_rounded : Icons.arrow_forward_rounded,
                       iconTrailing: _step != _lastStep,
                       fullWidth: true,
@@ -695,7 +634,6 @@ class _ServiceRequestWizardScreenState extends State<ServiceRequestWizardScreen>
     if (_step == 0) return _applicantInfoStep();
     if (_step >= 1 && _step <= _serviceSteps.length) return _serviceFieldStep(_serviceSteps[_step - 1]);
     if (_step == _requirementsStep) return _requirementsAttachmentsStep();
-    if (_step == _paymentStep) return _paymentStepWidget();
     return _reviewStepWidget();
   }
 
@@ -844,63 +782,46 @@ class _ServiceRequestWizardScreenState extends State<ServiceRequestWizardScreen>
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        // The per-requirement uploaders (below) already show each
-        // requirement's label as its own section header, so a separate
-        // informational checklist here would just repeat the same list.
         AppTextField(
           label: _hasPurposeField ? 'Additional notes (optional)' : 'Purpose',
           hintText: 'e.g. Employment requirement, medical assistance for hospital bill...',
           controller: _notesController,
           maxLines: 3,
         ),
-        const SizedBox(height: AppSpacing.xl),
-        const Text(
-          'Requirements',
-          style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
-        ),
-        const SizedBox(height: AppSpacing.xs),
-        const Text(
-          'Attach a document for each requirement below.',
-          style: TextStyle(fontSize: 12, color: AppColors.textMuted),
-        ),
-        const SizedBox(height: AppSpacing.md),
-        Consumer<MasterFileService>(
-          builder: (context, masterFile, _) {
-            final accountId = context.read<CitizenSessionService>().account!.id;
-            return Column(
+        if (_requirementInfos.isNotEmpty) ...[
+          const SizedBox(height: AppSpacing.xl),
+          const Text(
+            'Requirements',
+            style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
+          ),
+          const SizedBox(height: AppSpacing.xs),
+          const Text(
+            "You'll be asked to submit these if staff need them while reviewing your request — no need to attach "
+            'anything now.',
+            style: TextStyle(fontSize: 12, color: AppColors.textMuted, height: 1.4),
+          ),
+          const SizedBox(height: AppSpacing.md),
+          Container(
+            padding: const EdgeInsets.all(AppSpacing.md),
+            decoration: BoxDecoration(color: AppColors.slate50, borderRadius: BorderRadius.circular(12)),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 for (final req in _requirementInfos)
-                  RequirementUploader(
-                    requirement: req,
-                    attachment: _requirementAttachments[req.label],
-                    accent: widget.accent,
-                    existingMasterDoc: masterFile.findByType(accountId, req.documentType),
-                    onAttachNew: (a) {
-                      setState(() => _requirementAttachments[req.label] = a);
-                      masterFile.saveOrUpdate(
-                        accountId: accountId,
-                        documentType: req.documentType,
-                        label: req.label,
-                        attachment: a,
-                        origin: widget.category == ServiceCategory.dokyu ? 'Dokyu' : 'Tulong',
-                        serviceName: widget.item.name,
-                      );
-                    },
-                    onUseExisting: () {
-                      final existing = masterFile.findByType(accountId, req.documentType);
-                      if (existing != null) {
-                        setState(
-                          () => _requirementAttachments[req.label] =
-                              attachmentForReuse(existing.attachment, requirementLabel: req.label),
-                        );
-                      }
-                    },
-                    onRemove: () => setState(() => _requirementAttachments[req.label] = null),
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 6),
+                    child: Row(
+                      children: [
+                        Icon(Icons.description_outlined, size: 15, color: widget.accent),
+                        const SizedBox(width: 8),
+                        Expanded(child: Text(req.label, style: const TextStyle(fontSize: 12.5, color: AppColors.slate700))),
+                      ],
+                    ),
                   ),
               ],
-            );
-          },
-        ),
+            ),
+          ),
+        ],
         if (_error != null) ...[
           const SizedBox(height: AppSpacing.md),
           Text(_error!, style: const TextStyle(fontSize: 12.5, color: AppColors.rose600)),
@@ -918,11 +839,9 @@ class _ServiceRequestWizardScreenState extends State<ServiceRequestWizardScreen>
           style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
         ),
         const SizedBox(height: 6),
-        Text(
-          _isPaidDokyu
-              ? 'Make sure everything looks correct before continuing to payment.'
-              : 'Make sure everything looks correct before submitting.',
-          style: const TextStyle(fontSize: 12.5, color: AppColors.textMuted, height: 1.4),
+        const Text(
+          'Make sure everything looks correct before submitting.',
+          style: TextStyle(fontSize: 12.5, color: AppColors.textMuted, height: 1.4),
         ),
         const SizedBox(height: AppSpacing.xl),
         _reviewRow('Full name', _fullName.text.trim(), onEdit: () => setState(() => _step = 0)),
@@ -960,62 +879,7 @@ class _ServiceRequestWizardScreenState extends State<ServiceRequestWizardScreen>
           _notesController.text.trim().isEmpty ? '—' : _notesController.text.trim(),
           onEdit: () => setState(() => _step = _requirementsStep),
         ),
-        _reviewRow(
-          'Attachments',
-          _attachmentCount == 0 ? '—' : '$_attachmentCount file(s)',
-          onEdit: () => setState(() => _step = _requirementsStep),
-        ),
-        if (_isPaidDokyu) _reviewRow('Fee', widget.item.fee, onEdit: null),
-        if (_error != null) ...[
-          const SizedBox(height: AppSpacing.md),
-          Text(_error!, style: const TextStyle(fontSize: 12.5, color: AppColors.rose600)),
-        ],
-      ],
-    );
-  }
-
-  Widget _paymentStepWidget() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        const Text(
-          'Choose Payment Method',
-          style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
-        ),
-        const SizedBox(height: 6),
-        Text(
-          'Required fee for this request: ${widget.item.fee}',
-          style: const TextStyle(fontSize: 12.5, color: AppColors.textMuted, height: 1.4),
-        ),
-        const SizedBox(height: AppSpacing.xl),
-        PaymentMethodTile(
-          icon: Icons.storefront_outlined,
-          iconColor: widget.accent,
-          title: 'Pay at Municipal Office',
-          subtitle: 'Onsite — settle the fee in person when you visit or claim your document.',
-          selected: _paymentMethod == 'Onsite',
-          onTap: () => setState(() => _paymentMethod = 'Onsite'),
-        ),
-        const SizedBox(height: AppSpacing.sm),
-        PaymentMethodTile(
-          icon: Icons.account_balance_wallet_outlined,
-          iconColor: AppColors.brand600,
-          title: 'GCash',
-          subtitle: 'Simulated online payment — no real transaction is made.',
-          demo: true,
-          selected: _paymentMethod == 'GCash',
-          onTap: () => setState(() => _paymentMethod = 'GCash'),
-        ),
-        const SizedBox(height: AppSpacing.sm),
-        PaymentMethodTile(
-          icon: Icons.credit_card_outlined,
-          iconColor: AppColors.emerald700,
-          title: 'Maya',
-          subtitle: 'Simulated online payment — no real transaction is made.',
-          demo: true,
-          selected: _paymentMethod == 'Maya',
-          onTap: () => setState(() => _paymentMethod = 'Maya'),
-        ),
+        if (widget.item.fee != 'Free') _reviewRow('Fee', widget.item.fee, onEdit: null),
         if (_error != null) ...[
           const SizedBox(height: AppSpacing.md),
           Text(_error!, style: const TextStyle(fontSize: 12.5, color: AppColors.rose600)),
