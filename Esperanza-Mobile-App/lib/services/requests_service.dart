@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 
 import 'api_client.dart';
@@ -66,7 +68,12 @@ class RequestsService extends ChangeNotifier {
   /// call [detail] for everything else once a specific request is opened.
   Future<void> loadRequests() async {
     _loaded = false;
-    notifyListeners();
+    // Deferred, not synchronous: a caller kicking this off from a
+    // StatefulWidget's initState (see AsyncStateView) is still inside
+    // Flutter's build phase at this point, and a synchronous notifyListeners
+    // here throws ("setState() or markNeedsBuild() called during build")
+    // the moment a Provider ancestor is still being built too.
+    scheduleMicrotask(notifyListeners);
     try {
       final res = await api.get('/citizen/requests', query: {'per_page': 100});
       _requests = res.list.map((e) => _requestFromSummary(e as Map<String, dynamic>)).toList();

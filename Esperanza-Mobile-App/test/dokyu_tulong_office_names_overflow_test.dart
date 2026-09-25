@@ -25,6 +25,9 @@ import 'package:esperanza_mobile/services/requests_service.dart';
 import 'package:esperanza_mobile/services/resident_profile_service.dart';
 import 'package:esperanza_mobile/theme/app_colors.dart';
 
+import 'support/dokyu_tulong_fixtures.dart';
+import 'support/fake_api.dart';
+
 // The longest full office names now in the catalog — the ones most likely
 // to trigger a wrap-related overflow if a card/row isn't set up to grow.
 const _longOfficeNames = [
@@ -44,29 +47,33 @@ const _narrowSizes = <String, Size>{
   'iPhone SE-ish (375x667)': Size(375, 667),
 };
 
-Future<void> _pumpWithProviders(WidgetTester tester, Widget home, {bool seedDemoData = true}) async {
+// The one seeded fixture request every test below reaches for -- longest
+// office/actor pairing among the old demo seeds, kept as the regression
+// case (see each test's own comment for why this specific pairing matters).
+final _seededTulongRequest = <String, dynamic>{
+  'ref': 'demo-tulong-medical',
+  'type': 'tulong',
+  'service': 'Medical Assistance (AICS)',
+  'status': 'Under Verification',
+  'submitted': '2026-01-01T00:00:00Z',
+  'office': 'Municipal Social Welfare and Development Office',
+  'history': [
+    {
+      'from': null,
+      'to': 'Submitted',
+      'trigger': 'citizen_submit',
+      'actor_name': 'Municipal Social Welfare and Development Office Staff',
+      'at': '2026-01-01T00:00:00Z',
+    },
+  ],
+};
+
+Future<void> _pumpWithProviders(WidgetTester tester, Widget home) async {
   SharedPreferences.setMockInitialValues({});
+  DokyuTulongFixtures.install(requests: [_seededTulongRequest]);
   final session = CitizenSessionService();
   await session.login(MockCatalog.demoAccounts.last); // Perlita — verified, full access
-
-  // Demo seeding (_seedDemoStatusSimulationsIfNeeded) runs asynchronously
-  // off the constructor; screens like RequestDetailScreen do a synchronous
-  // firstWhere lookup on first build, so it must finish seeding *before*
-  // the widget under test is pumped, not just before we assert on it.
-  // Real Future.delayed timers never fire under the test binding's fake
-  // clock without tester.pump() driving it, so poll with pump() (which
-  // both advances the clock and flushes the pending microtask) instead of
-  // a raw delay — otherwise this spins forever.
-  final requests = RequestsService(seedDemoData: seedDemoData);
-  await tester.pumpWidget(const SizedBox.shrink());
-  var attempts = 0;
-  while (!requests.loaded) {
-    attempts++;
-    if (attempts > 100) {
-      throw StateError('RequestsService never finished loading in the test binding.');
-    }
-    await tester.pump(const Duration(milliseconds: 1));
-  }
+  final requests = RequestsService();
 
   await tester.pumpWidget(
     MultiProvider(
@@ -84,6 +91,8 @@ Future<void> _pumpWithProviders(WidgetTester tester, Widget home, {bool seedDemo
 }
 
 void main() {
+  tearDown(FakeApi.restore);
+
   for (final sizeEntry in _narrowSizes.entries) {
     testWidgets('Tulong department step shows full office names with zero overflow at ${sizeEntry.key}', (
       tester,
