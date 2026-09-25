@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../../models/announcement.dart';
+import '../../services/api_client.dart';
+import '../../services/balita_service.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_spacing.dart';
 import '../../utils/balita_post_actions.dart';
-import '../../utils/cross_platform_image.dart';
 import '../../widgets/app_dialogs.dart';
 import '../../widgets/app_card.dart';
 import '../../widgets/balita_share_sheet.dart';
@@ -12,27 +14,26 @@ import 'post_image_viewer.dart';
 
 /// A single Balita feed post — header (avatar/author/verified badge/
 /// barangay/timestamp/overflow menu), body text, optional image, an
-/// engagement summary row, and a Like / Comment / Share action row. All
-/// interactions are local-state simulations driven by the callbacks passed
-/// in from BalitaScreen — there is no backend for the social feed.
+/// engagement summary row, and a Like / Comment / Share action row. Real
+/// data and real interactions now (production-readiness programme,
+/// 2026-09-25) -- see [BalitaService]'s own doc comment.
 ///
 /// Tapping the image opens [PostImageViewer] by `post.id` only (not a
 /// snapshot of this [post]) so the viewer always reads the *live* post
 /// straight from BalitaService — the same single source of truth this
-/// card itself is built from — which is what keeps like/comment/share
-/// state trivially synchronized between the feed and the viewer without
-/// any manual prop-passing back and forth.
+/// card itself is built from — which is what keeps like/comment state
+/// trivially synchronized between the feed and the viewer without any
+/// manual prop-passing back and forth.
 class PostCard extends StatelessWidget {
   final Announcement post;
-  final VoidCallback onLike;
-  final ValueChanged<PostComment> onComment;
-  final VoidCallback onShare;
 
-  const PostCard({super.key, required this.post, required this.onLike, required this.onComment, required this.onShare});
+  const PostCard({super.key, required this.post});
 
   @override
   Widget build(BuildContext context) {
     final isOfficial = post.isOfficial;
+    final balita = context.read<BalitaService>();
+    final pendingReview = post.mine && post.status == 'Pending Review';
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
@@ -78,42 +79,49 @@ class PostCard extends StatelessWidget {
                       ),
                       const SizedBox(height: 1),
                       Text(
-                        post.barangay != null
-                            ? 'Brgy. ${post.barangay} · ${post.time}'
-                            : (isOfficial ? 'Official account · ${post.time}' : post.time),
-                        style: const TextStyle(fontSize: 11.5, color: AppColors.textMuted),
+                        [
+                          if (post.barangay != null) 'Brgy. ${post.barangay}' else if (isOfficial) 'Official account',
+                          post.timeLabel,
+                          if (pendingReview) 'Pending review — only visible to you',
+                        ].where((s) => s.isNotEmpty).join(' · '),
+                        style: TextStyle(
+                          fontSize: 11.5,
+                          color: pendingReview ? AppColors.amber700 : AppColors.textMuted,
+                          fontWeight: pendingReview ? FontWeight.w600 : FontWeight.w400,
+                        ),
                       ),
                     ],
                   ),
                 ),
-                InkWell(
-                  borderRadius: BorderRadius.circular(20),
-                  onTap: () => _showPostMenu(context),
-                  child: const Padding(
-                    padding: EdgeInsets.all(AppSpacing.sm),
-                    child: Icon(Icons.more_horiz_rounded, size: 19, color: AppColors.slate400),
+                // Report is a real, per-post citizen action now, but only
+                // for someone else's community post -- there's no report
+                // endpoint for official announcements (nothing to flag
+                // about the LGU's own content), and reporting your own
+                // post makes no sense either.
+                if (post.kind == PostKind.community && !post.mine)
+                  InkWell(
+                    borderRadius: BorderRadius.circular(20),
+                    onTap: () => _showPostMenu(context, balita),
+                    child: const Padding(
+                      padding: EdgeInsets.all(AppSpacing.sm),
+                      child: Icon(Icons.more_horiz_rounded, size: 19, color: AppColors.slate400),
+                    ),
                   ),
-                ),
               ],
             ),
             const SizedBox(height: 10),
             if (post.body.trim().isNotEmpty)
               Text(post.body, style: const TextStyle(fontSize: 13.5, color: AppColors.slate700, height: 1.45)),
-            if (post.media != null) ...[
+            if (post.imageUrl != null) ...[
               if (post.body.trim().isNotEmpty) const SizedBox(height: 12),
               ClipRRect(
                 borderRadius: BorderRadius.circular(12),
                 child: AspectRatio(
                   aspectRatio: 16 / 10,
-                  // Only images open the larger viewer — a video card
-                  // (no video_player dependency in this project, per its
-                  // own doc comment below) has nothing bigger to show.
-                  child: post.media!.type == PostMediaType.image
-                      ? InkWell(
-                          onTap: () => PostImageViewer.open(context, post.id),
-                          child: PostMediaView(media: post.media!),
-                        )
-                      : PostMediaView(media: post.media!),
+                  child: InkWell(
+                    onTap: () => PostImageViewer.open(context, post.id),
+                    child: PostMediaView(imageUrl: post.imageUrl!),
+                  ),
                 ),
               ),
             ],
@@ -123,10 +131,10 @@ class PostCard extends StatelessWidget {
               children: [
                 Expanded(
                   child: PostActionButton(
-                    icon: post.liked ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+                    icon: post.likedByMe == true ? Icons.favorite_rounded : Icons.favorite_border_rounded,
                     label: 'Like',
-                    color: post.liked ? AppColors.rose500 : AppColors.slate500,
-                    onTap: () => requireAccountForBalita(context, 'Reacting to Balita posts', onLike),
+                    color: post.likedByMe == true ? AppColors.rose500 : AppColors.slate500,
+                    onTap: () => requireAccountForBalita(context, 'Reacting to Balita posts', () => _like(context, balita)),
                   ),
                 ),
                 Expanded(
@@ -137,7 +145,7 @@ class PostCard extends StatelessWidget {
                     onTap: () => requireAccountForBalita(
                       context,
                       'Commenting on Balita posts',
-                      () => openBalitaComments(context, post, onComment),
+                      () => openBalitaComments(context, post),
                     ),
                   ),
                 ),
@@ -149,7 +157,7 @@ class PostCard extends StatelessWidget {
                     onTap: () => requireAccountForBalita(
                       context,
                       'Sharing Balita posts',
-                      () => BalitaShareSheet.show(context, post, onShare),
+                      () => BalitaShareSheet.show(context, post),
                     ),
                   ),
                 ),
@@ -161,7 +169,15 @@ class PostCard extends StatelessWidget {
     );
   }
 
-  void _showPostMenu(BuildContext context) {
+  Future<void> _like(BuildContext context, BalitaService balita) async {
+    try {
+      await balita.toggleLike(post);
+    } on ApiException catch (e) {
+      if (context.mounted) AppDialogs.toast(context, e.message(), success: false);
+    }
+  }
+
+  void _showPostMenu(BuildContext context, BalitaService balita) {
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
@@ -174,19 +190,11 @@ class PostCard extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               ListTile(
-                leading: const Icon(Icons.bookmark_outline_rounded, color: AppColors.slate600),
-                title: const Text('Save post', style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w500)),
-                onTap: () {
-                  Navigator.of(ctx).pop();
-                  AppDialogs.toast(context, 'Saved (demo).');
-                },
-              ),
-              ListTile(
                 leading: const Icon(Icons.flag_outlined, color: AppColors.slate600),
                 title: const Text('Report post', style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w500)),
                 onTap: () {
                   Navigator.of(ctx).pop();
-                  AppDialogs.toast(context, 'Thanks — this has been flagged for review (demo).', success: false);
+                  requireAccountForBalita(context, 'Reporting Balita posts', () => _report(context, balita));
                 },
               ),
             ],
@@ -195,102 +203,105 @@ class PostCard extends StatelessWidget {
       ),
     );
   }
+
+  Future<void> _report(BuildContext context, BalitaService balita) async {
+    final reason = await showDialog<String>(
+      context: context,
+      builder: (ctx) => _ReportDialog(),
+    );
+    if (reason == null || reason.trim().isEmpty || !context.mounted) return;
+    try {
+      await balita.reportPost(post, reason.trim());
+      if (context.mounted) AppDialogs.toast(context, 'Thanks — this has been flagged for review.');
+    } on ApiException catch (e) {
+      if (context.mounted) AppDialogs.toast(context, e.message(), success: false);
+    }
+  }
+}
+
+class _ReportDialog extends StatefulWidget {
+  @override
+  State<_ReportDialog> createState() => _ReportDialogState();
+}
+
+class _ReportDialogState extends State<_ReportDialog> {
+  final _controller = TextEditingController();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Report this post'),
+      content: TextField(
+        controller: _controller,
+        autofocus: true,
+        maxLines: 3,
+        decoration: const InputDecoration(hintText: 'Why are you reporting this post?'),
+      ),
+      actions: [
+        TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Cancel')),
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(_controller.text),
+          child: const Text('Submit'),
+        ),
+      ],
+    );
+  }
 }
 
 /// Opens the shared [CommentsSheet] bottom sheet — reused as-is by both
 /// [PostCard] and [PostImageViewer] rather than either owning its own
 /// comment UI, per the "do not create a separate comment system for the
 /// viewer" requirement.
-void openBalitaComments(BuildContext context, Announcement post, ValueChanged<PostComment> onSubmit) {
+void openBalitaComments(BuildContext context, Announcement post) {
   showModalBottomSheet(
     context: context,
     isScrollControlled: true,
     backgroundColor: Colors.transparent,
-    builder: (_) => CommentsSheet(post: post, onSubmit: onSubmit),
+    builder: (_) => CommentsSheet(post: post),
   );
 }
 
-/// Renders a post's attached [PostMedia] — a seed/bundled asset or a real
-/// file the citizen picked, or a video attachment card (no video_player
-/// dependency in this project, so a clear "this is a video" preview
-/// stands in for actual playback, per the simulation scope for Balita).
-/// Public (not `PostCard`-private) so [PostImageViewer] renders the exact
-/// same image — including the same cross-platform-safe loading/error
-/// handling — at a different [fit] rather than duplicating that logic.
+/// Renders a post's real, single remote image (GET .../image_url) — never
+/// a local asset or video: the real schema attaches at most one image per
+/// post (confirmed against the backend directly), unlike MockCatalog's own
+/// seed posts, which included bundled local assets and a video-attachment
+/// card for a feature the backend never had. Public (not `PostCard`-
+/// private) so [PostImageViewer] renders the exact same image — including
+/// the same loading/error handling — at a different [fit] rather than
+/// duplicating that logic.
 class PostMediaView extends StatelessWidget {
-  final PostMedia media;
+  final String imageUrl;
   final BoxFit fit;
-  const PostMediaView({super.key, required this.media, this.fit = BoxFit.cover});
+  const PostMediaView({super.key, required this.imageUrl, this.fit = BoxFit.cover});
 
   @override
   Widget build(BuildContext context) {
-    if (media.type == PostMediaType.image) {
-      // Some bundled seed images (e.g. the aerial/city-hall shots) are
-      // several megapixels — far more than a feed card or the viewer ever
-      // displays. LayoutBuilder reads the actual bounded width this
-      // instance is being laid out at (feed card vs. the taller viewer
-      // each pass a different constraint) so the decoder only produces a
-      // bitmap sized for what's really on screen, in either context,
-      // without hardcoding either one's size here.
-      if (media.isAsset) {
-        return LayoutBuilder(
-          builder: (context, constraints) => Image.asset(
-            media.path,
-            fit: fit,
-            width: double.infinity,
-            cacheWidth: constraints.hasBoundedWidth
-                ? (constraints.maxWidth * MediaQuery.devicePixelRatioOf(context)).round()
-                : null,
-          ),
-        );
-      }
-      // A citizen-picked photo's `path` is only ever safe to read via
-      // dart:io on native platforms — see cross_platform_image.dart. No
-      // current flow constructs a non-asset PostMedia, but this guards the
-      // same crash the attachment picker had if/when post composing ships.
-      final provider = pickedFileImageProvider(path: media.path);
-      if (provider == null) {
+    return Image.network(
+      imageUrl,
+      fit: fit,
+      width: double.infinity,
+      loadingBuilder: (context, child, progress) {
+        if (progress == null) return child;
         return Container(
           color: AppColors.slate100,
           alignment: Alignment.center,
-          child: const Icon(Icons.image_not_supported_outlined, color: AppColors.slate400, size: 28),
+          child: const SizedBox(
+            width: 22,
+            height: 22,
+            child: CircularProgressIndicator(strokeWidth: 2.5),
+          ),
         );
-      }
-      return Image(
-        image: provider,
-        fit: fit,
-        width: double.infinity,
-        errorBuilder: (context, error, stackTrace) => Container(
-          color: AppColors.slate100,
-          alignment: Alignment.center,
-          child: const Icon(Icons.image_not_supported_outlined, color: AppColors.slate400, size: 28),
-        ),
-      );
-    }
-    return Container(
-      color: AppColors.navy900,
-      alignment: Alignment.center,
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Container(
-            width: 48,
-            height: 48,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.15), shape: BoxShape.circle),
-            child: const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 28),
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xxl),
-            child: Text(
-              media.fileName ?? 'Video attached',
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(color: Colors.white, fontSize: 12.5, fontWeight: FontWeight.w600),
-            ),
-          ),
-        ],
+      },
+      errorBuilder: (context, error, stackTrace) => Container(
+        color: AppColors.slate100,
+        alignment: Alignment.center,
+        child: const Icon(Icons.image_not_supported_outlined, color: AppColors.slate400, size: 28),
       ),
     );
   }
@@ -299,17 +310,16 @@ class PostMediaView extends StatelessWidget {
 /// The engagement summary line under a Balita post — reaction count on the
 /// left, comment count and share count together on the right (Facebook-
 /// style), rather than fixed equal-width columns or a single flowing list.
-/// View count is tracked internally (see [BalitaService.recordView]) but is
-/// intentionally not rendered here. Public — and the single implementation
-/// — so [PostCard] and [PostImageViewer] can never visually drift apart,
-/// per the "same engagement summary everywhere" requirement.
+/// Public — and the single implementation — so [PostCard] and
+/// [PostImageViewer] can never visually drift apart, per the "same
+/// engagement summary everywhere" requirement.
 class BalitaEngagementRow extends StatelessWidget {
   final Announcement post;
   const BalitaEngagementRow({super.key, required this.post});
 
   @override
   Widget build(BuildContext context) {
-    final hasEngagement = post.likes > 0 || post.commentCount > 0 || post.shares > 0;
+    final hasEngagement = post.likes > 0 || post.commentsCount > 0 || post.shares > 0;
     if (!hasEngagement) return const SizedBox.shrink();
 
     const style = TextStyle(fontSize: 12, color: AppColors.slate500);
@@ -337,13 +347,13 @@ class BalitaEngagementRow extends StatelessWidget {
                     )
                   : const SizedBox.shrink(),
             ),
-            if (post.commentCount > 0 || post.shares > 0)
+            if (post.commentsCount > 0 || post.shares > 0)
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  if (post.commentCount > 0)
-                    Text('${post.commentCount} comment${post.commentCount == 1 ? '' : 's'}', style: style),
-                  if (post.commentCount > 0 && post.shares > 0) const SizedBox(width: 14),
+                  if (post.commentsCount > 0)
+                    Text('${post.commentsCount} comment${post.commentsCount == 1 ? '' : 's'}', style: style),
+                  if (post.commentsCount > 0 && post.shares > 0) const SizedBox(width: 14),
                   if (post.shares > 0) Text('${post.shares} share${post.shares == 1 ? '' : 's'}', style: style),
                 ],
               ),

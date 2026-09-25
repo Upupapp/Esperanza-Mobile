@@ -1,98 +1,125 @@
-import 'dart:convert';
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
-import 'persistence_recovery.dart';
+import 'api_client.dart';
 import '../models/announcement.dart';
-import 'mock_catalog.dart';
 
-/// Local, frontend-only "database" for Balita posts — same shape as
-/// RequestsService: persists to SharedPreferences as JSON so posts created
-/// in the composer survive leaving/reopening Balita and app restarts,
-/// without any backend. Centralizing this in a ChangeNotifier (instead of
-/// BalitaScreen's own State, as before) also fixes a latent bug: Balita is
-/// pushed via Navigator rather than living in RootShell's IndexedStack, so
-/// its previous in-memory `_posts` was silently reset every time the
-/// screen was reopened.
+/// Balita: announcements and the community feed, against the real backend
+/// (production-readiness programme, 2026-09-25). Previously a local,
+/// frontend-only "database" persisted to SharedPreferences, simulating
+/// likes/comments/shares itself -- the server is now the only source of
+/// truth, so nothing here is persisted locally anymore.
+///
+/// Two real tables, merged into one feed exactly like the Web Admin's own
+/// citizen/announcements.blade.php does client-side (`kind: 'announcement' |
+/// 'community'`) -- that file is the contract this mirrors: GET
+/// /announcements (admin-published, public) and GET /community-posts
+/// (citizen-authored, requires sign-in). A citizen can also create a
+/// community post now (POST /community-posts) -- a real capability neither
+/// frontend used before this (see [createPost]'s own doc comment).
 class BalitaService extends ChangeNotifier {
-  static const _key = 'esperanza_balita_posts';
-
-  List<Announcement> _posts = List.of(MockCatalog.announcements);
+  List<Announcement> _posts = [];
   bool _loaded = false;
 
   List<Announcement> get posts => List.unmodifiable(_posts);
   bool get loaded => _loaded;
 
-  BalitaService() {
-    _restore();
-  }
-
-  Future<void> _restore() async {
+  /// GET /announcements + GET /community-posts, merged and sorted newest
+  /// first. The community-posts fetch needs a signed-in citizen (it's
+  /// under the `citizen` route prefix); a Guest still sees the public
+  /// announcements half of the feed rather than nothing at all.
+  Future<void> loadFeed({required bool signedIn}) async {
+    _loaded = false;
+    scheduleMicrotask(notifyListeners);
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final raw = prefs.getString(_key);
-      if (raw != null) {
-        _posts = PersistenceRecovery.decodeEach(
-          jsonDecode(raw) as List,
-          (e) => Announcement.fromJson(e),
-          what: 'balita post',
-        );
-      }
-    } catch (error) {
-      // A payload persisted by an earlier build can fail to decode after a
-      // model or enum changes shape. Before this guard that throw escaped an
-      // un-awaited future started in the constructor, so notifyListeners()
-      // never fired and AuthGate spun on the splash forever - recoverable
-      // only by clearing app data. Discard the unreadable state instead; the
-      // migrations here already exist for exactly this class of change.
-      _posts = [];
-      await PersistenceRecovery.discardUnreadable(
-        service: 'BalitaService',
-        keys: const [_key],
-        error: error,
+      final calls = <Future<ApiResult>>[api.get('/announcements', query: {'per_page': 50})];
+      if (signedIn) calls.add(api.get('/community-posts', query: {'per_page': 50}));
+      final results = await Future.wait(calls);
+
+      final announcements = results[0].list.map(
+        (e) => Announcement.fromAnnouncementApi(e as Map<String, dynamic>),
       );
+      final community = signedIn
+          ? results[1].list.map((e) => Announcement.fromCommunityApi(e as Map<String, dynamic>))
+          : const <Announcement>[];
+
+      _posts = [...announcements, ...community]
+        ..sort((a, b) => (b.at ?? DateTime(0)).compareTo(a.at ?? DateTime(0)));
     } finally {
       _loaded = true;
       notifyListeners();
     }
   }
 
-  Future<void> _persist() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_key, jsonEncode(_posts.map((p) => p.toJson()).toList()));
+  String _likePath(Announcement post) =>
+      post.kind == PostKind.announcement ? '/announcements/${post.remoteId}/like' : '/community-posts/${post.remoteId}/like';
+
+  String _commentsPath(Announcement post) => post.kind == PostKind.announcement
+      ? '/announcements/${post.remoteId}/comments'
+      : '/community-posts/${post.remoteId}/comments';
+
+  /// Toggles like/unlike -- both endpoints are POST-to-toggle, returning
+  /// the server's own new `{liked, likes}` rather than the client guessing
+  /// at the new count.
+  Future<void> toggleLike(Announcement post) async {
+    final res = await api.post(_likePath(post));
+    post.likedByMe = res.map['liked'] as bool?;
+    post.likes = res.map['likes'] as int? ?? post.likes;
+    notifyListeners();
   }
 
-  Future<void> toggleLike(String postId) async {
-    final post = _posts.firstWhere((p) => p.id == postId);
-    post.liked = !post.liked;
-    post.likes += post.liked ? 1 : -1;
-    notifyListeners();
-    await _persist();
+  Future<List<PostComment>> loadComments(Announcement post) async {
+    final res = await api.get(_commentsPath(post), query: {'per_page': 50});
+    return res.list.map((e) => PostComment.fromApi(e as Map<String, dynamic>)).toList();
   }
 
-  Future<void> addComment(String postId, PostComment comment) async {
-    final post = _posts.firstWhere((p) => p.id == postId);
-    post.comments.add(comment);
+  Future<PostComment> addComment(Announcement post, String body) async {
+    final res = await api.post(_commentsPath(post), body: {'body': body});
+    final comment = PostComment.fromApi(res.map);
+    post.commentsCount += 1;
     notifyListeners();
-    await _persist();
+    return comment;
   }
 
-  Future<void> share(String postId) async {
-    final post = _posts.firstWhere((p) => p.id == postId);
-    post.shares += 1;
-    notifyListeners();
-    await _persist();
+  /// Community posts only -- announcements have no report endpoint (a
+  /// citizen doesn't "report" official LGU content). Throws [ApiException]
+  /// as normal if [post] isn't a community post; callers gate the Report
+  /// menu item on `post.kind == PostKind.community` first (see PostCard).
+  Future<void> reportPost(Announcement post, String reason) async {
+    await api.post('/community-posts/${post.remoteId}/report', body: {'reason': reason});
   }
 
-  /// Called only when a citizen actually opens a post (its image/detail
-  /// viewer) — never merely because the post scrolled into view in the
-  /// feed. Frontend/demo counter only: no per-session unique-view
-  /// deduplication, same as likes/comments/shares elsewhere in this
-  /// service — reopening the same post again increments it again.
-  Future<void> recordView(String postId) async {
-    final post = _posts.firstWhere((p) => p.id == postId);
-    post.viewCount += 1;
+  /// POST /community-posts -- a real citizen-posting capability (image
+  /// upload, category, gated by CitizenCapabilities::COMMUNITY_POST at
+  /// minimum AccessLevel.unverified) that neither this app nor the Web
+  /// Admin's own citizen/announcements.blade.php used before this
+  /// (production-readiness programme, 2026-09-25 -- confirmed against the
+  /// backend directly, not assumed). Pre-moderated: the returned post is
+  /// visible only to its own author (`mine: true`) until an information
+  /// officer approves it, then everyone. Multipart only when [imageFilePath]
+  /// is given -- the field is nullable server-side, so a plain JSON POST
+  /// with no `image` key is a normal, valid text-only post.
+  Future<Announcement> createPost({required String body, required String category, String? imageFilePath}) async {
+    final res = imageFilePath != null
+        ? await api.postMultipart(
+            '/community-posts',
+            filePath: imageFilePath,
+            fileField: 'image',
+            fields: {'body': body, 'category': category},
+          )
+        : await api.post('/community-posts', body: {'body': body, 'category': category});
+    final post = Announcement.fromCommunityApi(res.map);
+    _posts.insert(0, post);
     notifyListeners();
-    await _persist();
+    return post;
+  }
+
+  /// In-memory only now -- there is nothing left to erase from disk once
+  /// Balita stopped persisting to SharedPreferences. Called on sign-out.
+  void clear() {
+    _posts = [];
+    _loaded = false;
+    notifyListeners();
   }
 }

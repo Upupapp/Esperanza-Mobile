@@ -14,6 +14,8 @@ import 'package:esperanza_mobile/services/citizen_session_service.dart';
 import 'package:esperanza_mobile/services/mock_catalog.dart';
 import 'package:esperanza_mobile/widgets/restricted_feature_notice.dart';
 
+import 'support/fake_api.dart';
+
 /// The demo-account login cards were removed from LoginScreen (see
 /// PRODUCTION_READINESS.md 4(d)) as a credential-enumeration surface once
 /// the screen talks to a real backend. These tests exist to drive Balita's
@@ -41,18 +43,66 @@ Future<void> _dismissWelcomeBanner(WidgetTester tester) async {
   }
 }
 
-/// The first Balita post ('bal-mangrove-award' in mock_catalog.dart) — has
-/// an image, a body message, and non-zero starting likes/shares — good
-/// coverage for both "message shown" and "engagement counts stay synced"
-/// assertions.
+// GET /announcements' own row shape (PublicContentController::
+// announcementRow()) -- fixture equivalents of the old MockCatalog seed
+// posts, since Balita reads from the real API now.
+const _mangroveAnnouncement = {
+  'id': 1,
+  'title': null,
+  'body': 'Domorog & Sorosimbahan Mangroves Receive Recognition\n\n'
+      'LGU Esperanza was recognized as 2nd Runner-Up in the 4th Gawad Iba Ka Juan.',
+  'category': 'Community',
+  'barangay': null,
+  'official': true,
+  'author': 'Esperanza LGU',
+  'published_at': '2026-09-10T00:00:00.000Z',
+  'likes': 89,
+  'shares': 21,
+  'comments_count': 0,
+  'image_url': 'https://test.invalid/mangrove.jpg',
+};
+
+const _fiestaAnnouncement = {
+  'id': 2,
+  'title': null,
+  'body': 'Sumali sa buong-munisipyong pagdiriwang ngayong Agosto!',
+  'category': 'Community',
+  'barangay': null,
+  'official': true,
+  'author': 'Esperanza LGU',
+  'published_at': '2026-09-01T00:00:00.000Z',
+  'likes': 214,
+  'shares': 18,
+  'comments_count': 2,
+  'image_url': null,
+};
+
+void _installFeedFixture() {
+  FakeApi.installFull((req) {
+    if (req.method == 'GET' && req.path == '/announcements') {
+      return [_mangroveAnnouncement, _fiestaAnnouncement];
+    }
+    if (req.method == 'GET' && req.path == '/community-posts') {
+      return <Map<String, dynamic>>[];
+    }
+    if (req.method == 'GET' && req.path.endsWith('/comments')) {
+      return <Map<String, dynamic>>[];
+    }
+    if (req.method == 'POST' && req.path == '/announcements/1/comments') {
+      return {'id': 501, 'author': 'Perlita Quiambao', 'body': req.body?['body'], 'mine': true, 'created_at': '2026-09-11T00:00:00.000Z'};
+    }
+    if (req.method == 'POST' && req.path.endsWith('/like')) {
+      return {'liked': true, 'likes': 90};
+    }
+    throw FakeApiError(messageEn: 'balita_image_viewer_test has no fixture for ${req.method} ${req.path}');
+  });
+}
+
+/// The mangrove post's image — a real network image now (GET /announcements'
+/// own `image_url`), not a bundled asset.
 final _mangrovePostImage = find.byWidgetPredicate((w) {
   if (w is! Image) return false;
-  final provider = w.image;
-  // Image.asset(..., cacheWidth: ...) wraps its AssetImage in a
-  // ResizeImage (a display-size decode optimization) — unwrap it so this
-  // still matches regardless of whether a given call site sets cacheWidth.
-  final asset = provider is ResizeImage ? provider.imageProvider : provider;
-  return asset is AssetImage && asset.assetName == 'assets/images/News page section.png';
+  return w.image is NetworkImage && (w.image as NetworkImage).url == _mangroveAnnouncement['image_url'];
 });
 
 /// RootShell's floating navbar reserves its full pill-plus-headroom
@@ -102,6 +152,9 @@ Future<void> _openMangroveViewer(WidgetTester tester) async {
 }
 
 void main() {
+  setUp(_installFeedFixture);
+  tearDown(FakeApi.restore);
+
   testWidgets(
     'Guest: can open the viewer and read the post, but React/Comment/Share all show the account-required notice',
     (tester) async {
@@ -212,38 +265,6 @@ void main() {
     },
   );
 
-  testWidgets('Opening a post tracks a view internally, but no view count is ever shown in the UI', (tester) async {
-    SharedPreferences.setMockInitialValues({'esperanza_onboarding_complete': true});
-    _setPhoneViewport(tester);
-    await tester.pumpWidget(const EsperanzaMobileApp());
-    await tester.pumpAndSettle();
-
-    await tester.tap(find.text('Continue as Guest'));
-    await tester.pumpAndSettle();
-    await _dismissWelcomeBanner(tester);
-
-    final mangrove = MockCatalog.announcements.firstWhere((a) => a.id == 'bal-mangrove-award');
-    final startingViews = mangrove.viewCount;
-
-    await tester.tap(find.text('Balita'));
-    await tester.pumpAndSettle();
-    await _dismissWelcomeBanner(tester);
-    // View count is tracked (see BalitaService.recordView) but must never
-    // be rendered anywhere in the feed or the viewer.
-    expect(find.textContaining('views'), findsNothing);
-
-    await _tapClearOfNavbar(tester, _mangrovePostImage);
-    expect(find.byType(PostImageViewer), findsOneWidget);
-    expect(find.descendant(of: find.byType(PostImageViewer), matching: find.textContaining('views')), findsNothing);
-    expect(mangrove.viewCount, startingViews + 1);
-
-    final closeInViewer = find.descendant(of: find.byType(PostImageViewer), matching: find.byIcon(Icons.close_rounded));
-    await tester.ensureVisible(closeInViewer);
-    await tester.tap(closeInViewer);
-    await tester.pumpAndSettle();
-    expect(find.textContaining('views'), findsNothing);
-  });
-
   testWidgets(
     'Verified user: engagement row shows reaction count on the left, comments then shares together on the right',
     (tester) async {
@@ -259,9 +280,9 @@ void main() {
       await tester.pumpAndSettle();
       await _dismissWelcomeBanner(tester);
 
-      // 'bal-mangrove-award' has no comments seeded, so it can't show the
-      // comment count — scroll to 'bal-1' (214 likes, 2 comments, 18
-      // shares), which has all three visible metrics at once.
+      // The mangrove post has no comments seeded, so it can't show the
+      // comment count — scroll to the fiesta post (214 likes, 2 comments,
+      // 18 shares), which has all three visible metrics at once.
       await tester.scrollUntilVisible(
         find.textContaining('Sumali sa buong-munisipyong'),
         300,
@@ -274,7 +295,6 @@ void main() {
       expect(find.text('214'), findsOneWidget);
       expect(find.text('2 comments'), findsOneWidget);
       expect(find.text('18 shares'), findsOneWidget);
-      expect(find.textContaining('views'), findsNothing);
       expect(tester.takeException(), isNull);
     },
   );
@@ -290,11 +310,9 @@ void main() {
     await _loginAs(tester, MockCatalog.demoAccounts.last); // Perlita Quiambao
     await _dismissWelcomeBanner(tester);
 
-    // 'bal-mangrove-award' starts with no comments (untouched by any
-    // earlier test in this file — only its viewCount is polluted by
-    // cross-test viewer-opens, which this check doesn't rely on), so the
-    // comment count segment is absent to start, then appears at "1
-    // comment" the moment the first one is submitted.
+    // The mangrove post starts with no comments, so the comment count
+    // segment is absent to start, then appears at "1 comment" the moment
+    // the first one is submitted.
     await _openMangroveViewer(tester);
     expect(find.descendant(of: find.byType(PostImageViewer), matching: find.textContaining('comment')), findsNothing);
 

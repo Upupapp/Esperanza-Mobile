@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../services/balita_service.dart';
 import '../services/master_file_service.dart';
 import '../services/notifications_service.dart';
 import '../services/requests_service.dart';
@@ -113,6 +114,7 @@ class EsperanzaDrawer extends StatelessWidget {
                         final profiles = context.read<ResidentProfileService>();
                         final masterFile = context.read<MasterFileService>();
                         final notifications = context.read<NotificationsService>();
+                        final balita = context.read<BalitaService>();
                         final ok = await AppDialogs.confirm(
                           context,
                           title: 'Sign out?',
@@ -132,6 +134,7 @@ class EsperanzaDrawer extends StatelessWidget {
                             profiles: profiles,
                             masterFile: masterFile,
                             notifications: notifications,
+                            balita: balita,
                           );
                         }
                       },

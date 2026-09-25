@@ -56,12 +56,20 @@ const _seededEvents = [
   {'key': 'ev-5', 'title': 'Fiesta ng Esperanza Opening', 'date': '2026-08-21', 'time': '2:00 PM', 'venue': 'Municipal Plaza'},
 ];
 
-Future<void> _enterAsGuest(WidgetTester tester) async {
+Future<void> _enterAsGuest(WidgetTester tester, {List<Map<String, dynamic>> announcements = const []}) async {
   // Onboarding-complete pre-seeded: this suite exercises the normal
   // returning-user flow, not the first-run Onboarding screens — see
   // onboarding_flow_test.dart for that.
   SharedPreferences.setMockInitialValues({'esperanza_onboarding_complete': true});
-  FakeApi.install((path, query) => path == '/events' ? _seededEvents : const <Map<String, dynamic>>[]);
+  // RootShell mounts every tab eagerly (IndexedStack), so BalitaScreen's own
+  // AsyncStateView fires its GET /announcements the moment this pumps --
+  // [announcements] has to be in place *before* pumpWidget, not installed
+  // separately afterward.
+  FakeApi.install((path, query) {
+    if (path == '/events') return _seededEvents;
+    if (path == '/announcements') return announcements;
+    return const <Map<String, dynamic>>[];
+  });
   _setPhoneViewport(tester);
   await tester.pumpWidget(const EsperanzaMobileApp());
   await tester.pumpAndSettle();
@@ -183,27 +191,53 @@ void main() {
     expect(find.textContaining('Barangay Health Fair'), findsWidgets); // still on the Events list
   });
 
-  testWidgets('the mangrove-award News item appears in the Balita tab (not on Home), with its image', (tester) async {
-    await _enterAsGuest(tester);
+  testWidgets('the mangrove-award announcement appears in the Balita tab (not on Home), with its real image', (
+    tester,
+  ) async {
+    // Real content now (GET /announcements) instead of MockCatalog's own
+    // bundled 'News page section.png' asset.
+    await _enterAsGuest(
+      tester,
+      announcements: const [
+        {
+          'id': 1,
+          'title': null,
+          'body': 'Domorog & Sorosimbahan Mangroves Receive Recognition',
+          'category': 'Community',
+          'barangay': null,
+          'official': true,
+          'author': 'Esperanza LGU',
+          'published_at': '2026-09-10T00:00:00.000Z',
+          'likes': 89,
+          'shares': 21,
+          'comments_count': 0,
+          'image_url': 'https://test.invalid/mangrove.jpg',
+        },
+      ],
+    );
     await tester.tap(find.byIcon(Icons.close_rounded), warnIfMissed: false);
     await tester.pumpAndSettle();
 
     await tester.tap(find.text('Balita'));
     await tester.pumpAndSettle();
+    await _dismissPromotionalBanner(tester); // Balita tab's own promotional popup
 
     expect(find.textContaining('Domorog & Sorosimbahan Mangroves Receive Recognition'), findsOneWidget);
     final newsImage = tester.widgetList<Image>(find.byType(Image)).where((img) {
       final provider = img.image;
-      if (provider is! AssetImage && provider is! ResizeImage) return false;
-      return _unwrapAssetImage(provider).assetName == 'assets/images/News page section.png';
+      return provider is NetworkImage && provider.url == 'https://test.invalid/mangrove.jpg';
     });
     expect(newsImage.length, 1);
 
-    // Hard rule check: no create/upload/publish affordance exists anywhere
-    // on this screen.
-    expect(find.text('Create Post'), findsNothing);
-    expect(find.text('Upload'), findsNothing);
-    expect(find.text('Publish'), findsNothing);
-    expect(find.byIcon(Icons.add_a_photo_outlined), findsNothing);
+    // A citizen can post to the community feed now (production-readiness
+    // programme, 2026-09-25 -- POST /community-posts is a real, if
+    // previously unused, backend capability); the entry point is visible
+    // even to a Guest, but tapping it gates on sign-in like every other
+    // Balita interaction, rather than opening the composer.
+    expect(find.byIcon(Icons.add_circle_outline_rounded), findsOneWidget);
+    await tester.tap(find.byIcon(Icons.add_circle_outline_rounded));
+    await tester.pumpAndSettle();
+    expect(find.text('Create Account'), findsOneWidget);
+    expect(find.text('Sign In'), findsOneWidget);
   });
 }

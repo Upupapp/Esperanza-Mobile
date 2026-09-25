@@ -11,8 +11,8 @@ import 'post_card.dart';
 /// A lightweight full-screen overlay for a single Balita post's image —
 /// opened by tapping the image in [PostCard], not a separate post-detail
 /// page. Reads the post by [postId] live from [BalitaService] (rather than
-/// taking a snapshot [Announcement]) so like/comment/share state is always
-/// the exact same state the feed shows: liking here updates the same
+/// taking a snapshot [Announcement]) so like/comment state is always the
+/// exact same state the feed shows: liking here updates the same
 /// ChangeNotifier the feed listens to, so there is nothing to keep in sync
 /// by hand, and closing this viewer returns to the feed at whatever scroll
 /// position it was already at (this is a push on top of it, not a replace).
@@ -21,10 +21,6 @@ class PostImageViewer extends StatelessWidget {
   const PostImageViewer({super.key, required this.postId});
 
   static void open(BuildContext context, String postId) {
-    // Counted here — the one place a citizen actually opens a post, not
-    // merely scrolls past it in the feed. See BalitaService.recordView's
-    // own doc comment for why this has no per-session dedup.
-    context.read<BalitaService>().recordView(postId);
     Navigator.of(
       context,
     ).push(MaterialPageRoute(fullscreenDialog: true, builder: (_) => PostImageViewer(postId: postId)));
@@ -44,7 +40,7 @@ class PostImageViewer extends StatelessWidget {
     // The post could in principle disappear from under the viewer (e.g.
     // Web Admin content sync); bail out to the feed rather than show a
     // broken screen.
-    if (post == null || post.media == null) {
+    if (post == null || post.imageUrl == null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (Navigator.of(context).canPop()) Navigator.of(context).pop();
       });
@@ -80,7 +76,7 @@ class PostImageViewer extends StatelessWidget {
                     width: double.infinity,
                     height: MediaQuery.of(context).size.height * 0.52,
                     color: Colors.black,
-                    child: PostMediaView(media: post.media!, fit: BoxFit.contain),
+                    child: PostMediaView(imageUrl: post.imageUrl!, fit: BoxFit.contain),
                   ),
                   Positioned(top: 10, right: 12, child: _CloseButton(onTap: () => Navigator.of(context).pop())),
                 ],
@@ -125,8 +121,8 @@ class PostImageViewer extends StatelessWidget {
                           const SizedBox(height: 1),
                           Text(
                             post.barangay != null
-                                ? 'Brgy. ${post.barangay} · ${post.time}'
-                                : (isOfficial ? 'Official account · ${post.time}' : post.time),
+                                ? 'Brgy. ${post.barangay} · ${post.timeLabel}'
+                                : (isOfficial ? 'Official account · ${post.timeLabel}' : post.timeLabel),
                             style: const TextStyle(fontSize: 11.5, color: AppColors.textMuted),
                           ),
                         ],
@@ -150,47 +146,43 @@ class PostImageViewer extends StatelessWidget {
               ),
               Padding(
                 padding: const EdgeInsets.fromLTRB(8, 8, 8, 4),
-                child: Column(
+                child: Row(
                   children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: PostActionButton(
-                            icon: post.liked ? Icons.favorite_rounded : Icons.favorite_border_rounded,
-                            label: 'Like',
-                            color: post.liked ? AppColors.rose500 : AppColors.slate500,
-                            onTap: () => requireAccountForBalita(
-                              context,
-                              'Reacting to Balita posts',
-                              () => balita.toggleLike(post!.id),
-                            ),
-                          ),
+                    Expanded(
+                      child: PostActionButton(
+                        icon: post.likedByMe == true ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+                        label: 'Like',
+                        color: post.likedByMe == true ? AppColors.rose500 : AppColors.slate500,
+                        onTap: () => requireAccountForBalita(
+                          context,
+                          'Reacting to Balita posts',
+                          () => balita.toggleLike(post!),
                         ),
-                        Expanded(
-                          child: PostActionButton(
-                            icon: Icons.mode_comment_outlined,
-                            label: 'Comment',
-                            color: AppColors.slate500,
-                            onTap: () => requireAccountForBalita(
-                              context,
-                              'Commenting on Balita posts',
-                              () => openBalitaComments(context, post!, (c) => balita.addComment(post!.id, c)),
-                            ),
-                          ),
+                      ),
+                    ),
+                    Expanded(
+                      child: PostActionButton(
+                        icon: Icons.mode_comment_outlined,
+                        label: 'Comment',
+                        color: AppColors.slate500,
+                        onTap: () => requireAccountForBalita(
+                          context,
+                          'Commenting on Balita posts',
+                          () => openBalitaComments(context, post!),
                         ),
-                        Expanded(
-                          child: PostActionButton(
-                            icon: Icons.share_outlined,
-                            label: 'Share',
-                            color: AppColors.slate500,
-                            onTap: () => requireAccountForBalita(
-                              context,
-                              'Sharing Balita posts',
-                              () => BalitaShareSheet.show(context, post!, () => balita.share(post!.id)),
-                            ),
-                          ),
+                      ),
+                    ),
+                    Expanded(
+                      child: PostActionButton(
+                        icon: Icons.share_outlined,
+                        label: 'Share',
+                        color: AppColors.slate500,
+                        onTap: () => requireAccountForBalita(
+                          context,
+                          'Sharing Balita posts',
+                          () => BalitaShareSheet.show(context, post!),
                         ),
-                      ],
+                      ),
                     ),
                   ],
                 ),

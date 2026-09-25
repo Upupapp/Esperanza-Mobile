@@ -1,3 +1,4 @@
+import 'balita_service.dart';
 import 'citizen_session_service.dart';
 import 'master_file_service.dart';
 import 'notifications_service.dart';
@@ -38,21 +39,28 @@ class SignOut {
   /// - `esperanza_onboarding_complete` — a device-level preference about
   ///   whether the welcome flow has been seen, not personal data. Re-showing
   ///   onboarding to whoever picks the phone up next would be noise.
-  /// - Balita announcements — public municipal content, identical for everyone.
   static Future<void> signOut(
     CitizenSessionService session, {
     required RequestsService requests,
     required ResidentProfileService profiles,
     required MasterFileService masterFile,
     required NotificationsService notifications,
+    required BalitaService balita,
   }) async {
     final accountId = session.account?.id;
 
     if (accountId != null) {
-      // In-memory only now -- requests are no longer persisted to
+      // In-memory only now -- requests/Balita are no longer persisted to
       // SharedPreferences, so there is nothing on disk left to erase; the
-      // next sign-in's own loadRequests() replaces this from the server.
+      // next sign-in's own loadRequests()/loadFeed() replaces this from the
+      // server. Balita specifically used to be excluded here ("public
+      // municipal content, identical for everyone") -- that stopped being
+      // true once community posts carried real per-citizen `liked_by_me`/
+      // `mine` state (production-readiness programme, 2026-09-25), so a
+      // shared device's next citizen must not see the previous citizen's
+      // fetched feed before their own fresh loadFeed() runs.
       requests.clear();
+      balita.clear();
       await profiles.forgetAccount(accountId);
       await masterFile.forgetAccount(accountId);
       await notifications.forgetAccount(accountId);

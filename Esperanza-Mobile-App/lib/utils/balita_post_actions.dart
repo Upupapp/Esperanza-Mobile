@@ -13,9 +13,23 @@ import '../widgets/restricted_feature_notice.dart';
 /// viewer's open action itself. Shared by [PostCard] and [PostImageViewer]
 /// so both surfaces enforce the exact same rule instead of two copies
 /// quietly drifting apart.
-void requireAccountForBalita(BuildContext context, String featureName, VoidCallback action) {
+///
+/// [minLevel] defaults to [AccessLevel.verified] (react/comment/share's own
+/// long-standing rule) but is overridable — posting a community post is a
+/// real, separately-gated capability on the backend
+/// (`CitizenCapabilities::COMMUNITY_POST`, minimum `AccessLevel.unverified`,
+/// confirmed against the backend directly), looser than the mobile app's
+/// own react/comment/share gate. Callers pass [AccessLevel.unverified] for
+/// that, not [AccessLevel.verified] — loosening the default here would
+/// change react/comment/share's own policy, which is not this change.
+void requireAccountForBalita(
+  BuildContext context,
+  String featureName,
+  VoidCallback action, {
+  AccessLevel minLevel = AccessLevel.verified,
+}) {
   final level = context.read<CitizenSessionService>().accessLevel;
-  if (level != AccessLevel.verified) {
+  if (level.index < minLevel.index) {
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => RestrictedFeatureNotice(

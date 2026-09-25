@@ -23,7 +23,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'package:esperanza_mobile/services/balita_service.dart';
 import 'package:esperanza_mobile/services/citizen_session_service.dart';
 import 'package:esperanza_mobile/services/master_file_service.dart';
 import 'package:esperanza_mobile/services/notifications_service.dart';
@@ -96,13 +95,6 @@ void main() {
       expect(PersistenceRecovery.discards.single.keys, ['esperanza_citizen_session']);
     });
 
-    testWidgets('BalitaService survives a non-JSON payload', (tester) async {
-      SharedPreferences.setMockInitialValues({'esperanza_balita_posts': _notJson});
-
-      final balita = BalitaService();
-      await _settle(tester, () => balita.loaded, 'BalitaService');
-    });
-
     testWidgets('MasterFileService survives a payload of the wrong type', (tester) async {
       SharedPreferences.setMockInitialValues({'esperanza_master_file_documents': '["a list, not a map"]'});
 
@@ -168,4 +160,8 @@ void main() {
   // no longer exists to regression-test. ServiceRequest.fromJson's own
   // fallback behavior is still covered directly, unit-level, in
   // service_category_unknown_test.dart.
+  //
+  // BalitaService's own case here was removed the same way -- it no longer
+  // persists or restores anything either (same programme), so there is
+  // nothing left for a corrupt esperanza_balita_posts payload to threaten.
 }

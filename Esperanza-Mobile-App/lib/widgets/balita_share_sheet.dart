@@ -10,25 +10,27 @@ import 'app_dialogs.dart';
 
 /// Social-share chooser opened from Balita's Share action — a small sheet
 /// of practical destinations rather than jumping straight to the OS share
-/// sheet. There's no real backend/URL for a Balita post (no server, no
-/// public link), so every destination shares the same plain-text summary
-/// [_shareText] already used by the plain native-share path; app-specific
-/// entries just pre-target that text at each app's own share intent
-/// instead of making the citizen pick it out of a full OS chooser.
+/// sheet. There's no real share-count endpoint (a citizen's own like/
+/// comment/report are all real now, but nothing increments `shares` server-
+/// side — confirmed against the backend directly, not assumed), so every
+/// destination shares the same plain-text summary [_shareText]; app-
+/// specific entries just pre-target that text at each app's own share
+/// intent instead of making the citizen pick it out of a full OS chooser.
+/// The share action itself is real (it's a genuine OS share/deep-link),
+/// only the "N shares" counter it used to bump locally is gone.
 ///
-/// Frontend simulation only — this never crashes when a platform app isn't
-/// installed (common on the emulator this is tested on): each app entry
-/// tries its own `url_launcher` scheme first and falls back to the native
-/// share sheet the moment `canLaunchUrl` says no, rather than assuming the
-/// app exists.
+/// This never crashes when a platform app isn't installed (common on the
+/// emulator this is tested on): each app entry tries its own `url_launcher`
+/// scheme first and falls back to the native share sheet the moment
+/// `canLaunchUrl` says no, rather than assuming the app exists.
 class BalitaShareSheet {
   BalitaShareSheet._();
 
-  static Future<void> show(BuildContext context, Announcement post, VoidCallback onShared) {
+  static Future<void> show(BuildContext context, Announcement post) {
     return showModalBottomSheet<void>(
       context: context,
       backgroundColor: Colors.transparent,
-      builder: (_) => _ShareSheet(post: post, onShared: onShared),
+      builder: (_) => _ShareSheet(post: post),
     );
   }
 }
@@ -41,15 +43,11 @@ String _shareText(Announcement post) {
 
 class _ShareSheet extends StatelessWidget {
   final Announcement post;
-  final VoidCallback onShared;
-  const _ShareSheet({required this.post, required this.onShared});
+  const _ShareSheet({required this.post});
 
   Future<void> _launchOrFallback(BuildContext context, Uri uri) async {
     final launched = await canLaunchUrl(uri) && await launchUrl(uri, mode: LaunchMode.externalApplication);
-    if (launched) {
-      onShared();
-      return;
-    }
+    if (launched) return;
     // App isn't installed (or the platform refused the scheme, common on
     // an emulator) — never a dead tap, always land somewhere useful.
     if (!context.mounted) return;
@@ -63,13 +61,11 @@ class _ShareSheet extends StatelessWidget {
     await SharePlus.instance.share(
       ShareParams(text: _shareText(post), subject: 'Balita: $who', sharePositionOrigin: origin),
     );
-    onShared();
   }
 
   Future<void> _copyLink(BuildContext context) async {
     await Clipboard.setData(ClipboardData(text: _shareText(post)));
     if (context.mounted) AppDialogs.toast(context, 'Link copied');
-    onShared();
   }
 
   @override

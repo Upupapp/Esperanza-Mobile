@@ -1,18 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../models/announcement.dart';
-import '../../services/citizen_session_service.dart';
+import '../../services/api_client.dart';
+import '../../services/balita_service.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_spacing.dart';
 
-/// Bottom sheet for viewing a post's comments and adding a local mock
-/// comment as the signed-in citizen. Purely local state — appended comments
-/// live only in the in-memory [Announcement] passed in from BalitaScreen.
+/// Bottom sheet for viewing a post's real comments (GET .../comments) and
+/// posting a new one (POST .../comments) as the signed-in citizen.
 class CommentsSheet extends StatefulWidget {
   final Announcement post;
-  final ValueChanged<PostComment> onSubmit;
 
-  const CommentsSheet({super.key, required this.post, required this.onSubmit});
+  const CommentsSheet({super.key, required this.post});
 
   @override
   State<CommentsSheet> createState() => _CommentsSheetState();
@@ -20,7 +19,15 @@ class CommentsSheet extends StatefulWidget {
 
 class _CommentsSheetState extends State<CommentsSheet> {
   final _controller = TextEditingController();
-  late final List<PostComment> _comments = List.of(widget.post.comments);
+  late Future<List<PostComment>> _future;
+  bool _sending = false;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _future = context.read<BalitaService>().loadComments(widget.post);
+  }
 
   @override
   void dispose() {
@@ -28,15 +35,30 @@ class _CommentsSheetState extends State<CommentsSheet> {
     super.dispose();
   }
 
-  void _send() {
+  Future<void> _send() async {
     final text = _controller.text.trim();
-    if (text.isEmpty) return;
-    final account = context.read<CitizenSessionService>().account;
-    final comment = PostComment(author: account?.fullName ?? 'You', body: text);
-    setState(() => _comments.add(comment));
-    widget.onSubmit(comment);
-    _controller.clear();
-    FocusScope.of(context).unfocus();
+    if (text.isEmpty || _sending) return;
+    setState(() {
+      _sending = true;
+      _error = null;
+    });
+    try {
+      final balita = context.read<BalitaService>();
+      final comment = await balita.addComment(widget.post, text);
+      if (!mounted) return;
+      setState(() {
+        _future = _future.then((list) => [...list, comment]);
+        _sending = false;
+      });
+      _controller.clear();
+      FocusScope.of(context).unfocus();
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _sending = false;
+        _error = e.message();
+      });
+    }
   }
 
   @override
@@ -70,76 +92,105 @@ class _CommentsSheetState extends State<CommentsSheet> {
               const SizedBox(height: 10),
               const Divider(height: 1),
               Flexible(
-                child: _comments.isEmpty
-                    ? const Padding(
+                child: FutureBuilder<List<PostComment>>(
+                  future: _future,
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState != ConnectionState.done) {
+                      return const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 40),
+                        child: Center(child: CircularProgressIndicator()),
+                      );
+                    }
+                    if (snapshot.hasError) {
+                      final err = snapshot.error;
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 40, horizontal: AppSpacing.xl),
+                        child: Text(
+                          err is ApiException ? err.message() : 'Could not load comments.',
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(fontSize: 12.5, color: AppColors.textMuted),
+                        ),
+                      );
+                    }
+                    final comments = snapshot.data ?? const [];
+                    if (comments.isEmpty) {
+                      return const Padding(
                         padding: EdgeInsets.symmetric(vertical: 40),
                         child: Text(
                           'No comments yet. Be the first to comment.',
                           style: TextStyle(fontSize: 12.5, color: AppColors.textMuted),
                         ),
-                      )
-                    : ListView.builder(
-                        shrinkWrap: true,
-                        padding: const EdgeInsets.fromLTRB(16, 14, 16, 8),
-                        itemCount: _comments.length,
-                        itemBuilder: (context, i) {
-                          final c = _comments[i];
-                          return Padding(
-                            padding: const EdgeInsets.only(bottom: 14),
-                            child: Row(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                CircleAvatar(
-                                  radius: 15,
-                                  backgroundColor: AppColors.slate100,
-                                  child: Text(
-                                    c.author.isNotEmpty ? c.author.substring(0, 1).toUpperCase() : '?',
-                                    style: const TextStyle(
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.w700,
-                                      color: AppColors.slate600,
-                                    ),
+                      );
+                    }
+                    return ListView.builder(
+                      shrinkWrap: true,
+                      padding: const EdgeInsets.fromLTRB(16, 14, 16, 8),
+                      itemCount: comments.length,
+                      itemBuilder: (context, i) {
+                        final c = comments[i];
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 14),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              CircleAvatar(
+                                radius: 15,
+                                backgroundColor: AppColors.slate100,
+                                child: Text(
+                                  c.author.isNotEmpty ? c.author.substring(0, 1).toUpperCase() : '?',
+                                  style: const TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w700,
+                                    color: AppColors.slate600,
                                   ),
                                 ),
-                                const SizedBox(width: 10),
-                                Expanded(
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: 10),
-                                    decoration: BoxDecoration(
-                                      color: AppColors.slate50,
-                                      borderRadius: BorderRadius.circular(14),
-                                    ),
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          c.author,
-                                          style: const TextStyle(
-                                            fontSize: 12,
-                                            fontWeight: FontWeight.w700,
-                                            color: AppColors.textPrimary,
-                                          ),
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: 10),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.slate50,
+                                    borderRadius: BorderRadius.circular(14),
+                                  ),
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        c.author,
+                                        style: const TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w700,
+                                          color: AppColors.textPrimary,
                                         ),
-                                        const SizedBox(height: 2),
-                                        Text(
-                                          c.body,
-                                          style: const TextStyle(
-                                            fontSize: 12.5,
-                                            color: AppColors.slate700,
-                                            height: 1.35,
-                                          ),
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        c.body,
+                                        style: const TextStyle(
+                                          fontSize: 12.5,
+                                          color: AppColors.slate700,
+                                          height: 1.35,
                                         ),
-                                      ],
-                                    ),
+                                      ),
+                                    ],
                                   ),
                                 ),
-                              ],
-                            ),
-                          );
-                        },
-                      ),
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+                    );
+                  },
+                ),
               ),
               const Divider(height: 1),
+              if (_error != null)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+                  child: Text(_error!, style: const TextStyle(fontSize: 12, color: AppColors.rose600)),
+                ),
               Padding(
                 padding: const EdgeInsets.fromLTRB(12, 10, 8, 10),
                 child: Row(
@@ -169,10 +220,16 @@ class _CommentsSheetState extends State<CommentsSheet> {
                       shape: const CircleBorder(),
                       child: InkWell(
                         customBorder: const CircleBorder(),
-                        onTap: _send,
-                        child: const Padding(
-                          padding: EdgeInsets.all(AppSpacing.md),
-                          child: Icon(Icons.send_rounded, size: 18, color: Colors.white),
+                        onTap: _sending ? null : _send,
+                        child: Padding(
+                          padding: const EdgeInsets.all(AppSpacing.md),
+                          child: _sending
+                              ? const SizedBox(
+                                  width: 18,
+                                  height: 18,
+                                  child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                                )
+                              : const Icon(Icons.send_rounded, size: 18, color: Colors.white),
                         ),
                       ),
                     ),

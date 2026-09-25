@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../../services/balita_service.dart';
 import '../../services/sign_out.dart';
 import '../../services/requests_service.dart';
 import '../../services/notifications_service.dart';
@@ -151,6 +152,7 @@ class ProfileScreen extends StatelessWidget {
               final profiles = context.read<ResidentProfileService>();
               final masterFile = context.read<MasterFileService>();
               final notifications = context.read<NotificationsService>();
+              final balita = context.read<BalitaService>();
               final ok = await AppDialogs.confirm(
                 context,
                 title: 'Sign out?',
@@ -171,6 +173,7 @@ class ProfileScreen extends StatelessWidget {
                   profiles: profiles,
                   masterFile: masterFile,
                   notifications: notifications,
+                  balita: balita,
                 );
               }
             },
