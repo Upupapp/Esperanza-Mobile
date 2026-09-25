@@ -1,17 +1,24 @@
-// Coverage for the seeded Educational Assistance (Tulong) demo request's
-// placeholder rejection reason and RequestDetailScreen's "Application
-// Rejected" panel: the reason/guidance display, Apply Again opening a
-// brand-new application without touching the original rejected request,
-// the new application getting its own reference number, and Apply Again
-// still respecting the Tulong eligibility rule (see utils/tulong_eligibility.dart)
-// when another active application for the same assistance also exists.
-import 'dart:convert';
+// Coverage for RequestDetailScreen's "Application Rejected" panel: the
+// reason/guidance display, Apply Again opening a brand-new application
+// without touching the original rejected request, the new application
+// getting its own reference number, and Apply Again still respecting the
+// Tulong eligibility rule (see utils/tulong_eligibility.dart) when another
+// active application for the same assistance also exists.
+//
+// The old seeded Educational Assistance demo request this used to reach for
+// (RequestsService(seedDemoData: true)) is gone along with the rest of
+// local demo seeding -- this now builds its own fixture request via
+// test/support/dokyu_tulong_fixtures.dart. The reason/guidance text is also
+// different from before: guidance is no longer a per-catalog-item
+// CatalogItem.demoRejectionReason-derived string (that field, and
+// ServiceRequest.rejectionGuidance, are both unused now) -- the panel
+// always builds a generic "Submit a new <service> application." from
+// typeName, and reason is the server's own real decision_remarks.
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'package:esperanza_mobile/models/service_request.dart';
 import 'package:esperanza_mobile/screens/shared/new_request_screen.dart';
 import 'package:esperanza_mobile/screens/shared/request_detail_screen.dart';
 import 'package:esperanza_mobile/screens/shared/service_request_wizard_screen.dart';
@@ -20,20 +27,29 @@ import 'package:esperanza_mobile/services/mock_catalog.dart';
 import 'package:esperanza_mobile/services/requests_service.dart';
 import 'package:esperanza_mobile/services/resident_profile_service.dart';
 
-const _verifiedDemoId = 'ESP-RES-2024-9002';
-const _verifiedDemoName = 'Perlita Quiambao';
+import 'support/dokyu_tulong_fixtures.dart';
+import 'support/fake_api.dart';
+
 const _rejectionReason = 'Submitted school enrollment document could not be verified for the current academic '
     'term. Please submit an updated Certificate of Enrollment or Registration issued by the school.';
-const _rejectionGuidance = 'Upload an updated school document and submit a new Educational Assistance application.';
+const _rejectedRef = 'AR-2026-DEMO06';
 
-Future<RequestsService> _readyRequests(WidgetTester tester, {required bool seedDemoData}) async {
-  final requests = RequestsService(seedDemoData: seedDemoData);
-  var attempts = 0;
-  while (!requests.loaded) {
-    attempts++;
-    if (attempts > 100) throw StateError('RequestsService never finished loading.');
-    await tester.pump(const Duration(milliseconds: 1));
-  }
+Map<String, dynamic> _rejectedEducationalAssistance({String? decisionRemarks = _rejectionReason}) => {
+  'ref': _rejectedRef,
+  'type': 'tulong',
+  'service': 'Educational Assistance',
+  'status': 'Rejected',
+  'submitted': '2026-01-01T00:00:00.000',
+  'office': 'Office of the Municipal Mayor',
+  'decision_remarks': decisionRemarks,
+};
+
+Future<RequestsService> _readyRequests(WidgetTester tester, List<Map<String, dynamic>> seeded) async {
+  SharedPreferences.setMockInitialValues({});
+  DokyuTulongFixtures.install(requests: seeded);
+  final requests = RequestsService();
+  await requests.loadRequests();
+  await requests.loadCatalog(); // Apply Again looks the item up from here.
   return requests;
 }
 
@@ -74,24 +90,21 @@ Future<void> _pumpDetail(
 }
 
 void main() {
-  group('Seeded Educational Assistance rejection placeholder', () {
-    testWidgets('Application Rejected panel shows the exact reason, guidance, and an Apply Again button', (
+  tearDown(FakeApi.restore);
+
+  group('Rejected Educational Assistance application', () {
+    testWidgets('Application Rejected panel shows the reason, generic guidance, and an Apply Again button', (
       tester,
     ) async {
-      SharedPreferences.setMockInitialValues({});
-      final requests = await _readyRequests(tester, seedDemoData: true);
+      final requests = await _readyRequests(tester, [_rejectedEducationalAssistance()]);
       final session = await _signedInAsVerifiedDemo(tester);
 
-      await _pumpDetail(tester, requests, session, 'demo-tulong-educational');
+      await _pumpDetail(tester, requests, session, _rejectedRef);
 
       expect(find.text('Application Rejected'), findsOneWidget);
-      // The same reason also appears inline in the request's own status
-      // timeline (the Rejected milestone's own remarks — set to match
-      // adminRemarks, the same convention rejectDemo() already uses) — the
-      // panel itself is what findsWidgets confirms is present at all.
       expect(find.text(_rejectionReason), findsWidgets);
       expect(find.text('What you can do:'), findsOneWidget);
-      expect(find.text(_rejectionGuidance), findsOneWidget);
+      expect(find.text('Submit a new Educational Assistance application.'), findsOneWidget);
       expect(find.text('Apply Again'), findsOneWidget);
       expect(tester.takeException(), isNull);
     });
@@ -99,13 +112,10 @@ void main() {
     testWidgets('Apply Again opens a brand-new Educational Assistance application, old request untouched', (
       tester,
     ) async {
-      SharedPreferences.setMockInitialValues({});
-      final requests = await _readyRequests(tester, seedDemoData: true);
+      final requests = await _readyRequests(tester, [_rejectedEducationalAssistance()]);
       final session = await _signedInAsVerifiedDemo(tester);
-      final original = requests.all.firstWhere((r) => r.id == 'demo-tulong-educational');
-      final originalRef = original.referenceNumber;
 
-      await _pumpDetail(tester, requests, session, 'demo-tulong-educational');
+      await _pumpDetail(tester, requests, session, _rejectedRef);
       await tester.ensureVisible(find.text('Apply Again'));
       await tester.tap(find.text('Apply Again'));
       await tester.pumpAndSettle();
@@ -115,37 +125,36 @@ void main() {
       expect(find.byType(ServiceRequestWizardScreen), findsOneWidget);
       expect(find.byType(NewRequestScreen), findsNothing);
 
-      // The original rejected request is completely unchanged.
-      final stillThere = requests.all.firstWhere((r) => r.id == 'demo-tulong-educational');
+      // The original rejected request is completely unchanged -- nothing
+      // in Apply Again mutates it, local or remote.
+      final stillThere = requests.all.firstWhere((r) => r.referenceNumber == _rejectedRef);
       expect(stillThere.status, 'Rejected');
-      expect(stillThere.referenceNumber, originalRef);
       expect(stillThere.adminRemarks, _rejectionReason);
     });
 
     testWidgets('submitting the reapplication creates a new request with its own reference number', (tester) async {
-      SharedPreferences.setMockInitialValues({});
-      final requests = await _readyRequests(tester, seedDemoData: true);
-
+      final requests = await _readyRequests(tester, [_rejectedEducationalAssistance()]);
       final before = requests.all.length;
 
-      // Submit directly through the service (same architecture proven by
-      // the wizard's own submit flow) — this test's own focus is the
-      // history/reference-number guarantee, not re-driving the whole form.
+      DokyuTulongFixtures.install(
+        requests: [_rejectedEducationalAssistance()],
+        onSubmit: (body) => {
+          'ref': 'AR-2026-0099',
+          'type': 'tulong',
+          'service': 'Educational Assistance',
+          'status': 'Submitted',
+          'submitted': '2026-03-01T00:00:00.000',
+        },
+      );
+
       final reapplied = await requests.submit(
-        applicantId: _verifiedDemoId,
-        applicantName: _verifiedDemoName,
-        typeName: 'Educational Assistance',
-        category: ServiceCategory.tulong,
-        office: 'Office of the Municipal Mayor',
-        purpose: 'Tuition and allowance support — updated enrollment document attached',
-        expectedDays: '10-15 working days',
-        attachments: const [],
+        serviceKey: 'tulong_educational',
+        formData: {'purpose': 'Tuition and allowance support — updated enrollment document attached'},
       );
 
       expect(requests.all.length, before + 1);
-      expect(reapplied.id, isNot('demo-tulong-educational'));
-      final original = requests.all.firstWhere((r) => r.id == 'demo-tulong-educational');
-      expect(reapplied.referenceNumber, isNot(original.referenceNumber));
+      expect(reapplied.referenceNumber, isNot(_rejectedRef));
+      final original = requests.all.firstWhere((r) => r.referenceNumber == _rejectedRef);
       expect(original.status, 'Rejected'); // preserved in history, unchanged
       expect(reapplied.status, 'Submitted');
     });
@@ -153,45 +162,17 @@ void main() {
     testWidgets('Apply Again still respects the Tulong eligibility rule when another application is active', (
       tester,
     ) async {
-      final rejected = ServiceRequest(
-        id: 'demo-tulong-educational',
-        referenceNumber: 'AR-2026-DEMO06',
-        applicantId: _verifiedDemoId,
-        applicantName: _verifiedDemoName,
-        typeName: 'Educational Assistance',
-        category: ServiceCategory.tulong,
-        office: 'Office of the Municipal Mayor',
-        purpose: 'Tuition and allowance support',
-        submittedAt: DateTime(2026, 1, 1),
-        status: 'Rejected',
-        statusHistory: [StatusHistoryEntry(status: 'Rejected', at: DateTime(2026, 1, 1), actor: 'Office of the Municipal Mayor Staff', remarks: _rejectionReason)],
-        attachments: const [],
-        expectedDays: '10-15 working days',
-        adminRemarks: _rejectionReason,
-        rejectionGuidance: _rejectionGuidance,
-      );
-      final active = ServiceRequest(
-        id: 'req-active-educational',
-        referenceNumber: 'AR-2026-0002',
-        applicantId: _verifiedDemoId,
-        applicantName: _verifiedDemoName,
-        typeName: 'Educational Assistance',
-        category: ServiceCategory.tulong,
-        office: 'Office of the Municipal Mayor',
-        purpose: 'Tuition and allowance support — reapplied',
-        submittedAt: DateTime(2026, 2, 1),
-        status: 'Pending Review',
-        statusHistory: [StatusHistoryEntry(status: 'Pending Review', at: DateTime(2026, 2, 1), actor: 'Citizen')],
-        attachments: const [],
-        expectedDays: '10-15 working days',
-      );
-      SharedPreferences.setMockInitialValues({
-        'esperanza_service_requests': jsonEncode([rejected.toJson(), active.toJson()]),
-      });
-      final requests = await _readyRequests(tester, seedDemoData: false);
+      final active = {
+        'ref': 'AR-2026-0002',
+        'type': 'tulong',
+        'service': 'Educational Assistance',
+        'status': 'Pending Review',
+        'submitted': '2026-02-01T00:00:00.000',
+      };
+      final requests = await _readyRequests(tester, [_rejectedEducationalAssistance(), active]);
       final session = await _signedInAsVerifiedDemo(tester);
 
-      await _pumpDetail(tester, requests, session, 'demo-tulong-educational');
+      await _pumpDetail(tester, requests, session, _rejectedRef);
       await tester.ensureVisible(find.text('Apply Again'));
       await tester.tap(find.text('Apply Again'));
       await tester.pumpAndSettle();
@@ -204,29 +185,20 @@ void main() {
   });
 
   group('Application Rejected panel gating', () {
-    testWidgets('does not show for a Rejected request with no adminRemarks on file', (tester) async {
-      final noReason = ServiceRequest(
-        id: 'req-no-reason',
-        referenceNumber: 'DR-2026-0001',
-        applicantId: _verifiedDemoId,
-        applicantName: _verifiedDemoName,
-        typeName: 'Certificate of Indigency',
-        category: ServiceCategory.dokyu,
-        office: 'Municipal Social Welfare and Development Office',
-        purpose: 'Medical Assistance',
-        submittedAt: DateTime(2026, 1, 1),
-        status: 'Rejected',
-        statusHistory: [StatusHistoryEntry(status: 'Rejected', at: DateTime(2026, 1, 1), actor: 'MSWDO Staff')],
-        attachments: const [],
-        expectedDays: '2-3 working days',
-      );
-      SharedPreferences.setMockInitialValues({
-        'esperanza_service_requests': jsonEncode([noReason.toJson()]),
-      });
-      final requests = await _readyRequests(tester, seedDemoData: false);
+    testWidgets('does not show for a Rejected request with no decision_remarks on file', (tester) async {
+      final noReason = {
+        'ref': 'DR-2026-0001',
+        'type': 'dokyu',
+        'service': 'Certificate of Indigency',
+        'status': 'Rejected',
+        'submitted': '2026-01-01T00:00:00.000',
+        'office': 'Municipal Social Welfare and Development Office',
+        'decision_remarks': null,
+      };
+      final requests = await _readyRequests(tester, [noReason]);
       final session = await _signedInAsVerifiedDemo(tester);
 
-      await _pumpDetail(tester, requests, session, 'req-no-reason');
+      await _pumpDetail(tester, requests, session, 'DR-2026-0001');
 
       expect(find.text('Application Rejected'), findsNothing);
       expect(find.text('Apply Again'), findsNothing);
