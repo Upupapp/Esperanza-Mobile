@@ -15,18 +15,30 @@
 //
 // Run:
 //   flutter test integration_test/app_walk_test.dart -d <simulator-udid>
-import 'dart:convert';
-
+//
+// To walk as a signed-in verified citizen rather than a Guest, pass real
+// staging credentials:
+//   flutter test integration_test/app_walk_test.dart -d <simulator-udid> \
+//     --dart-define=WALK_EMAIL=... --dart-define=WALK_PASSWORD=...
+// Without them the walk runs as Guest and reports as much -- see the
+// "Sign in" section below. This is a change from before real auth existed
+// (production-readiness programme, 2026-09-25): the walk used to tap a
+// "Perlita Quiambao" demo-account card that signed in instantly with no
+// credentials; those cards are gone (a real credential-enumeration surface
+// once sign-in talks to a database), so there is no way to reach a
+// genuinely verified citizen's screens here without a real account.
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:esperanza_mobile/main.dart' as app;
-import 'package:esperanza_mobile/models/attachment.dart';
-import 'package:esperanza_mobile/models/master_file_document.dart';
-import 'package:esperanza_mobile/services/mock_catalog.dart';
-import 'package:esperanza_mobile/utils/requirement_document_type.dart';
+
+/// Real staging credentials, supplied at `flutter test` time -- see this
+/// file's own header comment. Neither has a real default; both empty means
+/// "run as Guest."
+const _walkEmail = String.fromEnvironment('WALK_EMAIL');
+const _walkPassword = String.fromEnvironment('WALK_PASSWORD');
 
 /// Screens actually reached, so the report states a measured number rather than
 /// an intended one.
@@ -147,12 +159,20 @@ Future<void> _viaDrawer(WidgetTester tester, String label, Finder marker) async 
 /// Drives a service request all the way through the wizard to submission.
 ///
 /// The walk previously stopped at the catalogue, which is the point at which
-/// nothing interesting has happened yet: the wizard is where the forms, the
-/// validation, the requirement attachments and the receipt live, and it is the
-/// only part of this app a citizen actually has to complete.
+/// nothing interesting has happened yet: the wizard is where the forms and
+/// the validation live, and it is the only part of this app a citizen
+/// actually has to complete.
 ///
-/// A free service is used deliberately — a paid one diverts through a payment
-/// step whose "Confirm Payment" button is a different flow worth its own pass.
+/// Submission now hits the real API (POST /citizen/requests, production-
+/// readiness programme, 2026-09-25) rather than a local simulation -- there
+/// is no fake backend seam in an integration_test run (flutter_test_config.dart
+/// only installs one for `flutter test`), so this genuinely posts to
+/// whatever API_BASE_URL points at. There is also no Payment step to divert
+/// through anymore for a paid service (receipt issuance is admin-only, so
+/// the wizard never collects a payment method at all) -- the free-vs-paid
+/// distinction that used to matter for picking a service here no longer
+/// applies, but Certificate of Indigency (free) is kept anyway since it is
+/// still the simplest real submission to drive end to end.
 Future<void> _completeDokyuRequest(WidgetTester tester) async {
   await _goHome(tester);
   if (!await _tapIfPresent(tester, find.byIcon(Icons.add_rounded), 'Wizard: "+" launcher')) return;
@@ -180,14 +200,6 @@ Future<void> _completeDokyuRequest(WidgetTester tester) async {
       await _popToShell(tester);
       return;
     }
-    // On the Requirements step each requirement offers "Use Existing Document"
-    // because the Master File was pre-filled; take every one that is offered.
-    while (find.text('Use Existing Document').evaluate().isNotEmpty) {
-      if (!await _tapIfPresent(tester, find.text('Use Existing Document'), 'Wizard: use existing document')) {
-        break;
-      }
-    }
-
     final screen = _visibleText(tester).join('|');
     if (screen == lastScreen) {
       problems.add('WIZARD STALLED at step $step — Continue did not advance. '
@@ -204,48 +216,17 @@ void main() {
   final binding = IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 
   setUpAll(() async {
-    // Start from a first-run state so the walk always covers onboarding, but
-    // pre-file the documents the Certificate of Indigency wizard requires.
+    // Start from a first-run state so the walk always covers onboarding.
     //
-    // Without them the wizard correctly refuses to submit ("Please attach:
-    // ...") and the walk cannot get past its Requirements step, because
-    // attaching means the platform file picker, which no automated walk can
-    // drive. With them the uploader offers "Use Existing Document" from the
-    // resident's Master File instead — the same path a returning citizen
-    // takes, so this covers a real journey rather than inventing a shortcut.
-    //
-    // The document types are resolved with the app's own `resolveRequirements`
-    // against the catalogue's own requirement text, so a change to either
-    // shows up here as a stalled wizard rather than a silently wrong fixture.
-    // The verified demo account, taken from the catalogue rather than pasted,
-    // so renaming or re-ordering the demo identities cannot silently orphan
-    // these documents against an account id that no longer exists.
-    final verifiedDemoAccountId = MockCatalog.demoAccounts.last.id;
-    final indigency = MockCatalog.documentTypes.firstWhere((i) => i.key == 'dokyu_indigency');
-    final uploadable = resolveRequirements(indigency.requirements).where((r) => r.requiresUpload);
-
-    final docs = <Map<String, dynamic>>[
-      for (final req in uploadable)
-        MasterFileDocument(
-          id: 'walk-${req.documentType}',
-          documentType: req.documentType,
-          label: req.label,
-          attachment: Attachment(
-            id: 'walk-att-${req.documentType}',
-            fileName: '${req.documentType}.pdf',
-            category: AttachmentCategory.pdf,
-            sizeBytes: 1024,
-            addedAt: DateTime(2026, 3, 1),
-            documentTypeLabel: req.label,
-          ),
-          uploadedAt: DateTime(2026, 3, 1),
-          origin: 'Walk fixture',
-        ).toJson(),
-    ];
-
-    SharedPreferences.setMockInitialValues({
-      'esperanza_master_file_documents': jsonEncode({verifiedDemoAccountId: docs}),
-    });
+    // This used to also pre-file the Certificate of Indigency wizard's
+    // requirement documents into the resident's Master File, so its
+    // Requirements step could offer "Use Existing Document" instead of
+    // stalling on a missing attachment. That step is informational-only
+    // now -- nothing to attach, nothing gates Continue (production-
+    // readiness programme, 2026-09-25: POST /citizen/requests has no
+    // attachments field at all) -- so there is nothing left for a pre-filed
+    // document to unblock.
+    SharedPreferences.setMockInitialValues({});
   });
 
   /// The walk itself, so it can be replayed under different conditions.
@@ -266,13 +247,28 @@ void main() {
     // ── Onboarding ───────────────────────────────────────────────────────
     await _tapIfPresent(tester, find.text('Skip'), 'Onboarding: Skip');
 
-    // ── Sign in as the verified demo citizen ─────────────────────────────
-    // Perlita Quiambao is the verified synthetic identity introduced by FE 02.
+    // ── Sign in ───────────────────────────────────────────────────────────
+    // Real credentials (see this file's own header) sign in as an actual
+    // verified citizen via the real form; without them the walk runs as
+    // Guest and says so plainly, rather than silently covering a smaller
+    // surface than its own report implies.
     _confirm(tester, 'Sign in', find.text('Welcome back'));
-    // textContaining('Perlita') also matches "Demo: Duplicate Perlita Account";
-    // the exact full name is the verified account's own card.
-    final verified = find.text('Perlita Quiambao');
-    if (!await _tapIfPresent(tester, verified, 'Sign in: tap verified demo account')) {
+    if (_walkEmail.isNotEmpty && _walkPassword.isNotEmpty) {
+      final fields = find.byType(TextField);
+      await tester.enterText(fields.at(0), _walkEmail);
+      await tester.enterText(fields.at(1), _walkPassword);
+      await _tapIfPresent(tester, find.text('Sign In'), 'Sign in: submit credentials');
+      await _settle(tester, seconds: 5);
+      if (find.text('Welcome back').evaluate().isNotEmpty) {
+        problems.add('SIGN-IN FAILED with the supplied WALK_EMAIL/WALK_PASSWORD -- '
+            'still on the sign-in screen. Falling back to Guest.');
+        await _tapIfPresent(tester, find.text('Continue as Guest'), 'Sign in: Continue as Guest (fallback)');
+      }
+    } else {
+      problems.add('No WALK_EMAIL/WALK_PASSWORD supplied -- walking as Guest. '
+          'Screens that require a verified citizen (Dokyu, Tulong, My Requests, Digital ID, '
+          'the submission flow) are not reachable this way and will report NOT REACHED below, '
+          'which is expected, not a regression.');
       await _tapIfPresent(tester, find.text('Continue as Guest'), 'Sign in: Continue as Guest');
     }
     await _settle(tester, seconds: 5);
@@ -312,7 +308,9 @@ void main() {
     await _viaDrawer(tester, 'Profile', find.byType(Scaffold));
     await _viaDrawer(tester, 'Settings', find.byType(Scaffold));
     await _viaDrawer(tester, 'My Requests', find.byType(Scaffold));
-    await _viaDrawer(tester, 'Transactions', find.byType(Scaffold));
+    // Transactions is gone -- receipt issuance is admin-only, so the
+    // Payment/receipt feature it displayed was removed outright (production-
+    // readiness programme, 2026-09-25), not converted.
     await _viaDrawer(tester, 'Digital ID', find.byType(Scaffold));
     await _viaDrawer(tester, 'Documents Uploaded', find.byType(Scaffold));
     await _viaDrawer(tester, 'Government Directory', find.byType(Scaffold));
