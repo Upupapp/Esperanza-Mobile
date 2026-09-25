@@ -230,4 +230,9 @@ class ApiClient {
 
 /// One shared instance, exactly like the web client's default export — every
 /// service in this app calls this rather than constructing its own.
-final ApiClient api = ApiClient();
+///
+/// Mutable (not `final`) so widget tests can swap in an [ApiClient] built on
+/// `package:http/testing.dart`'s `MockClient` instead of hitting the real
+/// network, then restore the real instance in `tearDown` — see
+/// `test/support/fake_api.dart`. Production code never reassigns this.
+ApiClient api = ApiClient();
