@@ -1,3 +1,5 @@
+import 'package:intl/intl.dart';
+
 /// Mirrors one post from config/esperanza_balita.php ('Balita' = news in
 /// Filipino) as consumed by citizen/announcements.blade.php and the
 /// dashboard's Balita preview. Likes/comments/shares/new posts are a pure
@@ -150,6 +152,32 @@ class EventItem {
     this.imagePath,
     this.category,
   });
+
+  /// GET /events (PublicContentController::events()) -- key/name/title/
+  /// date/time/venue/barangay/category/recurrence/timezone. `title` falls
+  /// back to `name` exactly like the Web Admin's own citizen/events.blade.php
+  /// (`e.title || e.name`) -- that file is the contract for which of the
+  /// two is authoritative, not a guess made independently here.
+  ///
+  /// [imagePath] is always null: the real `events` table has no poster/image
+  /// column at all (confirmed against app/Models/Event.php, not assumed),
+  /// unlike MockCatalog's own seed events, which bundle real poster artwork
+  /// for genuine past municipal events. EventCard already treats it as
+  /// optional, so a real event renders as a text-only card rather than
+  /// missing its poster silently -- there is no image to fall back to.
+  factory EventItem.fromApi(Map<String, dynamic> json) {
+    final rawDate = json['date'] as String?;
+    final parsed = rawDate != null ? DateTime.tryParse(rawDate) : null;
+    return EventItem(
+      title: (json['title'] as String?)?.trim().isNotEmpty == true
+          ? json['title'] as String
+          : (json['name'] as String? ?? ''),
+      date: parsed != null ? DateFormat('MMM d, yyyy').format(parsed) : (rawDate ?? ''),
+      time: json['time'] as String? ?? '',
+      venue: json['venue'] as String? ?? '',
+      category: json['category'] as String?,
+    );
+  }
 }
 
 /// A government office entry, mirroring citizen/directory.blade.php.

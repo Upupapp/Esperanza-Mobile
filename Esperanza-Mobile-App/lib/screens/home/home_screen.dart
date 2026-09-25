@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../../models/announcement.dart';
 import '../../models/citizen_account.dart';
 import '../../models/service_request.dart';
+import '../../services/api_client.dart';
 import '../../services/citizen_session_service.dart';
-import '../../services/mock_catalog.dart';
 import '../../services/requests_service.dart';
 import '../../services/resident_profile_service.dart';
 import '../../theme/app_colors.dart';
@@ -44,6 +45,28 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   final _scrollController = ScrollController();
   bool _bannerOffered = false;
+
+  // Fetched once per session-entry, same as _bannerOffered above (RootShell
+  // keeps this screen alive via IndexedStack) -- a plain Future, not
+  // AsyncStateView, since this is a small teaser tucked inside a much
+  // larger dashboard: a fetch failure here should just show nothing,
+  // never a full-screen error/retry state that blocks everything else on
+  // Home (see sakuna_screen.dart's own doc comment on this exact class of
+  // mistake).
+  late final Future<List<EventItem>> _eventsFuture = _loadEvents();
+
+  Future<List<EventItem>> _loadEvents() async {
+    try {
+      final res = await api.get('/events', query: {'per_page': 2});
+      return res.list.map((e) => EventItem.fromApi(e as Map<String, dynamic>)).toList();
+    } on ApiException {
+      // Caught, not rethrown: this teaser has no retry affordance of its
+      // own (see the class-level doc comment), so a failure here should
+      // read as "nothing to preview right now," not an error the rest of
+      // Home has to account for.
+      return const [];
+    }
+  }
 
   @override
   void initState() {
@@ -216,7 +239,15 @@ class _HomeScreenState extends State<HomeScreen> {
                 actionLabel: 'View all',
                 onAction: () => RootShell.jumpTo(context, 2), // Events — see RootShell's 4-tab index space
               ),
-              for (final e in MockCatalog.events.take(2)) EventCard(event: e, compact: true),
+              FutureBuilder<List<EventItem>>(
+                future: _eventsFuture,
+                builder: (context, snapshot) {
+                  final events = snapshot.data ?? const <EventItem>[];
+                  return Column(
+                    children: [for (final e in events) EventCard(event: e, compact: true)],
+                  );
+                },
+              ),
             ],
           ),
         ),

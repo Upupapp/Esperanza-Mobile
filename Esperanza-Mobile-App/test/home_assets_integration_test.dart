@@ -1,7 +1,7 @@
 // Verifies the new asset integration: the post-entry Home_Banner pop-up
 // (shows once, dismissible, doesn't reopen on ordinary rebuilds), the
 // Balita/News section being gone from Home, the white notification bell
-// on Home, the five real event posters rendering as separate cards (not
+// on Home, several distinct events rendering as separate cards (not
 // merged into one container), and the mangrove-award News item appearing
 // in the dedicated Balita tab.
 import 'package:flutter/material.dart';
@@ -9,9 +9,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:esperanza_mobile/main.dart';
-import 'package:esperanza_mobile/screens/shared/event_poster_viewer.dart';
 import 'package:esperanza_mobile/widgets/event_card.dart';
 import 'package:esperanza_mobile/widgets/home_welcome_banner.dart';
+
+import 'support/fake_api.dart';
 
 /// Unwraps the `ResizeImage` that `Image.asset(..., cacheWidth: ...)` now
 /// wraps its `AssetImage` in (a performance optimization — decode at
@@ -42,11 +43,25 @@ Future<void> _dismissPromotionalBanner(WidgetTester tester) async {
   }
 }
 
+// GET /events (PublicContentController::events()) -- key/name/title/date/
+// time/venue/barangay/category/recurrence/timezone, never an image: the
+// real `events` table has no poster column at all (see
+// EventItem.fromApi's own doc comment), unlike the MockCatalog fixtures
+// this file used to seed itself from, which bundled real poster artwork.
+const _seededEvents = [
+  {'key': 'ev-1', 'title': 'Barangay Health Fair', 'date': '2026-08-03', 'time': '8:00 AM', 'venue': 'Barangay Baras Covered Court'},
+  {'key': 'ev-2', 'title': 'Livelihood Skills Training', 'date': '2026-08-07', 'time': '9:00 AM', 'venue': 'Municipal Hall Annex'},
+  {'key': 'ev-3', 'title': 'Basketball League Finals', 'date': '2026-08-12', 'time': '6:00 PM', 'venue': 'Felimon S. Conag Cultural and Sports Center'},
+  {'key': 'ev-4', 'title': 'Senior Citizens Assembly', 'date': '2026-08-13', 'time': '1:00 PM', 'venue': 'OSCA Hall'},
+  {'key': 'ev-5', 'title': 'Fiesta ng Esperanza Opening', 'date': '2026-08-21', 'time': '2:00 PM', 'venue': 'Municipal Plaza'},
+];
+
 Future<void> _enterAsGuest(WidgetTester tester) async {
   // Onboarding-complete pre-seeded: this suite exercises the normal
   // returning-user flow, not the first-run Onboarding screens — see
   // onboarding_flow_test.dart for that.
   SharedPreferences.setMockInitialValues({'esperanza_onboarding_complete': true});
+  FakeApi.install((path, query) => path == '/events' ? _seededEvents : const <Map<String, dynamic>>[]);
   _setPhoneViewport(tester);
   await tester.pumpWidget(const EsperanzaMobileApp());
   await tester.pumpAndSettle();
@@ -56,6 +71,8 @@ Future<void> _enterAsGuest(WidgetTester tester) async {
 }
 
 void main() {
+  tearDown(FakeApi.restore);
+
   testWidgets('Home_Banner pop-up appears after entering Home, over a dimmed background, not distorted', (
     tester,
   ) async {
@@ -108,7 +125,7 @@ void main() {
     expect(find.text('Notifications'), findsOneWidget);
   });
 
-  testWidgets('all 5 real event posters render as separate cards on the Events tab, not merged into one container', (
+  testWidgets('all 5 events render as separate cards on the Events tab, not merged into one container, with no poster affordance', (
     tester,
   ) async {
     await _enterAsGuest(tester);
@@ -120,27 +137,23 @@ void main() {
     await _dismissPromotionalBanner(tester); // Events tab's own promotional popup
 
     // The Events ListView only inflates elements near the viewport (a
-    // plain ListView(children:...) still lazily builds its Sliver
-    // elements), so this sweeps the full scroll range checking for every
-    // title at each step, rather than searching for titles one at a time
-    // in sequence. Searching sequentially (each search resuming from
-    // wherever the previous one stopped) let the accumulated scroll
-    // position run past the last card's narrow "still built" window
-    // before ever looking for it — not a bug in the cards themselves, just
-    // an artifact of chaining several finds together. Driving the
-    // scrollable's position directly (rather than gesture-based dragging)
-    // sidesteps both that accumulation and Flutter's touch-slop, which
-    // makes any single drag smaller than ~18px liable to be interpreted as
-    // a tap instead of a scroll — on an EventCard, that tap opens the full
-    // poster viewer, an unrelated screen with no Scrollable at all.
+    // plain ListView.builder still lazily builds its Sliver elements), so
+    // this sweeps the full scroll range checking for every title at each
+    // step, rather than searching for titles one at a time in sequence.
+    // Searching sequentially (each search resuming from wherever the
+    // previous one stopped) let the accumulated scroll position run past
+    // the last card's narrow "still built" window before ever looking for
+    // it — not a bug in the cards themselves, just an artifact of chaining
+    // several finds together. Driving the scrollable's position directly
+    // (rather than gesture-based dragging) sidesteps that accumulation.
     final scrollable = find.byType(Scrollable).last;
     final position = tester.state<ScrollableState>(scrollable).position;
     const titles = [
-      'Baras vs Tunga',
-      'Sorosimbajan vs Labangtaytay',
-      'Tawad vs Santiago',
-      'Pa Jollibee ug Sorbetes ni Mayor JJ!',
-      'Mega Shoe Caravan',
+      'Barangay Health Fair',
+      'Livelihood Skills Training',
+      'Basketball League Finals',
+      'Senior Citizens Assembly',
+      'Fiesta ng Esperanza Opening',
     ];
     final seen = <String>{};
     for (double p = 0; p <= position.maxScrollExtent; p += 20) {
@@ -159,16 +172,15 @@ void main() {
     expect(seen, titles.toSet());
     expect(tester.takeException(), isNull);
 
-    // Tapping one opens the full poster viewer for that specific event —
-    // scroll back to the top first (the first card is comfortably clear
-    // of the AppBar, unlike the last one after scrolling to the bottom)
-    // and tap the first event.
-    await tester.drag(scrollable, const Offset(0, 2000));
+    // No poster affordance anywhere: GET /events never returns an image
+    // (see EventItem.fromApi's own doc comment), so EventCard's own
+    // imagePath-gated "View full poster" label/tap-to-open never applies
+    // to a real event. Tapping one is a no-op (onTap is null without an
+    // image), not a navigation into EventPosterViewer.
+    expect(find.text('View full poster'), findsNothing);
+    await tester.tap(find.textContaining('Barangay Health Fair'), warnIfMissed: false);
     await tester.pumpAndSettle();
-    await tester.tap(find.textContaining('Baras vs Tunga'));
-    await tester.pumpAndSettle();
-    expect(find.byType(EventPosterViewer), findsOneWidget);
-    expect(find.byType(InteractiveViewer), findsOneWidget);
+    expect(find.textContaining('Barangay Health Fair'), findsWidgets); // still on the Events list
   });
 
   testWidgets('the mangrove-award News item appears in the Balita tab (not on Home), with its image', (tester) async {
