@@ -2,6 +2,7 @@
 // the nav/access-control spec, driven through the real app entry point
 // (EsperanzaMobileApp) with real taps — not just code review.
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -209,5 +210,9 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.textContaining('Welcome, Guest'), findsNothing);
     expect(find.textContaining('Magandang araw, Perlita'), findsOneWidget);
+    // On this 390pt phone the greeting used to be cut at "Magandang
+    // araw,…", so the name never showed.
+    final greeting = tester.renderObject<RenderParagraph>(find.textContaining('Magandang araw, Perlita'));
+    expect(greeting.didExceedMaxLines, isFalse);
   });
 }

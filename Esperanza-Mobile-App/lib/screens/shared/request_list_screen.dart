@@ -20,6 +20,7 @@ import '../home/root_shell.dart';
 import 'request_detail_screen.dart';
 import 'service_catalog_screen.dart';
 import '../../theme/app_typography.dart';
+import '../../utils/date_text.dart';
 
 // This screen's own FAB-clearance constants — not navbar geometry. Pair
 // with `MediaQuery.paddingOf(context).bottom`, which RootShell's
@@ -395,7 +396,7 @@ class _RequestTile extends StatelessWidget {
                 // PostActionButton's own label elsewhere in this app.
                 Flexible(
                   child: Text(
-                    'Submitted ${_fmt(request.submittedAt)}',
+                    'Submitted ${shortDate(request.submittedAt)}',
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(fontSize: AppTextSize.fine, color: AppColors.textMuted),
                   ),
@@ -417,5 +418,4 @@ class _RequestTile extends StatelessWidget {
     );
   }
 
-  String _fmt(DateTime d) => '${d.month}/${d.day}/${d.year}';
 }

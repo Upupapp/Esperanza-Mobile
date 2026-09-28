@@ -5,6 +5,7 @@ import '../theme/app_spacing.dart';
 import 'app_button.dart';
 import 'app_text_field.dart';
 import '../theme/app_typography.dart';
+import '../utils/date_text.dart';
 
 /// The shared filtering UI for Dokyu and Tulong (and reusable for any
 /// future request-style list) — keeps the main list screen clean per the
@@ -229,8 +230,7 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
     if (picked != null) setState(() => _draft = _draft.copyWith(dateRange: picked));
   }
 
-  String _formatRange(DateTimeRange r) => '${_fmt(r.start)} – ${_fmt(r.end)}';
-  String _fmt(DateTime d) => '${d.month}/${d.day}/${d.year}';
+  String _formatRange(DateTimeRange r) => '${shortDate(r.start)} – ${shortDate(r.end)}';
 }
 
 class _Pill extends StatelessWidget {

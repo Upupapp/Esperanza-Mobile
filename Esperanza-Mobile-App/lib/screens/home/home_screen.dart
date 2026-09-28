@@ -352,7 +352,9 @@ class _Hero extends StatelessWidget {
                   children: [
                     Text(
                       'Magandang araw, ${account.firstName} 👋',
-                      overflow: TextOverflow.ellipsis,
+                      // Wraps, never truncates: on a 390pt phone one line
+                      // cut the greeting at "Magandang araw,…" and the
+                      // name, the whole point of it, never showed.
                       style: const TextStyle(
                         color: Colors.white,
                         fontSize: AppTextSize.card,

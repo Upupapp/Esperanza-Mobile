@@ -11,6 +11,7 @@ import '../../widgets/segmented_tabs.dart';
 import '../../widgets/status_chip.dart';
 import 'request_detail_screen.dart';
 import '../../theme/app_typography.dart';
+import '../../utils/date_text.dart';
 
 /// The signed-in resident's full Dokyu + Tulong request history in one
 /// place — derived straight from [RequestsService], never a separate
@@ -136,7 +137,7 @@ class _MyRequestCard extends StatelessWidget {
             ),
             const SizedBox(height: AppSpacing.xs),
             Text(
-              'Submitted ${_fmt(request.submittedAt)}',
+              'Submitted ${shortDate(request.submittedAt)}',
               style: const TextStyle(fontSize: AppTextSize.label, color: AppColors.textMuted),
             ),
             const Divider(height: AppSpacing.xl),
@@ -153,5 +154,4 @@ class _MyRequestCard extends StatelessWidget {
     );
   }
 
-  String _fmt(DateTime d) => '${d.month}/${d.day}/${d.year}';
 }

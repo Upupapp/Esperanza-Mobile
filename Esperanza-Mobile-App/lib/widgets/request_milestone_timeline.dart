@@ -5,6 +5,7 @@ import '../theme/app_colors.dart';
 import '../theme/app_motion.dart';
 import '../theme/app_spacing.dart';
 import '../theme/app_typography.dart';
+import '../utils/date_text.dart';
 
 /// The richer Dokyu/Tulong milestone timeline (Phase 5, rewritten for the
 /// Mobile-only final request-flow correction pass — frontend simulation
@@ -196,20 +197,17 @@ class _MilestoneRow extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Expanded(child: Text(label, style: labelStyle)),
-                        const SizedBox(width: AppSpacing.sm),
-                        Text(
-                          timestamp == null ? '—' : _fmt(timestamp!),
-                          style: TextStyle(
-                            fontSize: AppTextSize.fine,
-                            color: state == _MilestoneState.future ? AppColors.slate300 : AppColors.textMuted,
-                          ),
-                        ),
-                      ],
-                    ),
+                    Text(label, style: labelStyle),
+                    // Under the label, not beside it: a full date and time
+                    // ("Sep 24, 2026, 8:30 AM") does not fit beside a long
+                    // step name on a 320pt phone.
+                    if (timestamp != null) ...[
+                      const SizedBox(height: AppSpacing.xs),
+                      Text(
+                        dateAndTime(timestamp!),
+                        style: const TextStyle(fontSize: AppTextSize.fine, color: AppColors.textMuted),
+                      ),
+                    ],
                     if (remarks != null) ...[
                       const SizedBox(height: AppSpacing.xs),
                       Text(
@@ -227,8 +225,6 @@ class _MilestoneRow extends StatelessWidget {
     );
   }
 
-  String _fmt(DateTime d) =>
-      '${d.month}/${d.day}/${d.year} ${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')}';
 }
 
 class _RejectionReasonCard extends StatelessWidget {

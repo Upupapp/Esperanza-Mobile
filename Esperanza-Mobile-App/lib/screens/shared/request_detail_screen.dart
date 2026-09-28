@@ -24,6 +24,7 @@ import '../../widgets/status_chip.dart';
 import '../../utils/requirement_document_type.dart';
 import 'new_request_screen.dart';
 import 'service_request_wizard_screen.dart';
+import '../../utils/date_text.dart';
 
 /// Full request detail + real status history, against
 /// GET /citizen/requests/{ref} (production-readiness programme,
@@ -217,7 +218,7 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
               const SizedBox(height: AppSpacing.xs),
               Text(request.office, style: AppTypography.bodySmallRegular.copyWith(color: AppColors.textMuted)),
               const Divider(height: AppSpacing.xxl),
-              _infoRow('Submitted', _fmtFull(request.submittedAt)),
+              _infoRow('Submitted', dateAndTime(request.submittedAt)),
               if (!usesMilestones && request.adminRemarks != null) _infoRow('Admin remarks', request.adminRemarks!),
             ],
           ),
@@ -304,8 +305,6 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
     );
   }
 
-  String _fmtFull(DateTime d) =>
-      '${d.month}/${d.day}/${d.year} at ${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')}';
 }
 
 /// The rejected-request explanation panel — reason, a suggested next step,
@@ -628,7 +627,7 @@ class _TimelineRow extends StatelessWidget {
                     Text(entry.status as String, style: AppTypography.cardTitle),
                     const SizedBox(height: AppSpacing.xs),
                     Text(
-                      '${entry.actor} · ${_fmt(entry.at as DateTime)}',
+                      '${entry.actor} · ${dateAndTime(entry.at as DateTime)}',
                       style: const TextStyle(fontSize: AppTextSize.fine, color: AppColors.textMuted),
                     ),
                     if (entry.remarks != null) ...[
@@ -648,6 +647,4 @@ class _TimelineRow extends StatelessWidget {
     );
   }
 
-  String _fmt(DateTime d) =>
-      '${d.month}/${d.day}/${d.year} ${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')}';
 }
