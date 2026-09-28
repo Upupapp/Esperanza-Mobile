@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../models/announcement.dart';
+import '../../services/api_client.dart';
 import '../../services/balita_service.dart';
+import '../../widgets/app_dialogs.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_spacing.dart';
 import '../../utils/balita_post_actions.dart';
@@ -140,54 +142,56 @@ class PostImageViewer extends StatelessWidget {
                     style: const TextStyle(fontSize: AppTextSize.body, color: AppColors.slate700, height: 1.45),
                   ),
                 ),
-              const SizedBox(height: AppSpacing.md),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
-                child: BalitaEngagementRow(post: post),
-              ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(AppSpacing.sm, AppSpacing.sm, AppSpacing.sm, AppSpacing.xs),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: PostActionButton(
-                        icon: post.likedByMe == true ? Icons.favorite_rounded : Icons.favorite_border_rounded,
-                        label: 'Like',
-                        color: post.likedByMe == true ? AppColors.rose500 : AppColors.slate500,
-                        onTap: () => requireAccountForBalita(
-                          context,
-                          'Reacting to Balita posts',
-                          () => balita.toggleLike(post!),
-                        ),
-                      ),
-                    ),
-                    Expanded(
-                      child: PostActionButton(
-                        icon: Icons.mode_comment_outlined,
-                        label: 'Comment',
-                        color: AppColors.slate500,
-                        onTap: () => requireAccountForBalita(
-                          context,
-                          'Commenting on Balita posts',
-                          () => openBalitaComments(context, post!),
-                        ),
-                      ),
-                    ),
-                    Expanded(
-                      child: PostActionButton(
-                        icon: Icons.share_outlined,
-                        label: 'Share',
-                        color: AppColors.slate500,
-                        onTap: () => requireAccountForBalita(
-                          context,
-                          'Sharing Balita posts',
-                          () => BalitaShareSheet.show(context, post!),
-                        ),
-                      ),
-                    ),
-                  ],
+              if (post.engageable) ...[
+                const SizedBox(height: AppSpacing.md),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+                  child: BalitaEngagementRow(post: post),
                 ),
-              ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(AppSpacing.sm, AppSpacing.sm, AppSpacing.sm, AppSpacing.xs),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: PostActionButton(
+                          icon: post.likedByMe == true ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+                          label: 'Like',
+                          color: post.likedByMe == true ? AppColors.rose500 : AppColors.slate500,
+                          onTap: () => requireAccountForBalita(
+                            context,
+                            'Reacting to Balita posts',
+                            () => _like(context, balita, post!),
+                          ),
+                        ),
+                      ),
+                      Expanded(
+                        child: PostActionButton(
+                          icon: Icons.mode_comment_outlined,
+                          label: 'Comment',
+                          color: AppColors.slate500,
+                          onTap: () => requireAccountForBalita(
+                            context,
+                            'Commenting on Balita posts',
+                            () => openBalitaComments(context, post!),
+                          ),
+                        ),
+                      ),
+                      Expanded(
+                        child: PostActionButton(
+                          icon: Icons.share_outlined,
+                          label: 'Share',
+                          color: AppColors.slate500,
+                          onTap: () => requireAccountForBalita(
+                            context,
+                            'Sharing Balita posts',
+                            () => BalitaShareSheet.show(context, post!),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ],
           ),
         ),
@@ -214,5 +218,15 @@ class _CloseButton extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+/// Same as the feed card's like: a failure is a message, not an unhandled
+/// error (this used to call toggleLike bare).
+Future<void> _like(BuildContext context, BalitaService balita, Announcement post) async {
+  try {
+    await balita.toggleLike(post);
+  } on ApiException catch (e) {
+    if (context.mounted) AppDialogs.toast(context, e.message(), success: false);
   }
 }

@@ -38,6 +38,13 @@ class BalitaService extends ChangeNotifier {
   List<Announcement> get posts => List.unmodifiable(_posts);
   bool get loaded => _loaded;
 
+  /// The backend's limits (CitizenPortalController::storeCommunityPost,
+  /// commentOn*, CommunicationsController::reportCommunityPost), enforced
+  /// where the citizen types.
+  static const postMaxLength = 2000;
+  static const commentMaxLength = 1000;
+  static const reportReasonMaxLength = 255;
+
   /// True when the last [loadFeed] got announcements but the community half
   /// failed -- the feed is shown partial rather than not at all.
   bool get communityUnavailable => _communityUnavailable;

@@ -6,6 +6,7 @@ import '../../services/balita_service.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_spacing.dart';
 import '../../theme/app_typography.dart';
+import '../../utils/date_text.dart';
 
 /// Bottom sheet for viewing a post's real comments (GET .../comments) and
 /// posting a new one (POST .../comments) as the signed-in citizen.
@@ -83,7 +84,10 @@ class _CommentsSheetState extends State<CommentsSheet> {
               Container(
                 width: 36,
                 height: 4,
-                decoration: BoxDecoration(color: AppColors.slate200, borderRadius: BorderRadius.circular(AppRadius.full)),
+                decoration: BoxDecoration(
+                  color: AppColors.slate200,
+                  borderRadius: BorderRadius.circular(AppRadius.full),
+                ),
               ),
               const SizedBox(height: AppSpacing.md),
               const Text(
@@ -149,7 +153,10 @@ class _CommentsSheetState extends State<CommentsSheet> {
                               const SizedBox(width: AppSpacing.sm),
                               Expanded(
                                 child: Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.sm),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: AppSpacing.md,
+                                    vertical: AppSpacing.sm,
+                                  ),
                                   decoration: BoxDecoration(
                                     color: AppColors.slate50,
                                     borderRadius: BorderRadius.circular(AppRadius.md),
@@ -157,12 +164,23 @@ class _CommentsSheetState extends State<CommentsSheet> {
                                   child: Column(
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
-                                      Text(
-                                        c.author,
-                                        style: const TextStyle(
-                                          fontSize: AppTextSize.label,
-                                          fontWeight: FontWeight.w700,
-                                          color: AppColors.textPrimary,
+                                      Text.rich(
+                                        TextSpan(
+                                          text: c.author,
+                                          style: const TextStyle(
+                                            fontSize: AppTextSize.label,
+                                            fontWeight: FontWeight.w700,
+                                            color: AppColors.textPrimary,
+                                          ),
+                                          children: [
+                                            // When it was said: the server
+                                            // sends it; it was never shown.
+                                            if (c.at != null)
+                                              TextSpan(
+                                                text: '  ·  ${timeAgo(c.at!.toLocal())}',
+                                                style: AppTypography.fine.copyWith(color: AppColors.textMuted),
+                                              ),
+                                          ],
                                         ),
                                       ),
                                       const SizedBox(height: AppSpacing.xs),
@@ -190,7 +208,10 @@ class _CommentsSheetState extends State<CommentsSheet> {
               if (_error != null)
                 Padding(
                   padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.sm, AppSpacing.lg, 0),
-                  child: Text(_error!, style: const TextStyle(fontSize: AppTextSize.label, color: AppColors.rose600)),
+                  child: Text(
+                    _error!,
+                    style: const TextStyle(fontSize: AppTextSize.label, color: AppColors.rose600),
+                  ),
                 ),
               Padding(
                 padding: const EdgeInsets.fromLTRB(AppSpacing.md, AppSpacing.sm, AppSpacing.sm, AppSpacing.sm),
@@ -201,12 +222,22 @@ class _CommentsSheetState extends State<CommentsSheet> {
                         controller: _controller,
                         minLines: 1,
                         maxLines: 4,
+                        maxLength: BalitaService.commentMaxLength,
+                        // Counter only near the limit: the pill-shaped box
+                        // stays clean for the usual short comment.
+                        buildCounter: (context, {required currentLength, required isFocused, maxLength}) =>
+                            maxLength != null && currentLength > maxLength * 0.8
+                            ? Text('$currentLength / $maxLength', style: AppTypography.fine)
+                            : null,
                         style: const TextStyle(fontSize: AppTextSize.body),
                         decoration: InputDecoration(
                           hintText: 'Write a comment…',
                           filled: true,
                           fillColor: AppColors.slate50,
-                          contentPadding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.sm),
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: AppSpacing.md,
+                            vertical: AppSpacing.sm,
+                          ),
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(AppRadius.full),
                             borderSide: BorderSide.none,

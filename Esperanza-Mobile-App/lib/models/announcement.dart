@@ -25,6 +25,12 @@ class Announcement {
   final String? barangay;
   final String? category;
   final String body;
+
+  /// Announcements only: the headline. [body] still leads with it (see
+  /// [_withTitle]), so anything that shares or searches the body keeps it;
+  /// the feed card uses this to draw it as a headline instead of as one more
+  /// line of body text.
+  final String? title;
   final String? imageUrl;
   final DateTime? at;
   int likes;
@@ -77,6 +83,7 @@ class Announcement {
     this.barangay,
     this.category,
     required this.body,
+    this.title,
     this.imageUrl,
     this.at,
     required this.likes,
@@ -89,6 +96,12 @@ class Announcement {
   });
 
   bool get isOfficial => kind == PostKind.announcement;
+
+  /// Whether likes, comments and sharing are open on it. The backend refuses
+  /// a like or comment on a community post that is not yet approved (404,
+  /// CitizenPortalController `visible()` scope), and sharing one would spread
+  /// it past the moderation it is waiting on.
+  bool get engageable => kind == PostKind.announcement || (visible && status != 'Pending Review');
 
   /// "Just now" / "12 mins ago" / "3 hrs ago" / an absolute date beyond a
   /// day old — same thresholds as the Web Admin's own `fmtTime`.
@@ -112,6 +125,7 @@ class Announcement {
       barangay: JsonRead.nonEmpty(json['barangay']),
       category: JsonRead.nonEmpty(json['category']),
       body: _withTitle(JsonRead.nonEmpty(json['title']), JsonRead.string(json['body']) ?? ''),
+      title: JsonRead.nonEmpty(json['title']),
       imageUrl: JsonRead.mediaUrl(json['image_url']),
       at: JsonRead.date(json['published_at']) ?? JsonRead.date(json['created_at']),
       likes: JsonRead.integer(json['likes']) ?? 0,

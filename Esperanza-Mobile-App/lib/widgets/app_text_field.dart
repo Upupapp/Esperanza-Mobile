@@ -19,6 +19,11 @@ class AppTextField extends StatelessWidget {
   final ValueChanged<String>? onChanged;
   final Widget? suffix;
 
+  /// The server's own length limit, when the field has one: shown as a
+  /// counter and enforced while typing, so the citizen is not refused after
+  /// pressing submit.
+  final int? maxLength;
+
   const AppTextField({
     super.key,
     this.label,
@@ -32,6 +37,7 @@ class AppTextField extends StatelessWidget {
     this.maxLines = 1,
     this.onChanged,
     this.suffix,
+    this.maxLength,
   });
 
   @override
@@ -48,6 +54,7 @@ class AppTextField extends StatelessWidget {
         ],
         TextField(
           controller: controller,
+          maxLength: maxLength,
           obscureText: obscureText,
           keyboardType: keyboardType,
           maxLines: obscureText ? 1 : maxLines,

@@ -111,9 +111,13 @@ class PostCard extends StatelessWidget {
               ],
             ),
             const SizedBox(height: AppSpacing.sm),
-            if (post.body.trim().isNotEmpty)
+            if (_headline(post) case final headline?) ...[
+              Text(headline, style: AppTypography.cardHeading),
+              if (_bodyAfterHeadline(post).isNotEmpty) const SizedBox(height: AppSpacing.xs),
+            ],
+            if (_bodyAfterHeadline(post).isNotEmpty)
               Text(
-                post.body,
+                _bodyAfterHeadline(post),
                 style: const TextStyle(fontSize: AppTextSize.body, color: AppColors.slate700, height: 1.45),
               ),
             if (post.imageUrl != null) ...[
@@ -129,45 +133,49 @@ class PostCard extends StatelessWidget {
                 ),
               ),
             ],
-            const SizedBox(height: AppSpacing.md),
-            BalitaEngagementRow(post: post),
-            Row(
-              children: [
-                Expanded(
-                  child: PostActionButton(
-                    icon: post.likedByMe == true ? Icons.favorite_rounded : Icons.favorite_border_rounded,
-                    label: 'Like',
-                    color: post.likedByMe == true ? AppColors.rose500 : AppColors.slate500,
-                    onTap: () =>
-                        requireAccountForBalita(context, 'Reacting to Balita posts', () => _like(context, balita)),
-                  ),
-                ),
-                Expanded(
-                  child: PostActionButton(
-                    icon: Icons.mode_comment_outlined,
-                    label: 'Comment',
-                    color: AppColors.slate500,
-                    onTap: () => requireAccountForBalita(
-                      context,
-                      'Commenting on Balita posts',
-                      () => openBalitaComments(context, post),
+            // No action row to close the card: give the text its own room.
+            if (!post.engageable) const SizedBox(height: AppSpacing.md),
+            if (post.engageable) ...[
+              const SizedBox(height: AppSpacing.md),
+              BalitaEngagementRow(post: post),
+              Row(
+                children: [
+                  Expanded(
+                    child: PostActionButton(
+                      icon: post.likedByMe == true ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+                      label: 'Like',
+                      color: post.likedByMe == true ? AppColors.rose500 : AppColors.slate500,
+                      onTap: () =>
+                          requireAccountForBalita(context, 'Reacting to Balita posts', () => _like(context, balita)),
                     ),
                   ),
-                ),
-                Expanded(
-                  child: PostActionButton(
-                    icon: Icons.share_outlined,
-                    label: 'Share',
-                    color: AppColors.slate500,
-                    onTap: () => requireAccountForBalita(
-                      context,
-                      'Sharing Balita posts',
-                      () => BalitaShareSheet.show(context, post),
+                  Expanded(
+                    child: PostActionButton(
+                      icon: Icons.mode_comment_outlined,
+                      label: 'Comment',
+                      color: AppColors.slate500,
+                      onTap: () => requireAccountForBalita(
+                        context,
+                        'Commenting on Balita posts',
+                        () => openBalitaComments(context, post),
+                      ),
                     ),
                   ),
-                ),
-              ],
-            ),
+                  Expanded(
+                    child: PostActionButton(
+                      icon: Icons.share_outlined,
+                      label: 'Share',
+                      color: AppColors.slate500,
+                      onTap: () => requireAccountForBalita(
+                        context,
+                        'Sharing Balita posts',
+                        () => BalitaShareSheet.show(context, post),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ],
         ),
       ),
@@ -255,11 +263,16 @@ class _ReportDialogState extends State<_ReportDialog> {
         controller: _controller,
         autofocus: true,
         maxLines: 3,
+        maxLength: BalitaService.reportReasonMaxLength,
+        onChanged: (_) => setState(() {}),
         decoration: const InputDecoration(hintText: 'Why are you reporting this post?'),
       ),
       actions: [
         TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Cancel')),
-        TextButton(onPressed: () => Navigator.of(context).pop(_controller.text), child: const Text('Submit')),
+        TextButton(
+          onPressed: _controller.text.trim().isEmpty ? null : () => Navigator.of(context).pop(_controller.text),
+          child: const Text('Submit'),
+        ),
       ],
     );
   }
@@ -423,4 +436,17 @@ class PostActionButton extends StatelessWidget {
       ),
     );
   }
+}
+
+/// An announcement's headline, when it has one and the body leads with it.
+String? _headline(Announcement post) {
+  final title = post.title;
+  return title != null && post.body.startsWith(title) ? title : null;
+}
+
+/// The body without the headline [_headline] already drew.
+String _bodyAfterHeadline(Announcement post) {
+  final headline = _headline(post);
+  final body = headline == null ? post.body : post.body.substring(headline.length);
+  return body.trim();
 }

@@ -133,6 +133,7 @@ class _ComposePostScreenState extends State<ComposePostScreen> {
                   controller: _body,
                   hintText: 'News, an update, or something happening in your barangay...',
                   maxLines: 5,
+                  maxLength: BalitaService.postMaxLength,
                 ),
                 _ImageField(
                   bytes: _imageBytes,
