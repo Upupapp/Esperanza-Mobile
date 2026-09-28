@@ -33,20 +33,20 @@ class EvacuationCenterDetailScreen extends StatelessWidget {
       appBar: AppBar(title: Text(center.name)),
       body: SafeArea(
         child: ListView(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
+          padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.md, AppSpacing.lg, AppSpacing.xxxl),
           children: [
             if (isNearest) ...[
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.sm),
-                decoration: BoxDecoration(color: AppColors.emerald50, borderRadius: BorderRadius.circular(999)),
+                decoration: BoxDecoration(color: AppColors.emerald50, borderRadius: BorderRadius.circular(AppRadius.full)),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     const Icon(Icons.near_me_rounded, size: 14, color: AppColors.emerald700),
-                    const SizedBox(width: 6),
+                    const SizedBox(width: AppSpacing.xs),
                     const Text(
                       'Nearest Evacuation Center',
-                      style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, color: AppColors.emerald700),
+                      style: TextStyle(fontSize: AppTextSize.label, fontWeight: FontWeight.w700, color: AppColors.emerald700),
                     ),
                   ],
                 ),
@@ -60,7 +60,7 @@ class EvacuationCenterDetailScreen extends StatelessWidget {
                   width: 48,
                   height: 48,
                   alignment: Alignment.center,
-                  decoration: BoxDecoration(color: AppColors.brand50, borderRadius: BorderRadius.circular(14)),
+                  decoration: BoxDecoration(color: AppColors.brand50, borderRadius: BorderRadius.circular(AppRadius.md)),
                   child: const Icon(Icons.home_work_outlined, size: 22, color: AppColors.brand600),
                 ),
                 const SizedBox(width: AppSpacing.md),
@@ -70,19 +70,19 @@ class EvacuationCenterDetailScreen extends StatelessWidget {
                     children: [
                       Text(
                         center.name,
-                        style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
+                        style: const TextStyle(fontSize: AppTextSize.card, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
                       ),
-                      const SizedBox(height: 2),
+                      const SizedBox(height: AppSpacing.xs),
                       Text(
                         'Brgy. ${center.barangay}',
-                        style: const TextStyle(fontSize: 13, color: AppColors.textMuted),
+                        style: const TextStyle(fontSize: AppTextSize.helper, color: AppColors.textMuted),
                       ),
                       if (center.distanceKm != null) ...[
                         const SizedBox(height: AppSpacing.xs),
                         Text(
                           '${center.distanceKm!.toStringAsFixed(1)} km away (estimated)',
                           style: const TextStyle(
-                            fontSize: 12.5,
+                            fontSize: AppTextSize.helper,
                             color: AppColors.brand600,
                             fontWeight: FontWeight.w600,
                           ),
@@ -104,7 +104,7 @@ class EvacuationCenterDetailScreen extends StatelessWidget {
                   ),
                 ),
                 if (dialUri(center.contactNumber) != null) ...[
-                  const SizedBox(width: 10),
+                  const SizedBox(width: AppSpacing.sm),
                   Expanded(
                     child: AppButton(
                       label: 'Call',
@@ -123,16 +123,16 @@ class EvacuationCenterDetailScreen extends StatelessWidget {
                 children: [
                   const Text(
                     'Capacity / Status',
-                    style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
+                    style: TextStyle(fontSize: AppTextSize.body, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
                   ),
-                  const SizedBox(height: 10),
+                  const SizedBox(height: AppSpacing.sm),
                   Row(
                     children: [
                       const Icon(Icons.groups_outlined, size: 16, color: AppColors.slate500),
                       const SizedBox(width: AppSpacing.sm),
                       Text(
                         'Total design capacity: ${center.totalCapacity} people',
-                        style: const TextStyle(fontSize: 12.5, color: AppColors.slate700),
+                        style: const TextStyle(fontSize: AppTextSize.helper, color: AppColors.slate700),
                       ),
                     ],
                   ),
@@ -144,7 +144,7 @@ class EvacuationCenterDetailScreen extends StatelessWidget {
                         const SizedBox(width: AppSpacing.sm),
                         Text(
                           'Currently occupied: ${center.currentOccupancy}',
-                          style: const TextStyle(fontSize: 12.5, color: AppColors.slate700),
+                          style: const TextStyle(fontSize: AppTextSize.helper, color: AppColors.slate700),
                         ),
                       ],
                     )
@@ -156,7 +156,7 @@ class EvacuationCenterDetailScreen extends StatelessWidget {
                         Expanded(
                           child: Text(
                             'Capacity information unavailable',
-                            style: TextStyle(fontSize: 12.5, color: AppColors.textMuted, fontStyle: FontStyle.italic),
+                            style: TextStyle(fontSize: AppTextSize.helper, color: AppColors.textMuted, fontStyle: FontStyle.italic),
                           ),
                         ),
                       ],
@@ -174,12 +174,12 @@ class EvacuationCenterDetailScreen extends StatelessWidget {
                 child: Row(
                   children: [
                     const Icon(Icons.call_outlined, size: 18, color: AppColors.brand600),
-                    const SizedBox(width: 10),
+                    const SizedBox(width: AppSpacing.sm),
                     const Text('Contact', style: AppTypography.cardTitle),
                     const Spacer(),
                     Text(
                       center.contactNumber!,
-                      style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.brand600),
+                      style: const TextStyle(fontSize: AppTextSize.helper, fontWeight: FontWeight.w600, color: AppColors.brand600),
                     ),
                   ],
                 ),
@@ -220,27 +220,27 @@ class _ListCard extends StatelessWidget {
               const SizedBox(width: AppSpacing.sm),
               Text(
                 title,
-                style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
+                style: const TextStyle(fontSize: AppTextSize.body, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
               ),
             ],
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: AppSpacing.sm),
           if (items.isEmpty)
             const Text(
               'No information available yet.',
-              style: TextStyle(fontSize: 12.5, color: AppColors.textMuted, fontStyle: FontStyle.italic),
+              style: TextStyle(fontSize: AppTextSize.helper, color: AppColors.textMuted, fontStyle: FontStyle.italic),
             )
           else
             for (final item in items)
               Padding(
-                padding: const EdgeInsets.only(bottom: 8),
+                padding: const EdgeInsets.only(bottom: AppSpacing.sm),
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const Icon(Icons.check_circle_outline_rounded, size: 15, color: AppColors.emerald500),
                     const SizedBox(width: AppSpacing.sm),
                     Expanded(
-                      child: Text(item, style: const TextStyle(fontSize: 12.5, color: AppColors.slate600, height: 1.3)),
+                      child: Text(item, style: const TextStyle(fontSize: AppTextSize.helper, color: AppColors.slate600, height: 1.3)),
                     ),
                   ],
                 ),

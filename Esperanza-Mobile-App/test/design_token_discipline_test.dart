@@ -38,8 +38,9 @@ import 'package:flutter_test/flutter_test.dart';
 /// design standard (docs/DESIGN_GUIDELINES.md) landed; screens adopting its
 /// type roles lower it further. 127 the same day, after the Home tab, its
 /// sub-pages, notifications and pop-ups moved to `AppTextSize` roles; 94 after
-/// the Balita tab (feed, post card, comments, compose, viewer, share sheet).
-const _fontSizeCeiling = 94;
+/// the Balita tab (feed, post card, comments, compose, viewer, share sheet);
+/// 73 after the Emergency tab.
+const _fontSizeCeiling = 73;
 
 /// `Colors.white`, `Colors.black26`, `Colors.transparent` outside `lib/theme/`.
 ///

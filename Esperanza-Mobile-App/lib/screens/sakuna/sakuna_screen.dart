@@ -84,19 +84,19 @@ class SakunaScreen extends StatelessWidget {
       // out underneath the floating navbar's bounding box and can't be
       // scrolled fully into view — same pattern as balita_screen.dart.
       body: ListView(
-        padding: EdgeInsets.fromLTRB(16, 12, 16, 32 + MediaQuery.paddingOf(context).bottom),
+        padding: EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.md, AppSpacing.lg, 32 + MediaQuery.paddingOf(context).bottom),
         children: [
           Container(
             padding: const EdgeInsets.all(AppSpacing.lg),
-            decoration: BoxDecoration(color: AppColors.rose600, borderRadius: BorderRadius.circular(16)),
+            decoration: BoxDecoration(color: AppColors.rose600, borderRadius: BorderRadius.circular(AppRadius.lg)),
             child: Row(
               children: [
                 const Icon(Icons.warning_amber_rounded, color: Colors.white, size: 22),
-                const SizedBox(width: 12),
+                const SizedBox(width: AppSpacing.md),
                 const Expanded(
                   child: Text(
                     'In a life-threatening emergency, call 911 or MDRRMO directly.',
-                    style: TextStyle(color: Colors.white, fontSize: 12.5, fontWeight: FontWeight.w600, height: 1.3),
+                    style: TextStyle(color: Colors.white, fontSize: AppTextSize.helper, fontWeight: FontWeight.w600, height: 1.3),
                   ),
                 ),
               ],
@@ -149,41 +149,8 @@ class SakunaScreen extends StatelessWidget {
                   ),
                 ...data.hotlines.map(
                   (h) => Padding(
-                    padding: const EdgeInsets.only(bottom: 8),
-                    child: AppCard(
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: Text(h.$1, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
-                          ),
-                          const SizedBox(width: AppSpacing.sm),
-                          Flexible(
-                            child: InkWell(
-                              onTap: dialUri(h.$2) == null ? null : () => launchUrl(dialUri(h.$2)!),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Flexible(
-                                    child: Text(
-                                      h.$2,
-                                      textAlign: TextAlign.end,
-                                      style: const TextStyle(
-                                        fontSize: 12.5,
-                                        fontWeight: FontWeight.w600,
-                                        color: AppColors.rose600,
-                                      ),
-                                    ),
-                                  ),
-                                  const SizedBox(width: AppSpacing.xs),
-                                  const Icon(Icons.call_rounded, size: 14, color: AppColors.rose600),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
+                    padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+                    child: _HotlineTile(office: h.$1, contact: h.$2),
                   ),
                 ),
                 const SizedBox(height: AppSpacing.xl),
@@ -240,7 +207,7 @@ class _EvacuationCentersSection extends StatelessWidget {
           ),
         for (final c in sorted) ...[
           Padding(
-            padding: const EdgeInsets.only(bottom: 8),
+            padding: const EdgeInsets.only(bottom: AppSpacing.sm),
             child: AppCard(
               onTap: () => Navigator.of(context).push(
                 MaterialPageRoute(
@@ -252,7 +219,7 @@ class _EvacuationCentersSection extends StatelessWidget {
                   Container(
                     width: 38,
                     height: 38,
-                    decoration: BoxDecoration(color: AppColors.brand50, borderRadius: BorderRadius.circular(10)),
+                    decoration: BoxDecoration(color: AppColors.brand50, borderRadius: BorderRadius.circular(AppRadius.sm)),
                     child: const Icon(Icons.home_work_outlined, size: 17, color: AppColors.brand600),
                   ),
                   const SizedBox(width: AppSpacing.md),
@@ -265,27 +232,27 @@ class _EvacuationCentersSection extends StatelessWidget {
                             Flexible(
                               child: Text(
                                 c.name,
-                                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                                style: const TextStyle(fontSize: AppTextSize.helper, fontWeight: FontWeight.w600),
                                 overflow: TextOverflow.ellipsis,
                               ),
                             ),
                             if (c == nearest) ...[
-                              const SizedBox(width: 6),
+                              const SizedBox(width: AppSpacing.xs),
                               Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xs, vertical: AppSpacing.xs),
                                 decoration: BoxDecoration(
                                   color: AppColors.emerald50,
-                                  borderRadius: BorderRadius.circular(999),
+                                  borderRadius: BorderRadius.circular(AppRadius.full),
                                 ),
                                 child: Row(
                                   mainAxisSize: MainAxisSize.min,
                                   children: const [
                                     Icon(Icons.near_me_rounded, size: 10, color: AppColors.emerald700),
-                                    SizedBox(width: 3),
+                                    SizedBox(width: AppSpacing.xs),
                                     Text(
                                       'Nearest',
                                       style: TextStyle(
-                                        fontSize: 9.5,
+                                        fontSize: AppTextSize.fine,
                                         fontWeight: FontWeight.w700,
                                         color: AppColors.emerald700,
                                       ),
@@ -297,10 +264,17 @@ class _EvacuationCentersSection extends StatelessWidget {
                           ],
                         ),
                         Text(
-                          c.distanceKm != null
-                              ? 'Brgy. ${c.barangay} · ${c.distanceKm!.toStringAsFixed(1)} km · Capacity: ${c.totalCapacity}'
-                              : 'Brgy. ${c.barangay} · Capacity: ${c.totalCapacity}',
-                          style: const TextStyle(fontSize: 11.5, color: AppColors.textMuted),
+                          [
+                            'Brgy. ${c.barangay}',
+                            if (c.distanceKm != null) '${c.distanceKm!.toStringAsFixed(1)} km',
+                            // "Is there room?" is the question during an
+                            // evacuation: the live headcount when the backend
+                            // has one, capacity alone when it does not.
+                            c.hasLiveCapacityData
+                                ? '${c.currentOccupancy} of ${c.totalCapacity} occupied'
+                                : 'Capacity: ${c.totalCapacity}',
+                          ].join(' · '),
+                          style: AppTypography.helper,
                         ),
                       ],
                     ),
@@ -312,6 +286,59 @@ class _EvacuationCentersSection extends StatelessWidget {
           ),
         ],
       ],
+    );
+  }
+}
+
+/// One emergency hotline. Name above, number below, and the whole card is
+/// the call target with a 44pt call button -- the number used to sit beside
+/// the name, squeezed until "0917 123 4567 / 0998 765 4321" wrapped across
+/// lines, and the only tappable part was the small red text and a 14pt icon.
+/// Only the first number is dialled (see [dialUri]); the full text stays
+/// visible so a second line can still be read and dialled by hand.
+class _HotlineTile extends StatelessWidget {
+  const _HotlineTile({required this.office, required this.contact});
+
+  final String office;
+  final String contact;
+
+  @override
+  Widget build(BuildContext context) {
+    final uri = dialUri(contact);
+    // container: its own node. Without it these flags merge into the
+    // nearest ancestor and the whole section reads as one button.
+    return Semantics(
+      container: true,
+      button: uri != null,
+      label: uri == null ? '$office, $contact' : 'Call $office, $contact',
+      excludeSemantics: true,
+      child: AppCard(
+        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: AppSpacing.md),
+        onTap: uri == null ? null : () => launchUrl(uri),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(office, style: AppTypography.bodyText.copyWith(fontWeight: FontWeight.w600, color: AppColors.textPrimary)),
+                  const SizedBox(height: AppSpacing.xs),
+                  Text(contact, style: AppTypography.bodyText.copyWith(fontWeight: FontWeight.w600, color: AppColors.rose700)),
+                ],
+              ),
+            ),
+            if (uri != null) ...[
+              const SizedBox(width: AppSpacing.md),
+              Container(
+                width: AppSizes.minTouchTarget,
+                height: AppSizes.minTouchTarget,
+                decoration: const BoxDecoration(color: AppColors.rose50, shape: BoxShape.circle),
+                child: const Icon(Icons.call_rounded, size: AppSizes.iconBase, color: AppColors.rose600),
+              ),
+            ],
+          ],
+        ),
+      ),
     );
   }
 }

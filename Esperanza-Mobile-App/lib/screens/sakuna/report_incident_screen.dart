@@ -13,6 +13,7 @@ import '../../theme/app_spacing.dart';
 import '../../widgets/app_button.dart';
 import '../../widgets/app_text_field.dart';
 import '../shared/request_submitted_screen.dart';
+import '../../theme/app_typography.dart';
 
 /// Report an Incident, against POST /citizen/incidents.
 ///
@@ -111,14 +112,14 @@ class _ReportIncidentScreenState extends State<ReportIncidentScreen> {
       appBar: AppBar(title: Text('Report: ${widget.item.name}')),
       body: SafeArea(
         child: ListView(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
+          padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.md, AppSpacing.lg, AppSpacing.xxxl),
           children: [
             const Text(
               'For life-threatening emergencies, call a hotline first.',
-              style: TextStyle(fontSize: 12.5, color: AppColors.rose600, fontWeight: FontWeight.w600),
+              style: TextStyle(fontSize: AppTextSize.helper, color: AppColors.rose600, fontWeight: FontWeight.w600),
             ),
             const SizedBox(height: AppSpacing.lg),
-            const Text('How serious is it?', style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600)),
+            const Text('How serious is it?', style: TextStyle(fontSize: AppTextSize.body, fontWeight: FontWeight.w600)),
             const SizedBox(height: AppSpacing.sm),
             Wrap(
               spacing: 8,
@@ -152,7 +153,7 @@ class _ReportIncidentScreenState extends State<ReportIncidentScreen> {
             ),
             if (_error != null) ...[
               const SizedBox(height: AppSpacing.md),
-              Text(_error!, style: const TextStyle(fontSize: 12.5, color: AppColors.rose600)),
+              Text(_error!, style: const TextStyle(fontSize: AppTextSize.helper, color: AppColors.rose600)),
             ],
             const SizedBox(height: AppSpacing.xl),
             AppButton(

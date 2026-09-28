@@ -294,5 +294,5 @@ reduce-motion users get the short version. Motion explains a change; it never de
 |---|---|
 | Cancelled/Archived badge contrast (§2.3) | Both lanes, web first |
 | The web uses `text-slate-400` for secondary text 1,073 times, the same AA failure this standard fixes on mobile | Web lane |
-| Raw `fontSize:` literals: **94 left** (381 → 94 on 2026-09-28). Migrated: the Home tab and everything under it, notifications, pop-ups, and the Balita tab (feed, post card, comments, compose, image viewer, share sheet). Left: Events, Sakuna, the drawer's destination screens (profile, settings, support, directory, legal) and onboarding | This lane |
+| Raw `fontSize:` literals: **73 left** (381 → 73 on 2026-09-28). Migrated: all four bottom tabs (Home and everything under it, Balita, Events, Emergency), notifications and pop-ups. Left: the drawer's destination screens (profile, settings, support, directory, legal) and onboarding | This lane |
 | Off-scale spacing (6/10/14) and radius (10/14) literals | This lane, when touched |
