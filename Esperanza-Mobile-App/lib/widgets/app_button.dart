@@ -21,6 +21,11 @@ class AppButton extends StatelessWidget {
   final bool loading;
   final bool fullWidth;
 
+  /// Overrides the primary fill for a module with its own colour (Tulong's
+  /// purple). Null keeps the standard brand blue. Must carry white text at
+  /// AA, which every module accent does.
+  final Color? accent;
+
   const AppButton({
     super.key,
     required this.label,
@@ -31,21 +36,13 @@ class AppButton extends StatelessWidget {
     this.iconTrailing = false,
     this.loading = false,
     this.fullWidth = false,
+    this.accent,
   });
 
   EdgeInsets get _padding => switch (size) {
-    AppButtonSize.sm => const EdgeInsets.symmetric(
-      horizontal: AppSpacing.md,
-      vertical: AppSpacing.sm,
-    ),
-    AppButtonSize.md => const EdgeInsets.symmetric(
-      horizontal: AppSpacing.lg,
-      vertical: AppSpacing.md,
-    ),
-    AppButtonSize.lg => const EdgeInsets.symmetric(
-      horizontal: AppSpacing.xxl,
-      vertical: AppSpacing.lg,
-    ),
+    AppButtonSize.sm => const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.sm),
+    AppButtonSize.md => const EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: AppSpacing.md),
+    AppButtonSize.lg => const EdgeInsets.symmetric(horizontal: AppSpacing.xxl, vertical: AppSpacing.lg),
   };
 
   /// Minimum heights from the design standard (AppSizes, web `--size-btn-*`).
@@ -63,7 +60,7 @@ class AppButton extends StatelessWidget {
 
   _VariantStyle get _colors => switch (variant) {
     AppButtonVariant.primary => _VariantStyle(
-      background: AppColors.brand500,
+      background: accent ?? AppColors.brand500,
       foreground: Colors.white,
       border: null,
     ),
@@ -77,16 +74,8 @@ class AppButton extends StatelessWidget {
       foreground: AppColors.slate500,
       border: null,
     ),
-    AppButtonVariant.danger => _VariantStyle(
-      background: AppColors.rose600,
-      foreground: Colors.white,
-      border: null,
-    ),
-    AppButtonVariant.gold => _VariantStyle(
-      background: AppColors.gold400,
-      foreground: AppColors.navy950,
-      border: null,
-    ),
+    AppButtonVariant.danger => _VariantStyle(background: AppColors.rose600, foreground: Colors.white, border: null),
+    AppButtonVariant.gold => _VariantStyle(background: AppColors.gold400, foreground: AppColors.navy950, border: null),
   };
 
   @override
@@ -97,40 +86,22 @@ class AppButton extends StatelessWidget {
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
         if (loading) ...[
-          SizedBox(
-            width: 15,
-            height: 15,
-            child: CircularProgressIndicator(
-              strokeWidth: 2,
-              color: c.foreground,
-            ),
-          ),
+          SizedBox(width: 15, height: 15, child: CircularProgressIndicator(strokeWidth: 2, color: c.foreground)),
           const SizedBox(width: AppSpacing.sm),
         ] else if (icon != null && !iconTrailing) ...[
-          Icon(
-            icon,
-            size: size == AppButtonSize.lg ? 18 : 16,
-            color: c.foreground,
-          ),
+          Icon(icon, size: size == AppButtonSize.lg ? 18 : 16, color: c.foreground),
           const SizedBox(width: AppSpacing.sm),
         ],
         Flexible(
           child: Text(
             label,
-            style: AppTypography.button.copyWith(
-              color: c.foreground,
-              fontSize: _fontSize,
-            ),
+            style: AppTypography.button.copyWith(color: c.foreground, fontSize: _fontSize),
             overflow: TextOverflow.ellipsis,
           ),
         ),
         if (!loading && icon != null && iconTrailing) ...[
           const SizedBox(width: AppSpacing.sm),
-          Icon(
-            icon,
-            size: size == AppButtonSize.lg ? 18 : 16,
-            color: c.foreground,
-          ),
+          Icon(icon, size: size == AppButtonSize.lg ? 18 : 16, color: c.foreground),
         ],
       ],
     );
@@ -162,9 +133,7 @@ class AppButton extends StatelessWidget {
                 padding: _padding,
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(AppRadius.md),
-                  border: c.border != null
-                      ? Border.all(color: c.border!)
-                      : null,
+                  border: c.border != null ? Border.all(color: c.border!) : null,
                 ),
                 // Row centres its children vertically, so a taller floor
                 // keeps the label centred without changing the width.
@@ -185,9 +154,5 @@ class _VariantStyle {
   final Color background;
   final Color foreground;
   final Color? border;
-  _VariantStyle({
-    required this.background,
-    required this.foreground,
-    this.border,
-  });
+  _VariantStyle({required this.background, required this.foreground, this.border});
 }

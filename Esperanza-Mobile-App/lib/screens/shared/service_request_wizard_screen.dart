@@ -503,9 +503,7 @@ class _ServiceRequestWizardScreenState extends State<ServiceRequestWizardScreen>
       if (_prefilledFromProfile.contains(key)) continue;
       final field = _fieldByKey(key);
       if (field == null) continue;
-      final value = field.type == ServiceFieldType.text
-          ? _controllers[key]?.text.trim()
-          : _values[key] as String?;
+      final value = field.type == ServiceFieldType.text ? _controllers[key]?.text.trim() : _values[key] as String?;
       if (value == null || value.isEmpty) continue;
       switch (key) {
         case 'sex':
@@ -540,9 +538,9 @@ class _ServiceRequestWizardScreenState extends State<ServiceRequestWizardScreen>
       if (!result.isEligible) {
         final viewRequest = await showTulongBlockedDialog(context, result);
         if (viewRequest && mounted) {
-          Navigator.of(context).push(
-            MaterialPageRoute(builder: (_) => RequestDetailScreen(requestId: result.blockingRequest!.id)),
-          );
+          Navigator.of(
+            context,
+          ).push(MaterialPageRoute(builder: (_) => RequestDetailScreen(requestId: result.blockingRequest!.id)));
         }
         return;
       }
@@ -584,48 +582,60 @@ class _ServiceRequestWizardScreenState extends State<ServiceRequestWizardScreen>
     }
   }
 
+  /// This form's module colours (see [_WizardAccent]); read directly here,
+  /// because this build sits above the [_WizardAccent] it provides.
+  _WizardAccent get _accent => _WizardAccent(category: widget.category, child: const SizedBox());
+
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: Text(widget.item.name)),
-      body: SafeArea(
-        child: Column(
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(AppSpacing.xl, AppSpacing.md, AppSpacing.xl, 0),
-              child: OnboardingStepIndicator(currentStep: _step, stepLabels: _stepLabels),
-            ),
-            Expanded(
-              child: SingleChildScrollView(padding: const EdgeInsets.all(AppSpacing.xl), child: _buildStep()),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(AppSpacing.xl, 0, AppSpacing.xl, AppSpacing.xl),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: AppButton(
-                      label: 'Back',
-                      variant: AppButtonVariant.secondary,
-                      fullWidth: true,
-                      onPressed: _submitting ? null : _back,
-                    ),
-                  ),
-                  const SizedBox(width: AppSpacing.md),
-                  Expanded(
-                    flex: 2,
-                    child: AppButton(
-                      label: _step != _lastStep ? 'Continue' : 'Submit Request',
-                      icon: _step == _lastStep ? Icons.send_rounded : Icons.arrow_forward_rounded,
-                      iconTrailing: _step != _lastStep,
-                      fullWidth: true,
-                      loading: _submitting,
-                      onPressed: _step == _lastStep ? _submit : _next,
-                    ),
-                  ),
-                ],
+    return _WizardAccent(
+      category: widget.category,
+      child: Scaffold(
+        appBar: AppBar(title: Text(widget.item.name)),
+        body: SafeArea(
+          child: Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(AppSpacing.xl, AppSpacing.md, AppSpacing.xl, 0),
+                child: OnboardingStepIndicator(
+                  currentStep: _step,
+                  stepLabels: _stepLabels,
+                  accent: _accent.strongOrNull,
+                ),
               ),
-            ),
-          ],
+              Expanded(
+                child: SingleChildScrollView(padding: const EdgeInsets.all(AppSpacing.xl), child: _buildStep()),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(AppSpacing.xl, 0, AppSpacing.xl, AppSpacing.xl),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: AppButton(
+                        label: 'Back',
+                        variant: AppButtonVariant.secondary,
+                        fullWidth: true,
+                        onPressed: _submitting ? null : _back,
+                      ),
+                    ),
+                    const SizedBox(width: AppSpacing.md),
+                    Expanded(
+                      flex: 2,
+                      child: AppButton(
+                        label: _step != _lastStep ? 'Continue' : 'Submit Request',
+                        icon: _step == _lastStep ? Icons.send_rounded : Icons.arrow_forward_rounded,
+                        iconTrailing: _step != _lastStep,
+                        fullWidth: true,
+                        loading: _submitting,
+                        accent: _accent.strongOrNull,
+                        onPressed: _step == _lastStep ? _submit : _next,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -644,23 +654,23 @@ class _ServiceRequestWizardScreenState extends State<ServiceRequestWizardScreen>
       children: [
         Container(
           padding: const EdgeInsets.all(AppSpacing.md),
-          decoration: BoxDecoration(color: AppColors.brand50, borderRadius: BorderRadius.circular(AppRadius.md)),
+          decoration: BoxDecoration(color: _accent.soft, borderRadius: BorderRadius.circular(AppRadius.md)),
           child: Row(
             children: [
-              const Icon(Icons.info_outline_rounded, color: AppColors.brand600, size: 18),
+              Icon(Icons.info_outline_rounded, color: _accent.strong, size: 18),
               const SizedBox(width: AppSpacing.sm),
-              const Expanded(
+              Expanded(
                 child: Text(
                   "We've prefilled this from your Resident Profile. Changes here only apply to this request — to update your saved profile, use Edit Profile.",
-                  style: TextStyle(fontSize: AppTextSize.label, color: AppColors.brand700, height: 1.4),
+                  style: TextStyle(fontSize: AppTextSize.label, color: _accent.deep, height: 1.4),
                 ),
               ),
               const SizedBox(width: AppSpacing.xs),
               GestureDetector(
                 onTap: _goToEditProfile,
-                child: const Text(
+                child: Text(
                   'Edit Profile',
-                  style: TextStyle(fontSize: AppTextSize.label, fontWeight: FontWeight.w700, color: AppColors.brand700),
+                  style: TextStyle(fontSize: AppTextSize.label, fontWeight: FontWeight.w700, color: _accent.deep),
                 ),
               ),
             ],
@@ -696,7 +706,10 @@ class _ServiceRequestWizardScreenState extends State<ServiceRequestWizardScreen>
         ),
         if (_error != null) ...[
           const SizedBox(height: AppSpacing.md),
-          Text(_error!, style: const TextStyle(fontSize: AppTextSize.helper, color: AppColors.rose600)),
+          Text(
+            _error!,
+            style: const TextStyle(fontSize: AppTextSize.helper, color: AppColors.rose600),
+          ),
         ],
       ],
     );
@@ -713,7 +726,10 @@ class _ServiceRequestWizardScreenState extends State<ServiceRequestWizardScreen>
         ),
         if (_error != null) ...[
           const SizedBox(height: AppSpacing.md),
-          Text(_error!, style: const TextStyle(fontSize: AppTextSize.helper, color: AppColors.rose600)),
+          Text(
+            _error!,
+            style: const TextStyle(fontSize: AppTextSize.helper, color: AppColors.rose600),
+          ),
         ],
       ],
     );
@@ -815,7 +831,12 @@ class _ServiceRequestWizardScreenState extends State<ServiceRequestWizardScreen>
                       children: [
                         Icon(Icons.description_outlined, size: 15, color: widget.accent),
                         const SizedBox(width: AppSpacing.sm),
-                        Expanded(child: Text(req.label, style: const TextStyle(fontSize: AppTextSize.helper, color: AppColors.slate700))),
+                        Expanded(
+                          child: Text(
+                            req.label,
+                            style: const TextStyle(fontSize: AppTextSize.helper, color: AppColors.slate700),
+                          ),
+                        ),
                       ],
                     ),
                   ),
@@ -825,7 +846,10 @@ class _ServiceRequestWizardScreenState extends State<ServiceRequestWizardScreen>
         ],
         if (_error != null) ...[
           const SizedBox(height: AppSpacing.md),
-          Text(_error!, style: const TextStyle(fontSize: AppTextSize.helper, color: AppColors.rose600)),
+          Text(
+            _error!,
+            style: const TextStyle(fontSize: AppTextSize.helper, color: AppColors.rose600),
+          ),
         ],
       ],
     );
@@ -883,7 +907,10 @@ class _ServiceRequestWizardScreenState extends State<ServiceRequestWizardScreen>
         if (widget.item.fee != 'Free') _reviewRow('Fee', widget.item.fee, onEdit: null),
         if (_error != null) ...[
           const SizedBox(height: AppSpacing.md),
-          Text(_error!, style: const TextStyle(fontSize: AppTextSize.helper, color: AppColors.rose600)),
+          Text(
+            _error!,
+            style: const TextStyle(fontSize: AppTextSize.helper, color: AppColors.rose600),
+          ),
         ],
       ],
     );
@@ -899,11 +926,18 @@ class _ServiceRequestWizardScreenState extends State<ServiceRequestWizardScreen>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(label, style: const TextStyle(fontSize: AppTextSize.label, color: AppColors.textMuted)),
+                Text(
+                  label,
+                  style: const TextStyle(fontSize: AppTextSize.label, color: AppColors.textMuted),
+                ),
                 const SizedBox(height: AppSpacing.xs),
                 Text(
                   value,
-                  style: const TextStyle(fontSize: AppTextSize.body, fontWeight: FontWeight.w600, color: AppColors.slate700),
+                  style: const TextStyle(
+                    fontSize: AppTextSize.body,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.slate700,
+                  ),
                 ),
               ],
             ),
@@ -913,7 +947,7 @@ class _ServiceRequestWizardScreenState extends State<ServiceRequestWizardScreen>
               onTap: onEdit,
               child: Text(
                 editLabel,
-                style: const TextStyle(fontSize: AppTextSize.helper, fontWeight: FontWeight.w600, color: AppColors.brand600),
+                style: TextStyle(fontSize: AppTextSize.helper, fontWeight: FontWeight.w600, color: _accent.strong),
               ),
             ),
         ],
@@ -957,7 +991,11 @@ class _DerivedAgeField extends StatelessWidget {
               const SizedBox(width: AppSpacing.sm),
               Text(
                 age == null ? 'Select your Date of Birth above first' : '$age years old',
-                style: const TextStyle(fontSize: AppTextSize.body, color: AppColors.textBody, fontWeight: FontWeight.w500),
+                style: const TextStyle(
+                  fontSize: AppTextSize.body,
+                  color: AppColors.textBody,
+                  fontWeight: FontWeight.w500,
+                ),
               ),
             ],
           ),
@@ -996,15 +1034,23 @@ class _MasterSourcedField extends StatelessWidget {
               child: Text(
                 label,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(fontSize: AppTextSize.helper, fontWeight: FontWeight.w500, color: AppColors.slate700),
+                style: const TextStyle(
+                  fontSize: AppTextSize.helper,
+                  fontWeight: FontWeight.w500,
+                  color: AppColors.slate700,
+                ),
               ),
             ),
             const SizedBox(width: AppSpacing.sm),
             GestureDetector(
               onTap: onEditProfile,
-              child: const Text(
+              child: Text(
                 'Edit Profile',
-                style: TextStyle(fontSize: AppTextSize.label, fontWeight: FontWeight.w600, color: AppColors.brand600),
+                style: TextStyle(
+                  fontSize: AppTextSize.label,
+                  fontWeight: FontWeight.w600,
+                  color: _WizardAccent.of(context).strong,
+                ),
               ),
             ),
           ],
@@ -1025,7 +1071,11 @@ class _MasterSourcedField extends StatelessWidget {
               Expanded(
                 child: Text(
                   value,
-                  style: const TextStyle(fontSize: AppTextSize.body, color: AppColors.textBody, fontWeight: FontWeight.w500),
+                  style: const TextStyle(
+                    fontSize: AppTextSize.body,
+                    color: AppColors.textBody,
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
               ),
             ],
@@ -1076,11 +1126,11 @@ class _MultiSelectField extends StatelessWidget {
                   }
                   onChanged(next);
                 },
-                selectedColor: AppColors.brand100,
+                selectedColor: _WizardAccent.of(context).chip,
                 backgroundColor: AppColors.slate100,
-                checkmarkColor: AppColors.brand700,
+                checkmarkColor: _WizardAccent.of(context).deep,
                 labelStyle: TextStyle(
-                  color: selected.contains(o) ? AppColors.brand700 : AppColors.slate600,
+                  color: selected.contains(o) ? _WizardAccent.of(context).deep : AppColors.slate600,
                   fontWeight: selected.contains(o) ? FontWeight.w600 : FontWeight.w400,
                 ),
                 side: BorderSide.none,
@@ -1109,11 +1159,18 @@ class _CheckboxField extends StatelessWidget {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Checkbox(value: value, onChanged: (v) => onChanged(v ?? false), activeColor: AppColors.brand500),
+            Checkbox(
+              value: value,
+              onChanged: (v) => onChanged(v ?? false),
+              activeColor: _WizardAccent.of(context).check,
+            ),
             Expanded(
               child: Padding(
                 padding: const EdgeInsets.only(top: AppSpacing.md),
-                child: Text(label, style: const TextStyle(fontSize: AppTextSize.helper, color: AppColors.slate700)),
+                child: Text(
+                  label,
+                  style: const TextStyle(fontSize: AppTextSize.helper, color: AppColors.slate700),
+                ),
               ),
             ),
           ],
@@ -1123,3 +1180,29 @@ class _CheckboxField extends StatelessWidget {
   }
 }
 
+/// The form's module colours, shared with the field widgets below. Tulong is
+/// purple everywhere else in the app (its tab, cards, request list and
+/// confirmation), but this form drew its step bar, buttons, notes and links
+/// in Dokyu's blue. Dokyu keeps exactly the blues it had.
+class _WizardAccent extends InheritedWidget {
+  const _WizardAccent({required this.category, required super.child});
+
+  final ServiceCategory category;
+
+  bool get _tulong => category == ServiceCategory.tulong;
+
+  /// Null for Dokyu, so shared widgets fall back to their own brand blues.
+  Color? get strongOrNull => _tulong ? AppColors.purple700 : null;
+  Color get strong => _tulong ? AppColors.purple700 : AppColors.brand600;
+  Color get deep => _tulong ? AppColors.purple700 : AppColors.brand700;
+  Color get soft => _tulong ? AppColors.purple50 : AppColors.brand50;
+  Color get check => _tulong ? AppColors.purple700 : AppColors.brand500;
+  Color get chip => _tulong ? AppColors.purple50 : AppColors.brand100;
+
+  static _WizardAccent of(BuildContext context) =>
+      context.dependOnInheritedWidgetOfExactType<_WizardAccent>() ??
+      const _WizardAccent(category: ServiceCategory.dokyu, child: SizedBox());
+
+  @override
+  bool updateShouldNotify(_WizardAccent old) => old.category != category;
+}

@@ -13,7 +13,11 @@ class OnboardingStepIndicator extends StatelessWidget {
   final int currentStep; // 0-based
   final List<String> stepLabels;
 
-  const OnboardingStepIndicator({super.key, required this.currentStep, required this.stepLabels});
+  /// The module's colour for the bar and the "Step n of m" label (Tulong's
+  /// purple); null keeps the standard blues.
+  final Color? accent;
+
+  const OnboardingStepIndicator({super.key, required this.currentStep, required this.stepLabels, this.accent});
 
   @override
   Widget build(BuildContext context) {
@@ -31,7 +35,11 @@ class OnboardingStepIndicator extends StatelessWidget {
                 'Step ${currentStep + 1} of ${stepLabels.length}',
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(fontSize: AppTextSize.label, fontWeight: FontWeight.w700, color: AppColors.brand600),
+                style: TextStyle(
+                  fontSize: AppTextSize.label,
+                  fontWeight: FontWeight.w700,
+                  color: accent ?? AppColors.brand600,
+                ),
               ),
             ),
             const SizedBox(width: AppSpacing.sm),
@@ -40,7 +48,11 @@ class OnboardingStepIndicator extends StatelessWidget {
                 stepLabels[currentStep],
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(fontSize: AppTextSize.label, color: AppColors.textMuted, fontWeight: FontWeight.w500),
+                style: const TextStyle(
+                  fontSize: AppTextSize.label,
+                  color: AppColors.textMuted,
+                  fontWeight: FontWeight.w500,
+                ),
               ),
             ),
           ],
@@ -55,7 +67,7 @@ class OnboardingStepIndicator extends StatelessWidget {
                   duration: const Duration(milliseconds: 250),
                   height: 5,
                   decoration: BoxDecoration(
-                    color: i <= currentStep ? AppColors.brand500 : AppColors.slate200,
+                    color: i <= currentStep ? (accent ?? AppColors.brand500) : AppColors.slate200,
                     borderRadius: BorderRadius.circular(AppRadius.full),
                   ),
                 ),
