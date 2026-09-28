@@ -18,6 +18,15 @@ class EvacuationCenter {
   final double? distanceKm;
   final int? currentOccupancy;
 
+  /// The street address the Web Admin recorded, when it has one.
+  final String? address;
+
+  /// Whether the centre is open to evacuees right now. The backend marks an
+  /// opened centre `Processing` and a closed or never-opened one `Archived`
+  /// (EvacuationService::openCenter/closeCenter); residents need the plain
+  /// answer, not those words.
+  final bool isOpen;
+
   const EvacuationCenter({
     required this.name,
     required this.barangay,
@@ -27,6 +36,8 @@ class EvacuationCenter {
     this.contactNumber,
     this.distanceKm,
     this.currentOccupancy,
+    this.address,
+    this.isOpen = false,
   });
 
   bool get hasLiveCapacityData => currentOccupancy != null;

@@ -76,3 +76,12 @@ office" (1). Any screen that groups by office shows two Civil Registrars and spl
 services. Mobile now groups the three for display only (`lib/utils/office_name.dart`); the fix
 belongs in the source config, after which mobile's alias map becomes a no-op.
 
+
+## 5. Residents never see a published emergency alert on the web
+
+**Failure mode (MEASURED, web `950eb0f`, backend `9f4555c`):** the backend serves
+published Sakuna alerts publicly at `GET /alerts` (`SakunaController::publicAlerts`,
+`?barangay=` scopes it; municipality-wide alerts always included). No file under
+`resources/views/citizen` calls it, so an alert the MDRRMO publishes from the admin
+Sakuna module reaches no resident through the website. Mobile shows them at the top of
+its Emergency tab since 2026-09-28 (`lib/services/sakuna_alerts.dart`), Filipino first.

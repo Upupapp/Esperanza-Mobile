@@ -18,6 +18,9 @@ import 'evacuation_center_detail_screen.dart';
 import '../../services/json_read.dart';
 import '../../utils/phone_dial.dart';
 import '../../services/requests_service.dart';
+import '../../services/citizen_session_service.dart';
+import '../../services/sakuna_alerts.dart';
+import '../../utils/date_text.dart';
 
 /// GET /hotlines (public, PublicContentController::hotlines).
 Future<List<(String, String)>> _loadHotlines() async {
@@ -51,6 +54,8 @@ Future<List<EvacuationCenter>> _loadEvacuationCenters() async {
       // but a string.
       services: JsonRead.strings(m['services']),
       currentOccupancy: JsonRead.integer(m['individuals']),
+      address: JsonRead.nonEmpty(m['address']),
+      isOpen: JsonRead.nonEmpty(m['status']) == 'Processing',
     );
   });
 }
@@ -84,7 +89,12 @@ class SakunaScreen extends StatelessWidget {
       // out underneath the floating navbar's bounding box and can't be
       // scrolled fully into view — same pattern as balita_screen.dart.
       body: ListView(
-        padding: EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.md, AppSpacing.lg, 32 + MediaQuery.paddingOf(context).bottom),
+        padding: EdgeInsets.fromLTRB(
+          AppSpacing.lg,
+          AppSpacing.md,
+          AppSpacing.lg,
+          32 + MediaQuery.paddingOf(context).bottom,
+        ),
         children: [
           Container(
             padding: const EdgeInsets.all(AppSpacing.lg),
@@ -96,12 +106,19 @@ class SakunaScreen extends StatelessWidget {
                 const Expanded(
                   child: Text(
                     'In a life-threatening emergency, call 911 or MDRRMO directly.',
-                    style: TextStyle(color: Colors.white, fontSize: AppTextSize.helper, fontWeight: FontWeight.w600, height: 1.3),
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: AppTextSize.helper,
+                      fontWeight: FontWeight.w600,
+                      height: 1.3,
+                    ),
                   ),
                 ),
               ],
             ),
           ),
+          const SizedBox(height: AppSpacing.lg),
+          const _AlertsSection(),
           const SizedBox(height: AppSpacing.xl),
           // Reporting an incident has no dependency on the hotlines/centers
           // fetch below -- it must stay reachable even if that fetch fails,
@@ -219,7 +236,10 @@ class _EvacuationCentersSection extends StatelessWidget {
                   Container(
                     width: 38,
                     height: 38,
-                    decoration: BoxDecoration(color: AppColors.brand50, borderRadius: BorderRadius.circular(AppRadius.sm)),
+                    decoration: BoxDecoration(
+                      color: AppColors.brand50,
+                      borderRadius: BorderRadius.circular(AppRadius.sm),
+                    ),
                     child: const Icon(Icons.home_work_outlined, size: 17, color: AppColors.brand600),
                   ),
                   const SizedBox(width: AppSpacing.md),
@@ -263,8 +283,12 @@ class _EvacuationCentersSection extends StatelessWidget {
                             ],
                           ],
                         ),
+                        const SizedBox(height: AppSpacing.xs),
+                        _OpenChip(isOpen: c.isOpen),
+                        const SizedBox(height: AppSpacing.xs),
                         Text(
                           [
+                            if (c.address != null) c.address!,
                             'Brgy. ${c.barangay}',
                             if (c.distanceKm != null) '${c.distanceKm!.toStringAsFixed(1)} km',
                             // "Is there room?" is the question during an
@@ -321,9 +345,15 @@ class _HotlineTile extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(office, style: AppTypography.bodyText.copyWith(fontWeight: FontWeight.w600, color: AppColors.textPrimary)),
+                  Text(
+                    office,
+                    style: AppTypography.bodyText.copyWith(fontWeight: FontWeight.w600, color: AppColors.textPrimary),
+                  ),
                   const SizedBox(height: AppSpacing.xs),
-                  Text(contact, style: AppTypography.bodyText.copyWith(fontWeight: FontWeight.w600, color: AppColors.rose700)),
+                  Text(
+                    contact,
+                    style: AppTypography.bodyText.copyWith(fontWeight: FontWeight.w600, color: AppColors.rose700),
+                  ),
                 ],
               ),
             ),
@@ -337,6 +367,143 @@ class _HotlineTile extends StatelessWidget {
               ),
             ],
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Emergency alerts the Municipality has published (public GET /alerts):
+/// typhoon signals, evacuation orders, advisories. The tab used to show
+/// hotlines and centres only, so an alert the MDRRMO published never
+/// reached a resident through the app. Loaded on its own, so a failure here
+/// never hides the hotlines, and scoped to the citizen's barangay
+/// (municipality-wide alerts included).
+class _AlertsSection extends StatefulWidget {
+  const _AlertsSection();
+
+  @override
+  State<_AlertsSection> createState() => _AlertsSectionState();
+}
+
+class _AlertsSectionState extends State<_AlertsSection> {
+  late Future<List<PublicAlert>> _alerts = _load();
+
+  Future<List<PublicAlert>> _load() =>
+      SakunaAlerts.load(barangay: context.read<CitizenSessionService>().account?.barangay);
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<List<PublicAlert>>(
+      future: _alerts,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState != ConnectionState.done) {
+          return const Text('Checking for emergency alerts…', style: AppTypography.helper);
+        }
+        if (snapshot.hasError) {
+          return Row(
+            children: [
+              const Expanded(child: Text('Emergency alerts could not be checked.', style: AppTypography.helper)),
+              TextButton(onPressed: () => setState(() => _alerts = _load()), child: const Text('Try Again')),
+            ],
+          );
+        }
+        final alerts = snapshot.data!;
+        if (alerts.isEmpty) {
+          return const Row(
+            children: [
+              Icon(Icons.check_circle_outline_rounded, size: AppSizes.iconSm, color: AppColors.emerald700),
+              SizedBox(width: AppSpacing.sm),
+              Expanded(child: Text('No emergency alerts in force right now.', style: AppTypography.helper)),
+            ],
+          );
+        }
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const Text('Active Alerts', style: AppTypography.subsectionLabel),
+            const SizedBox(height: AppSpacing.md),
+            for (final a in alerts) ...[_AlertCard(alert: a), const SizedBox(height: AppSpacing.sm)],
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _AlertCard extends StatelessWidget {
+  const _AlertCard({required this.alert});
+
+  final PublicAlert alert;
+
+  @override
+  Widget build(BuildContext context) {
+    final kind = [?alert.type, ?alert.level].join(' · ');
+    final where = alert.barangays.isEmpty ? 'All barangays' : alert.barangays.map((b) => 'Brgy. $b').join(', ');
+    return Semantics(
+      container: true,
+      label: 'Emergency alert',
+      child: Container(
+        padding: const EdgeInsets.all(AppSpacing.lg),
+        decoration: BoxDecoration(
+          color: AppColors.rose50,
+          borderRadius: BorderRadius.circular(AppRadius.lg),
+          border: Border.all(color: AppColors.rose600.withValues(alpha: 0.25)),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Icon(Icons.campaign_rounded, color: AppColors.rose600, size: AppSizes.iconBase),
+            const SizedBox(width: AppSpacing.md),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (kind.isNotEmpty) ...[
+                    Text(kind, style: AppTypography.labelText.copyWith(color: AppColors.rose700)),
+                    const SizedBox(height: AppSpacing.xs),
+                  ],
+                  Text(alert.title, style: AppTypography.cardHeading),
+                  if (alert.body.isNotEmpty) ...[
+                    const SizedBox(height: AppSpacing.xs),
+                    Text(alert.body, style: AppTypography.bodyText),
+                  ],
+                  const SizedBox(height: AppSpacing.sm),
+                  Text(
+                    [where, if (alert.publishedAt != null) timeAgo(alert.publishedAt!)].join(' · '),
+                    style: AppTypography.helper,
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Whether a centre is taking evacuees now: said in words and colour, never
+/// colour alone.
+class _OpenChip extends StatelessWidget {
+  const _OpenChip({required this.isOpen});
+
+  final bool isOpen;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: 2),
+      decoration: BoxDecoration(
+        color: isOpen ? AppColors.emerald50 : AppColors.slate100,
+        borderRadius: BorderRadius.circular(AppRadius.full),
+      ),
+      child: Text(
+        isOpen ? 'Open now' : 'Not open',
+        style: TextStyle(
+          fontSize: AppTextSize.fine,
+          fontWeight: FontWeight.w700,
+          color: isOpen ? AppColors.emerald700 : AppColors.slate600,
         ),
       ),
     );

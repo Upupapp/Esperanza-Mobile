@@ -38,7 +38,10 @@ class EvacuationCenterDetailScreen extends StatelessWidget {
             if (isNearest) ...[
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.sm),
-                decoration: BoxDecoration(color: AppColors.emerald50, borderRadius: BorderRadius.circular(AppRadius.full)),
+                decoration: BoxDecoration(
+                  color: AppColors.emerald50,
+                  borderRadius: BorderRadius.circular(AppRadius.full),
+                ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
@@ -46,7 +49,11 @@ class EvacuationCenterDetailScreen extends StatelessWidget {
                     const SizedBox(width: AppSpacing.xs),
                     const Text(
                       'Nearest Evacuation Center',
-                      style: TextStyle(fontSize: AppTextSize.label, fontWeight: FontWeight.w700, color: AppColors.emerald700),
+                      style: TextStyle(
+                        fontSize: AppTextSize.label,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.emerald700,
+                      ),
                     ),
                   ],
                 ),
@@ -60,7 +67,10 @@ class EvacuationCenterDetailScreen extends StatelessWidget {
                   width: 48,
                   height: 48,
                   alignment: Alignment.center,
-                  decoration: BoxDecoration(color: AppColors.brand50, borderRadius: BorderRadius.circular(AppRadius.md)),
+                  decoration: BoxDecoration(
+                    color: AppColors.brand50,
+                    borderRadius: BorderRadius.circular(AppRadius.md),
+                  ),
                   child: const Icon(Icons.home_work_outlined, size: 22, color: AppColors.brand600),
                 ),
                 const SizedBox(width: AppSpacing.md),
@@ -70,12 +80,27 @@ class EvacuationCenterDetailScreen extends StatelessWidget {
                     children: [
                       Text(
                         center.name,
-                        style: const TextStyle(fontSize: AppTextSize.card, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
+                        style: const TextStyle(
+                          fontSize: AppTextSize.card,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.textPrimary,
+                        ),
                       ),
                       const SizedBox(height: AppSpacing.xs),
                       Text(
-                        'Brgy. ${center.barangay}',
+                        [if (center.address != null) center.address!, 'Brgy. ${center.barangay}'].join(' · '),
                         style: const TextStyle(fontSize: AppTextSize.helper, color: AppColors.textMuted),
+                      ),
+                      const SizedBox(height: AppSpacing.xs),
+                      // Open or not is the first thing an evacuating family
+                      // needs; said in words, not colour alone.
+                      Text(
+                        center.isOpen ? 'Open now, taking evacuees' : 'Not open right now',
+                        style: TextStyle(
+                          fontSize: AppTextSize.helper,
+                          fontWeight: FontWeight.w600,
+                          color: center.isOpen ? AppColors.emerald700 : AppColors.slate600,
+                        ),
                       ),
                       if (center.distanceKm != null) ...[
                         const SizedBox(height: AppSpacing.xs),
@@ -123,7 +148,11 @@ class EvacuationCenterDetailScreen extends StatelessWidget {
                 children: [
                   const Text(
                     'Capacity / Status',
-                    style: TextStyle(fontSize: AppTextSize.body, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
+                    style: TextStyle(
+                      fontSize: AppTextSize.body,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.textPrimary,
+                    ),
                   ),
                   const SizedBox(height: AppSpacing.sm),
                   Row(
@@ -156,7 +185,11 @@ class EvacuationCenterDetailScreen extends StatelessWidget {
                         Expanded(
                           child: Text(
                             'Capacity information unavailable',
-                            style: TextStyle(fontSize: AppTextSize.helper, color: AppColors.textMuted, fontStyle: FontStyle.italic),
+                            style: TextStyle(
+                              fontSize: AppTextSize.helper,
+                              color: AppColors.textMuted,
+                              fontStyle: FontStyle.italic,
+                            ),
                           ),
                         ),
                       ],
@@ -179,7 +212,11 @@ class EvacuationCenterDetailScreen extends StatelessWidget {
                     const Spacer(),
                     Text(
                       center.contactNumber!,
-                      style: const TextStyle(fontSize: AppTextSize.helper, fontWeight: FontWeight.w600, color: AppColors.brand600),
+                      style: const TextStyle(
+                        fontSize: AppTextSize.helper,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.brand600,
+                      ),
                     ),
                   ],
                 ),
@@ -191,12 +228,13 @@ class EvacuationCenterDetailScreen extends StatelessWidget {
   }
 
   Future<void> _openDirections(BuildContext context) async {
-    // No stored lat/lng coordinates exist for these centers (this is a
-    // frontend-only build with no real geocoding), so directions use a
-    // Google Maps *text search* for the center's name + barangay rather
-    // than fabricating coordinates — the maps app resolves the actual
-    // location from that query.
-    final query = Uri.encodeComponent('${center.name}, Brgy. ${center.barangay}, Esperanza, Masbate');
+    // The backend stores no coordinates for a centre (SakunaCenter has no
+    // lat/lng), so directions are a Google Maps text search for the centre's
+    // name, recorded address and barangay rather than invented coordinates;
+    // the maps app resolves the place from that.
+    final query = Uri.encodeComponent(
+      [center.name, ?center.address, 'Brgy. ${center.barangay}', 'Esperanza, Masbate'].join(', '),
+    );
     final uri = Uri.parse('https://www.google.com/maps/search/?api=1&query=$query');
     await launchUrl(uri, mode: LaunchMode.externalApplication);
   }
@@ -220,7 +258,11 @@ class _ListCard extends StatelessWidget {
               const SizedBox(width: AppSpacing.sm),
               Text(
                 title,
-                style: const TextStyle(fontSize: AppTextSize.body, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
+                style: const TextStyle(
+                  fontSize: AppTextSize.body,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.textPrimary,
+                ),
               ),
             ],
           ),
@@ -240,7 +282,10 @@ class _ListCard extends StatelessWidget {
                     const Icon(Icons.check_circle_outline_rounded, size: 15, color: AppColors.emerald500),
                     const SizedBox(width: AppSpacing.sm),
                     Expanded(
-                      child: Text(item, style: const TextStyle(fontSize: AppTextSize.helper, color: AppColors.slate600, height: 1.3)),
+                      child: Text(
+                        item,
+                        style: const TextStyle(fontSize: AppTextSize.helper, color: AppColors.slate600, height: 1.3),
+                      ),
                     ),
                   ],
                 ),

@@ -135,11 +135,15 @@ class _ReportIncidentScreenState extends State<ReportIncidentScreen> {
               ],
             ),
             const SizedBox(height: AppSpacing.lg),
-            DropdownButtonFormField<String>(
-              initialValue: _barangay,
-              isExpanded: true,
-              decoration: const InputDecoration(labelText: 'Barangay'),
-              items: [for (final b in MockCatalog.barangays) DropdownMenuItem(value: b, child: Text(b))],
+            // The app's own select, label above like every other field on
+            // this form (a bare DropdownButtonFormField floated its label
+            // inside the box).
+            AppSelectField<String>(
+              label: 'Barangay',
+              value: _barangay,
+              options: MockCatalog.barangays,
+              labelBuilder: (b) => b,
+              hintText: 'Choose the barangay',
               onChanged: (v) => setState(() => _barangay = v),
             ),
             const SizedBox(height: AppSpacing.lg),
