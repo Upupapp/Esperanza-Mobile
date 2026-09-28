@@ -165,6 +165,20 @@ catalogue change stalls the wizard visibly instead of hollowing the fixture out.
 
 ## Deploying
 
+### HARD RULE — no GitHub Actions credits, minimal Netlify credits (owner, 2026-09-28)
+
+- **Never use GitHub Actions.** Do not add a `.github/workflows/` file, and do not
+  trigger, re-run or dispatch a workflow run. The repo has no CI by design; the local gate
+  below (`scripts/hooks`) is the only gate. This holds on every lane and every branch.
+- **Netlify: spend as few credits as possible.**
+  - Build locally, deploy the prebuilt output: `flutter build web --release` then
+    `netlify deploy --prod --dir=build/web`. Never let Netlify run the Flutter build.
+  - No automatic deploys on push: keep builds stopped/unlinked from Git, with no deploy
+    previews and no branch deploys.
+  - Deploy only when the owner asks, once per release, after the local gate passes.
+    Do not redeploy to check a small change.
+- If a task seems to need CI or an extra deploy, stop and ask the owner.
+
 ### Run this once per clone, before anything else
 
 ```sh
