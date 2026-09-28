@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:esperanza_mobile/models/announcement.dart';
+import 'package:esperanza_mobile/screens/events/event_detail_screen.dart';
 import 'package:esperanza_mobile/screens/events/events_screen.dart';
 import 'package:esperanza_mobile/services/balita_service.dart';
 import 'package:esperanza_mobile/services/citizen_session_service.dart';
@@ -57,11 +58,13 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(
         home: Scaffold(
-          body: Column(
-            children: [
-              EventCard(event: withAll),
-              EventCard(event: bare),
-            ],
+          body: SingleChildScrollView(
+            child: Column(
+              children: [
+                EventCard(event: withAll),
+                EventCard(event: bare),
+              ],
+            ),
           ),
         ),
       ),
@@ -74,12 +77,12 @@ void main() {
     expect(find.byIcon(Icons.place_outlined), findsOneWidget);
   });
 
-  testWidgets('past events sit under their own heading, after the upcoming ones', (tester) async {
+  testWidgets('Upcoming and Past are separate pills, as in the PAAIPE app, and a card opens its event', (tester) async {
     FakeApi.installFull((r) {
       if (r.path == '/events') {
         return [
           {'name': 'Coastal Clean-up Drive', 'date': _day(-18)},
-          {'name': 'Barangay Health Day', 'date': _day(7)},
+          {'name': 'Barangay Health Day', 'date': _day(7), 'category': 'Health'},
         ];
       }
       return <dynamic>[];
@@ -105,10 +108,24 @@ void main() {
     await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 50)));
     await tester.pumpAndSettle();
 
-    final upcoming = tester.getTopLeft(find.text('Barangay Health Day')).dy;
-    final heading = tester.getTopLeft(find.text('Past events')).dy;
-    final past = tester.getTopLeft(find.text('Coastal Clean-up Drive')).dy;
-    expect(upcoming, lessThan(heading));
-    expect(heading, lessThan(past));
+    expect(find.text('Barangay Health Day'), findsOneWidget);
+    expect(find.text('Coastal Clean-up Drive'), findsNothing, reason: 'a past event is not upcoming');
+    expect(
+      tester.getSize(find.ancestor(of: find.text('Past'), matching: find.byType(InkWell)).first).height,
+      greaterThanOrEqualTo(44),
+    );
+
+    await tester.tap(find.text('Past'));
+    await tester.pumpAndSettle();
+    expect(find.text('Coastal Clean-up Drive'), findsOneWidget);
+    expect(find.text('Barangay Health Day'), findsNothing);
+
+    await tester.tap(find.text('Upcoming'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Barangay Health Day'));
+    await tester.pumpAndSettle();
+    expect(find.byType(EventDetailScreen), findsOneWidget);
+    expect(find.text('Health'), findsOneWidget);
   });
+
 }

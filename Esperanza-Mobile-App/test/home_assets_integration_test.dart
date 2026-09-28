@@ -13,6 +13,8 @@ import 'package:esperanza_mobile/widgets/event_card.dart';
 import 'package:esperanza_mobile/widgets/home_welcome_banner.dart';
 
 import 'support/fake_api.dart';
+import 'package:esperanza_mobile/screens/events/event_detail_screen.dart';
+import 'package:esperanza_mobile/screens/shared/event_poster_viewer.dart';
 
 /// Unwraps the `ResizeImage` that `Image.asset(..., cacheWidth: ...)` now
 /// wraps its `AssetImage` in (a performance optimization — decode at
@@ -48,12 +50,19 @@ Future<void> _dismissPromotionalBanner(WidgetTester tester) async {
 // real `events` table has no poster column at all (see
 // EventItem.fromApi's own doc comment), unlike the MockCatalog fixtures
 // this file used to seed itself from, which bundled real poster artwork.
-const _seededEvents = [
-  {'key': 'ev-1', 'title': 'Barangay Health Fair', 'date': '2026-08-03', 'time': '8:00 AM', 'venue': 'Barangay Baras Covered Court'},
-  {'key': 'ev-2', 'title': 'Livelihood Skills Training', 'date': '2026-08-07', 'time': '9:00 AM', 'venue': 'Municipal Hall Annex'},
-  {'key': 'ev-3', 'title': 'Basketball League Finals', 'date': '2026-08-12', 'time': '6:00 PM', 'venue': 'Felimon S. Conag Cultural and Sports Center'},
-  {'key': 'ev-4', 'title': 'Senior Citizens Assembly', 'date': '2026-08-13', 'time': '1:00 PM', 'venue': 'OSCA Hall'},
-  {'key': 'ev-5', 'title': 'Fiesta ng Esperanza Opening', 'date': '2026-08-21', 'time': '2:00 PM', 'venue': 'Municipal Plaza'},
+/// Dated from today, not fixed: fixed August dates slid into the past, and
+/// past events now live under the Events tab's "Past" pill.
+String _inDays(int n) {
+  final d = DateTime.now().add(Duration(days: n));
+  return '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+}
+
+List<Map<String, dynamic>> get _seededEvents => [
+  {'key': 'ev-1', 'title': 'Barangay Health Fair', 'date': _inDays(5), 'time': '8:00 AM', 'venue': 'Barangay Baras Covered Court'},
+  {'key': 'ev-2', 'title': 'Livelihood Skills Training', 'date': _inDays(9), 'time': '9:00 AM', 'venue': 'Municipal Hall Annex'},
+  {'key': 'ev-3', 'title': 'Basketball League Finals', 'date': _inDays(14), 'time': '6:00 PM', 'venue': 'Felimon S. Conag Cultural and Sports Center'},
+  {'key': 'ev-4', 'title': 'Senior Citizens Assembly', 'date': _inDays(15), 'time': '1:00 PM', 'venue': 'OSCA Hall'},
+  {'key': 'ev-5', 'title': 'Fiesta ng Esperanza Opening', 'date': _inDays(23), 'time': '2:00 PM', 'venue': 'Municipal Plaza'},
 ];
 
 Future<void> _enterAsGuest(WidgetTester tester, {List<Map<String, dynamic>> announcements = const []}) async {
@@ -181,14 +190,17 @@ void main() {
     expect(tester.takeException(), isNull);
 
     // No poster affordance anywhere: GET /events never returns an image
-    // (see EventItem.fromApi's own doc comment), so EventCard's own
-    // imagePath-gated "View full poster" label/tap-to-open never applies
-    // to a real event. Tapping one is a no-op (onTap is null without an
-    // image), not a navigation into EventPosterViewer.
+    // (see EventItem.fromApi's own doc comment). Tapping a card opens that
+    // event's own page (as a PAAIPE event card does), never the full-screen
+    // poster viewer.
     expect(find.text('View full poster'), findsNothing);
-    await tester.tap(find.textContaining('Barangay Health Fair'), warnIfMissed: false);
+    position.jumpTo(0);
     await tester.pumpAndSettle();
-    expect(find.textContaining('Barangay Health Fair'), findsWidgets); // still on the Events list
+    await tester.tap(find.textContaining('Barangay Health Fair').first, warnIfMissed: false);
+    await tester.pumpAndSettle();
+    expect(find.byType(EventDetailScreen), findsOneWidget);
+    expect(find.byType(EventPosterViewer), findsNothing);
+    expect(find.textContaining('Barangay Health Fair'), findsWidgets);
   });
 
   testWidgets('the mangrove-award announcement appears in the Balita tab (not on Home), with its real image', (

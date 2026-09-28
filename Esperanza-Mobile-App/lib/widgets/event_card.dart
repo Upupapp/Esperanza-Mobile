@@ -1,21 +1,20 @@
 import 'package:flutter/material.dart';
 import '../models/announcement.dart';
-import '../screens/shared/event_poster_viewer.dart';
+import '../screens/events/event_detail_screen.dart';
 import '../theme/app_colors.dart';
+import '../theme/app_shadows.dart';
 import '../theme/app_spacing.dart';
-import 'app_card.dart';
 import '../theme/app_typography.dart';
 
-/// One event as its own independent card — used on both Home's "Upcoming
-/// Events" preview ([compact]) and the dedicated Events list. Never
-/// stacks multiple events into one shared container: each [EventCard]
-/// renders exactly one [EventItem].
+/// One event as its own card, laid out like the PAAIPE Mobile App's events
+/// list (Upupapp/PAAIPE-Mobile-APP `EventsView`, `.teresa-event-card`):
+/// a 16:9 poster slot, the title with a category chip beside it, then the
+/// date/time/place rows. PAAIPE's own sizes and radii are mapped onto the
+/// nearest Esperanza tokens, and its colours onto Esperanza's palette (the
+/// only colours this app may use, CLAUDE.md).
 ///
-/// The poster (when present) is shown with `BoxFit.contain` inside a
-/// full-width box — never `BoxFit.cover` — so dates/times/team names
-/// printed on the poster are never cropped off; any letterboxing just
-/// shows a neutral background rather than losing content. Tapping opens
-/// the full poster in [EventPosterViewer] for a pinch-to-zoom close look.
+/// Tapping opens [EventDetailScreen], as a PAAIPE card opens its event.
+/// [compact] (Home's preview) drops the poster so two events fit the teaser.
 class EventCard extends StatelessWidget {
   final EventItem event;
   final bool compact;
@@ -25,151 +24,189 @@ class EventCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: EdgeInsets.only(bottom: compact ? 10 : AppSpacing.md),
-      child: AppCard(
-        padding: EdgeInsets.zero,
-        onTap: event.imagePath != null ? () => EventPosterViewer.open(context, event) : null,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if (event.imagePath != null)
-              ClipRRect(
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(AppRadius.lg)),
-                child: Container(
-                  color: AppColors.slate100,
-                  constraints: BoxConstraints(maxHeight: compact ? 220 : 420),
-                  width: double.infinity,
-                  // Decode at the card's actual bounded width rather than
-                  // the source poster's full resolution — BoxFit.contain
-                  // never crops, so scaling decode to width alone (letting
-                  // height follow proportionally) can't distort or crop it.
-                  child: LayoutBuilder(
-                    builder: (context, constraints) => Image.asset(
-                      event.imagePath!,
-                      fit: BoxFit.contain,
-                      cacheWidth: constraints.hasBoundedWidth
-                          ? (constraints.maxWidth * MediaQuery.devicePixelRatioOf(context)).round()
-                          : null,
-                    ),
-                  ),
-                ),
+      padding: EdgeInsets.only(bottom: compact ? AppSpacing.md : 0),
+      child: Semantics(
+        button: true,
+        label: event.title,
+        excludeSemantics: false,
+        child: Material(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(AppRadius.xl),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(AppRadius.xl),
+            onTap: () => EventDetailScreen.open(context, event),
+            child: Ink(
+              decoration: BoxDecoration(
+                // The fill is not optional: without it the shadow paints
+                // through and the card reads grey.
+                color: AppColors.surface,
+                borderRadius: BorderRadius.circular(AppRadius.xl),
+                border: Border.all(color: AppColors.slate200),
+                boxShadow: AppShadows.card,
               ),
-            Padding(
               padding: const EdgeInsets.all(AppSpacing.md),
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(
-                        child: Text(
-                          event.title,
-                          maxLines: compact ? 1 : 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            fontSize: AppTextSize.helper,
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.textPrimary,
-                          ),
-                        ),
-                      ),
-                      if (event.category != null) ...[
-                        const SizedBox(width: AppSpacing.sm),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: AppSpacing.xs),
-                          decoration: BoxDecoration(
-                            color: AppColors.brand50,
-                            borderRadius: BorderRadius.circular(AppRadius.full),
-                          ),
-                          child: Text(
-                            event.category!,
-                            style: const TextStyle(
-                              fontSize: AppTextSize.fine,
-                              fontWeight: FontWeight.w700,
-                              color: AppColors.brand600,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ],
+                  if (!compact) EventPoster(event: event),
+                  Padding(
+                    padding: EdgeInsets.fromLTRB(2, compact ? 0 : AppSpacing.md, 2, AppSpacing.sm),
+                    child: EventTitleRow(event: event),
                   ),
-                  const SizedBox(height: AppSpacing.sm),
-                  // Only what the event actually has: time and venue are
-                  // optional in the Web Admin, and an empty one used to
-                  // leave a bare icon with nothing beside it.
-                  for (final (icon, text) in [
-                    (Icons.calendar_today_rounded, event.date),
-                    if (event.recurrence != null) (Icons.repeat_rounded, event.recurrence!),
-                    (Icons.schedule_rounded, event.time),
-                    (
-                      Icons.place_outlined,
-                      [
-                        event.venue.trim(),
-                        if (event.barangay != null) 'Brgy. ${event.barangay}',
-                      ].where((s) => s.isNotEmpty).join(' · '),
-                    ),
-                  ])
-                    if (text.trim().isNotEmpty)
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: AppSpacing.xs),
-                        child: _MetaRow(icon: icon, text: text),
-                      ),
-                  if (event.imagePath != null) ...[
-                    const SizedBox(height: AppSpacing.sm),
-                    Row(
-                      children: [
-                        // Flexible: a Row with no flex child sizes to its
-                        // content's unconstrained width — the same
-                        // overflow pattern fixed repeatedly elsewhere in
-                        // this app (StatusChip, post_card's action row,
-                        // etc.) at narrow widths / large text scales.
-                        Flexible(
-                          child: Text(
-                            'View full poster',
-                            textWidthBasis: TextWidthBasis.longestLine,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              fontSize: AppTextSize.label,
-                              fontWeight: FontWeight.w600,
-                              color: AppColors.brand600,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: AppSpacing.xs),
-                        const Icon(Icons.open_in_full_rounded, size: 12, color: AppColors.brand600),
-                      ],
-                    ),
-                  ],
+                  EventMeta(event: event),
                 ],
               ),
             ),
-          ],
+          ),
         ),
       ),
     );
   }
 }
 
-class _MetaRow extends StatelessWidget {
-  final IconData icon;
-  final String text;
-  const _MetaRow({required this.icon, required this.text});
+/// The 16:9 poster slot (PAAIPE `.event-poster`): the event's own artwork
+/// when it has one, otherwise a soft blue panel with a calendar and who is
+/// putting it on. Real events have no artwork (the events table has no image
+/// column), so the panel is what residents normally see.
+class EventPoster extends StatelessWidget {
+  const EventPoster({super.key, required this.event, this.radius = AppRadius.lg});
+
+  final EventItem event;
+  final double radius;
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Icon(icon, size: 13, color: AppColors.slate400),
-        const SizedBox(width: AppSpacing.xs),
-        Expanded(
-          child: Text(
-            text,
-            style: const TextStyle(fontSize: AppTextSize.label, color: AppColors.textMuted, height: 1.3),
-          ),
-        ),
-      ],
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(radius),
+      child: AspectRatio(
+        aspectRatio: 16 / 9,
+        child: event.imagePath != null
+            ? Image.asset(event.imagePath!, fit: BoxFit.cover)
+            : DecoratedBox(
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [AppColors.brand100, AppColors.cyan50],
+                  ),
+                ),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(Icons.calendar_month_outlined, size: 32, color: AppColors.brand600),
+                    const SizedBox(height: AppSpacing.sm),
+                    Text(
+                      event.barangay != null ? 'Brgy. ${event.barangay}' : 'Municipality of Esperanza',
+                      style: const TextStyle(fontSize: AppTextSize.body, color: AppColors.brand600),
+                    ),
+                  ],
+                ),
+              ),
+      ),
     );
   }
 }
+
+/// Title with the category chip beside it (PAAIPE `.event-title-row` and
+/// `.soft-chip`; the chip is capped at 40% of the row so a long category
+/// never squeezes the title out).
+class EventTitleRow extends StatelessWidget {
+  const EventTitleRow({super.key, required this.event});
+
+  final EventItem event;
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) => Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            child: Text(
+              event.title,
+              style: const TextStyle(
+                fontSize: AppTextSize.card,
+                fontWeight: FontWeight.w500,
+                height: 1.4,
+                color: AppColors.textPrimary,
+              ),
+            ),
+          ),
+          if (event.category != null) ...[
+            const SizedBox(width: AppSpacing.sm),
+            ConstrainedBox(
+              constraints: BoxConstraints(maxWidth: constraints.maxWidth * 0.4),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.xs),
+                decoration: BoxDecoration(
+                  color: AppColors.brand50,
+                  borderRadius: BorderRadius.circular(AppRadius.full),
+                ),
+                child: Text(
+                  event.category!,
+                  style: const TextStyle(
+                    fontSize: AppTextSize.fine,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 0.2,
+                    color: AppColors.brand500,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+/// The icon rows under the title (PAAIPE `.event-meta`): only what the event
+/// actually has. Time and venue are optional in the Web Admin, and an empty
+/// one used to leave a bare icon with nothing beside it.
+class EventMeta extends StatelessWidget {
+  const EventMeta({super.key, required this.event});
+
+  final EventItem event;
+
+  @override
+  Widget build(BuildContext context) {
+    final rows = <(IconData, String)>[
+      (Icons.calendar_today_outlined, event.date.isEmpty ? 'Date to be announced' : event.date),
+      if (event.recurrence != null) (Icons.repeat_rounded, event.recurrence!),
+      if (event.time.trim().isNotEmpty) (Icons.schedule_rounded, event.time.trim()),
+      if (_place(event).isNotEmpty) (Icons.place_outlined, _place(event)),
+    ];
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 2),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          for (var i = 0; i < rows.length; i++) ...[
+            if (i > 0) const SizedBox(height: AppSpacing.xs),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.only(top: 1),
+                  child: Icon(rows[i].$1, size: 14, color: AppColors.textMuted),
+                ),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    rows[i].$2,
+                    style: const TextStyle(fontSize: AppTextSize.label, color: AppColors.textMuted),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+/// "Baras Plaza · Brgy. Baras": the venue, and the barangay when the event is
+/// for one barangay only.
+String _place(EventItem event) =>
+    [event.venue.trim(), if (event.barangay != null) 'Brgy. ${event.barangay}'].where((s) => s.isNotEmpty).join(' · ');
