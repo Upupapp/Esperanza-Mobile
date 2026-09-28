@@ -6,6 +6,8 @@ import '../../theme/app_spacing.dart';
 import '../../theme/app_typography.dart';
 import '../../widgets/app_card.dart';
 import '../../widgets/async_state_view.dart';
+import '../../services/json_read.dart';
+import '../../utils/phone_dial.dart';
 
 /// GET /directory (public, CommunicationsController::directory), the same
 /// endpoint citizen/directory.blade.php on the Web Admin already calls.
@@ -16,14 +18,15 @@ class DirectoryScreen extends StatelessWidget {
 
   Future<List<_Office>> _load() async {
     final res = await api.get('/directory');
-    return res.list.map((raw) {
-      final m = raw as Map<String, dynamic>;
+    return JsonRead.rows(res.list, (m) {
+      final name = JsonRead.nonEmpty(m['office']) ?? JsonRead.nonEmpty(m['name']);
+      if (name == null) return null;
       return _Office(
-        name: m['office'] as String? ?? '',
-        head: m['official_name'] as String? ?? '',
-        contact: m['contact'] as String? ?? '',
+        name: name,
+        head: JsonRead.string(m['official_name']) ?? '',
+        contact: JsonRead.string(m['contact']) ?? '',
       );
-    }).toList();
+    });
   }
 
   @override
@@ -86,13 +89,13 @@ class _OfficeTile extends StatelessWidget {
                 children: [
                   Text(name, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
                   const SizedBox(height: 2),
-                  Text(head, style: const TextStyle(fontSize: 11.5, color: AppColors.textMuted)),
+                  if (head.isNotEmpty) Text(head, style: const TextStyle(fontSize: 11.5, color: AppColors.textMuted)),
                 ],
               ),
             ),
-            if (contact.isNotEmpty)
+            if (dialUri(contact) != null)
               InkWell(
-                onTap: () => launchUrl(Uri.parse('tel:$contact')),
+                onTap: () => launchUrl(dialUri(contact)!),
                 borderRadius: BorderRadius.circular(999),
                 child: Container(
                   padding: const EdgeInsets.all(9),

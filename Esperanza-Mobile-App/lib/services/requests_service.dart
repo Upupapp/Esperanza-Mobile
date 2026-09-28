@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 
 import 'api_client.dart';
+import 'json_read.dart';
 import '../models/catalog_item.dart';
 import '../models/service_request.dart';
 import 'service_form_specs.dart';
@@ -38,6 +39,16 @@ class RequestsService extends ChangeNotifier {
 
   bool get loaded => _loaded;
 
+  RequestsService() {
+    ApiClient.addSessionExpiredListener(clear);
+  }
+
+  @override
+  void dispose() {
+    ApiClient.removeSessionExpiredListener(clear);
+    super.dispose();
+  }
+
   /// GET /services?type=dokyu|tulong (CatalogController::serialize()) --
   /// [ServiceFormSpecs] augments each real item with its locally-authored
   /// wizard question set, looked up by the same `key`.
@@ -51,9 +62,11 @@ class RequestsService extends ChangeNotifier {
     notifyListeners();
   }
 
-  List<CatalogItem> _parseCatalog(List<dynamic> raw) => raw.map((e) {
-    final json = e as Map<String, dynamic>;
-    final key = json['key'] as String? ?? '';
+  List<CatalogItem> _parseCatalog(List<dynamic> raw) => JsonRead.rows(raw, (json) {
+    final key = JsonRead.nonEmpty(json['key']);
+    // A service with no key cannot be submitted (POST /citizen/requests
+    // takes service_key), so it is not offered at all.
+    if (key == null) return null;
     return CatalogItem.fromApi(
       json,
       formSpec: ServiceFormSpecs.formSpecFor(key),
@@ -61,7 +74,7 @@ class RequestsService extends ChangeNotifier {
       demoPurpose: ServiceFormSpecs.demoPurposeFor(key),
       icon: ServiceFormSpecs.iconFor(key),
     );
-  }).toList();
+  });
 
   /// GET /citizen/requests (CitizenRequestController::index()) -- a thinner
   /// shape than [ServiceRequest] (ref/type/service/status/submitted only);
@@ -75,8 +88,8 @@ class RequestsService extends ChangeNotifier {
     // the moment a Provider ancestor is still being built too.
     scheduleMicrotask(notifyListeners);
     try {
-      final res = await api.get('/citizen/requests', query: {'per_page': 100});
-      _requests = res.list.map((e) => _requestFromSummary(e as Map<String, dynamic>)).toList();
+      final rows = await api.getAllPages('/citizen/requests', query: {'per_page': 100});
+      _requests = JsonRead.rows(rows, (json) => JsonRead.nonEmpty(json['ref']) == null ? null : _requestFromSummary(json));
     } finally {
       _loaded = true;
       notifyListeners();
@@ -89,7 +102,8 @@ class RequestsService extends ChangeNotifier {
   /// in [_requests] in place, so a detail screen already open on this
   /// request via [all]/[byCategory] sees the fuller record immediately.
   Future<ServiceRequest> loadDetail(String ref) async {
-    final res = await api.get('/citizen/requests/$ref');
+    final res = await api.get('/citizen/requests/${ApiClient.segment(ref)}');
+    _requireRef(res);
     final full = _requestFromDetail(res.map);
     final idx = _requests.indexWhere((r) => r.referenceNumber == ref);
     if (idx != -1) {
@@ -101,19 +115,31 @@ class RequestsService extends ChangeNotifier {
     return full;
   }
 
+  /// A 2xx whose body carries no reference number is not a request the
+  /// citizen can track, open, or resubmit -- surfaced as an error rather
+  /// than inserted as a blank row that every later call would 404 on.
+  void _requireRef(ApiResult res) {
+    if (JsonRead.nonEmpty(res.map['ref']) == null) {
+      throw const ApiException(
+        messageEn: 'The server response was incomplete. Please refresh and try again.',
+        messageFil: 'Kulang ang tugon ng server. I-refresh at subukang muli.',
+      );
+    }
+  }
+
   ServiceRequest _requestFromSummary(Map<String, dynamic> json) {
-    final ref = json['ref'] as String? ?? '';
+    final ref = JsonRead.nonEmpty(json['ref']) ?? '';
     return ServiceRequest(
       id: ref,
       referenceNumber: ref,
       applicantId: '',
       applicantName: '',
-      typeName: json['service'] as String? ?? '',
-      category: _categoryFromType(json['type'] as String?),
-      office: '',
+      typeName: JsonRead.string(json['service']) ?? '',
+      category: _categoryFromType(JsonRead.string(json['type'])),
+      office: JsonRead.string(json['office']) ?? '',
       purpose: '',
-      submittedAt: DateTime.tryParse(json['submitted'] as String? ?? '') ?? DateTime.now(),
-      status: json['status'] as String? ?? 'Submitted',
+      submittedAt: JsonRead.date(json['submitted']) ?? DateTime.now(),
+      status: JsonRead.nonEmpty(json['status']) ?? 'Submitted',
       statusHistory: const [],
       attachments: const [],
       expectedDays: '',
@@ -121,44 +147,48 @@ class RequestsService extends ChangeNotifier {
   }
 
   ServiceRequest _requestFromDetail(Map<String, dynamic> json) {
-    final ref = json['ref'] as String? ?? '';
-    final history = (json['history'] as List? ?? [])
-        .map(
-          (t) => StatusHistoryEntry(
-            status: (t as Map<String, dynamic>)['to'] as String? ?? '',
-            at: DateTime.tryParse(t['at'] as String? ?? '') ?? DateTime.now(),
-            actor: (t['actor_name'] as String?) ?? (t['trigger'] as String?) ?? 'System',
-            remarks: null,
-          ),
-        )
-        .toList();
-    final needsCorrection = (json['needs_correction'] as List? ?? [])
-        .map(
-          (q) => FlaggedRequirement(
-            id: (q as Map<String, dynamic>)['key'] as String? ?? '',
-            requirementLabel: q['label'] as String? ?? '',
-            reason: (q['remarks'] as String?) ?? (q['reason'] as String?) ?? '',
-            flaggedAt: history.isNotEmpty ? history.last.at : DateTime.now(),
-          ),
-        )
-        .toList();
+    final ref = JsonRead.nonEmpty(json['ref']) ?? '';
+    final history = JsonRead.rows(json['history'], (t) {
+      final to = JsonRead.nonEmpty(t['to']);
+      if (to == null) return null;
+      return StatusHistoryEntry(
+        status: to,
+        at: JsonRead.date(t['at']) ?? DateTime.now(),
+        actor: JsonRead.nonEmpty(t['actor_name']) ?? JsonRead.nonEmpty(t['trigger']) ?? 'System',
+        // Was hard-coded null: the remarks a clerk typed on a transition
+        // ("please bring the original") never reached the timeline.
+        remarks: JsonRead.nonEmpty(t['remarks']),
+      );
+    });
+    final needsCorrection = JsonRead.rows(json['needs_correction'], (q) {
+      final key = JsonRead.nonEmpty(q['key']);
+      // The key addresses the replace endpoint; without it there is nothing
+      // the citizen could upload against.
+      if (key == null) return null;
+      return FlaggedRequirement(
+        id: key,
+        requirementLabel: JsonRead.string(q['label']) ?? key,
+        reason: JsonRead.nonEmpty(q['remarks']) ?? JsonRead.nonEmpty(q['reason']) ?? '',
+        flaggedAt: history.isNotEmpty ? history.last.at : DateTime.now(),
+      );
+    });
     return ServiceRequest(
       id: ref,
       referenceNumber: ref,
       applicantId: '',
       applicantName: '',
-      typeName: json['service'] as String? ?? '',
-      category: _categoryFromType(json['type'] as String?),
-      office: json['office'] as String? ?? '',
+      typeName: JsonRead.string(json['service']) ?? '',
+      category: _categoryFromType(JsonRead.string(json['type'])),
+      office: JsonRead.string(json['office']) ?? '',
       purpose: '',
-      submittedAt: DateTime.tryParse(json['submitted'] as String? ?? '') ?? DateTime.now(),
-      status: json['status'] as String? ?? 'Submitted',
+      submittedAt: JsonRead.date(json['submitted']) ?? DateTime.now(),
+      status: JsonRead.nonEmpty(json['status']) ?? 'Submitted',
       statusHistory: history,
       attachments: const [],
-      adminRemarks: json['decision_remarks'] as String?,
+      adminRemarks: JsonRead.nonEmpty(json['decision_remarks']),
       flaggedRequirements: needsCorrection,
       expectedDays: '',
-    )..canResubmit = json['can_resubmit'] as bool? ?? false;
+    )..canResubmit = JsonRead.boolean(json['can_resubmit']) ?? false;
   }
 
   ServiceCategory _categoryFromType(String? type) => switch (type) {
@@ -175,6 +205,7 @@ class RequestsService extends ChangeNotifier {
   /// doc comment) are sent.
   Future<ServiceRequest> submit({required String serviceKey, required Map<String, dynamic> formData}) async {
     final res = await api.post('/citizen/requests', body: {'service_key': serviceKey, 'form_data': formData});
+    _requireRef(res);
     final request = _requestFromDetail(res.map);
     _requests.insert(0, request);
     notifyListeners();
@@ -187,7 +218,8 @@ class RequestsService extends ChangeNotifier {
   /// the old local simulation re-entered at Under Verification directly,
   /// which was never the real vocabulary (see PRODUCTION_READINESS.md).
   Future<ServiceRequest> resubmit(String ref) async {
-    final res = await api.post('/citizen/requests/$ref/resubmit');
+    final res = await api.post('/citizen/requests/${ApiClient.segment(ref)}/resubmit');
+    _requireRef(res);
     final request = _requestFromDetail(res.map);
     final idx = _requests.indexWhere((r) => r.referenceNumber == ref);
     if (idx != -1) _requests[idx] = request;
@@ -203,10 +235,11 @@ class RequestsService extends ChangeNotifier {
   /// NOT_FLAGGED error, surfaced as an ordinary ApiException.
   Future<ServiceRequest> replaceRequirement(String ref, {required String requirementKey, required String filePath}) async {
     final res = await api.postMultipart(
-      '/citizen/requests/$ref/requirements/$requirementKey/replace',
+      '/citizen/requests/${ApiClient.segment(ref)}/requirements/${ApiClient.segment(requirementKey)}/replace',
       filePath: filePath,
       fileField: 'file',
     );
+    _requireRef(res);
     final request = _requestFromDetail(res.map);
     final idx = _requests.indexWhere((r) => r.referenceNumber == ref);
     if (idx != -1) _requests[idx] = request;

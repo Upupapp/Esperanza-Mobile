@@ -14,14 +14,19 @@ import '../../widgets/esperanza_drawer.dart';
 import '../home/root_shell.dart';
 import '../shared/request_list_screen.dart';
 import 'evacuation_center_detail_screen.dart';
+import '../../services/json_read.dart';
+import '../../utils/phone_dial.dart';
 
 /// GET /hotlines (public, PublicContentController::hotlines).
 Future<List<(String, String)>> _loadHotlines() async {
   final res = await api.get('/hotlines');
-  return res.list.map((raw) {
-    final m = raw as Map<String, dynamic>;
-    return (m['office'] as String? ?? '', m['contact'] as String? ?? '');
-  }).toList();
+  return JsonRead.rows(res.list, (m) {
+    final office = JsonRead.nonEmpty(m['office']) ?? JsonRead.nonEmpty(m['name']);
+    final contact = JsonRead.nonEmpty(m['contact']) ?? JsonRead.nonEmpty(m['number']);
+    // A hotline with no number is not a hotline.
+    if (contact == null) return null;
+    return (office ?? 'Hotline', contact);
+  });
 }
 
 /// GET /sakuna/centers (public, PublicContentController::centers) --
@@ -31,17 +36,21 @@ Future<List<(String, String)>> _loadHotlines() async {
 /// is finally live data instead of always null, now that a real endpoint
 /// exists.
 Future<List<EvacuationCenter>> _loadEvacuationCenters() async {
-  final res = await api.get('/sakuna/centers', query: {'per_page': 100});
-  return res.list.map((raw) {
-    final m = raw as Map<String, dynamic>;
+  final rows = await api.getAllPages('/sakuna/centers', query: {'per_page': 100});
+  return JsonRead.rows(rows, (m) {
+    final name = JsonRead.nonEmpty(m['name']);
+    if (name == null) return null;
     return EvacuationCenter(
-      name: m['name'] as String? ?? '',
-      barangay: m['barangay'] as String? ?? '',
-      totalCapacity: (m['capacity'] as num?)?.toInt() ?? 0,
-      services: (m['services'] as List?)?.cast<String>() ?? const [],
-      currentOccupancy: (m['individuals'] as num?)?.toInt(),
+      name: name,
+      barangay: JsonRead.string(m['barangay']) ?? '',
+      totalCapacity: JsonRead.integer(m['capacity']) ?? 0,
+      // Was `.cast<String>()`, which throws lazily -- at render time, inside
+      // the list's build -- the first time a service arrives as anything
+      // but a string.
+      services: JsonRead.strings(m['services']),
+      currentOccupancy: JsonRead.integer(m['individuals']),
     );
-  }).toList();
+  });
 }
 
 /// Sakuna (Disaster Risk Reduction & Emergency Ops) — citizen-appropriate
@@ -141,21 +150,28 @@ class SakunaScreen extends StatelessWidget {
                           Expanded(
                             child: Text(h.$1, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
                           ),
-                          InkWell(
-                            onTap: () => launchUrl(Uri.parse('tel:${h.$2}')),
-                            child: Row(
-                              children: [
-                                Text(
-                                  h.$2,
-                                  style: const TextStyle(
-                                    fontSize: 12.5,
-                                    fontWeight: FontWeight.w600,
-                                    color: AppColors.rose600,
+                          const SizedBox(width: AppSpacing.sm),
+                          Flexible(
+                            child: InkWell(
+                              onTap: dialUri(h.$2) == null ? null : () => launchUrl(dialUri(h.$2)!),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Flexible(
+                                    child: Text(
+                                      h.$2,
+                                      textAlign: TextAlign.end,
+                                      style: const TextStyle(
+                                        fontSize: 12.5,
+                                        fontWeight: FontWeight.w600,
+                                        color: AppColors.rose600,
+                                      ),
+                                    ),
                                   ),
-                                ),
-                                const SizedBox(width: AppSpacing.xs),
-                                const Icon(Icons.call_rounded, size: 14, color: AppColors.rose600),
-                              ],
+                                  const SizedBox(width: AppSpacing.xs),
+                                  const Icon(Icons.call_rounded, size: 14, color: AppColors.rose600),
+                                ],
+                              ),
                             ),
                           ),
                         ],

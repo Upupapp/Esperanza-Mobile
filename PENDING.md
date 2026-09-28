@@ -32,6 +32,10 @@ item, move it to **Done** with its commit — do not delete it, so the arc stays
 | 16 | **Remaining wizard breadth** | 62 destinations are walked. Registration, the resident-profile sub-screens (family, household, review, submission confirmation), report-a-problem and the Sakuna incident flow are reached shallowly or not at all. |
 | 17 | **Backend Master Command** | Offered, not started. Spec Section 5 already enumerates the missing Web-Admin APIs; the front-end contract from FE 13 would feed it. |
 
+| 20 | **Backend contract not verified from this repo** (2026-09-28) | The API integration was hardened on the mobile side only (tolerant parsing, pagination, session expiry, see the Done list). Neither `Upupapp/esperanza-backend` nor `Upupapp/Esperanza-Web-Platform-frontend-` was readable from the session that did it, so field names (`ref`, `history[].remarks`, `liked_by_me` on announcements, `meta.last_page`, …) follow the existing mobile code and doc comments, **not** a read of the backend's routes and resources. Next: diff every endpoint in `lib/services/` against the backend's `routes/api.php` and resources. |
+| 21 | **Registration never uploads the ID it requires** | `register_screen.dart` makes the citizen pick a valid ID (and run a simulated face scan) but `POST /auth/citizen/register` is sent without the file. Needs the backend's ID-upload endpoint — unknown from this repo. |
+| 22 | **Incident reports go to the wrong endpoint** | "Report an Incident" posts to `POST /citizen/requests` with `MockCatalog` keys (`incident_flood`), which are not backend services. The spec (Section 5) says the backend built `POST /citizen/incidents` on 2026-08-29; nothing calls it. |
+
 ## Deferred by decision
 
 | # | Item | Decision |
@@ -58,6 +62,16 @@ item, move it to **Done** with its commit — do not delete it, so the arc stays
   `Package.resolved` is the only thing making an iOS build reproducible.
 
 ## Done this programme
+
+**API integration hardening (2026-09-28):** revalidates the session on warm start (an LGU
+verification now reaches Dokyu without re-login); a 401 signs out locally; login refuses a
+tokenless reply; every collection pages to the end; one malformed row no longer blanks a list;
+Balita shows announcements even when community posts fail, keeps announcement likes, resolves
+relative image URLs, and shows a citizen's new post immediately; events in calendar order;
+hotline/directory dialling reduced to one clean number; transition remarks reach the timeline;
+multipart uploads go through the injected client. Pinned by `test/api_integration_hardening_test.dart`
+and `test/balita_live_feed_test.dart`.
+
 
 FE 01 persistence hardening (both lanes merged) · FE 02 synthetic identities · FE 03 iOS build +
 62-destination automated device walk · FE 04 status parity · FE 05 partial · FE 06 design tokens ·

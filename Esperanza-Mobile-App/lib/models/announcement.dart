@@ -1,4 +1,5 @@
 import 'package:intl/intl.dart';
+import '../services/json_read.dart';
 
 /// Which real table a [Announcement] came from — GET /announcements
 /// (admin-published, read-only from mobile) or GET /community-posts
@@ -102,39 +103,53 @@ class Announcement {
   }
 
   /// GET /announcements (PublicContentController::announcementRow()).
-  factory Announcement.fromAnnouncementApi(Map<String, dynamic> json) => Announcement(
-    id: 'ann-${json['id']}',
-    remoteId: json['id'] as int,
-    kind: PostKind.announcement,
-    author: json['author'] as String? ?? 'Esperanza LGU',
-    barangay: json['barangay'] as String?,
-    category: json['category'] as String?,
-    body: json['body'] as String? ?? '',
-    imageUrl: json['image_url'] as String?,
-    at: DateTime.tryParse(json['published_at'] as String? ?? ''),
-    likes: json['likes'] as int? ?? 0,
-    commentsCount: json['comments_count'] as int? ?? 0,
-    shares: json['shares'] as int? ?? 0,
-  );
+  factory Announcement.fromAnnouncementApi(Map<String, dynamic> json) {
+    final id = JsonRead.integer(json['id']);
+    // The id addresses the like/comment endpoints; a row without one would
+    // render but fail every interaction, so it is rejected (and skipped by
+    // BalitaService's per-row parse) instead.
+    if (id == null) throw const FormatException('announcement without an id');
+    return Announcement(
+      id: 'ann-$id',
+      remoteId: id,
+      kind: PostKind.announcement,
+      author: JsonRead.nonEmpty(json['author']) ?? 'Esperanza LGU',
+      barangay: JsonRead.nonEmpty(json['barangay']),
+      category: JsonRead.nonEmpty(json['category']),
+      body: JsonRead.string(json['body']) ?? '',
+      imageUrl: JsonRead.mediaUrl(json['image_url']),
+      at: JsonRead.date(json['published_at']) ?? JsonRead.date(json['created_at']),
+      likes: JsonRead.integer(json['likes']) ?? 0,
+      // Was never read for announcements, so a liked announcement came back
+      // un-liked on every refresh and the next tap un-liked it on the server.
+      likedByMe: JsonRead.boolean(json['liked_by_me']) ?? false,
+      commentsCount: JsonRead.integer(json['comments_count']) ?? 0,
+      shares: JsonRead.integer(json['shares']) ?? 0,
+    );
+  }
 
   /// GET /community-posts (CitizenPortalController::postRow()).
-  factory Announcement.fromCommunityApi(Map<String, dynamic> json) => Announcement(
-    id: 'cp-${json['id']}',
-    remoteId: json['id'] as int,
-    kind: PostKind.community,
-    author: json['author'] as String? ?? '',
-    barangay: json['barangay'] as String?,
-    category: json['category'] as String?,
-    body: json['body'] as String? ?? '',
-    imageUrl: json['image_url'] as String?,
-    at: DateTime.tryParse(json['created_at'] as String? ?? ''),
-    likes: json['likes'] as int? ?? 0,
-    likedByMe: json['liked_by_me'] as bool? ?? false,
-    commentsCount: json['comments_count'] as int? ?? 0,
-    status: json['status'] as String?,
-    visible: json['visible'] as bool? ?? true,
-    mine: json['mine'] as bool? ?? false,
-  );
+  factory Announcement.fromCommunityApi(Map<String, dynamic> json) {
+    final id = JsonRead.integer(json['id']);
+    if (id == null) throw const FormatException('community post without an id');
+    return Announcement(
+      id: 'cp-$id',
+      remoteId: id,
+      kind: PostKind.community,
+      author: JsonRead.string(json['author']) ?? '',
+      barangay: JsonRead.nonEmpty(json['barangay']),
+      category: JsonRead.nonEmpty(json['category']),
+      body: JsonRead.string(json['body']) ?? '',
+      imageUrl: JsonRead.mediaUrl(json['image_url']),
+      at: JsonRead.date(json['created_at']),
+      likes: JsonRead.integer(json['likes']) ?? 0,
+      likedByMe: JsonRead.boolean(json['liked_by_me']) ?? false,
+      commentsCount: JsonRead.integer(json['comments_count']) ?? 0,
+      status: JsonRead.nonEmpty(json['status']),
+      visible: JsonRead.boolean(json['visible']) ?? true,
+      mine: JsonRead.boolean(json['mine']) ?? false,
+    );
+  }
 }
 
 /// One comment on an announcement or a community post — both real now
@@ -151,11 +166,11 @@ class PostComment {
   const PostComment({required this.id, required this.author, required this.body, this.mine = false, this.at});
 
   factory PostComment.fromApi(Map<String, dynamic> json) => PostComment(
-    id: json['id'] as int,
-    author: json['author'] as String? ?? '',
-    body: json['body'] as String? ?? '',
-    mine: json['mine'] as bool? ?? false,
-    at: DateTime.tryParse(json['created_at'] as String? ?? ''),
+    id: JsonRead.integer(json['id']) ?? 0,
+    author: JsonRead.string(json['author']) ?? '',
+    body: JsonRead.string(json['body']) ?? '',
+    mine: JsonRead.boolean(json['mine']) ?? false,
+    at: JsonRead.date(json['created_at']),
   );
 }
 
@@ -168,6 +183,10 @@ class EventItem {
   final String? imagePath;
   final String? category;
 
+  /// The parsed [date], kept so a list can be put in calendar order; null
+  /// for the bundled mock events and for an unparseable date.
+  final DateTime? startsAt;
+
   EventItem({
     required this.title,
     required this.date,
@@ -175,7 +194,33 @@ class EventItem {
     required this.venue,
     this.imagePath,
     this.category,
+    this.startsAt,
   });
+
+  /// Upcoming events first (soonest first), then past ones (most recent
+  /// first), then undated ones -- the order the server sent was not
+  /// guaranteed to be either, and Home's two-item preview showed whichever
+  /// rows happened to come back first, past or not.
+  static List<EventItem> inCalendarOrder(Iterable<EventItem> events, {DateTime? now}) {
+    DateTime dateOnly(DateTime d) => DateTime(d.year, d.month, d.day);
+    final today = dateOnly(now ?? DateTime.now());
+    final upcoming = <EventItem>[];
+    final past = <EventItem>[];
+    final undated = <EventItem>[];
+    for (final e in events) {
+      final d = e.startsAt;
+      if (d == null) {
+        undated.add(e);
+      } else if (!dateOnly(d).isBefore(today)) {
+        upcoming.add(e);
+      } else {
+        past.add(e);
+      }
+    }
+    upcoming.sort((a, b) => a.startsAt!.compareTo(b.startsAt!));
+    past.sort((a, b) => b.startsAt!.compareTo(a.startsAt!));
+    return [...upcoming, ...past, ...undated];
+  }
 
   /// GET /events (PublicContentController::events()) -- key/name/title/
   /// date/time/venue/barangay/category/recurrence/timezone. `title` falls
@@ -190,16 +235,15 @@ class EventItem {
   /// optional, so a real event renders as a text-only card rather than
   /// missing its poster silently -- there is no image to fall back to.
   factory EventItem.fromApi(Map<String, dynamic> json) {
-    final rawDate = json['date'] as String?;
+    final rawDate = JsonRead.nonEmpty(json['date']);
     final parsed = rawDate != null ? DateTime.tryParse(rawDate) : null;
     return EventItem(
-      title: (json['title'] as String?)?.trim().isNotEmpty == true
-          ? json['title'] as String
-          : (json['name'] as String? ?? ''),
+      title: JsonRead.nonEmpty(json['title']) ?? JsonRead.nonEmpty(json['name']) ?? '',
       date: parsed != null ? DateFormat('MMM d, yyyy').format(parsed) : (rawDate ?? ''),
-      time: json['time'] as String? ?? '',
-      venue: json['venue'] as String? ?? '',
-      category: json['category'] as String?,
+      time: JsonRead.string(json['time']) ?? '',
+      venue: JsonRead.string(json['venue']) ?? '',
+      category: JsonRead.nonEmpty(json['category']),
+      startsAt: parsed,
     );
   }
 }

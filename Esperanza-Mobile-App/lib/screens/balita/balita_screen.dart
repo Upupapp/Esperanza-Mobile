@@ -2,9 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../models/access_level.dart';
 import '../../models/announcement.dart';
+import '../../services/api_client.dart';
 import '../../services/balita_service.dart';
 import '../../services/citizen_session_service.dart';
+import '../../theme/app_colors.dart';
+import '../../theme/app_spacing.dart';
 import '../../utils/balita_post_actions.dart';
+import '../../widgets/app_dialogs.dart';
 import '../../widgets/async_state_view.dart';
 import '../../widgets/empty_state.dart';
 import '../../widgets/esperanza_drawer.dart';
@@ -61,31 +65,82 @@ class BalitaScreen extends StatelessWidget {
           await balita.loadFeed(signedIn: session.account != null);
           return balita.posts;
         },
-        builder: (context, posts, reload) => posts.isEmpty
-            ? const EmptyState(
-                icon: Icons.campaign_outlined,
-                title: 'No announcements available',
-                description: 'Check back soon for updates from Esperanza LGU.',
-              )
-            // ListView.builder rather than a plain ListView(children: posts.map(...))
-            // — post images only ever get built/decoded for cards actually
-            // near the viewport instead of the whole feed at once, without
-            // changing scrolling behavior or layout.
-            : ListView.builder(
-                // Balita posts (including their now-tappable images) are plain
-                // scrolled content sitting directly on RootShell's IndexedStack
-                // body, not a floating element, so they only need the
-                // inherited navbar MediaQuery inset itself (RootShell's
-                // extendBody: true keeps this in sync with whatever the curved
-                // nav bar actually renders — see
-                // widgets/esperanza_curved_navbar.dart) — without it, the last
-                // post's image can end up laid out underneath the navbar's
-                // full hit-testable bounding box and become untappable even
-                // though it looks like ordinary scrolled content.
-                padding: EdgeInsets.fromLTRB(16, 12, 16, 24 + MediaQuery.paddingOf(context).bottom),
-                itemCount: posts.length,
-                itemBuilder: (context, i) => PostCard(key: ValueKey(posts[i].id), post: posts[i]),
-              ),
+        // The list is read live from BalitaService, not from the loader's
+        // snapshot: the snapshot never saw a post the citizen had just
+        // created (BalitaService.createPost inserts it), so a new post only
+        // appeared after the next sign-in.
+        builder: (context, _, reload) => _Feed(
+          onRefresh: () => balita.loadFeed(signedIn: session.account != null),
+        ),
+      ),
+    );
+  }
+}
+
+class _Feed extends StatelessWidget {
+  const _Feed({required this.onRefresh});
+
+  final Future<void> Function() onRefresh;
+
+  @override
+  Widget build(BuildContext context) {
+    final balita = context.watch<BalitaService>();
+    final posts = balita.posts;
+    return RefreshIndicator(
+      onRefresh: () async {
+        try {
+          await onRefresh();
+        } on ApiException catch (e) {
+          if (context.mounted) AppDialogs.toast(context, e.message(), success: false);
+        }
+      },
+      // ListView.builder rather than a plain ListView(children: posts.map(...))
+      // — post images only ever get built/decoded for cards actually
+      // near the viewport instead of the whole feed at once, without
+      // changing scrolling behavior or layout.
+      child: ListView.builder(
+        physics: const AlwaysScrollableScrollPhysics(),
+        // Balita posts (including their now-tappable images) are plain
+        // scrolled content sitting directly on RootShell's IndexedStack
+        // body, not a floating element, so they only need the
+        // inherited navbar MediaQuery inset itself (RootShell's
+        // extendBody: true keeps this in sync with whatever the curved
+        // nav bar actually renders — see
+        // widgets/esperanza_curved_navbar.dart) — without it, the last
+        // post's image can end up laid out underneath the navbar's
+        // full hit-testable bounding box and become untappable even
+        // though it looks like ordinary scrolled content.
+        padding: EdgeInsets.fromLTRB(16, 12, 16, 24 + MediaQuery.paddingOf(context).bottom),
+        itemCount: (balita.communityUnavailable ? 1 : 0) + (posts.isEmpty ? 1 : posts.length),
+        itemBuilder: (context, i) {
+          if (balita.communityUnavailable) {
+            if (i == 0) return const _CommunityUnavailableNotice();
+            i -= 1;
+          }
+          if (posts.isEmpty) {
+            return const EmptyState(
+              icon: Icons.campaign_outlined,
+              title: 'No announcements available',
+              description: 'Check back soon for updates from Esperanza LGU.',
+            );
+          }
+          return PostCard(key: ValueKey(posts[i].id), post: posts[i]);
+        },
+      ),
+    );
+  }
+}
+
+class _CommunityUnavailableNotice extends StatelessWidget {
+  const _CommunityUnavailableNotice();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Padding(
+      padding: EdgeInsets.only(bottom: AppSpacing.md),
+      child: Text(
+        'Community posts could not be loaded right now. Pull down to try again.',
+        style: TextStyle(fontSize: 12.5, color: AppColors.textMuted),
       ),
     );
   }

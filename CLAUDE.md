@@ -29,9 +29,20 @@ Both lanes run Flutter 3.47.0 / Dart 3.13.0; keep them pinned together.
 
 ## What this project is
 
-A **frontend-only** Flutter citizen app for the Municipality of Esperanza. There is
-**no HTTP client dependency at all** — auth, requests, notifications and profile are
-simulated and persisted to `shared_preferences`. This is deliberate, not an omission.
+A Flutter citizen app for the Municipality of Esperanza. **It talks to the real backend
+(`Upupapp/esperanza-backend`) since 2026-09-25** through one client,
+`lib/services/api_client.dart` (`package:http`; base URL from
+`--dart-define=API_BASE_URL`, defaulting to staging). Wired to the API: citizen auth
+and profile, the Dokyu/Tulong catalogue, submission and tracking, Balita (announcements,
+community posts, likes, comments, reports), events, directory, hotlines and evacuation
+centres. **Still simulated on the device** (`shared_preferences` only): profile edits,
+resident profiling, the Master File, notifications, Report a Problem, the Digital ID and
+incident reports (see `PENDING.md`).
+
+Rules for API code: parse payloads with `lib/services/json_read.dart` (never a hard
+`as int`/`as String` cast; skip a malformed row, don't fail the list), page through
+collections with `api.getAllPages`, and build path segments with `ApiClient.segment`.
+Tests never touch the network — `test/support/fake_api.dart` swaps the client.
 
 `Esperanza-Mobile-App/ESPERANZA_MOBILE_WEB_ALIGNMENT.md` is the spec and the intent
 authority (there is now exactly one copy; the root duplicate is gone). It also

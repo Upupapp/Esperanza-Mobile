@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../services/api_client.dart';
 import '../../services/citizen_session_service.dart';
+import '../../services/json_read.dart';
 import '../../services/mock_catalog.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_spacing.dart';
@@ -278,8 +279,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
         'email_verification_token': _emailToken,
       });
       if (!mounted) return;
-      final accountNo = result['account_no'] as String?;
-      final needsCode = ((result['verification'] as Map?)?['required'] as bool?) ?? true;
+      final accountNo = JsonRead.nonEmpty(result['account_no']);
+      final verification = JsonRead.map(result['verification']);
+      final needsCode = JsonRead.boolean(verification?['required']) ?? true;
       if (!needsCode && accountNo != null) {
         // The email was proven in step 1, so there is no second code: sign
         // straight in and show the Pending Review status.
@@ -293,7 +295,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       }
       setState(() {
         _accountNo = accountNo;
-        _otpDestination = (result['verification'] as Map?)?['destination'] as String?;
+        _otpDestination = JsonRead.nonEmpty(verification?['destination']);
         _submitting = false;
         _step = 5;
       });

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -5,6 +6,7 @@ import '../models/access_level.dart';
 import '../models/citizen_account.dart';
 import '../theme/app_status.dart';
 import 'api_client.dart';
+import 'json_read.dart';
 import 'mock_catalog.dart';
 import 'persistence_recovery.dart';
 
@@ -59,7 +61,53 @@ class CitizenSessionService extends ChangeNotifier {
   }
 
   CitizenSessionService() {
+    ApiClient.addSessionExpiredListener(_onSessionExpired);
     _restore();
+  }
+
+  bool _disposed = false;
+
+  @override
+  void dispose() {
+    _disposed = true;
+    ApiClient.removeSessionExpiredListener(_onSessionExpired);
+    super.dispose();
+  }
+
+  /// The server answered 401 to a signed-in call: the token is gone, so the
+  /// cached account is only a picture of a session that no longer exists.
+  /// Cleared locally (no POST /auth/logout -- it would 401 too) so AuthGate
+  /// returns the citizen to sign-in instead of every screen showing an error.
+  /// Device-local data (resident profile drafts, Master File) is kept: an
+  /// expired token is not the citizen asking to be forgotten.
+  Future<void> _onSessionExpired() async {
+    if (_account == null) return;
+    _account = null;
+    _isGuest = false;
+    await api.setToken(null);
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove(_key);
+    } catch (_) {
+      // Memory is already cleared; a failed write only matters on restart,
+      // where the next call 401s and lands here again.
+    }
+    if (!_disposed) notifyListeners();
+  }
+
+  /// Re-reads the profile in the background after a warm start from the
+  /// cache. The doc comment on [refresh] always promised this; nothing
+  /// called it, so a citizen the LGU verified stayed locked out of Dokyu
+  /// until they signed out and in again. A network failure keeps the cached
+  /// copy (offline start still works); a 401 clears it via
+  /// [_onSessionExpired].
+  Future<void> _revalidate() async {
+    if (await api.getToken() == null) return;
+    try {
+      await refresh();
+    } catch (_) {
+      // See above.
+    }
   }
 
   Future<void> _restore() async {
@@ -95,6 +143,7 @@ class CitizenSessionService extends ChangeNotifier {
       _loading = false;
       notifyListeners();
     }
+    if (_account != null) unawaited(_revalidate());
   }
 
 
@@ -127,9 +176,24 @@ class CitizenSessionService extends ChangeNotifier {
   /// state is what a login screen shows, same as the web client.
   Future<void> loginWithCredentials(String identifier, String password) async {
     final result = await api.post('/auth/citizen/login', body: {'identifier': identifier, 'password': password});
-    final token = result.map['token'] as String?;
-    if (token != null) await api.setToken(token);
-    await refresh();
+    final token = JsonRead.nonEmpty(result.map['token']);
+    if (token == null) {
+      // Proceeding would call GET /citizen/profile unauthenticated and show
+      // an unrelated 401 as the reason sign-in failed.
+      throw const ApiException(
+        messageEn: 'Sign-in did not complete. Please try again.',
+        messageFil: 'Hindi natapos ang pag-sign in. Pakisubukang muli.',
+      );
+    }
+    await api.setToken(token);
+    try {
+      await refresh();
+    } catch (_) {
+      // A token with no session behind it: drop it, so the next launch does
+      // not start half signed in.
+      await api.setToken(null);
+      rethrow;
+    }
   }
 
   /// Registration step 1a: POST /auth/citizen/email/send-code. Runs before
@@ -144,7 +208,16 @@ class CitizenSessionService extends ChangeNotifier {
   /// single-use token that [register] presents as `email_verification_token`.
   Future<String> verifyEmailCode({required String email, required String code}) async {
     final result = await api.post('/auth/citizen/email/verify-code', body: {'email': email, 'code': code});
-    return result.map['verification_token'] as String;
+    final token = JsonRead.nonEmpty(result.map['verification_token']);
+    if (token == null) {
+      // Was a hard `as String` cast: a TypeError the register screen (which
+      // catches ApiException only) could not show, leaving the step stuck.
+      throw const ApiException(
+        messageEn: 'The code could not be confirmed. Please request a new one.',
+        messageFil: 'Hindi makumpirma ang code. Humingi ng bagong code.',
+      );
+    }
+    return token;
   }
 
   /// POST /auth/citizen/register. Returns the account_no and the OTP
@@ -169,22 +242,32 @@ class CitizenSessionService extends ChangeNotifier {
   Future<void> refresh() async {
     final result = await api.get('/citizen/profile');
     final p = result.map;
+    final accountNo = JsonRead.nonEmpty(p['account_no']);
+    if (accountNo == null) {
+      // Every per-account store (profile drafts, Master File, notification
+      // read state) keys on this id; an empty one would merge accounts.
+      throw const ApiException(
+        messageEn: 'Your profile could not be loaded. Please try again.',
+        messageFil: 'Hindi ma-load ang iyong profile. Pakisubukang muli.',
+      );
+    }
+    String str(String key) => JsonRead.string(p[key]) ?? '';
     await login(
       CitizenAccount(
-        id: p['account_no'] as String? ?? '',
-        firstName: p['first_name'] as String? ?? '',
-        lastName: p['last_name'] as String? ?? '',
-        email: p['email'] as String? ?? '',
-        mobile: p['mobile'] as String? ?? '',
-        barangay: p['barangay'] as String? ?? '',
-        purok: p['purok'] as String? ?? '',
-        address: p['address'] as String? ?? '',
-        birthdate: p['birthdate'] as String? ?? '',
-        sex: p['sex'] as String? ?? '',
-        civilStatus: p['civil_status'] as String? ?? '',
-        occupation: p['occupation'] as String? ?? '',
-        profileCompleteness: (p['profile_completeness'] as num?)?.round() ?? 0,
-        status: p['status'] as String? ?? 'Draft',
+        id: accountNo,
+        firstName: str('first_name'),
+        lastName: str('last_name'),
+        email: str('email'),
+        mobile: str('mobile'),
+        barangay: str('barangay'),
+        purok: str('purok'),
+        address: str('address'),
+        birthdate: str('birthdate'),
+        sex: str('sex'),
+        civilStatus: str('civil_status'),
+        occupation: str('occupation'),
+        profileCompleteness: JsonRead.integer(p['profile_completeness']) ?? 0,
+        status: JsonRead.nonEmpty(p['status']) ?? 'Draft',
       ),
     );
   }

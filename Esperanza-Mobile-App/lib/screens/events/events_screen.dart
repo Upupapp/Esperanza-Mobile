@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../models/announcement.dart';
 import '../../services/api_client.dart';
+import '../../services/json_read.dart';
 import '../../widgets/empty_state.dart';
 import '../../widgets/esperanza_drawer.dart';
 import '../../widgets/event_card.dart';
@@ -28,16 +29,20 @@ class EventsScreen extends StatelessWidget {
       appBar: AppBar(title: const Text('Events'), actions: const [AlertsAction()]),
       body: AsyncStateView<List<EventItem>>(
         loader: () async {
-          final res = await api.get('/events', query: {'per_page': 100});
-          return res.list.map((e) => EventItem.fromApi(e as Map<String, dynamic>)).toList();
+          final rows = await api.getAllPages('/events', query: {'per_page': 100}, maxPages: 5);
+          return EventItem.inCalendarOrder(JsonRead.rows(rows, EventItem.fromApi).where((e) => e.title.isNotEmpty));
         },
-        builder: (context, events, reload) => events.isEmpty
-            ? const EmptyState(icon: Icons.event_outlined, title: 'No upcoming events')
-            : ListView.builder(
-                padding: EdgeInsets.fromLTRB(16, 12, 16, 24 + MediaQuery.paddingOf(context).bottom),
-                itemCount: events.length,
-                itemBuilder: (context, i) => EventCard(event: events[i]),
-              ),
+        builder: (context, events, reload) => RefreshIndicator(
+          onRefresh: () async => reload(),
+          child: ListView.builder(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: EdgeInsets.fromLTRB(16, 12, 16, 24 + MediaQuery.paddingOf(context).bottom),
+            itemCount: events.isEmpty ? 1 : events.length,
+            itemBuilder: (context, i) => events.isEmpty
+                ? const EmptyState(icon: Icons.event_outlined, title: 'No upcoming events')
+                : EventCard(event: events[i]),
+          ),
+        ),
       ),
     );
   }

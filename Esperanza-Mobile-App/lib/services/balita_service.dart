@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 
 import 'api_client.dart';
+import 'json_read.dart';
 import '../models/announcement.dart';
 
 /// Balita: announcements and the community feed, against the real backend
@@ -21,9 +22,25 @@ import '../models/announcement.dart';
 class BalitaService extends ChangeNotifier {
   List<Announcement> _posts = [];
   bool _loaded = false;
+  bool _communityUnavailable = false;
+  final Set<String> _likesInFlight = {};
+
+  BalitaService() {
+    ApiClient.addSessionExpiredListener(clear);
+  }
+
+  @override
+  void dispose() {
+    ApiClient.removeSessionExpiredListener(clear);
+    super.dispose();
+  }
 
   List<Announcement> get posts => List.unmodifiable(_posts);
   bool get loaded => _loaded;
+
+  /// True when the last [loadFeed] got announcements but the community half
+  /// failed -- the feed is shown partial rather than not at all.
+  bool get communityUnavailable => _communityUnavailable;
 
   /// GET /announcements + GET /community-posts, merged and sorted newest
   /// first. The community-posts fetch needs a signed-in citizen (it's
@@ -33,16 +50,23 @@ class BalitaService extends ChangeNotifier {
     _loaded = false;
     scheduleMicrotask(notifyListeners);
     try {
-      final calls = <Future<ApiResult>>[api.get('/announcements', query: {'per_page': 50})];
-      if (signedIn) calls.add(api.get('/community-posts', query: {'per_page': 50}));
-      final results = await Future.wait(calls);
+      // Announcements are public and are the half a citizen must always get.
+      // The two used to share one Future.wait, so a failing /community-posts
+      // (an unverified account refused, a server error on that table alone)
+      // took the official LGU announcements down with it.
+      final announcementsFuture = api.getAllPages('/announcements', query: {'per_page': 50}, maxPages: 2);
+      final communityFuture = signedIn
+          ? api.getAllPages('/community-posts', query: {'per_page': 50}, maxPages: 2).then<List<dynamic>?>((r) => r)
+          : Future<List<dynamic>?>.value(const []);
+      final communityGuarded = communityFuture.catchError((Object _) => null);
 
-      final announcements = results[0].list.map(
-        (e) => Announcement.fromAnnouncementApi(e as Map<String, dynamic>),
-      );
-      final community = signedIn
-          ? results[1].list.map((e) => Announcement.fromCommunityApi(e as Map<String, dynamic>))
-          : const <Announcement>[];
+      final announcements = JsonRead.rows(await announcementsFuture, Announcement.fromAnnouncementApi);
+      final communityRaw = await communityGuarded;
+      _communityUnavailable = communityRaw == null;
+      final community = JsonRead.rows(communityRaw, Announcement.fromCommunityApi)
+          // Belt and braces for [Announcement.visible]: a post still in
+          // moderation is shown only to its author.
+          .where((p) => p.visible || p.mine);
 
       _posts = [...announcements, ...community]
         ..sort((a, b) => (b.at ?? DateTime(0)).compareTo(a.at ?? DateTime(0)));
@@ -62,20 +86,29 @@ class BalitaService extends ChangeNotifier {
   /// Toggles like/unlike -- both endpoints are POST-to-toggle, returning
   /// the server's own new `{liked, likes}` rather than the client guessing
   /// at the new count.
+  ///
+  /// A second tap while the first is still in flight is ignored: two
+  /// toggles racing each other leave the server at its starting state while
+  /// the UI shows whichever reply arrived last.
   Future<void> toggleLike(Announcement post) async {
-    final res = await api.post(_likePath(post));
-    post.likedByMe = res.map['liked'] as bool?;
-    post.likes = res.map['likes'] as int? ?? post.likes;
-    notifyListeners();
+    if (!_likesInFlight.add(post.id)) return;
+    try {
+      final res = await api.post(_likePath(post));
+      post.likedByMe = JsonRead.boolean(res.map['liked']) ?? !(post.likedByMe ?? false);
+      post.likes = JsonRead.integer(res.map['likes']) ?? post.likes;
+      notifyListeners();
+    } finally {
+      _likesInFlight.remove(post.id);
+    }
   }
 
   Future<List<PostComment>> loadComments(Announcement post) async {
-    final res = await api.get(_commentsPath(post), query: {'per_page': 50});
-    return res.list.map((e) => PostComment.fromApi(e as Map<String, dynamic>)).toList();
+    final rows = await api.getAllPages(_commentsPath(post), query: {'per_page': 50}, maxPages: 4);
+    return JsonRead.rows(rows, PostComment.fromApi);
   }
 
   Future<PostComment> addComment(Announcement post, String body) async {
-    final res = await api.post(_commentsPath(post), body: {'body': body});
+    final res = await api.post(_commentsPath(post), body: {'body': body.trim()});
     final comment = PostComment.fromApi(res.map);
     post.commentsCount += 1;
     notifyListeners();
@@ -109,7 +142,17 @@ class BalitaService extends ChangeNotifier {
             fields: {'body': body, 'category': category},
           )
         : await api.post('/community-posts', body: {'body': body, 'category': category});
-    final post = Announcement.fromCommunityApi(res.map);
+    final Announcement post;
+    try {
+      post = Announcement.fromCommunityApi(res.map);
+    } on FormatException {
+      // Created on the server but unreadable here: reported as an error so
+      // the composer does not close on a post the feed cannot show.
+      throw const ApiException(
+        messageEn: 'Your post was sent, but could not be shown. Pull down to refresh.',
+        messageFil: 'Naipadala ang iyong post pero hindi maipakita. I-refresh ang feed.',
+      );
+    }
     _posts.insert(0, post);
     notifyListeners();
     return post;
@@ -120,6 +163,7 @@ class BalitaService extends ChangeNotifier {
   void clear() {
     _posts = [];
     _loaded = false;
+    _communityUnavailable = false;
     notifyListeners();
   }
 }

@@ -1,4 +1,5 @@
 import 'service_form_spec.dart';
+import '../services/json_read.dart';
 
 /// A selectable document type (Dokyu) or assistance program (Tulong).
 ///
@@ -102,17 +103,24 @@ class CatalogItem {
 
   factory CatalogItem.fromApi(Map<String, dynamic> json, {ServiceFormSpec? formSpec, Map<String, dynamic> demoDefaults = const {}, String? demoPurpose, String? icon}) {
     final fee = json['fee'];
+    String? str(String key) => JsonRead.string(json[key]);
     return CatalogItem(
-      key: json['key'] as String? ?? '',
-      name: json['name'] as String? ?? '',
-      office: json['office'] as String? ?? '',
-      fee: fee is Map ? (fee['display'] as String? ?? 'Free') : (fee as String? ?? 'Free'),
-      days: json['days'] as String? ?? '',
-      requirements: (json['requirements'] as List?)?.map((e) => e is Map ? (e['label']?.toString() ?? '') : e.toString()).toList() ?? const [],
-      process: (json['process'] as List?)?.map((e) => e.toString()).toList() ?? const [],
-      type: json['type'] as String? ?? '',
-      policyBlocked: json['policy_blocked'] as bool? ?? false,
-      policyGapNote: json['policy_gap_note'] as String?,
+      key: str('key') ?? '',
+      name: str('name') ?? '',
+      office: str('office') ?? '',
+      // A missing fee renders as a dash, never 'Free': on a government fee
+      // schedule an absent amount must not read as "costs nothing" (the same
+      // ruling the web lane applied to its Service Catalog, web 73b8ea8).
+      fee: (fee is Map ? JsonRead.nonEmpty(fee['display']) : JsonRead.nonEmpty(fee)) ?? '—',
+      days: str('days') ?? '',
+      requirements: JsonRead.list(json['requirements'])
+          .map((e) => e is Map ? (JsonRead.string(e['label']) ?? '') : e.toString())
+          .where((e) => e.isNotEmpty)
+          .toList(),
+      process: JsonRead.strings(json['process']),
+      type: str('type') ?? '',
+      policyBlocked: JsonRead.boolean(json['policy_blocked']) ?? false,
+      policyGapNote: JsonRead.nonEmpty(json['policy_gap_note']),
       formSpec: formSpec,
       demoDefaults: demoDefaults,
       demoPurpose: demoPurpose,

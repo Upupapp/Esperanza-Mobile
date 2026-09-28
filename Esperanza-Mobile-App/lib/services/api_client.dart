@@ -78,6 +78,25 @@ class ApiResult {
 class ApiClient {
   ApiClient({http.Client? httpClient, this.baseUrl = apiBaseUrl}) : _http = httpClient ?? http.Client();
 
+  /// Called when a signed-in request comes back 401: the server has revoked
+  /// or expired the bearer token, so every later call will fail the same way.
+  /// Without this the app kept the cached account, looked signed in, and
+  /// showed an error on every screen until the citizen found Sign Out.
+  ///
+  /// Static, not per-instance, because [api] is swapped for a fake in tests
+  /// and the listeners (CitizenSessionService, RequestsService, BalitaService)
+  /// register once at construction.
+  static final List<void Function()> _sessionExpiredListeners = [];
+
+  static void addSessionExpiredListener(void Function() listener) => _sessionExpiredListeners.add(listener);
+
+  static void removeSessionExpiredListener(void Function() listener) => _sessionExpiredListeners.remove(listener);
+
+  /// Encodes one path segment (a reference number, a requirement key) so a
+  /// value containing `/`, `?`, `#` or a space addresses the resource it
+  /// names instead of a different route.
+  static String segment(Object value) => Uri.encodeComponent(value.toString());
+
   final http.Client _http;
   final String baseUrl;
 
@@ -120,6 +139,30 @@ class ApiClient {
 
   Future<ApiResult> delete(String path) => _send('DELETE', path);
 
+  /// Follows a paginated collection to its end. A single `per_page` request
+  /// silently truncated anything past the first page -- a citizen's 101st
+  /// request simply never appeared. Reads Laravel's paginator `meta`
+  /// (`current_page`/`last_page`); an endpoint that is not paginated returns
+  /// no `meta` and is fetched exactly once. [maxPages] bounds a misbehaving
+  /// server.
+  Future<List<dynamic>> getAllPages(String path, {Map<String, dynamic>? query, int maxPages = 20}) async {
+    final rows = <dynamic>[];
+    var page = 1;
+    while (true) {
+      final res = await get(path, query: {...?query, if (page > 1) 'page': page});
+      rows.addAll(res.list);
+      final meta = res.meta;
+      if (meta == null) break;
+      final current = _intOf(meta['current_page']) ?? page;
+      final last = _intOf(meta['last_page']);
+      if (last == null || current >= last || res.list.isEmpty || page >= maxPages) break;
+      page = current + 1;
+    }
+    return rows;
+  }
+
+  static int? _intOf(Object? v) => v is num ? v.toInt() : (v is String ? int.tryParse(v) : null);
+
   /// Multipart upload — real ID/requirement/attachment uploads (the app's
   /// `image_picker`/`file_picker` results), matching the backend's
   /// `App\Domain\Storage\UploadService`. `filePath` is a local path from
@@ -137,13 +180,17 @@ class ApiClient {
     request.files.add(await http.MultipartFile.fromPath(fileField, filePath));
 
     try {
-      final streamed = await request.send().timeout(const Duration(seconds: 30));
+      // Longer than a JSON call: a phone photo on a rural mobile connection
+      // routinely takes more than 30s to upload.
+      final streamed = await _http.send(request).timeout(const Duration(seconds: 90));
       final response = await http.Response.fromStream(streamed);
-      return _handle(response);
+      return _handle(response, path: path);
     } on TimeoutException {
-      throw const ApiException(retryable: true, messageEn: 'The request timed out.', messageFil: 'Nag-timeout ang kahilingan.');
+      throw const ApiException(retryable: true, messageEn: 'The upload timed out.', messageFil: 'Nag-timeout ang pag-upload.');
     } on SocketException {
       throw const ApiException(retryable: true, messageEn: 'No internet connection.', messageFil: 'Walang koneksyon sa internet.');
+    } on http.ClientException {
+      throw const ApiException(retryable: true, messageEn: 'Could not reach the server.', messageFil: 'Hindi maabot ang server.');
     }
   }
 
@@ -184,7 +231,7 @@ class ApiClient {
         default:
           throw ArgumentError('Unsupported method: $method');
       }
-      return _handle(response);
+      return _handle(response, path: path);
     } on TimeoutException {
       throw const ApiException(retryable: true, messageEn: 'The request timed out.', messageFil: 'Nag-timeout ang kahilingan.');
     } on SocketException {
@@ -194,7 +241,7 @@ class ApiClient {
     }
   }
 
-  ApiResult _handle(http.Response response) {
+  ApiResult _handle(http.Response response, {required String path}) {
     Map<String, dynamic>? decoded;
     if (response.body.isNotEmpty) {
       try {
@@ -208,21 +255,36 @@ class ApiClient {
     }
 
     if (response.statusCode >= 200 && response.statusCode < 300) {
-      return ApiResult(data: decoded?['data'], meta: decoded?['meta'] as Map<String, dynamic>?);
+      final meta = decoded?['meta'];
+      return ApiResult(data: decoded?['data'], meta: meta is Map<String, dynamic> ? meta : null);
     }
 
-    final error = decoded?['error'] as Map<String, dynamic>?;
-    final message = error?['message'];
-    final fieldsRaw = error?['fields'] as Map<String, dynamic>?;
+    // The envelope is `{"error": {...}}`, but anything that answers before
+    // the app's own exception handler does -- Laravel's default 401/404/405/
+    // 419/429 renderers, a validation failure outside the envelope -- replies
+    // `{"message": "...", "errors": {...}}`. Reading both keeps the server's
+    // own message on screen instead of the generic fallback.
+    final errorRaw = decoded?['error'];
+    final error = errorRaw is Map<String, dynamic> ? errorRaw : null;
+    final message = error?['message'] ?? (errorRaw is String ? errorRaw : decoded?['message']);
+    final fieldsRaw = error?['fields'] ?? decoded?['errors'];
+
+    if (response.statusCode == 401 && !path.startsWith('/auth/')) {
+      // Not for /auth/*: a 401 there is a wrong password or code, not an
+      // expired session.
+      for (final listener in List.of(_sessionExpiredListeners)) {
+        listener();
+      }
+    }
 
     throw ApiException(
       status: response.statusCode,
-      code: error?['code'] as String?,
-      messageFil: message is Map ? message['fil'] as String? : (message is String ? message : null),
-      messageEn: message is Map ? message['en'] as String? : (message is String ? message : null),
-      fields: fieldsRaw == null
-          ? const {}
-          : fieldsRaw.map((k, v) => MapEntry(k, v is List ? v.map((e) => e.toString()).toList() : [v.toString()])),
+      code: error?['code']?.toString(),
+      messageFil: message is Map ? message['fil']?.toString() : (message is String ? message : null),
+      messageEn: message is Map ? message['en']?.toString() : (message is String ? message : null),
+      fields: fieldsRaw is Map
+          ? fieldsRaw.map((k, v) => MapEntry(k.toString(), v is List ? v.map((e) => e.toString()).toList() : [v.toString()]))
+          : const {},
       retryable: response.statusCode >= 500 || response.statusCode == 429,
     );
   }

@@ -6,6 +6,7 @@ import '../../theme/app_spacing.dart';
 import '../../theme/app_typography.dart';
 import '../../widgets/app_button.dart';
 import '../../widgets/app_card.dart';
+import '../../utils/phone_dial.dart';
 
 /// Full detail view for one evacuation center — services, amenities,
 /// distance, contact, directions, and capacity/status. This app has no
@@ -102,14 +103,14 @@ class EvacuationCenterDetailScreen extends StatelessWidget {
                     onPressed: () => _openDirections(context),
                   ),
                 ),
-                if (center.contactNumber != null) ...[
+                if (dialUri(center.contactNumber) != null) ...[
                   const SizedBox(width: 10),
                   Expanded(
                     child: AppButton(
                       label: 'Call',
                       icon: Icons.call_outlined,
                       variant: AppButtonVariant.secondary,
-                      onPressed: () => launchUrl(Uri.parse('tel:${center.contactNumber}')),
+                      onPressed: () => launchUrl(dialUri(center.contactNumber)!),
                     ),
                   ),
                 ],
