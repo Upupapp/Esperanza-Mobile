@@ -241,7 +241,40 @@ class CitizenSessionService extends ChangeNotifier {
   /// manual re-login.
   Future<void> refresh() async {
     final result = await api.get('/citizen/profile');
-    final p = result.map;
+    await _applyProfile(result.map);
+  }
+
+  /// PUT /citizen/profile (CitizenPortalController::updateProfile()) --
+  /// only the keys in [changes] are sent. A verified account's identity
+  /// fields (name, birthdate, sex, barangay) are corrected by the barangay,
+  /// not the holder: the server refuses them with IDENTITY_LOCKED (422),
+  /// surfaced as an ordinary [ApiException].
+  Future<void> saveProfile(Map<String, dynamic> changes) async {
+    if (changes.isEmpty) return;
+    final result = await api.put('/citizen/profile', body: changes);
+    await _applyProfile(result.map);
+  }
+
+  /// POST /citizen/profile/contact: starts an email or mobile change. The
+  /// code goes to the NEW address, so the change cannot land on a contact the
+  /// holder does not control. Returns the masked destination to show.
+  Future<String?> requestContactChange({required String channel, required String value}) async {
+    final result = await api.post('/citizen/profile/contact', body: {'channel': channel, 'value': value});
+    return JsonRead.nonEmpty(result.map['destination']);
+  }
+
+  /// POST /citizen/profile/contact/verify: confirms the pending change and
+  /// adopts the profile the server returns.
+  Future<void> verifyContactChange(String code) async {
+    final result = await api.post('/citizen/profile/contact/verify', body: {'code': code});
+    await _applyProfile(result.map);
+  }
+
+  /// Account statuses whose identity fields the server locks
+  /// (CitizenAccount::hasFullServiceAccess()).
+  bool get identityLocked => accessLevel == AccessLevel.verified;
+
+  Future<void> _applyProfile(Map<String, dynamic> p) async {
     final accountNo = JsonRead.nonEmpty(p['account_no']);
     if (accountNo == null) {
       // Every per-account store (profile drafts, Master File, notification
@@ -305,13 +338,6 @@ class CitizenSessionService extends ChangeNotifier {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_key);
     await prefs.remove(_guestKey);
-    notifyListeners();
-  }
-
-  Future<void> updateProfile(CitizenAccount updated) async {
-    _account = updated;
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_key, jsonEncode(updated.toJson()));
     notifyListeners();
   }
 }

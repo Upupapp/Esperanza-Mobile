@@ -7,7 +7,10 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:esperanza_mobile/models/citizen_account.dart';
 import 'package:esperanza_mobile/models/resident_profile.dart';
+import 'package:esperanza_mobile/services/api_client.dart';
 import 'package:esperanza_mobile/services/resident_profile_service.dart';
+
+import 'support/fake_api.dart';
 
 CitizenAccount _demoAccount() => CitizenAccount(
       id: 'ESP-RES-TEST-0001',
@@ -111,22 +114,45 @@ void main() {
     expect(service2.profileFor(accountA).personal.firstName, 'Edited');
   });
 
-  test('submit -> simulateVerify / simulateNeedsCorrection status flow', () async {
+  test('submit sends the profile to the backend; its verification status is adopted', () async {
     final account = _demoAccount();
     final service = ResidentProfileService();
     await Future<void>.delayed(const Duration(milliseconds: 50));
     service.profileFor(account); // every real screen reads this before any button can call submit()
 
+    FakeApiRequest? sent;
+    var verification = 'For Validation';
+    FakeApi.installFull((r) {
+      if (r.method == 'PUT') sent = r;
+      return {
+        'individual': {'ref': 'RES-2026-0001', 'verification': verification},
+        'submitted_at': '2026-09-28T01:00:00Z',
+      };
+    });
+    addTearDown(FakeApi.restore);
+
     await service.submit(account.id);
+    expect(sent!.path, '/citizen/resident-profile');
+    expect(sent!.body!['personal'], isA<Map<String, dynamic>>());
     expect(service.profileFor(account).status, VerificationStatus.pendingVerification);
 
-    await service.simulateNeedsCorrection(account.id, 'Please provide your complete Sitio / Purok.');
-    expect(service.profileFor(account).status, VerificationStatus.needsCorrection);
-    expect(service.profileFor(account).correctionMessage, isNotNull);
-
-    await service.simulateVerify(account.id);
+    // Barangay staff verify it; the next visit picks that up.
+    verification = 'Verified';
+    await service.syncStatus(account.id);
     expect(service.profileFor(account).status, VerificationStatus.verified);
-    expect(service.profileFor(account).correctionMessage, isNull);
+  });
+
+  test('a failed submit leaves the profile unsubmitted', () async {
+    final account = _demoAccount();
+    final service = ResidentProfileService();
+    await Future<void>.delayed(const Duration(milliseconds: 50));
+    final before = service.profileFor(account).status;
+
+    FakeApi.installFull((_) => throw const FakeApiError(status: 503, code: 'UNAVAILABLE'));
+    addTearDown(FakeApi.restore);
+
+    await expectLater(service.submit(account.id), throwsA(isA<ApiException>()));
+    expect(service.profileFor(account).status, before);
   });
 
   test('adding/removing family members updates householdResidentCount without duplicating the head', () async {

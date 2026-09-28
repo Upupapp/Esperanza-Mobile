@@ -9,6 +9,8 @@ import '../../theme/app_spacing.dart';
 import '../../widgets/app_card.dart';
 import '../../widgets/empty_state.dart';
 import '../../theme/app_typography.dart';
+import '../../services/api_client.dart';
+import '../../widgets/app_dialogs.dart';
 
 /// See notification_feed.dart for how the feed itself is assembled — this
 /// screen only renders it plus each tile's read/unread state (tracked by
@@ -23,16 +25,27 @@ class NotificationsScreen extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(title: const Text('Notifications')),
-      body: items.isEmpty
-          ? const EmptyState(icon: Icons.notifications_none_rounded, title: "You're all caught up")
-          : ListView.builder(
-              padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.md, AppSpacing.lg, AppSpacing.xxl),
-              itemCount: items.length,
-              itemBuilder: (context, i) {
-                final n = items[i];
-                return _NotificationTile(notification: n, unread: !notifService.isRead(n.id));
-              },
-            ),
+      body: RefreshIndicator(
+        onRefresh: () async {
+          try {
+            await notifService.loadServer();
+          } on ApiException catch (e) {
+            if (context.mounted) AppDialogs.toast(context, e.message(), success: false);
+          }
+        },
+        child: ListView.builder(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.md, AppSpacing.lg, AppSpacing.xxl),
+          itemCount: items.isEmpty ? 1 : items.length,
+          itemBuilder: (context, i) {
+            if (items.isEmpty) {
+              return const EmptyState(icon: Icons.notifications_none_rounded, title: "You're all caught up");
+            }
+            final n = items[i];
+            return _NotificationTile(notification: n, unread: !notifService.isRead(n.id));
+          },
+        ),
+      ),
     );
   }
 }

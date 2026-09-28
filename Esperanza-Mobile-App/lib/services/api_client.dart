@@ -178,7 +178,17 @@ class ApiClient {
     final request = http.MultipartRequest('POST', uri);
     request.headers.addAll(await _headers(json: false));
     if (fields != null) request.fields.addAll(fields);
-    request.files.add(await http.MultipartFile.fromPath(fileField, filePath));
+    try {
+      request.files.add(await http.MultipartFile.fromPath(fileField, filePath));
+    } on FileSystemException {
+      // The picked file was moved or cleaned up before upload. Reported like
+      // any other failed request, so callers that only catch ApiException
+      // (including fire-and-forget uploads) never see a raw I/O error.
+      throw const ApiException(
+        messageEn: 'The file could not be read. Please choose it again.',
+        messageFil: 'Hindi mabasa ang file. Pakipili itong muli.',
+      );
+    }
 
     try {
       // Longer than a JSON call: a phone photo on a rural mobile connection

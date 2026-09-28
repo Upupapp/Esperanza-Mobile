@@ -1,15 +1,20 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
+import 'package:qr_flutter/qr_flutter.dart';
 import '../../models/access_level.dart';
 import '../../models/citizen_account.dart';
 import '../../models/digital_credential.dart';
+import '../../services/api_client.dart';
 import '../../services/citizen_session_service.dart';
+import '../../services/digital_id_service.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_shadows.dart';
 import '../../theme/app_spacing.dart';
 import '../../theme/app_status.dart';
 import '../../utils/digital_credentials.dart';
+import '../../utils/esperanza_seal.dart';
 import '../../widgets/app_card.dart';
 import '../../theme/app_typography.dart';
 
@@ -41,7 +46,7 @@ class DigitalIdScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(title: const Text('Digital ID')),
       body: isVerified
-          ? _DigitalIdWallet(credentials: digitalCredentialsFor(account))
+          ? _LiveOrWallet(account: account)
           : ListView(
               padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.md, AppSpacing.lg, AppSpacing.xxxl),
               children: [_NotYetVerifiedCard(account: account)],
@@ -670,6 +675,214 @@ class _CredentialFullScreenViewer extends StatelessWidget {
             maxScale: 4,
             child: Image.asset(asset, fit: BoxFit.contain),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+/// The LGU-issued card from GET /citizen/digital-id. If the server cannot be
+/// reached and this device holds the bundled demo credential art (the three
+/// synthetic demo accounts), that wallet is shown instead; otherwise the error
+/// with a retry, never an invented card.
+class _LiveOrWallet extends StatefulWidget {
+  const _LiveOrWallet({required this.account});
+
+  final CitizenAccount account;
+
+  @override
+  State<_LiveOrWallet> createState() => _LiveOrWalletState();
+}
+
+class _LiveOrWalletState extends State<_LiveOrWallet> {
+  late Future<DigitalIdCard> _future = DigitalIdService.fetch();
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<DigitalIdCard>(
+      future: _future,
+      builder: (context, snap) {
+        if (snap.connectionState != ConnectionState.done) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        final card = snap.data;
+        if (card != null) {
+          return RefreshIndicator(
+            onRefresh: () async {
+              final next = DigitalIdService.fetch();
+              setState(() => _future = next);
+              await next.catchError((Object _) => card);
+            },
+            child: ListView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.md, AppSpacing.lg, AppSpacing.xxxl),
+              children: [_LiveIdCard(card: card)],
+            ),
+          );
+        }
+        final demo = digitalCredentialsFor(widget.account);
+        if (demo.isNotEmpty) return _DigitalIdWallet(credentials: demo);
+        final err = snap.error;
+        return Center(
+          child: Padding(
+            padding: const EdgeInsets.all(AppSpacing.xxl),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.badge_outlined, size: AppSizes.iconHero, color: AppColors.textDisabled),
+                const SizedBox(height: AppSpacing.md),
+                Text(
+                  err is ApiException ? err.message() : 'Your Digital ID could not be loaded.',
+                  textAlign: TextAlign.center,
+                  style: AppTypography.helper,
+                ),
+                const SizedBox(height: AppSpacing.lg),
+                OutlinedButton(
+                  onPressed: () => setState(() => _future = DigitalIdService.fetch()),
+                  child: const Text('Try Again'),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _LiveIdCard extends StatelessWidget {
+  const _LiveIdCard({required this.card});
+
+  final DigitalIdCard card;
+
+  @override
+  Widget build(BuildContext context) {
+    final date = DateFormat('MMM d, yyyy');
+    final rows = <(String, String)>[
+      ('Resident ID no.', card.accountNo),
+      ('Barangay', [if (card.purok != null) card.purok!, card.barangay].join(', ')),
+      if (card.birthdate != null) ('Date of birth', date.format(card.birthdate!)),
+      if (card.sex != null) ('Sex', card.sex!),
+      if (card.civilStatus != null) ('Civil status', card.civilStatus!),
+      if (card.issuedAt != null) ('Issued', date.format(card.issuedAt!)),
+    ];
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        ClipRRect(
+          borderRadius: BorderRadius.circular(AppRadius.xl),
+          child: DecoratedBox(
+            decoration: const BoxDecoration(color: AppColors.surface, boxShadow: AppShadows.card),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(AppSpacing.lg),
+                  decoration: const BoxDecoration(
+                    gradient: LinearGradient(colors: [AppColors.navy900, AppColors.brand700]),
+                  ),
+                  child: Row(
+                    children: [
+                      Image.asset(esperanzaSealAsset, width: AppSizes.avatarMd, height: AppSizes.avatarMd),
+                      const SizedBox(width: AppSpacing.md),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'MUNICIPALITY OF ESPERANZA, MASBATE',
+                              style: AppTypography.eyebrow.copyWith(color: AppColors.brand200),
+                            ),
+                            const SizedBox(height: AppSpacing.xs),
+                            Text('Resident ID', style: AppTypography.cardHeading.copyWith(color: Colors.white)),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.all(AppSpacing.lg),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(card.name, style: AppTypography.sectionTitle),
+                      const SizedBox(height: AppSpacing.sm),
+                      _ValidityChip(valid: card.valid),
+                      const SizedBox(height: AppSpacing.lg),
+                      for (final (label, value) in rows)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              SizedBox(width: 120, child: Text(label, style: AppTypography.helper)),
+                              Expanded(
+                                child: Text(
+                                  value,
+                                  style: AppTypography.bodyText.copyWith(fontWeight: FontWeight.w600, color: AppColors.textPrimary),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: AppSpacing.lg),
+        AppCard(
+          child: Column(
+            children: [
+              Semantics(
+                label: 'QR code for verifying this ID',
+                image: true,
+                child: QrImageView(
+                  data: card.qr,
+                  size: 180,
+                  backgroundColor: Colors.white,
+                  eyeStyle: const QrEyeStyle(eyeShape: QrEyeShape.square, color: AppColors.navy900),
+                  dataModuleStyle: const QrDataModuleStyle(dataModuleShape: QrDataModuleShape.square, color: AppColors.navy900),
+                ),
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              Text(
+                'LGU staff scan this code to confirm your ID is genuine and current.',
+                textAlign: TextAlign.center,
+                style: AppTypography.helper,
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _ValidityChip extends StatelessWidget {
+  const _ValidityChip({required this.valid});
+
+  final bool valid;
+
+  @override
+  Widget build(BuildContext context) {
+    final fg = valid ? AppColors.emerald700 : AppColors.amber700;
+    final bg = valid ? AppColors.emerald50 : AppColors.amber50;
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: AppSpacing.xs),
+        decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(AppRadius.full)),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(valid ? Icons.verified_rounded : Icons.hourglass_top_rounded, size: AppSizes.iconSm, color: fg),
+            const SizedBox(width: AppSpacing.xs),
+            Text(valid ? 'Valid · Verified by LGU' : 'Not yet valid', style: AppTypography.labelText.copyWith(color: fg)),
+          ],
         ),
       ),
     );

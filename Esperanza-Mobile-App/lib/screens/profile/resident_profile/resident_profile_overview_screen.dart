@@ -7,20 +7,43 @@ import '../../../theme/app_colors.dart';
 import '../../../theme/app_spacing.dart';
 import '../../../widgets/app_button.dart';
 import '../../../widgets/app_card.dart';
-import '../../../widgets/app_dialogs.dart';
 import '../../../widgets/section_status_chip.dart';
 import 'family_information_screen.dart';
 import 'household_information_screen.dart';
 import 'personal_information_screen.dart';
 import 'review_submit_screen.dart';
 import '../../../theme/app_typography.dart';
+import '../../../services/api_client.dart';
 
 /// Resident Profile hub — the mobile-side entry point that maps to the Web
 /// Admin's Constituents module. Guides the citizen through Personal ->
 /// Family -> Household -> Review & Submit, letting them jump straight to
 /// any section to continue editing rather than forcing a linear restart.
-class ResidentProfileOverviewScreen extends StatelessWidget {
+class ResidentProfileOverviewScreen extends StatefulWidget {
   const ResidentProfileOverviewScreen({super.key});
+
+  @override
+  State<ResidentProfileOverviewScreen> createState() => _ResidentProfileOverviewScreenState();
+}
+
+class _ResidentProfileOverviewScreenState extends State<ResidentProfileOverviewScreen> {
+  @override
+  void initState() {
+    super.initState();
+    _syncStatus();
+  }
+
+  /// Picks up a verification barangay staff made since the last visit
+  /// (GET /citizen/resident-profile). Offline, the status on file stands.
+  Future<void> _syncStatus() async {
+    final accountId = context.read<CitizenSessionService>().account?.id;
+    if (accountId == null) return;
+    try {
+      await context.read<ResidentProfileService>().syncStatus(accountId);
+    } on ApiException {
+      // See above.
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -49,7 +72,7 @@ class ResidentProfileOverviewScreen extends StatelessWidget {
             ],
             if (profile.status == VerificationStatus.pendingVerification) ...[
               const SizedBox(height: AppSpacing.lg),
-              _DemoVerificationPanel(accountId: account.id),
+              const _PendingValidationCard(),
             ],
             const SizedBox(height: AppSpacing.xxl),
             const Text(
@@ -251,83 +274,35 @@ class _CorrectionBanner extends StatelessWidget {
   }
 }
 
-/// DEMO-ONLY: lets the citizen preview what an LGU verifier acting on the
-/// Web Admin's Pending Validation queue would do — mirrors
-/// RequestDetailScreen's `_DemoAdminPanel` pattern used elsewhere in this
-/// app for the same "no backend yet" reason.
-class _DemoVerificationPanel extends StatefulWidget {
-  final String accountId;
-  const _DemoVerificationPanel({required this.accountId});
-
-  @override
-  State<_DemoVerificationPanel> createState() => _DemoVerificationPanelState();
-}
-
-class _DemoVerificationPanelState extends State<_DemoVerificationPanel> {
-  bool _expanded = false;
+/// The profile was sent to Esperanza LGU and is waiting for barangay staff
+/// (server status "For Validation"). Replaced a demo panel that let the
+/// citizen mark their own profile verified on this device.
+class _PendingValidationCard extends StatelessWidget {
+  const _PendingValidationCard();
 
   @override
   Widget build(BuildContext context) {
-    return AppCard(
-      child: Column(
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      decoration: BoxDecoration(color: AppColors.amber50, borderRadius: BorderRadius.circular(AppRadius.lg)),
+      child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          InkWell(
-            onTap: () => setState(() => _expanded = !_expanded),
-            child: Row(
+          const Icon(Icons.hourglass_top_rounded, size: AppSizes.iconBase, color: AppColors.amber700),
+          const SizedBox(width: AppSpacing.md),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Icon(Icons.science_outlined, size: 16, color: AppColors.amber500),
-                const SizedBox(width: AppSpacing.sm),
-                const Expanded(
-                  child: Text(
-                    'Demo: Simulate LGU Verification',
-                    style: TextStyle(fontSize: AppTextSize.helper, fontWeight: FontWeight.w700, color: AppColors.amber700),
-                  ),
+                Text('Submitted for validation', style: AppTypography.bodyText.copyWith(fontWeight: FontWeight.w600, color: AppColors.amber700)),
+                const SizedBox(height: AppSpacing.xs),
+                Text(
+                  'Your barangay office is reviewing your information. This screen updates when they verify it.',
+                  style: AppTypography.helper.copyWith(color: AppColors.amber700),
                 ),
-                Icon(_expanded ? Icons.expand_less_rounded : Icons.expand_more_rounded, color: AppColors.slate400),
               ],
             ),
           ),
-          if (_expanded) ...[
-            const SizedBox(height: AppSpacing.sm),
-            const Text(
-              'No real Web Admin connection exists yet — this previews how an LGU verifier\'s decision would appear on your profile.',
-              style: TextStyle(fontSize: AppTextSize.fine, color: AppColors.textMuted, height: 1.4),
-            ),
-            const SizedBox(height: AppSpacing.md),
-            Row(
-              children: [
-                Expanded(
-                  child: AppButton(
-                    label: 'Mark Verified',
-                    variant: AppButtonVariant.secondary,
-                    size: AppButtonSize.sm,
-                    onPressed: () async {
-                      await context.read<ResidentProfileService>().simulateVerify(widget.accountId);
-                      if (context.mounted) AppDialogs.toast(context, 'Resident profile verified (simulated).');
-                    },
-                  ),
-                ),
-                const SizedBox(width: AppSpacing.sm),
-                Expanded(
-                  child: AppButton(
-                    label: 'Needs Correction',
-                    variant: AppButtonVariant.secondary,
-                    size: AppButtonSize.sm,
-                    onPressed: () async {
-                      await context.read<ResidentProfileService>().simulateNeedsCorrection(
-                        widget.accountId,
-                        'Please provide your complete Sitio / Purok.',
-                      );
-                      if (context.mounted) {
-                        AppDialogs.toast(context, 'Marked as needing correction (simulated).', success: false);
-                      }
-                    },
-                  ),
-                ),
-              ],
-            ),
-          ],
         ],
       ),
     );

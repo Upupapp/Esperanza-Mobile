@@ -78,7 +78,9 @@ cases where low contrast is intended.
 **Known exception, owned by both lanes:** the web's own badge colours for **Cancelled**
 (slate-500 on slate-100, 4.34:1) and **Archived** (slate-400 on slate-100, 2.34:1) fail AA.
 Mobile keeps them identical to the web, so fix them together (web `badge.blade.php` first, then
-`app_status.dart`). The test pins these two so no third joins them.
+`app_status.dart`). The test pins these two so no third joins them. The exact proposal
+(Cancelled `slate-50/slate-500` 4.55:1, Archived `slate-200/slate-600` 6.15:1) is in
+`docs/HANDOFF_TO_WEB_LANE_2026-09-28.md`.
 
 ---
 

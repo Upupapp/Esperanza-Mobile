@@ -10,28 +10,17 @@ import '../../widgets/app_dialogs.dart';
 import '../../widgets/app_text_field.dart';
 import '../../widgets/form_section.dart';
 import '../../theme/app_typography.dart';
+import '../../services/support_service.dart';
+import '../../services/api_client.dart';
 
-const _categories = [
-  'Account/Profile',
-  'Dokyu',
-  'Tulong',
-  'Upload/File',
-  'Notifications',
-  'Balita/Events',
-  'Emergency',
-  'Technical Problem',
-  'Other',
-];
+const _categories = SupportService.categories;
 
 /// A simple "report a problem" form reachable from Help & Support.
 ///
-/// This app has no support/ticketing backend anywhere else (every other
-/// "submission" in Esperanza Mobile — Dokyu, Tulong, registration — is the
-/// same local, frontend-only simulation pattern, see CitizenSessionService's
-/// own doc comment), so this form follows suit: submitting shows a
-/// confirmation and simply discards the entry. It is not wired to any real
-/// API and must not be presented to end users as reaching municipal staff
-/// until a real support backend exists.
+///
+/// Files a real support ticket (POST /citizen/support/tickets, see
+/// [SupportService]); the confirmation shows the ticket reference staff
+/// will use. It replaced a simulation that discarded every report.
 class ReportProblemScreen extends StatefulWidget {
   const ReportProblemScreen({super.key});
 
@@ -45,6 +34,7 @@ class _ReportProblemScreenState extends State<ReportProblemScreen> {
   final _description = TextEditingController();
   Uint8List? _screenshotBytes;
   String? _screenshotName;
+  String? _screenshotPath;
   bool _submitting = false;
   String? _error;
 
@@ -63,6 +53,7 @@ class _ReportProblemScreenState extends State<ReportProblemScreen> {
     setState(() {
       _screenshotBytes = bytes;
       _screenshotName = file.name;
+      _screenshotPath = file.path.isEmpty ? null : file.path;
     });
   }
 
@@ -75,17 +66,30 @@ class _ReportProblemScreenState extends State<ReportProblemScreen> {
       _submitting = true;
       _error = null;
     });
-    // Simulated submission only — see class doc comment.
-    await Future.delayed(const Duration(milliseconds: 500));
+    final String ref;
+    try {
+      ref = await SupportService.fileTicket(
+        category: _category,
+        subject: _subject.text,
+        body: _description.text,
+        attachmentPath: _screenshotPath,
+      );
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _submitting = false;
+        _error = e.message();
+      });
+      return;
+    }
     if (!mounted) return;
     setState(() => _submitting = false);
     await AppDialogs.info(
       context,
-      title: 'Report Submitted (Simulated)',
+      title: 'Report Submitted',
       message:
-          'Thank you for the report. Esperanza Mobile does not yet have a live support system connected, so '
-          'this submission was not sent anywhere — please use the contact details on the Help & Support page for '
-          'anything urgent.',
+          'Salamat! Your report was sent to Esperanza LGU as ticket $ref. Keep this reference if you contact the '
+          'office about it. For anything urgent, use the contact details on the Help & Support page.',
     );
     if (mounted) Navigator.of(context).pop();
   }
@@ -107,8 +111,8 @@ class _ReportProblemScreenState extends State<ReportProblemScreen> {
                 SizedBox(width: AppSpacing.sm),
                 Expanded(
                   child: Text(
-                    'This is a demo submission. Esperanza Mobile does not yet have a live support backend, so '
-                    'reports sent here are not delivered to municipal staff.',
+                    'Your report goes to the Esperanza LGU support desk, and you\'ll get a ticket number. '
+                    'For emergencies, call a hotline instead.',
                     style: TextStyle(fontSize: AppTextSize.label, color: AppColors.amber700, height: 1.4),
                   ),
                 ),
@@ -140,6 +144,7 @@ class _ReportProblemScreenState extends State<ReportProblemScreen> {
                 onRemove: () => setState(() {
                   _screenshotBytes = null;
                   _screenshotName = null;
+                  _screenshotPath = null;
                 }),
               ),
             ],

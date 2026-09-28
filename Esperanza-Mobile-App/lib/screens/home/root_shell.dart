@@ -21,6 +21,7 @@ import '../sakuna/sakuna_screen.dart';
 import '../tulong/tulong_screen.dart';
 import 'home_screen.dart';
 import '../../theme/app_spacing.dart';
+import '../../services/api_client.dart';
 
 /// Mobile bottom-nav IA: Home / Balita / + / Events / Emergency, laid out
 /// and animated as a direct port of the Servana Client App's curved main
@@ -78,6 +79,23 @@ class _RootShellState extends State<RootShell> {
   int? _navIndex = 0;
   ServiceLauncherTarget? _activeLauncherTarget;
   int _bodyIndex = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    // The bell's unread dot needs the server feed as soon as the shell
+    // appears, not only once the Notifications screen is opened.
+    _loadNotifications();
+  }
+
+  Future<void> _loadNotifications() async {
+    if (context.read<CitizenSessionService>().account == null) return;
+    try {
+      await context.read<NotificationsService>().loadServer();
+    } on ApiException {
+      // The bell keeps what it had; the Notifications screen can retry.
+    }
+  }
 
   // Home=0, Balita=1, Events=2, Emergency=3, Dokyu=4, Tulong=5 — see class
   // doc comment for why this is a separate space from the nav's own index.

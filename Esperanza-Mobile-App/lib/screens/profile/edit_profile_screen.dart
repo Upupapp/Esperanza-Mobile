@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../models/citizen_account.dart';
+import '../../services/api_client.dart';
 import '../../services/citizen_session_service.dart';
 import '../../services/mock_catalog.dart';
 import '../../theme/app_colors.dart';
@@ -48,37 +49,107 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     super.dispose();
   }
 
+  String? _error;
+
+  /// Saves through the backend (PUT /citizen/profile). A new mobile number
+  /// is not a plain field there: it is verified by a code sent to the new
+  /// number first (POST /citizen/profile/contact, then .../verify), so the
+  /// number changes only once the citizen proves they hold it.
   Future<void> _save() async {
-    setState(() => _saving = true);
-    await Future.delayed(const Duration(milliseconds: 600));
-    final updated = CitizenAccount(
-      id: _original.id,
-      firstName: _original.firstName,
-      lastName: _original.lastName,
-      email: _original.email,
-      mobile: _mobile.text.trim(),
-      barangay: _barangay,
-      purok: _purok.text.trim().isEmpty ? '—' : _purok.text.trim(),
-      address: '${_purok.text.trim()}, Barangay $_barangay, Esperanza, Masbate',
-      birthdate: _original.birthdate,
-      sex: _original.sex,
-      civilStatus: _original.civilStatus,
-      occupation: _occupation.text.trim().isEmpty ? '—' : _occupation.text.trim(),
-      profileCompleteness: _computeCompleteness(),
-      status: _original.status,
-    );
-    if (!mounted) return;
-    await context.read<CitizenSessionService>().updateProfile(updated);
-    if (!mounted) return;
-    setState(() => _saving = false);
-    AppDialogs.toast(context, 'Profile updated.');
-    Navigator.of(context).pop();
+    final session = context.read<CitizenSessionService>();
+    String? blankToNull(String v) => v.trim().isEmpty ? null : v.trim();
+    String orig(String v) => v == '—' ? '' : v;
+
+    final changes = <String, dynamic>{};
+    if (_purok.text.trim() != orig(_original.purok).trim()) changes['purok'] = blankToNull(_purok.text);
+    if (_occupation.text.trim() != orig(_original.occupation).trim()) {
+      changes['occupation'] = blankToNull(_occupation.text);
+    }
+    if (!session.identityLocked && _barangay != _original.barangay) changes['barangay'] = _barangay;
+    if (changes.containsKey('purok') || changes.containsKey('barangay')) {
+      final purok = _purok.text.trim();
+      changes['address'] = [if (purok.isNotEmpty) purok, 'Barangay $_barangay', 'Esperanza, Masbate'].join(', ');
+    }
+    final newMobile = _mobile.text.trim();
+    final mobileChanged = newMobile.isNotEmpty && newMobile != _original.mobile.trim();
+
+    setState(() {
+      _saving = true;
+      _error = null;
+    });
+    try {
+      await session.saveProfile(changes);
+      if (mobileChanged) {
+        final destination = await session.requestContactChange(channel: 'mobile', value: newMobile);
+        if (!mounted) return;
+        final verified = await _confirmCode(session, destination ?? newMobile);
+        if (!mounted) return;
+        if (!verified) {
+          setState(() => _saving = false);
+          AppDialogs.toast(
+            context,
+            changes.isEmpty ? 'Mobile number not changed.' : 'Profile saved. Mobile number not changed.',
+            success: false,
+          );
+          return;
+        }
+      }
+      if (!mounted) return;
+      setState(() => _saving = false);
+      AppDialogs.toast(context, 'Profile updated.');
+      Navigator.of(context).pop();
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _saving = false;
+        _error = e.message();
+      });
+    }
   }
 
-  int _computeCompleteness() {
-    final fields = [_mobile.text, _occupation.text, _purok.text, _barangay];
-    final filled = fields.where((f) => f.trim().isNotEmpty && f.trim() != '—').length;
-    return (40 + (filled / fields.length * 60)).round().clamp(0, 100);
+  /// Asks for the 6-digit code sent to [destination]; true once verified.
+  Future<bool> _confirmCode(CitizenSessionService session, String destination) async {
+    final code = TextEditingController();
+    String? error;
+    final ok = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setLocal) => AlertDialog(
+          title: const Text('Verify your new number'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Enter the 6-digit code sent to $destination.', style: AppTypography.helper),
+              const SizedBox(height: AppSpacing.md),
+              TextField(
+                controller: code,
+                keyboardType: TextInputType.number,
+                maxLength: 6,
+                decoration: InputDecoration(hintText: '000000', errorText: error, counterText: ''),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: const Text('Cancel')),
+            FilledButton(
+              onPressed: () async {
+                try {
+                  await session.verifyContactChange(code.text.trim());
+                  if (ctx.mounted) Navigator.of(ctx).pop(true);
+                } on ApiException catch (e) {
+                  setLocal(() => error = e.message());
+                }
+              },
+              child: const Text('Verify'),
+            ),
+          ],
+        ),
+      ),
+    );
+    code.dispose();
+    return ok ?? false;
   }
 
   @override
@@ -111,18 +182,30 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 icon: Icons.phone_outlined,
               ),
               const SizedBox(height: AppSpacing.lg),
-              AppSelectField<String>(
-                label: 'Barangay',
-                value: _barangay,
-                options: MockCatalog.barangays,
-                labelBuilder: (b) => b,
-                onChanged: (v) => setState(() => _barangay = v ?? _barangay),
-              ),
+              if (context.watch<CitizenSessionService>().identityLocked) ...[
+                // A verified account's barangay is corrected by the barangay
+                // office (the server refuses it with IDENTITY_LOCKED).
+                const Text('Barangay', style: AppTypography.labelText),
+                const SizedBox(height: AppSpacing.xs),
+                Text(_barangay, style: AppTypography.bodyText),
+                Text('Verified accounts update their barangay through the barangay office.', style: AppTypography.helper),
+              ] else
+                AppSelectField<String>(
+                  label: 'Barangay',
+                  value: _barangay,
+                  options: MockCatalog.barangays,
+                  labelBuilder: (b) => b,
+                  onChanged: (v) => setState(() => _barangay = v ?? _barangay),
+                ),
               const SizedBox(height: AppSpacing.lg),
               AppTextField(label: 'Purok / Sitio', controller: _purok, icon: Icons.place_outlined),
               const SizedBox(height: AppSpacing.lg),
               AppTextField(label: 'Occupation', controller: _occupation, icon: Icons.work_outline_rounded),
               const SizedBox(height: AppSpacing.xxl),
+              if (_error != null) ...[
+                Text(_error!, style: AppTypography.helper.copyWith(color: AppColors.danger)),
+                const SizedBox(height: AppSpacing.md),
+              ],
               AppButton(
                 label: 'Save Changes',
                 onPressed: _save,

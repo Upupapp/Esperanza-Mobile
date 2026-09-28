@@ -1,7 +1,8 @@
-// Verifies the extended Notifications feed: the profile-completion
-// reminder shows only while incomplete and disappears once complete,
-// sample notifications render with their type badges, and Guests (no
-// account) never see the profile reminder.
+// Verifies the Notifications feed: the profile-completion reminder shows
+// only while incomplete and disappears once complete, server notifications
+// (GET /citizen/notifications) render and open their request, and nothing
+// fabricated reaches anyone -- the old illustrative samples ("Typhoon
+// Advisory") are gone.
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
@@ -10,10 +11,13 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:esperanza_mobile/models/citizen_account.dart';
 import 'package:esperanza_mobile/screens/notifications/notifications_screen.dart';
 import 'package:esperanza_mobile/screens/profile/resident_profile/resident_profile_overview_screen.dart';
+import 'package:esperanza_mobile/screens/shared/request_detail_screen.dart';
 import 'package:esperanza_mobile/services/citizen_session_service.dart';
 import 'package:esperanza_mobile/services/notifications_service.dart';
 import 'package:esperanza_mobile/services/requests_service.dart';
 import 'package:esperanza_mobile/services/resident_profile_service.dart';
+
+import 'support/fake_api.dart';
 
 final _incompleteAccount = CitizenAccount(
   id: 'ESP-TEST-1',
@@ -32,7 +36,12 @@ final _incompleteAccount = CitizenAccount(
   status: 'Pending Review',
 );
 
-Future<void> _pump(WidgetTester tester, {CitizenAccount? account, ResidentProfileService? residentProfileService}) async {
+Future<void> _pump(
+  WidgetTester tester, {
+  CitizenAccount? account,
+  ResidentProfileService? residentProfileService,
+  NotificationsService? notifications,
+}) async {
   SharedPreferences.setMockInitialValues({});
   final session = CitizenSessionService();
   if (account != null) await session.login(account);
@@ -42,7 +51,7 @@ Future<void> _pump(WidgetTester tester, {CitizenAccount? account, ResidentProfil
         ChangeNotifierProvider<CitizenSessionService>.value(value: session),
         ChangeNotifierProvider(create: (_) => RequestsService()),
         ChangeNotifierProvider<ResidentProfileService>.value(value: residentProfileService ?? ResidentProfileService()),
-        ChangeNotifierProvider(create: (_) => NotificationsService()),
+        ChangeNotifierProvider<NotificationsService>.value(value: notifications ?? NotificationsService()),
       ],
       child: const MaterialApp(home: NotificationsScreen()),
     ),
@@ -102,24 +111,58 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('Guest (no account) never sees the profile-completion reminder, but still sees sample notifications', (tester) async {
+  testWidgets('Guest (no account) sees no reminder and nothing fabricated', (tester) async {
     await _pump(tester);
 
     expect(find.text('Complete Your Profile'), findsNothing);
-    expect(find.text('Typhoon Advisory — Esperanza, Masbate'), findsOneWidget);
-    expect(find.text('Urgent'), findsOneWidget);
+    expect(find.textContaining('Typhoon Advisory'), findsNothing);
+    expect(find.text("You're all caught up"), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('sample notifications are not tappable (no production side effects)', (tester) async {
-    await _pump(tester);
+  testWidgets('server notifications render in Filipino, mark read on the server, and open their request', (tester) async {
+    final posts = <String>[];
+    FakeApi.installFull((r) {
+      if (r.path == '/citizen/notifications') {
+        return [
+          {
+            'id': 41,
+            'category': 'dokyu',
+            'title': {'fil': 'Naaprubahan ang iyong kahilingan', 'en': 'Your request was approved'},
+            'body': {'fil': 'Naaprubahan ang DR-2026-0001.', 'en': 'Request DR-2026-0001 was approved.'},
+            'pill': 'Approved',
+            'ref': 'DR-2026-0001',
+            'unread': true,
+            'pinned': false,
+            'time': '2026-09-28T01:00:00Z',
+          },
+        ];
+      }
+      if (r.method == 'POST') {
+        posts.add(r.path);
+        return {'unread': false};
+      }
+      if (r.path == '/citizen/requests/DR-2026-0001') {
+        return {'ref': 'DR-2026-0001', 'type': 'dokyu', 'service': 'Cedula', 'status': 'Approved'};
+      }
+      return <dynamic>[];
+    });
+    addTearDown(FakeApi.restore);
 
-    // No exception/navigation should occur from tapping a sample tile —
-    // AppCard renders it without an InkWell when onTap is null, so this
-    // just confirms no crash and no unexpected route push.
-    await tester.tap(find.text('Typhoon Advisory — Esperanza, Masbate'));
+    final notifications = NotificationsService();
+    await _pump(tester, account: _incompleteAccount, notifications: notifications);
+    await tester.runAsync(notifications.loadServer);
     await tester.pumpAndSettle();
-    expect(find.byType(NotificationsScreen), findsOneWidget);
-    expect(tester.takeException(), isNull);
+
+    expect(find.text('Naaprubahan ang iyong kahilingan'), findsOneWidget);
+    expect(notifications.isRead('srv-41'), isFalse);
+
+    await tester.ensureVisible(find.text('Naaprubahan ang iyong kahilingan'));
+    await tester.tap(find.text('Naaprubahan ang iyong kahilingan'));
+    await tester.pumpAndSettle();
+
+    expect(posts, ['/citizen/notifications/41/read']);
+    expect(notifications.isRead('srv-41'), isTrue);
+    expect(find.byType(RequestDetailScreen), findsOneWidget);
   });
 }

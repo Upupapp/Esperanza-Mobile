@@ -12,10 +12,14 @@ import '../../widgets/app_card.dart';
 import '../../widgets/empty_state.dart';
 import '../../widgets/segmented_tabs.dart';
 import '../../theme/app_typography.dart';
+import 'package:url_launcher/url_launcher.dart';
+import '../../services/api_client.dart';
+import '../../widgets/app_dialogs.dart';
 
 /// Resident-facing history/library of every document uploaded through a
 /// Dokyu or Tulong requirement uploader (see widgets/requirement_uploader.dart)
-/// — read-only, no delete. Distinct from the Master File (see
+/// — read-only, no delete. Synced with the resident's Papeles wallet on the
+/// server (MasterFileService.syncFromServer). Distinct from the Master File (see
 /// MasterFileDocument's own doc comment): the Master File is the reusable
 /// "offer this again" canonical copy per document type, one entry per type;
 /// this screen instead lists every document a resident has ever uploaded
@@ -31,6 +35,24 @@ class DocumentsUploadedScreen extends StatefulWidget {
 
 class _DocumentsUploadedScreenState extends State<DocumentsUploadedScreen> {
   int _tab = 0; // 0 = All, 1 = Dokyu, 2 = Tulong
+
+  @override
+  void initState() {
+    super.initState();
+    _sync();
+  }
+
+  /// Pulls the resident's Papeles wallet from the server (GET
+  /// /citizen/papeles). Offline, the list on this device still shows.
+  Future<void> _sync({bool report = false}) async {
+    final accountId = context.read<CitizenSessionService>().account?.id;
+    if (accountId == null) return;
+    try {
+      await context.read<MasterFileService>().syncFromServer(accountId);
+    } on ApiException catch (e) {
+      if (report && mounted) AppDialogs.toast(context, e.message(), success: false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -67,22 +89,28 @@ class _DocumentsUploadedScreenState extends State<DocumentsUploadedScreen> {
               ),
               const SizedBox(height: AppSpacing.lg),
               Expanded(
-                child: filtered.isEmpty
-                    ? ListView(
-                        children: const [
-                          EmptyState(
-                            icon: Icons.folder_open_outlined,
-                            title: 'No documents uploaded yet',
-                            description: 'Documents you upload while submitting a Dokyu or Tulong request will '
-                                'appear here.',
-                          ),
-                        ],
-                      )
-                    : ListView.builder(
-                        padding: const EdgeInsets.only(bottom: AppSpacing.xxl),
-                        itemCount: filtered.length,
-                        itemBuilder: (context, i) => _DocumentCard(document: filtered[i]),
-                      ),
+                child: RefreshIndicator(
+                  onRefresh: () => _sync(report: true),
+                  child: filtered.isEmpty
+                      ? ListView(
+                          physics: const AlwaysScrollableScrollPhysics(),
+                          children: const [
+                            EmptyState(
+                              icon: Icons.folder_open_outlined,
+                              title: 'No documents uploaded yet',
+                              description:
+                                  'Documents you upload while submitting a Dokyu or Tulong request will '
+                                  'appear here.',
+                            ),
+                          ],
+                        )
+                      : ListView.builder(
+                          physics: const AlwaysScrollableScrollPhysics(),
+                          padding: const EdgeInsets.only(bottom: AppSpacing.xxl),
+                          itemCount: filtered.length,
+                          itemBuilder: (context, i) => _DocumentCard(document: filtered[i]),
+                        ),
+                ),
               ),
             ],
           ),
@@ -101,10 +129,26 @@ class _DocumentCard extends StatelessWidget {
     AttachmentCategory.pdf => (bg: AppColors.rose50, fg: AppColors.rose600, icon: Icons.picture_as_pdf_outlined),
     AttachmentCategory.docx => (bg: AppColors.blue50, fg: AppColors.blue700, icon: Icons.description_outlined),
     AttachmentCategory.video => (bg: AppColors.rose50, fg: AppColors.rose600, icon: Icons.videocam_outlined),
-    AttachmentCategory.other => (bg: AppColors.slate100, fg: AppColors.slate500, icon: Icons.insert_drive_file_outlined),
+    AttachmentCategory.other => (
+      bg: AppColors.slate100,
+      fg: AppColors.slate500,
+      icon: Icons.insert_drive_file_outlined,
+    ),
   };
 
   bool get _isDokyu => document.origin == 'Dokyu';
+
+  Future<void> _openRemote(BuildContext context) async {
+    try {
+      final url = await context.read<MasterFileService>().downloadUrl(document);
+      final uri = url == null ? null : Uri.tryParse(url);
+      if (uri == null || !await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+        if (context.mounted) AppDialogs.toast(context, 'This document could not be opened.', success: false);
+      }
+    } on ApiException catch (e) {
+      if (context.mounted) AppDialogs.toast(context, e.message(), success: false);
+    }
+  }
 
   void _openViewer(BuildContext context) {
     final provider = pickedFileImageProvider(bytes: document.attachment.bytes, path: document.attachment.localPath);
@@ -121,12 +165,20 @@ class _DocumentCard extends StatelessWidget {
     final s = _style;
     final isImage = document.attachment.category == AttachmentCategory.image;
     final canPreview =
-        isImage && pickedFileImageProvider(bytes: document.attachment.bytes, path: document.attachment.localPath) != null;
+        isImage &&
+        pickedFileImageProvider(bytes: document.attachment.bytes, path: document.attachment.localPath) != null;
 
+    // A copy that lives only on the server opens through a short-lived
+    // signed link (GET /citizen/papeles/{id}/download).
+    final isRemote = document.id.startsWith('pap-');
     return Padding(
       padding: const EdgeInsets.only(bottom: AppSpacing.md),
       child: AppCard(
-        onTap: canPreview ? () => _openViewer(context) : null,
+        onTap: canPreview
+            ? () => _openViewer(context)
+            : isRemote
+            ? () => _openRemote(context)
+            : null,
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -144,7 +196,11 @@ class _DocumentCard extends StatelessWidget {
                 children: [
                   Text(
                     document.label,
-                    style: const TextStyle(fontSize: AppTextSize.body, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
+                    style: const TextStyle(
+                      fontSize: AppTextSize.body,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.textPrimary,
+                    ),
                   ),
                   const SizedBox(height: AppSpacing.xs),
                   Text(
@@ -180,8 +236,14 @@ class _DocumentCard extends StatelessWidget {
   Widget _tag(String label, Color color) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xs, vertical: AppSpacing.xs),
-      decoration: BoxDecoration(color: color.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(AppRadius.full)),
-      child: Text(label, style: TextStyle(fontSize: AppTextSize.fine, fontWeight: FontWeight.w700, color: color)),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(AppRadius.full),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(fontSize: AppTextSize.fine, fontWeight: FontWeight.w700, color: color),
+      ),
     );
   }
 }
@@ -210,7 +272,11 @@ class _DocumentViewer extends StatelessWidget {
       body: SafeArea(
         child: Center(
           child: provider != null
-              ? InteractiveViewer(minScale: 1, maxScale: 4, child: Image(image: provider!, fit: BoxFit.contain))
+              ? InteractiveViewer(
+                  minScale: 1,
+                  maxScale: 4,
+                  child: Image(image: provider!, fit: BoxFit.contain),
+                )
               : const Text('Preview not available.', style: TextStyle(color: Colors.white70)),
         ),
       ),

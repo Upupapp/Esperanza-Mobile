@@ -35,9 +35,10 @@ A Flutter citizen app for the Municipality of Esperanza. **It talks to the real 
 `--dart-define=API_BASE_URL`, defaulting to staging). Wired to the API: citizen auth
 and profile, the Dokyu/Tulong catalogue, submission and tracking, Balita (announcements,
 community posts, likes, comments, reports), events, directory, hotlines and evacuation
-centres, Sakuna incident reports. **Still simulated on the device** (`shared_preferences`
-only): profile edits, resident profiling, the Master File, notifications, Report a Problem
-and the Digital ID — the backend now has routes for all of them (`PENDING.md` item 24).
+centres, Sakuna incident reports, notifications, profile edits (with verify-by-code contact
+changes), resident profile submission and status, the Digital ID (with its signed QR), Report
+a Problem (support tickets) and the Master File (the Papeles wallet). Nothing citizen-facing
+is simulated any more except the registration ID/face-scan step (`PENDING.md` item 21).
 
 **Check routes against the backend, not the spec.** Citizen-only routes live under
 `/citizen/...` in esperanza-backend `routes/api.php` (Balita likes/comments/community posts

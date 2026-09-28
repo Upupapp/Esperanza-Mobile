@@ -13,10 +13,12 @@ import 'household_information_screen.dart';
 import 'personal_information_screen.dart';
 import 'submission_confirmation_screen.dart';
 import '../../../theme/app_typography.dart';
+import '../../../services/api_client.dart';
 
 /// Final step — a read-only summary of all three sections with per-section
 /// Edit links, gated on all three being SectionStatus.complete. Submitting
-/// simulates the mobile -> Web Admin "Pending Validation" handoff locally.
+/// sends the profile to Esperanza LGU (PUT /citizen/resident-profile), where
+/// it waits "For Validation" by barangay staff.
 class ReviewSubmitScreen extends StatefulWidget {
   const ReviewSubmitScreen({super.key});
 
@@ -27,11 +29,24 @@ class ReviewSubmitScreen extends StatefulWidget {
 class _ReviewSubmitScreenState extends State<ReviewSubmitScreen> {
   bool _submitting = false;
 
+  String? _error;
+
+  /// PUT /citizen/resident-profile (ResidentProfileService.submit).
   Future<void> _submit(String accountId) async {
-    setState(() => _submitting = true);
-    await Future.delayed(const Duration(milliseconds: 700));
-    if (!mounted) return;
-    await context.read<ResidentProfileService>().submit(accountId);
+    setState(() {
+      _submitting = true;
+      _error = null;
+    });
+    try {
+      await context.read<ResidentProfileService>().submit(accountId);
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _submitting = false;
+        _error = e.message();
+      });
+      return;
+    }
     if (!mounted) return;
     Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (_) => const SubmissionConfirmationScreen()));
   }
@@ -125,6 +140,10 @@ class _ReviewSubmitScreenState extends State<ReviewSubmitScreen> {
                   ],
                 ),
               ),
+            if (_error != null) ...[
+              Text(_error!, style: AppTypography.helper.copyWith(color: AppColors.danger)),
+              const SizedBox(height: AppSpacing.md),
+            ],
             AppButton(
               label: 'Submit for LGU Verification',
               icon: Icons.send_rounded,

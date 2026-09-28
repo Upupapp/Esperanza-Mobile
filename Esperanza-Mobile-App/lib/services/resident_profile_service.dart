@@ -2,6 +2,8 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'api_client.dart';
+import 'json_read.dart';
 import 'persistence_recovery.dart';
 import '../models/citizen_account.dart';
 import '../models/resident_profile.dart';
@@ -455,30 +457,108 @@ class ResidentProfileService extends ChangeNotifier {
     await _save(p);
   }
 
+  /// Submits the profile to Esperanza LGU: PUT /citizen/resident-profile
+  /// (esperanza-backend ResidentProfileService::submit()). The server sets
+  /// the record "For Validation" for barangay staff; nothing on this device
+  /// can mark it verified any more (the old demo verifier panel is gone).
+  ///
+  /// The mobile form collects more than the backend stores; the fields
+  /// without a server column (school details, emergency contact, place of
+  /// birth, ...) stay on this device. Throws [ApiException] on failure, and
+  /// then the local status is left unchanged.
   Future<void> submit(String accountId) async {
     final p = _profiles[accountId]!;
-    p.status = VerificationStatus.pendingVerification;
+    final res = await api.put('/citizen/resident-profile', body: _payloadFor(p));
+    _applyServerStatus(p, res.map);
     p.correctionMessage = null;
-    p.submittedAt = DateTime.now();
+    p.submittedAt ??= DateTime.now();
     await _save(p);
   }
 
-  /// DEMO-ONLY: simulates what an LGU verifier would do on the Web Admin
-  /// side (Pending Validation -> Verified / Needs Correction), mirroring
-  /// RequestDetailScreen's `_DemoAdminPanel` pattern — there is no real
-  /// Web Admin connection yet, so this lets the citizen-facing loop be
-  /// previewed end-to-end anyway.
-  Future<void> simulateVerify(String accountId) async {
-    final p = _profiles[accountId]!;
-    p.status = VerificationStatus.verified;
-    p.correctionMessage = null;
-    await _save(p);
+  /// GET /citizen/resident-profile: adopts the verification status barangay
+  /// staff have set. A record the server has never seen (null) changes
+  /// nothing.
+  Future<void> syncStatus(String accountId) async {
+    final p = _profiles[accountId];
+    if (p == null) return;
+    final res = await api.get('/citizen/resident-profile');
+    if (res.data == null) return;
+    if (_applyServerStatus(p, res.map)) await _save(p);
   }
 
-  Future<void> simulateNeedsCorrection(String accountId, String message) async {
-    final p = _profiles[accountId]!;
-    p.status = VerificationStatus.needsCorrection;
-    p.correctionMessage = message;
-    await _save(p);
+  /// Individual.verification: Unverified / For Validation / Verified.
+  bool _applyServerStatus(ResidentProfile p, Map<String, dynamic> view) {
+    final individual = JsonRead.map(view['individual']);
+    final verification = JsonRead.nonEmpty(individual?['verification']);
+    final next = switch (verification) {
+      'Verified' => VerificationStatus.verified,
+      'For Validation' => VerificationStatus.pendingVerification,
+      _ => null,
+    };
+    final submitted = JsonRead.date(view['submitted_at'])?.toLocal();
+    if (submitted != null) p.submittedAt = submitted;
+    if (next == null || next == p.status) return submitted != null;
+    p.status = next;
+    notifyListeners();
+    return true;
+  }
+
+  static String? _text(String? v) {
+    final t = v?.trim();
+    return (t == null || t.isEmpty || t == '—') ? null : t;
+  }
+
+  static String? _date(DateTime? d) =>
+      d == null ? null : '${d.year.toString().padLeft(4, '0')}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+
+  static Map<String, dynamic> _personOf(Individual i) => {
+        'sex': _text(i.sex),
+        'dob': _date(i.birthdate),
+        'civil_status': _text(i.civilStatus),
+        'occupation': _text(i.occupation),
+        'education': _text(i.educationalAttainment),
+        'contact': _text(i.mobile),
+      };
+
+  static Map<String, dynamic> _payloadFor(ResidentProfile p) {
+    final me = p.personal;
+    final h = p.household;
+    return {
+      'personal': {
+        ..._personOf(me),
+        'sitio': _text(me.sitioPurok),
+        'income_range': _text(h.monthlyIncome),
+        'tags': [
+          if (me.isSeniorCitizen) 'Senior Citizen',
+          if (me.isPWD) 'PWD',
+          if (me.isSoloParent) 'Solo Parent',
+          if (me.isVoter) 'Registered Voter',
+          if (me.isFourPsBeneficiary) '4Ps',
+        ],
+      },
+      if (p.householdSaved)
+        'household': {
+          'sitio': _text(h.sitioPurok),
+          'address': _text(h.completeAddress),
+          'dwelling_type': _text(h.housingType),
+          'housing_tenure': _text(h.housingOwnership),
+          'electricity': _text(h.electricitySource),
+          'water': _text(h.waterSource),
+          'toilet': _text(h.toiletFacility),
+        },
+      if (p.familySaved)
+        'family': {
+          'surname': _text(p.familyName),
+          'members': [
+            for (final m in p.familyMembers)
+              if (m.individualId != me.individualId && _text(m.fullName) != null)
+                {
+                  'name': m.fullName.trim(),
+                  ..._personOf(m),
+                  'relation': _text(m.relationshipToHead),
+                },
+          ],
+        },
+    };
   }
 }

@@ -2,6 +2,8 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'api_client.dart';
+import 'json_read.dart';
 import 'persistence_recovery.dart';
 
 /// Tracks which notifications a citizen has already opened/viewed — the
@@ -32,6 +34,7 @@ class NotificationsService extends ChangeNotifier {
   bool get loaded => _loaded;
 
   NotificationsService() {
+    ApiClient.addSessionExpiredListener(_clearServer);
     _restore();
   }
 
@@ -78,6 +81,7 @@ class NotificationsService extends ChangeNotifier {
   /// keeping them would leave orphaned references to a citizen who has signed
   /// out. Clearing all of it is both the private and the correct choice.
   Future<void> forgetAccount(String accountId) async {
+    _server = [];
     _readIds = {};
     _duplicateResolutions = {};
     _unverifiedDuplicateKeptAccountId = null;
@@ -97,18 +101,63 @@ class NotificationsService extends ChangeNotifier {
     }
   }
 
-  bool isRead(String id) => _readIds.contains(id);
+  // ---- Server notifications (GET /citizen/notifications) ----------------
+  //
+  // The backend writes one for every request status change, flagged document
+  // and account review (esperanza-backend NotificationService). They are the
+  // source of truth for "what happened"; read state lives on the server too.
+
+  List<ServerNotification> _server = [];
+  List<ServerNotification> get serverNotifications => List.unmodifiable(_server);
+
+  /// Newest first, pinned first (the server's order). Failures leave the
+  /// previous list in place: a flaky connection must not blank the bell.
+  Future<void> loadServer() async {
+    final rows = await api.getAllPages('/citizen/notifications', query: {'per_page': 100}, maxPages: 3);
+    _server = JsonRead.rows(rows, ServerNotification.fromApi);
+    notifyListeners();
+  }
+
+  void _clearServer() {
+    if (_server.isEmpty) return;
+    _server = [];
+    notifyListeners();
+  }
+
+  @override
+  void dispose() {
+    ApiClient.removeSessionExpiredListener(_clearServer);
+    super.dispose();
+  }
+
+  ServerNotification? _serverById(String id) {
+    for (final n in _server) {
+      if (n.feedId == id) return n;
+    }
+    return null;
+  }
+
+  bool isRead(String id) => _readIds.contains(id) || (_serverById(id)?.unread == false);
 
   /// Whether any of [ids] (the notification feed's current full ID set)
   /// is still unread — what the bell's red dot and the notification list
   /// both key off of.
-  bool hasUnread(Iterable<String> ids) => ids.any((id) => !_readIds.contains(id));
+  bool hasUnread(Iterable<String> ids) => ids.any((id) => !isRead(id));
 
   Future<void> markRead(String id) async {
-    if (_readIds.contains(id)) return;
+    if (isRead(id)) return;
     _readIds = {..._readIds, id};
+    final server = _serverById(id);
+    if (server != null) server.unread = false;
     notifyListeners();
     await _persist();
+    if (server != null) {
+      try {
+        await api.post('/citizen/notifications/${server.id}/read');
+      } on ApiException {
+        // Kept read locally; the next load re-syncs from the server.
+      }
+    }
   }
 
   /// 'confirmed' (Yes, this is me), 'reported' (No, this is not me), or
@@ -133,5 +182,62 @@ class NotificationsService extends ChangeNotifier {
     _unverifiedDuplicateKeptAccountId = keptAccountId;
     notifyListeners();
     await _persist();
+  }
+}
+
+/// One row of GET /citizen/notifications (ModuleController::notifications()).
+class ServerNotification {
+  ServerNotification({
+    required this.id,
+    required this.category,
+    required this.title,
+    required this.body,
+    required this.pill,
+    required this.ref,
+    required this.unread,
+    required this.pinned,
+    required this.at,
+  });
+
+  final int id;
+  final String? category;
+  final String title;
+  final String body;
+
+  /// The status the notification is about (`Approved`, `Under Review`, ...),
+  /// when it is about one.
+  final String? pill;
+
+  /// The request reference it concerns, when it concerns one.
+  final String? ref;
+  bool unread;
+  final bool pinned;
+  final DateTime at;
+
+  String get feedId => 'srv-$id';
+
+  /// Bilingual on the wire (`{fil, en}`); Filipino first, like every other
+  /// server message the app shows (ApiException.message()).
+  static String _text(Object? v) {
+    final m = JsonRead.map(v);
+    if (m != null) return JsonRead.nonEmpty(m['fil']) ?? JsonRead.nonEmpty(m['en']) ?? '';
+    return JsonRead.string(v) ?? '';
+  }
+
+  static ServerNotification? fromApi(Map<String, dynamic> json) {
+    final id = JsonRead.integer(json['id']);
+    final title = _text(json['title']);
+    if (id == null || title.isEmpty) return null;
+    return ServerNotification(
+      id: id,
+      category: JsonRead.nonEmpty(json['category']),
+      title: title,
+      body: _text(json['body']),
+      pill: JsonRead.nonEmpty(json['pill']),
+      ref: JsonRead.nonEmpty(json['ref']),
+      unread: JsonRead.boolean(json['unread']) ?? true,
+      pinned: JsonRead.boolean(json['pinned']) ?? false,
+      at: JsonRead.date(json['time'])?.toLocal() ?? DateTime.now(),
+    );
   }
 }

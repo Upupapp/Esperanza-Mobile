@@ -503,7 +503,10 @@ class _FlaggedRequirementCard extends StatelessWidget {
               child: Consumer<MasterFileService>(
                 builder: (context, masterFile, _) {
                   final accountId = context.read<CitizenSessionService>().account?.id;
-                  final existing = accountId != null ? masterFile.findByType(accountId, requirement.documentType) : null;
+                  // Reuse needs the file on this device: the replace endpoint
+                  // uploads bytes, and a server-only Papeles copy has none here.
+                  final found = accountId != null ? masterFile.findByType(accountId, requirement.documentType) : null;
+                  final existing = (found?.attachment.localPath?.isNotEmpty ?? false) ? found : null;
                   return RequirementUploader(
                     requirement: requirement,
                     attachment: currentAttachment,

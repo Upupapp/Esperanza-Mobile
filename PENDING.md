@@ -34,7 +34,7 @@ item, move it to **Done** with its commit — do not delete it, so the arc stays
 
 | 21 | **Registration collects an ID that nothing can receive** — backend/owner decision | Checked against esperanza-backend `9f4555c` (2026-09-28). `POST /auth/citizen/register` takes no file, the admin verification queue (`CitizenVerificationController::show`) shows no documents, and the web app's own "Verify Valid ID" (`citizen/profile.blade.php:23`) is a `setTimeout` simulation. `POST /citizen/papeles` stores a file, but no reviewer reads papeles when verifying, so sending the ID there would be a false promise. Needs a backend endpoint on the verification path first; until then mobile's ID step (and simulated face scan) are UI only. |
 | 23 | **Backend: announcement likes carry no per-citizen state** | `GET /announcements` is public and `announcementRow()` has no `liked_by_me`, so a liked announcement shows un-liked after refresh and the next tap un-likes it. Community posts do carry it. Fix is backend-side (an authenticated variant or field). |
-| 24 | **Backend routes mobile still simulates** | Exist now, not yet wired: `GET /citizen/notifications` (+ `/read`), `PUT /citizen/profile` (Edit Profile), `GET/PUT /citizen/resident-profile`, `GET /citizen/digital-id`, `GET/POST /citizen/support/tickets` (Report a Problem), `GET/POST /citizen/papeles` (Master File). |
+| 26 | **Two web-owned fixes, handed to the web lane** | Cancelled/Archived badge contrast and the web's 1,054 `text-slate-400` uses. Exact changes in `Esperanza-Mobile-App/docs/HANDOFF_TO_WEB_LANE_2026-09-28.md`. Mobile lands its matching badge change only once web `main` carries it (parity rule). Not pushed from here: mobile doesn't commit to the web repo, and a web `main` push runs a Netlify build. |
 | 25 | **Web frontend ↔ backend drift (web repo, read-only from this lane)** | Audited 2026-09-28 (web `950eb0f`, backend `9f4555c`): the web's citizen Balita calls omit `/citizen` (whole feed errors, `announcements.blade.php:19`); all 45 admin Sakuna calls omit `/admin` (`admin/sakuna.blade.php`); Internal Forms omits `/admin`; user archive sends `u.id` where the route keys on `employee_id` (`admin/users.blade.php:149`); Dokyu/Tulong on both citizen and admin sides are still `setTimeout`/localStorage simulations though the routes exist. For the web lane to fix. |
 
 ## Deferred by decision
@@ -63,6 +63,15 @@ item, move it to **Done** with its commit — do not delete it, so the arc stays
   `Package.resolved` is the only thing making an iOS build reproducible.
 
 ## Done this programme
+
+**Simulated features wired to the backend (2026-09-28):** notifications (`GET
+/citizen/notifications` + read; the fabricated sample alerts such as "Typhoon Advisory" were
+removed), profile edits (`PUT /citizen/profile`, identity lock, verify-by-code mobile change),
+resident profile (`PUT/GET /citizen/resident-profile`; the self-verify demo panel removed), Digital
+ID (`GET /citizen/digital-id`, live card + signed QR), Report a Problem (`POST
+/citizen/support/tickets`, backend categories), Master File (`/citizen/papeles` sync, upload,
+download, archive). Pinned by `test/portal_wiring_test.dart`, `test/notifications_test.dart`,
+`test/resident_profile_service_test.dart`.
 
 **Backend contract pass (2026-09-28, against esperanza-backend `9f4555c`):** every endpoint mobile
 calls checked against `routes/api.php` and its controller. Fixed: all Balita engagement calls

@@ -48,16 +48,15 @@ DateTime _evergreenNotificationTime([int priority = 0]) =>
 ///    [ResidentProfileService], not a stored notification, so it appears
 ///    exactly while the signed-in citizen's profile is incomplete and
 ///    disappears the moment it reaches 100%, and never shown to a Guest.
-/// 2. Real request-status updates — every non-citizen entry in a
-///    request's statusHistory (the "Mobile Reflection" half of the
-///    citizen/admin flow model). This is also how the pre-made Dokyu/
-///    Tulong status simulations (see MockCatalog demo seed) surface their
-///    own Approved/Pending/Rejected notifications — they're just requests
-///    with statusHistory like any other, so no separate notification
-///    producer was needed for them.
-/// 3. Sample notifications for types this frontend-only build has no real
-///    producer for yet — illustrative only, never wired to any real state
-///    change.
+/// 2. Server notifications (GET /citizen/notifications, loaded by
+///    [NotificationsService.loadServer]) — every request status change,
+///    flagged document and account review the backend recorded. Tapping one
+///    that names a request opens it.
+/// 3. Correction actions — derived from a loaded request's flagged
+///    requirements, each deep-linking to the document to replace.
+///
+/// There are no illustrative samples any more: a feed a resident reads as
+/// real must only contain what really happened.
 ///
 /// The returned list is always sorted newest-first by [AppNotification.at]
 /// — a single, uniform chronological ordering across every source above
@@ -97,54 +96,30 @@ List<AppNotification> buildNotificationFeed(BuildContext context) {
 
   items.addAll(_correctionNotifications(context, requests));
 
-  final requestItems = <(ServiceRequest, StatusHistoryEntry)>[];
-  for (final r in requests) {
-    for (final h in r.statusHistory) {
-      if (h.actor == 'Citizen') continue;
-      // A "Flagged for Replacement" event gets its own, richer per-
-      // requirement correction notification below instead of this generic
-      // one — same underlying event, never both (see the exact-timestamp
-      // match, guaranteed by RequestsService.flagAdditionalDocuments writing
-      // both with the same DateTime instant). The "Needs Manual
-      // Verification" flavor of Under Review has no matching
-      // FlaggedRequirement, so it still gets the plain generic notification
-      // exactly as before.
-      final isFlaggingEvent =
-          h.status == RequestMilestones.underReview && r.flaggedRequirements.any((f) => f.flaggedAt == h.at);
-      if (isFlaggingEvent) continue;
-      requestItems.add((r, h));
+  // Server notifications: every request status change, flagged document and
+  // account review the backend recorded for this citizen. They replaced two
+  // on-device sources -- a derivation from each request's status history
+  // (which duplicated these once the server wrote them) and a list of
+  // illustrative samples ("Typhoon Advisory", "Evacuation Center Update")
+  // that were never real and must not reach a resident as though they were.
+  if (account != null) {
+    for (final n in context.watch<NotificationsService>().serverNotifications) {
+      final ref = n.ref;
+      items.add(
+        AppNotification(
+          id: n.feedId,
+          kind: n.pill != null ? _kindFor(n.pill!) : NotificationKind.info,
+          icon: n.pill != null ? _iconFor(n.pill!) : Icons.notifications_none_rounded,
+          title: n.title,
+          body: n.body,
+          time: ref,
+          at: n.at,
+          onTap: ref == null
+              ? null
+              : () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => RequestDetailScreen(requestId: ref))),
+        ),
+      );
     }
-  }
-  requestItems.sort((a, b) => b.$2.at.compareTo(a.$2.at));
-
-  for (final (request, entry) in requestItems) {
-    items.add(
-      AppNotification(
-        id: 'req-${request.id}-${entry.at.toIso8601String()}-${entry.status}',
-        kind: _kindFor(entry.status),
-        icon: _iconFor(entry.status),
-        title: '${request.typeName} — ${entry.status}',
-        body: entry.remarks ?? 'Updated by ${entry.actor}.',
-        time: request.referenceNumber,
-        at: entry.at,
-        onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => RequestDetailScreen(requestId: request.id))),
-      ),
-    );
-  }
-
-  final now = DateTime.now();
-  for (final s in _sampleNotifications) {
-    items.add(
-      AppNotification(
-        id: s.id,
-        kind: s.kind,
-        icon: s.icon,
-        title: s.title,
-        body: s.body,
-        time: s.time,
-        at: now.subtract(s.age),
-      ),
-    );
   }
 
   items.sort((a, b) => b.at.compareTo(a.at));
@@ -398,9 +373,10 @@ AppNotification _duplicateAlertFor(
 }
 
 NotificationKind _kindFor(String status) => switch (status) {
-      'Approved' || 'Released' || 'Completed' => NotificationKind.success,
+      'Approved' || 'Mark to Release' || 'Released' || 'Completed' => NotificationKind.success,
       'Rejected' => NotificationKind.warning,
-      'Waiting Requirements' => NotificationKind.actionRequired,
+      // The backend's "your application needs correction" transition.
+      'Under Review' || 'Waiting Requirements' => NotificationKind.actionRequired,
       _ => NotificationKind.info,
     };
 
@@ -408,86 +384,10 @@ IconData _iconFor(String status) => switch (status) {
       'Approved' => Icons.check_circle_outline_rounded,
       'Rejected' => Icons.cancel_outlined,
       'Released' || 'Completed' => Icons.task_alt_rounded,
-      'Waiting Requirements' => Icons.warning_amber_rounded,
+      'Under Review' || 'Waiting Requirements' => Icons.warning_amber_rounded,
       // 'Ready for Release' is the retired label this replaced (see the
       // status-terminology correction pass) — kept so anything still
       // showing it briefly (pre-migration) gets the same icon.
       'Mark to Release' || 'Ready for Release' => Icons.inventory_2_outlined,
       _ => Icons.info_outline_rounded,
     };
-
-class _SampleNotification {
-  final String id;
-  final NotificationKind kind;
-  final IconData icon;
-  final String title;
-  final String body;
-  final String time;
-
-  /// How long ago this illustrative item is meant to have happened —
-  /// matches its own [time] display string, so [buildNotificationFeed]'s
-  /// newest-first sort places it exactly where that text claims relative to
-  /// every other notification, real or sample.
-  final Duration age;
-
-  const _SampleNotification({
-    required this.id,
-    required this.kind,
-    required this.icon,
-    required this.title,
-    required this.body,
-    required this.time,
-    required this.age,
-  });
-}
-
-/// Illustrative-only demo content for notification types this frontend
-/// build has no real producer for. Fixed, never persisted beyond their own
-/// read/unread flag, never affects any account/request state.
-const _sampleNotifications = <_SampleNotification>[
-  _SampleNotification(
-    id: 'sample-typhoon-advisory',
-    kind: NotificationKind.urgent,
-    icon: Icons.warning_amber_rounded,
-    title: 'Typhoon Advisory — Esperanza, Masbate',
-    body: 'MDRRMO has raised a weather advisory for the municipality. Monitor official channels and prepare a go-bag.',
-    time: '1 hr ago',
-    age: Duration(hours: 1),
-  ),
-  _SampleNotification(
-    id: 'sample-evacuation-update',
-    kind: NotificationKind.info,
-    icon: Icons.home_work_outlined,
-    title: 'Evacuation Center Update',
-    body: 'Poblacion Covered Court is now open and accepting families ahead of expected heavy rainfall.',
-    time: '2 hrs ago',
-    age: Duration(hours: 2),
-  ),
-  _SampleNotification(
-    id: 'sample-new-assistance-program',
-    kind: NotificationKind.info,
-    icon: Icons.volunteer_activism_outlined,
-    title: 'New Assistance Program Available',
-    body: 'MSWDO has opened applications for Educational Assistance for School Year 2026–2027.',
-    time: 'Yesterday',
-    age: Duration(days: 1),
-  ),
-  _SampleNotification(
-    id: 'sample-municipal-announcement',
-    kind: NotificationKind.info,
-    icon: Icons.campaign_outlined,
-    title: 'Municipal Announcement',
-    body: 'Office of the Municipal Mayor: Fiesta ng Esperanza opening program this August 14 at the Municipal Plaza.',
-    time: '2 days ago',
-    age: Duration(days: 2),
-  ),
-  _SampleNotification(
-    id: 'sample-barangay-santiago',
-    kind: NotificationKind.info,
-    icon: Icons.apartment_outlined,
-    title: 'Barangay Santiago Announcement',
-    body: 'Free anti-rabies vaccination for pets this Sunday, 8AM–4PM at the barangay covered court.',
-    time: '3 days ago',
-    age: Duration(days: 3),
-  ),
-];
