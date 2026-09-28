@@ -116,19 +116,28 @@ class Announcement {
       author: JsonRead.nonEmpty(json['author']) ?? 'Esperanza LGU',
       barangay: JsonRead.nonEmpty(json['barangay']),
       category: JsonRead.nonEmpty(json['category']),
-      body: JsonRead.string(json['body']) ?? '',
+      body: _withTitle(JsonRead.nonEmpty(json['title']), JsonRead.string(json['body']) ?? ''),
       imageUrl: JsonRead.mediaUrl(json['image_url']),
       at: JsonRead.date(json['published_at']) ?? JsonRead.date(json['created_at']),
       likes: JsonRead.integer(json['likes']) ?? 0,
-      // Was never read for announcements, so a liked announcement came back
-      // un-liked on every refresh and the next tap un-liked it on the server.
+      // GET /announcements is public and carries no per-citizen like state
+      // (PublicContentController::announcementRow()), so this is false on
+      // every load; read if the backend ever adds it.
       likedByMe: JsonRead.boolean(json['liked_by_me']) ?? false,
       commentsCount: JsonRead.integer(json['comments_count']) ?? 0,
       shares: JsonRead.integer(json['shares']) ?? 0,
     );
   }
 
-  /// GET /community-posts (CitizenPortalController::postRow()).
+  /// Announcements carry a separate `title` (announcementRow()) that the
+  /// feed card has no slot for; it leads the body so a headline is never
+  /// dropped, unless the body already opens with it.
+  static String _withTitle(String? title, String body) {
+    if (title == null || body.trimLeft().startsWith(title)) return body;
+    return body.isEmpty ? title : '$title\n\n$body';
+  }
+
+  /// GET /citizen/community-posts (CitizenPortalController::postRow()).
   factory Announcement.fromCommunityApi(Map<String, dynamic> json) {
     final id = JsonRead.integer(json['id']);
     if (id == null) throw const FormatException('community post without an id');

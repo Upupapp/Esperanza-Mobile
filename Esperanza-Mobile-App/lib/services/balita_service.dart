@@ -42,7 +42,7 @@ class BalitaService extends ChangeNotifier {
   /// failed -- the feed is shown partial rather than not at all.
   bool get communityUnavailable => _communityUnavailable;
 
-  /// GET /announcements + GET /community-posts, merged and sorted newest
+  /// GET /announcements + GET /citizen/community-posts, merged and sorted newest
   /// first. The community-posts fetch needs a signed-in citizen (it's
   /// under the `citizen` route prefix); a Guest still sees the public
   /// announcements half of the feed rather than nothing at all.
@@ -56,7 +56,7 @@ class BalitaService extends ChangeNotifier {
       // took the official LGU announcements down with it.
       final announcementsFuture = api.getAllPages('/announcements', query: {'per_page': 50}, maxPages: 2);
       final communityFuture = signedIn
-          ? api.getAllPages('/community-posts', query: {'per_page': 50}, maxPages: 2).then<List<dynamic>?>((r) => r)
+          ? api.getAllPages('/citizen/community-posts', query: {'per_page': 50}, maxPages: 2).then<List<dynamic>?>((r) => r)
           : Future<List<dynamic>?>.value(const []);
       final communityGuarded = communityFuture.catchError((Object _) => null);
 
@@ -76,12 +76,17 @@ class BalitaService extends ChangeNotifier {
     }
   }
 
-  String _likePath(Announcement post) =>
-      post.kind == PostKind.announcement ? '/announcements/${post.remoteId}/like' : '/community-posts/${post.remoteId}/like';
+  // Every engagement route lives under the backend's `citizen` group
+  // (esperanza-backend routes/api.php, `prefix('citizen')`); only the
+  // announcements *read* is public. These used to omit the prefix, so every
+  // like, comment, community read and post answered 404.
+  String _likePath(Announcement post) => post.kind == PostKind.announcement
+      ? '/citizen/announcements/${post.remoteId}/like'
+      : '/citizen/community-posts/${post.remoteId}/like';
 
   String _commentsPath(Announcement post) => post.kind == PostKind.announcement
-      ? '/announcements/${post.remoteId}/comments'
-      : '/community-posts/${post.remoteId}/comments';
+      ? '/citizen/announcements/${post.remoteId}/comments'
+      : '/citizen/community-posts/${post.remoteId}/comments';
 
   /// Toggles like/unlike -- both endpoints are POST-to-toggle, returning
   /// the server's own new `{liked, likes}` rather than the client guessing
@@ -120,7 +125,7 @@ class BalitaService extends ChangeNotifier {
   /// as normal if [post] isn't a community post; callers gate the Report
   /// menu item on `post.kind == PostKind.community` first (see PostCard).
   Future<void> reportPost(Announcement post, String reason) async {
-    await api.post('/community-posts/${post.remoteId}/report', body: {'reason': reason});
+    await api.post('/citizen/community-posts/${post.remoteId}/report', body: {'reason': reason});
   }
 
   /// POST /community-posts -- a real citizen-posting capability (image
@@ -136,12 +141,12 @@ class BalitaService extends ChangeNotifier {
   Future<Announcement> createPost({required String body, required String category, String? imageFilePath}) async {
     final res = imageFilePath != null
         ? await api.postMultipart(
-            '/community-posts',
+            '/citizen/community-posts',
             filePath: imageFilePath,
             fileField: 'image',
             fields: {'body': body, 'category': category},
           )
-        : await api.post('/community-posts', body: {'body': body, 'category': category});
+        : await api.post('/citizen/community-posts', body: {'body': body, 'category': category});
     final Announcement post;
     try {
       post = Announcement.fromCommunityApi(res.map);

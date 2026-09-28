@@ -92,7 +92,7 @@ void _installFixtures() {
   FakeApi.installFull((req) {
     if (req.method == 'GET' && req.path == '/citizen/requests') return [_requestSummary];
     if (req.method == 'GET' && req.path == '/announcements') return <Map<String, dynamic>>[];
-    if (req.method == 'GET' && req.path == '/community-posts') return [_communityPost];
+    if (req.method == 'GET' && req.path == '/citizen/community-posts') return [_communityPost];
     throw FakeApiError(messageEn: 'sign_out_erasure_test has no fixture for ${req.method} ${req.path}.');
   });
 }

@@ -23,7 +23,7 @@ void main() {
 
   testWidgets('a newly created post shows in the feed immediately', (tester) async {
     FakeApi.installFull((r) {
-      if (r.method == 'POST' && r.path == '/community-posts') {
+      if (r.method == 'POST' && r.path == '/citizen/community-posts') {
         return {'id': 77, 'body': 'Brand-new synthetic post', 'mine': true, 'status': 'Pending Review', 'visible': false};
       }
       if (r.path == '/announcements') {

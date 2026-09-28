@@ -137,7 +137,8 @@ void main() {
           'data': [
             {'n': page},
           ],
-          'meta': {'current_page': page, 'last_page': 3},
+          // App\\Http\\ApiResponse::page()'s own shape: `page`, not `current_page`.
+          'meta': {'page': page, 'per_page': 1, 'total': 3, 'last_page': 3},
         });
       });
       final rows = await api.getAllPages('/citizen/requests', query: {'per_page': 1});
@@ -170,9 +171,9 @@ void main() {
     final file = File('${dir.path}/id.jpg')..writeAsBytesSync([1, 2, 3]);
     final seen = _install((_) async => _json({'data': {'ok': true}}));
 
-    final res = await api.postMultipart('/community-posts', filePath: file.path, fileField: 'image');
+    final res = await api.postMultipart('/citizen/community-posts', filePath: file.path, fileField: 'image');
     expect(res.map['ok'], isTrue);
-    expect(seen.single.url.path, '/community-posts');
+    expect(seen.single.url.path, '/citizen/community-posts');
   });
 
   test('path segments are encoded', () {
@@ -320,7 +321,7 @@ void main() {
               : [
                   {'ref': 'AR-2026-0002', 'type': 'tulong', 'service': 'Burial', 'status': 'Approved'},
                 ],
-          'meta': {'current_page': page, 'last_page': 2},
+          'meta': {'page': page, 'per_page': 100, 'total': 2, 'last_page': 2},
         });
       });
       final service = RequestsService();
@@ -329,7 +330,7 @@ void main() {
       expect(service.all.map((r) => r.referenceNumber), ['DR-2026-0001', 'AR-2026-0002']);
     });
 
-    test('detail keeps transition remarks and encodes the reference', () async {
+    test('detail reads the backend history shape and encodes the reference', () async {
       final seen = _install(
         (_) async => _json({
           'data': {
@@ -338,7 +339,7 @@ void main() {
             'status': 'Under Review',
             'history': [
               {'to': 'Submitted', 'at': '2026-09-01T00:00:00Z'},
-              {'to': 'Under Review', 'at': '2026-09-02T00:00:00Z', 'actor_name': 'MCR Staff', 'remarks': 'Bring the original.'},
+              {'from': 'Submitted', 'to': 'Under Review', 'trigger': 'review', 'at': '2026-09-02T00:00:00Z', 'actor_name': 'MCR Staff'},
               {'at': '2026-09-03T00:00:00Z'},
             ],
             'needs_correction': [
@@ -354,7 +355,7 @@ void main() {
       final r = await service.loadDetail('DR 1');
       expect(seen.single.url.toString(), '$_base/citizen/requests/DR%201');
       expect(r.statusHistory.map((h) => h.status), ['Submitted', 'Under Review']);
-      expect(r.statusHistory.last.remarks, 'Bring the original.');
+      expect(r.statusHistory.last.actor, 'MCR Staff');
       expect(r.flaggedRequirements.map((f) => f.id), ['valid_id']);
       expect(r.canResubmit, isTrue);
     });
@@ -418,6 +419,7 @@ void main() {
         (r) async => r.url.path == '/announcements'
             ? _json({
                 'data': [ann(1), ann('2')],
+                'meta': {'page': 1, 'per_page': 50, 'total': 2, 'last_page': 1},
               })
             : _json({'error': {'code': 'CAPABILITY_DENIED', 'message': 'no'}}, 403),
       );
@@ -477,6 +479,43 @@ void main() {
       expect(calls, 1);
       expect(post.likedByMe, isTrue);
       expect(post.likes, 4);
+    });
+
+    test('engagement calls use the backend citizen group, not bare paths', () async {
+      final seen = _install((r) async {
+        if (r.url.path.endsWith('/like')) return _json({'data': {'liked': true, 'likes': 1}});
+        if (r.method == 'GET') return _json({'data': [], 'meta': {'page': 1, 'last_page': 1}});
+        return _json({'data': {'id': 5, 'body': 'x'}}, 201);
+      });
+      final balita = BalitaService();
+      addTearDown(balita.dispose);
+      final announcement = Announcement.fromAnnouncementApi(ann(1));
+      final community = Announcement.fromCommunityApi({'id': 7, 'body': 'c'});
+      await balita.loadFeed(signedIn: true);
+      await balita.toggleLike(announcement);
+      await balita.toggleLike(community);
+      await balita.loadComments(announcement);
+      await balita.addComment(community, 'hi');
+      await balita.reportPost(community, 'spam');
+      await balita.createPost(body: 'b', category: 'General');
+      // The two feed reads run concurrently, so order is not asserted.
+      expect(seen.map((r) => '${r.method} ${r.url.path}'), unorderedEquals([
+        'GET /announcements',
+        'GET /citizen/community-posts',
+        'POST /citizen/announcements/1/like',
+        'POST /citizen/community-posts/7/like',
+        'GET /citizen/announcements/1/comments',
+        'POST /citizen/community-posts/7/comments',
+        'POST /citizen/community-posts/7/report',
+        'POST /citizen/community-posts',
+      ]));
+    });
+
+    test('an announcement title leads its body', () {
+      final a = Announcement.fromAnnouncementApi({'id': 1, 'title': 'Road closure', 'body': 'Details here.'});
+      expect(a.body, 'Road closure\n\nDetails here.');
+      final b = Announcement.fromAnnouncementApi({'id': 2, 'title': 'Same', 'body': 'Same start of body'});
+      expect(b.body, 'Same start of body');
     });
 
     test('a created post is in the live list the feed renders', () async {

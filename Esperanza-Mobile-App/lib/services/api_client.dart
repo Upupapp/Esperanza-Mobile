@@ -142,7 +142,8 @@ class ApiClient {
   /// Follows a paginated collection to its end. A single `per_page` request
   /// silently truncated anything past the first page -- a citizen's 101st
   /// request simply never appeared. Reads Laravel's paginator `meta`
-  /// (`current_page`/`last_page`); an endpoint that is not paginated returns
+  /// (`App\Http\ApiResponse::page()`: `page`/`last_page`, with Laravel's own
+  /// `current_page` also accepted); an endpoint that is not paginated returns
   /// no `meta` and is fetched exactly once. [maxPages] bounds a misbehaving
   /// server.
   Future<List<dynamic>> getAllPages(String path, {Map<String, dynamic>? query, int maxPages = 20}) async {
@@ -153,7 +154,7 @@ class ApiClient {
       rows.addAll(res.list);
       final meta = res.meta;
       if (meta == null) break;
-      final current = _intOf(meta['current_page']) ?? page;
+      final current = _intOf(meta['page']) ?? _intOf(meta['current_page']) ?? page;
       final last = _intOf(meta['last_page']);
       if (last == null || current >= last || res.list.isEmpty || page >= maxPages) break;
       page = current + 1;

@@ -181,7 +181,8 @@ Pinned from this side by `test/access_tier_contract_test.dart`, which parses the
 - **~~Missing~~ — DELIVERED 2026-08-29** (backend `a63a8ae`). This entry was correct: there was no citizen path. The only way to create an incident was `POST /api/v1/admin/sakuna/incidents`, behind an admin permission no citizen holds, so mobile's "Report an Incident" button had nothing to call.
 - **Now available:** `POST /api/v1/citizen/incidents` (session required, **Unverified accounts allowed** — see Section 4a), `GET /api/v1/citizen/incidents` for the citizen's own reports. Throttled 20/min and idempotent on `client_uuid`, so a report replayed after a phone loses signal returns the filed incident (200) rather than creating a duplicate (201). Lands with `source: "Citizen Portal"` and enters the responders' queue on the same verb chain as a field-reported incident.
 - **Body:** `title`, `type`, `severity`, `barangay`, `sitio`, `lat`, `lng`, `description`, `client_uuid`.
-- **Statuses:** Submitted → Validated → Dispatched → Resolved / Closed.
+- **Statuses** (corrected 2026-09-28 from the backend's `IncidentLifecycle`): canonical labels only — Submitted → Under Verification → Assigned → Processing → Completed → Archived. *Validate, dispatch, resolve and close are the responders' actions, not statuses.* Severity is one of Low / Moderate / High / Critical.
+- **Mobile:** wired 2026-09-28 (`ReportIncidentScreen`, `RequestsService.reportIncident`/`loadIncidents`).
 - The Web Admin's own Sakuna module (Command Center, Incidents) remains mock data — the citizen submission path is what now exists.
 
 ### Citizen Registration & Verification

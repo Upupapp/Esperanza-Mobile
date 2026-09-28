@@ -82,16 +82,16 @@ void _installFeedFixture() {
     if (req.method == 'GET' && req.path == '/announcements') {
       return [_mangroveAnnouncement, _fiestaAnnouncement];
     }
-    if (req.method == 'GET' && req.path == '/community-posts') {
+    if (req.method == 'GET' && req.path == '/citizen/community-posts') {
       return <Map<String, dynamic>>[];
     }
-    if (req.method == 'GET' && req.path.endsWith('/comments')) {
+    if (req.method == 'GET' && req.path.startsWith('/citizen/') && req.path.endsWith('/comments')) {
       return <Map<String, dynamic>>[];
     }
-    if (req.method == 'POST' && req.path == '/announcements/1/comments') {
+    if (req.method == 'POST' && req.path == '/citizen/announcements/1/comments') {
       return {'id': 501, 'author': 'Perlita Quiambao', 'body': req.body?['body'], 'mine': true, 'created_at': '2026-09-11T00:00:00.000Z'};
     }
-    if (req.method == 'POST' && req.path.endsWith('/like')) {
+    if (req.method == 'POST' && req.path.startsWith('/citizen/') && req.path.endsWith('/like')) {
       return {'liked': true, 'likes': 90};
     }
     throw FakeApiError(messageEn: 'balita_image_viewer_test has no fixture for ${req.method} ${req.path}');

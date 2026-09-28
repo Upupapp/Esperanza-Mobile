@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../models/evacuation_center.dart';
 import '../../models/service_request.dart';
@@ -16,6 +17,7 @@ import '../shared/request_list_screen.dart';
 import 'evacuation_center_detail_screen.dart';
 import '../../services/json_read.dart';
 import '../../utils/phone_dial.dart';
+import '../../services/requests_service.dart';
 
 /// GET /hotlines (public, PublicContentController::hotlines).
 Future<List<(String, String)>> _loadHotlines() async {
@@ -113,16 +115,21 @@ class SakunaScreen extends StatelessWidget {
             size: AppButtonSize.lg,
             onPressed: () => Navigator.of(context).push(
               MaterialPageRoute(
-                builder: (_) => const RequestListScreen(
-                  category: ServiceCategory.sakunaIncident,
-                  title: 'Incident Reports',
-                  subtitle: 'Report and track disaster/emergency incidents.',
-                  // Stays local: POST /citizen/incidents takes a free-text
-                  // type/severity, not a value validated against any
-                  // server-side catalog, so there's nothing to fetch here.
-                  catalog: MockCatalog.incidentTypes,
-                  accent: AppColors.rose600,
-                  icon: Icons.report_outlined,
+                // Loads the citizen's own reports from GET /citizen/incidents
+                // before the list renders; it read /citizen/requests, which
+                // never holds an incident, so the list was always empty.
+                builder: (context) => AsyncStateView<void>(
+                  loader: () => context.read<RequestsService>().loadIncidents(),
+                  builder: (context, _, reload) => const RequestListScreen(
+                    category: ServiceCategory.sakunaIncident,
+                    title: 'Incident Reports',
+                    subtitle: 'Report and track disaster/emergency incidents.',
+                    // Incident types stay local: POST /citizen/incidents takes
+                    // `type` as free text, not a key into a server catalogue.
+                    catalog: MockCatalog.incidentTypes,
+                    accent: AppColors.rose600,
+                    icon: Icons.report_outlined,
+                  ),
                 ),
               ),
             ),

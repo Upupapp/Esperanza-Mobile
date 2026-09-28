@@ -29,10 +29,16 @@ class RequestsService extends ChangeNotifier {
   List<CatalogItem> _tulongCatalog = [];
   bool _loaded = false;
 
-  List<ServiceRequest> get all => List.unmodifiable(_requests);
+  /// Citizen-reported Sakuna incidents. A separate backend resource
+  /// (GET/POST /citizen/incidents, `INC-YYYY-#####` refs) with no detail,
+  /// resubmit or requirement endpoints, so it is kept apart from
+  /// [_requests] and only merged for display.
+  List<ServiceRequest> _incidents = [];
+
+  List<ServiceRequest> get all => List.unmodifiable([..._requests, ..._incidents]);
 
   List<ServiceRequest> byCategory(ServiceCategory category) =>
-      _requests.where((r) => r.category == category).toList()..sort((a, b) => b.submittedAt.compareTo(a.submittedAt));
+      all.where((r) => r.category == category).toList()..sort((a, b) => b.submittedAt.compareTo(a.submittedAt));
 
   List<CatalogItem> get dokyuCatalog => List.unmodifiable(_dokyuCatalog);
   List<CatalogItem> get tulongCatalog => List.unmodifiable(_tulongCatalog);
@@ -102,6 +108,11 @@ class RequestsService extends ChangeNotifier {
   /// in [_requests] in place, so a detail screen already open on this
   /// request via [all]/[byCategory] sees the fuller record immediately.
   Future<ServiceRequest> loadDetail(String ref) async {
+    // An incident has no detail endpoint; GET /citizen/requests/{ref} would
+    // 404 on an INC- ref. The list row is everything the backend exposes.
+    for (final incident in _incidents) {
+      if (incident.referenceNumber == ref) return incident;
+    }
     final res = await api.get('/citizen/requests/${ApiClient.segment(ref)}');
     _requireRef(res);
     final full = _requestFromDetail(res.map);
@@ -113,6 +124,76 @@ class RequestsService extends ChangeNotifier {
     }
     notifyListeners();
     return full;
+  }
+
+  /// GET /citizen/incidents (CitizenRequestController::incidents()) -- the
+  /// citizen's own reports, newest first.
+  Future<void> loadIncidents() async {
+    final rows = await api.getAllPages('/citizen/incidents', query: {'per_page': 100});
+    _incidents = JsonRead.rows(rows, (json) => JsonRead.nonEmpty(json['ref']) == null ? null : _incidentFrom(json));
+    notifyListeners();
+  }
+
+  /// POST /citizen/incidents (CitizenRequestController::reportIncident()).
+  /// Open to unverified citizens by design. [clientUuid] makes a retry after
+  /// a dropped connection return the incident already filed (200) instead of
+  /// filing a second one (201), so the caller must reuse it across retries of
+  /// the same report. [barangay] must be one of the backend's canonical
+  /// barangays (validated with `exists:barangays,name`).
+  Future<ServiceRequest> reportIncident({
+    required String type,
+    required String title,
+    required String severity,
+    required String barangay,
+    String? sitio,
+    String? description,
+    required String clientUuid,
+  }) async {
+    final res = await api.post(
+      '/citizen/incidents',
+      body: {
+        'type': type,
+        'title': title,
+        'severity': severity,
+        'barangay': barangay,
+        if (sitio != null && sitio.trim().isNotEmpty) 'sitio': sitio.trim(),
+        if (description != null && description.trim().isNotEmpty) 'description': description.trim(),
+        'client_uuid': clientUuid,
+      },
+    );
+    _requireRef(res);
+    final incident = _incidentFrom(res.map);
+    _incidents = [incident, ..._incidents.where((i) => i.referenceNumber != incident.referenceNumber)];
+    notifyListeners();
+    return incident;
+  }
+
+  /// incident(): ref/title/type/severity/barangay/status/source/reported.
+  /// Statuses are the canonical vocabulary (IncidentLifecycle: Submitted,
+  /// Under Verification, Assigned, Processing, Completed, Archived).
+  ServiceRequest _incidentFrom(Map<String, dynamic> json) {
+    final ref = JsonRead.nonEmpty(json['ref']) ?? '';
+    final severity = JsonRead.nonEmpty(json['severity']);
+    final barangay = JsonRead.nonEmpty(json['barangay']);
+    return ServiceRequest(
+      id: ref,
+      referenceNumber: ref,
+      applicantId: '',
+      applicantName: '',
+      typeName: JsonRead.nonEmpty(json['type']) ?? JsonRead.nonEmpty(json['title']) ?? 'Incident',
+      category: ServiceCategory.sakunaIncident,
+      office: '',
+      purpose: [
+        JsonRead.nonEmpty(json['title']),
+        if (severity != null) 'Severity: $severity',
+        if (barangay != null) 'Barangay $barangay',
+      ].whereType<String>().join(' · '),
+      submittedAt: JsonRead.date(json['reported']) ?? DateTime.now(),
+      status: JsonRead.nonEmpty(json['status']) ?? 'Submitted',
+      statusHistory: const [],
+      attachments: const [],
+      expectedDays: '',
+    );
   }
 
   /// A 2xx whose body carries no reference number is not a request the
@@ -155,9 +236,10 @@ class RequestsService extends ChangeNotifier {
         status: to,
         at: JsonRead.date(t['at']) ?? DateTime.now(),
         actor: JsonRead.nonEmpty(t['actor_name']) ?? JsonRead.nonEmpty(t['trigger']) ?? 'System',
-        // Was hard-coded null: the remarks a clerk typed on a transition
-        // ("please bring the original") never reached the timeline.
-        remarks: JsonRead.nonEmpty(t['remarks']),
+        // The history rows carry no remarks (CitizenRequestController::
+        // detail(): from/to/trigger/actor_name/at); the clerk's words arrive
+        // as decision_remarks and per-requirement remarks instead.
+        remarks: null,
       );
     });
     final needsCorrection = JsonRead.rows(json['needs_correction'], (q) {
@@ -254,6 +336,7 @@ class RequestsService extends ChangeNotifier {
   /// own [loadRequests] replaces it.
   void clear() {
     _requests = [];
+    _incidents = [];
     _loaded = false;
     notifyListeners();
   }

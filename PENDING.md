@@ -32,9 +32,10 @@ item, move it to **Done** with its commit — do not delete it, so the arc stays
 | 16 | **Remaining wizard breadth** | 62 destinations are walked. Registration, the resident-profile sub-screens (family, household, review, submission confirmation), report-a-problem and the Sakuna incident flow are reached shallowly or not at all. |
 | 17 | **Backend Master Command** | Offered, not started. Spec Section 5 already enumerates the missing Web-Admin APIs; the front-end contract from FE 13 would feed it. |
 
-| 20 | **Backend contract not verified from this repo** (2026-09-28) | The API integration was hardened on the mobile side only (tolerant parsing, pagination, session expiry, see the Done list). Neither `Upupapp/esperanza-backend` nor `Upupapp/Esperanza-Web-Platform-frontend-` was readable from the session that did it, so field names (`ref`, `history[].remarks`, `liked_by_me` on announcements, `meta.last_page`, …) follow the existing mobile code and doc comments, **not** a read of the backend's routes and resources. Next: diff every endpoint in `lib/services/` against the backend's `routes/api.php` and resources. |
-| 21 | **Registration never uploads the ID it requires** | `register_screen.dart` makes the citizen pick a valid ID (and run a simulated face scan) but `POST /auth/citizen/register` is sent without the file. Needs the backend's ID-upload endpoint — unknown from this repo. |
-| 22 | **Incident reports go to the wrong endpoint** | "Report an Incident" posts to `POST /citizen/requests` with `MockCatalog` keys (`incident_flood`), which are not backend services. The spec (Section 5) says the backend built `POST /citizen/incidents` on 2026-08-29; nothing calls it. |
+| 21 | **Registration collects an ID that nothing can receive** — backend/owner decision | Checked against esperanza-backend `9f4555c` (2026-09-28). `POST /auth/citizen/register` takes no file, the admin verification queue (`CitizenVerificationController::show`) shows no documents, and the web app's own "Verify Valid ID" (`citizen/profile.blade.php:23`) is a `setTimeout` simulation. `POST /citizen/papeles` stores a file, but no reviewer reads papeles when verifying, so sending the ID there would be a false promise. Needs a backend endpoint on the verification path first; until then mobile's ID step (and simulated face scan) are UI only. |
+| 23 | **Backend: announcement likes carry no per-citizen state** | `GET /announcements` is public and `announcementRow()` has no `liked_by_me`, so a liked announcement shows un-liked after refresh and the next tap un-likes it. Community posts do carry it. Fix is backend-side (an authenticated variant or field). |
+| 24 | **Backend routes mobile still simulates** | Exist now, not yet wired: `GET /citizen/notifications` (+ `/read`), `PUT /citizen/profile` (Edit Profile), `GET/PUT /citizen/resident-profile`, `GET /citizen/digital-id`, `GET/POST /citizen/support/tickets` (Report a Problem), `GET/POST /citizen/papeles` (Master File). |
+| 25 | **Web frontend ↔ backend drift (web repo, read-only from this lane)** | Audited 2026-09-28 (web `950eb0f`, backend `9f4555c`): the web's citizen Balita calls omit `/citizen` (whole feed errors, `announcements.blade.php:19`); all 45 admin Sakuna calls omit `/admin` (`admin/sakuna.blade.php`); Internal Forms omits `/admin`; user archive sends `u.id` where the route keys on `employee_id` (`admin/users.blade.php:149`); Dokyu/Tulong on both citizen and admin sides are still `setTimeout`/localStorage simulations though the routes exist. For the web lane to fix. |
 
 ## Deferred by decision
 
@@ -62,6 +63,16 @@ item, move it to **Done** with its commit — do not delete it, so the arc stays
   `Package.resolved` is the only thing making an iOS build reproducible.
 
 ## Done this programme
+
+**Backend contract pass (2026-09-28, against esperanza-backend `9f4555c`):** every endpoint mobile
+calls checked against `routes/api.php` and its controller. Fixed: all Balita engagement calls
+(likes, comments, community feed, posting, reporting) lacked the `/citizen` prefix and 404'd;
+paging reads the backend's `meta.page`; announcement titles are no longer dropped; incident
+reports now go to `POST/GET /citizen/incidents` (they posted a non-existent `service_key` to
+`/citizen/requests`), with a stable `client_uuid` so a retry cannot file twice. Everything else
+(auth, catalogue, requests, events, directory, hotlines, centres) matched field for field.
+Pinned by `test/incident_reports_test.dart` and the route assertions in
+`test/api_integration_hardening_test.dart`.
 
 **API integration hardening (2026-09-28):** revalidates the session on warm start (an LGU
 verification now reaches Dokyu without re-login); a 401 signs out locally; login refuses a

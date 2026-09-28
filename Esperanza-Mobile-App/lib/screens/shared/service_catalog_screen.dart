@@ -14,6 +14,7 @@ import '../../widgets/app_card.dart';
 import 'new_request_screen.dart';
 import 'request_detail_screen.dart';
 import 'service_request_wizard_screen.dart';
+import '../sakuna/report_incident_screen.dart';
 
 /// Step 1 of the request wizard — pick a document/assistance type, guided
 /// by progressive filtering (Barangay/LGU -> Department -> Specific
@@ -279,6 +280,12 @@ class _ItemList extends StatelessWidget {
       }
     }
     if (!context.mounted) return;
+    if (category == ServiceCategory.sakunaIncident) {
+      Navigator.of(context).push(
+        MaterialPageRoute(builder: (_) => ReportIncidentScreen(item: item, accent: accent)),
+      );
+      return;
+    }
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => item.formSpec != null
