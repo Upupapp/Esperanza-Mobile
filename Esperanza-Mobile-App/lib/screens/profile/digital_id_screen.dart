@@ -760,7 +760,8 @@ class _LiveIdCard extends StatelessWidget {
     final date = DateFormat('MMM d, yyyy');
     final rows = <(String, String)>[
       ('Resident ID no.', card.accountNo),
-      ('Barangay', [if (card.purok != null) card.purok!, card.barangay].join(', ')),
+      ('Barangay', card.barangay),
+      if (card.purok != null) ('Purok / Sitio', card.purok!),
       if (card.birthdate != null) ('Date of birth', date.format(card.birthdate!)),
       if (card.sex != null) ('Sex', card.sex!),
       if (card.civilStatus != null) ('Civil status', card.civilStatus!),

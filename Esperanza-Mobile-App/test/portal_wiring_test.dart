@@ -117,6 +117,7 @@ void main() {
       'account_no': 'ESP-TEST-0100',
       'name': 'Testa Sintetiko',
       'barangay': 'Poblacion',
+      'purok': 'Purok 4',
       'status': 'Approved',
       'valid': true,
       'issued_at': '2026-09-01',
@@ -137,6 +138,10 @@ void main() {
     expect(find.text('Testa Sintetiko'), findsOneWidget);
     expect(find.text('ESP-TEST-0100'), findsOneWidget);
     expect(find.text('Valid · Verified by LGU'), findsOneWidget);
+    // The Barangay row used to read "Purok 4, Poblacion".
+    expect(find.text('Poblacion'), findsOneWidget);
+    expect(find.text('Purok / Sitio'), findsOneWidget);
+    expect(find.text('Purok 4'), findsOneWidget);
     final qr = tester.widget<QrImageView>(find.byType(QrImageView, skipOffstage: false));
     expect(qr, isNotNull);
   });

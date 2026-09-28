@@ -318,12 +318,15 @@ class PrivacyPolicyScreen extends StatelessWidget {
             title: '11. Third-Party Services',
             icon: Icons.extension_outlined,
             child: const Text(
-              "Esperanza Mobile currently uses a small number of device-level packages to support its features "
-              "(for example, selecting a photo, choosing a document, opening your device's share menu, or "
-              'opening a phone/map link). These operate locally on your device and do not send your information '
-              'to Esperanza. This app does not currently connect to any external backend or third-party server.\n\n'
+              'The information you submit (your account, Resident Profile, Dokyu and Tulong requests, uploaded '
+              'documents, reports and comments) is sent to the Municipality of Esperanza\'s own server, where '
+              'authorized municipal staff process it. Esperanza Mobile does not use analytics or advertising '
+              'services.\n\n'
+              "The app also uses a small number of device-level packages to support its features (for example, "
+              "selecting a photo, choosing a document, opening your device's share menu, or opening a phone/map "
+              'link). These operate on your device and do not send your information anywhere themselves.\n\n'
               'This section must be reviewed and confirmed by the Municipality of Esperanza before production '
-              'release, especially if a backend, analytics, or hosting provider is introduced later.',
+              'release, including where the server is hosted and by whom.',
               style: AppTypography.body,
             ),
           ),

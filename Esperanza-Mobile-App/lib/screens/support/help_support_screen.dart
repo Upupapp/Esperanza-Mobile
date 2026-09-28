@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../theme/app_colors.dart';
+import '../../utils/app_version.dart';
 import '../../theme/app_spacing.dart';
 import '../../theme/app_typography.dart';
 import '../../widgets/app_card.dart';
@@ -463,7 +464,7 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
           const SizedBox(height: AppSpacing.xs),
           const Center(
             child: Text(
-              'Esperanza Mobile — Version 1.0.0 (Frontend Preview Build)',
+              'Esperanza Mobile — Version $appVersion',
               style: TextStyle(fontSize: AppTextSize.label, color: AppColors.textMuted),
             ),
           ),

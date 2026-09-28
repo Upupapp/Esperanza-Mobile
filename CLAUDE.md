@@ -37,7 +37,8 @@ and profile, the Dokyu/Tulong catalogue, submission and tracking, Balita (announ
 community posts, likes, comments, reports), events, directory, hotlines and evacuation
 centres, Sakuna incident reports, notifications, profile edits (with verify-by-code contact
 changes), resident profile submission and status, the Digital ID (with its signed QR), Report
-a Problem (support tickets) and the Master File (the Papeles wallet). Nothing citizen-facing
+a Problem (support tickets), notification preferences (Settings) and the Master File (the
+Papeles wallet). Nothing citizen-facing
 is simulated any more except the registration ID/face-scan step (`PENDING.md` item 21).
 
 **Check routes against the backend, not the spec.** Citizen-only routes live under
