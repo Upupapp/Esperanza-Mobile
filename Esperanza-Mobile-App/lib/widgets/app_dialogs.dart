@@ -150,25 +150,7 @@ class _ConfirmSheet extends StatelessWidget {
               ),
             ),
             const SizedBox(height: AppSpacing.xl),
-            Row(
-              children: [
-                Expanded(
-                  child: AppButton(
-                    label: cancelLabel,
-                    variant: AppButtonVariant.secondary,
-                    onPressed: () => Navigator.of(context).pop(false),
-                  ),
-                ),
-                const SizedBox(width: AppSpacing.sm),
-                Expanded(
-                  child: AppButton(
-                    label: confirmLabel,
-                    variant: danger ? AppButtonVariant.danger : AppButtonVariant.primary,
-                    onPressed: () => Navigator.of(context).pop(true),
-                  ),
-                ),
-              ],
-            ),
+            _ConfirmActions(cancelLabel: cancelLabel, confirmLabel: confirmLabel, danger: danger),
           ],
         ),
       ),
@@ -217,25 +199,7 @@ class _CenteredConfirmDialog extends StatelessWidget {
               ),
             ),
             const SizedBox(height: AppSpacing.xl),
-            Row(
-              children: [
-                Expanded(
-                  child: AppButton(
-                    label: cancelLabel,
-                    variant: AppButtonVariant.secondary,
-                    onPressed: () => Navigator.of(context).pop(false),
-                  ),
-                ),
-                const SizedBox(width: AppSpacing.sm),
-                Expanded(
-                  child: AppButton(
-                    label: confirmLabel,
-                    variant: danger ? AppButtonVariant.danger : AppButtonVariant.primary,
-                    onPressed: () => Navigator.of(context).pop(true),
-                  ),
-                ),
-              ],
-            ),
+            _ConfirmActions(cancelLabel: cancelLabel, confirmLabel: confirmLabel, danger: danger),
           ],
         ),
       ),
@@ -335,3 +299,65 @@ class _InfoSheet extends StatelessWidget {
     );
   }
 }
+
+/// Cancel + confirm, side by side when both labels fit a half-width button,
+/// otherwise stacked full width with the confirm action on top.
+///
+/// Side by side only, "View Existing Request" and "Go to My Verified
+/// Account" were cut to "View Existing R…": the action a resident had to
+/// read to choose was the one they could not read.
+class _ConfirmActions extends StatelessWidget {
+  const _ConfirmActions({required this.cancelLabel, required this.confirmLabel, required this.danger});
+
+  final String cancelLabel;
+  final String confirmLabel;
+  final bool danger;
+
+  /// AppButton's md size: 18pt horizontal padding each side.
+  static const double _buttonPadding = 36;
+
+  bool _fits(BuildContext context, String label, double width) {
+    final painter = TextPainter(
+      text: TextSpan(text: label, style: AppTypography.button),
+      textDirection: Directionality.of(context),
+      textScaler: MediaQuery.textScalerOf(context),
+      maxLines: 1,
+    )..layout();
+    return painter.width + _buttonPadding <= width;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final cancel = AppButton(
+      label: cancelLabel,
+      variant: AppButtonVariant.secondary,
+      fullWidth: true,
+      onPressed: () => Navigator.of(context).pop(false),
+    );
+    final confirm = AppButton(
+      label: confirmLabel,
+      variant: danger ? AppButtonVariant.danger : AppButtonVariant.primary,
+      fullWidth: true,
+      onPressed: () => Navigator.of(context).pop(true),
+    );
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final half = (constraints.maxWidth - AppSpacing.sm) / 2;
+        if (_fits(context, cancelLabel, half) && _fits(context, confirmLabel, half)) {
+          return Row(
+            children: [
+              Expanded(child: cancel),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(child: confirm),
+            ],
+          );
+        }
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [confirm, const SizedBox(height: AppSpacing.sm), cancel],
+        );
+      },
+    );
+  }
+}
+
