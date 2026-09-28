@@ -178,7 +178,7 @@ catalogue change stalls the wizard visibly instead of hollowing the fixture out.
 
 ## Deploying
 
-### HARD RULE — no GitHub Actions credits, minimal Netlify credits (owner, 2026-09-28)
+### HARD RULE — spend nothing on GitHub, minimal deploy credits (owner, 2026-09-28)
 
 **Every deploy costs credits — the web host charges for each one (owner, restated 2026-09-28).**
 So every deploy, to Netlify or any other host, is the cost-efficient one: build locally,
@@ -187,6 +187,11 @@ upload only the prebuilt output, deploy once, and never deploy just to test or p
 - **Never use GitHub Actions.** Do not add a `.github/workflows/` file, and do not
   trigger, re-run or dispatch a workflow run. The repo has no CI by design; the local gate
   below (`scripts/hooks`) is the only gate. This holds on every lane and every branch.
+- **Never spend anything on GitHub** (owner, 2026-09-28). Beyond Actions, that rules out
+  anything GitHub bills for: Codespaces, Git LFS storage or bandwidth, Packages, paid
+  Marketplace apps, Copilot seats, larger runners. Plain pushes, branches, PRs and
+  comments cost nothing and are fine. If a task seems to need a paid GitHub feature,
+  stop and ask the owner.
 - **Netlify: spend as few credits as possible.**
   - Build locally, deploy the prebuilt output: `flutter build web --release` then
     `netlify deploy --prod --dir=build/web`. Never let Netlify run the Flutter build.
