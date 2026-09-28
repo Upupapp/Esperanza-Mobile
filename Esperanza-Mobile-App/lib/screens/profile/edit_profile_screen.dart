@@ -162,18 +162,11 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const Text(
-                'Full name',
-                style: TextStyle(fontSize: AppTextSize.helper, fontWeight: FontWeight.w500, color: AppColors.slate700),
+              _LockedField(
+                label: 'Full name',
+                value: _original.fullName,
+                note: 'Name and Resident ID are locked — request a correction at your barangay hall if these are incorrect.',
               ),
-              const SizedBox(height: AppSpacing.xs),
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: AppSpacing.md),
-                decoration: BoxDecoration(color: AppColors.slate100, borderRadius: BorderRadius.circular(AppRadius.md)),
-                child: Text(_original.fullName, style: const TextStyle(fontSize: AppTextSize.body, color: AppColors.slate500)),
-              ),
-              const _ReadOnlyNote(),
               const SizedBox(height: AppSpacing.lg),
               AppTextField(
                 label: 'Mobile number',
@@ -182,14 +175,15 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 icon: Icons.phone_outlined,
               ),
               const SizedBox(height: AppSpacing.lg),
-              if (context.watch<CitizenSessionService>().identityLocked) ...[
+              if (context.watch<CitizenSessionService>().identityLocked)
                 // A verified account's barangay is corrected by the barangay
                 // office (the server refuses it with IDENTITY_LOCKED).
-                const Text('Barangay', style: AppTypography.labelText),
-                const SizedBox(height: AppSpacing.xs),
-                Text(_barangay, style: AppTypography.bodyText),
-                Text('Verified accounts update their barangay through the barangay office.', style: AppTypography.helper),
-              ] else
+                _LockedField(
+                  label: 'Barangay',
+                  value: _barangay,
+                  note: 'Verified accounts update their barangay through the barangay office.',
+                )
+              else
                 AppSelectField<String>(
                   label: 'Barangay',
                   value: _barangay,
@@ -221,15 +215,44 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   }
 }
 
-class _ReadOnlyNote extends StatelessWidget {
-  const _ReadOnlyNote();
+/// A value the citizen can see but not change here: the same label, grey
+/// box and note for every locked field, so they read as one kind of thing.
+class _LockedField extends StatelessWidget {
+  const _LockedField({required this.label, required this.value, required this.note});
+
+  final String label;
+  final String value;
+  final String note;
+
   @override
   Widget build(BuildContext context) {
-    return const Padding(
-      padding: EdgeInsets.only(top: AppSpacing.xs),
-      child: Text(
-        'Name and Resident ID are locked — request a correction at your barangay hall if these are incorrect.',
-        style: TextStyle(fontSize: AppTextSize.fine, color: AppColors.textMuted),
+    return Semantics(
+      container: true,
+      readOnly: true,
+      label: label,
+      value: value,
+      hint: note,
+      excludeSemantics: true,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            label,
+            style: const TextStyle(fontSize: AppTextSize.helper, fontWeight: FontWeight.w500, color: AppColors.slate700),
+          ),
+          const SizedBox(height: AppSpacing.xs),
+          Container(
+            constraints: const BoxConstraints(minHeight: AppSizes.minTouchTarget),
+            alignment: Alignment.centerLeft,
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: AppSpacing.md),
+            decoration: BoxDecoration(color: AppColors.slate100, borderRadius: BorderRadius.circular(AppRadius.md)),
+            child: Text(value, style: const TextStyle(fontSize: AppTextSize.body, color: AppColors.slate500)),
+          ),
+          Padding(
+            padding: const EdgeInsets.only(top: AppSpacing.xs),
+            child: Text(note, style: const TextStyle(fontSize: AppTextSize.fine, color: AppColors.textMuted)),
+          ),
+        ],
       ),
     );
   }

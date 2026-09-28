@@ -564,7 +564,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
             'Your data is used only for LGU service delivery (document requests, assistance programs, resident records) and is '
             'not shared with third parties. Esperanza LGU staff may contact you to verify submitted information. False or '
             'misleading information may result in your verification being rejected.\n\n'
-            'This is a frontend demo build — no data leaves your device.',
+            'When you finish, your details are sent to the Municipality of Esperanza for verification.',
             style: TextStyle(fontSize: AppTextSize.helper, color: AppColors.slate600, height: 1.5),
           ),
         ),
@@ -673,6 +673,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
               ),
             ),
           ),
+        const SizedBox(height: AppSpacing.sm),
+        // PENDING.md item 21: the backend has no endpoint for an ID at
+        // sign-up yet, so say so rather than imply the LGU receives it.
+        const Text(
+          'Your ID stays on this phone for now — sending it at sign-up is not connected yet.',
+          textAlign: TextAlign.center,
+          style: TextStyle(fontSize: AppTextSize.fine, color: AppColors.textMuted),
+        ),
         if (_error != null) ...[
           const SizedBox(height: AppSpacing.md),
           Text(_error!, style: const TextStyle(fontSize: AppTextSize.helper, color: AppColors.rose600)),
