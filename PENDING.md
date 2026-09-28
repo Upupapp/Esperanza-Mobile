@@ -14,6 +14,10 @@ item, move it to **Done** with its commit — do not delete it, so the arc stays
 
 ---
 
+> **Web and backend work, in one place:** `Esperanza-Mobile-App/docs/WEB_AND_BACKEND_BACKLOG.md`
+> lists every item that needs the web or backend lane (merge/deploy order, backend gaps, web
+> defects, owner decisions). Items below that belong there are indexed from it.
+
 ## Blocked on the owner — do not attempt
 
 | # | Item | Why it is blocked |
