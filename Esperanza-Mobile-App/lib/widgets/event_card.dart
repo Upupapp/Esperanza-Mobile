@@ -54,12 +54,36 @@ class EventCard extends StatelessWidget {
                     child: EventTitleRow(event: event),
                   ),
                   EventMeta(event: event),
+                  if (event.description != null && !compact)
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(2, AppSpacing.sm, 2, 0),
+                      child: EventDescription(event: event, maxLines: 3),
+                    ),
                 ],
               ),
             ),
           ),
         ),
       ),
+    );
+  }
+}
+
+/// The description under the rows (PAAIPE `.teresa-event-card > p`): muted,
+/// 13pt, a short preview on the card and in full on the event's page.
+class EventDescription extends StatelessWidget {
+  const EventDescription({super.key, required this.event, this.maxLines});
+
+  final EventItem event;
+  final int? maxLines;
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      event.description ?? '',
+      maxLines: maxLines,
+      overflow: maxLines == null ? null : TextOverflow.ellipsis,
+      style: const TextStyle(fontSize: AppTextSize.helper, height: 1.5, color: AppColors.textMuted),
     );
   }
 }

@@ -9,6 +9,9 @@ import '../shared/event_poster_viewer.dart';
 /// event page (Upupapp/PAAIPE-Mobile-APP `EventsView` detail): the banner,
 /// the title, then the date/time/place rows.
 ///
+/// The description (written in the Web Admin) shows in full here; the card
+/// shows its first lines.
+///
 /// PAAIPE's page goes on to registration, tickets and feedback. Esperanza's
 /// backend publishes events without any of those (GET /events has no
 /// registration), so this page stops at what an event actually carries
@@ -43,6 +46,7 @@ class EventDetailScreen extends StatelessWidget {
           EventTitleRow(event: event),
           const SizedBox(height: AppSpacing.md),
           EventMeta(event: event),
+          if (event.description != null) ...[const SizedBox(height: AppSpacing.lg), EventDescription(event: event)],
         ],
       ),
     );

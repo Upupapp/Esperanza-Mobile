@@ -128,4 +128,18 @@ void main() {
     expect(find.text('Health'), findsOneWidget);
   });
 
+
+  testWidgets('the Web Admin description previews on the card and shows in full on the page', (tester) async {
+    final long = List.filled(40, 'Free check-ups for all ages.').join(' ');
+    final e = EventItem.fromApi({'name': 'Health Day', 'date': _day(4), 'description': long});
+    expect(e.description, long);
+    expect(EventItem.fromApi({'name': 'Old event', 'date': _day(4)}).description, isNull);
+
+    await tester.pumpWidget(MaterialApp(home: Scaffold(body: SingleChildScrollView(child: EventCard(event: e)))));
+    final preview = tester.widget<Text>(find.text(long));
+    expect(preview.maxLines, 3);
+
+    await tester.pumpWidget(MaterialApp(home: EventDetailScreen(event: e)));
+    expect(tester.widget<Text>(find.text(long)).maxLines, isNull);
+  });
 }

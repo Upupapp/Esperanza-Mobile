@@ -208,6 +208,10 @@ class EventItem {
   /// Free text from the Web Admin ("Every Saturday"), when it repeats.
   final String? recurrence;
 
+  /// What happens there, written in the Web Admin (GET /events
+  /// `description`, up to 2,000 characters); null for older events.
+  final String? description;
+
   /// The parsed [date], kept so a list can be put in calendar order; null
   /// for the bundled mock events and for an unparseable date.
   final DateTime? startsAt;
@@ -221,6 +225,7 @@ class EventItem {
     this.category,
     this.barangay,
     this.recurrence,
+    this.description,
     this.startsAt,
   });
 
@@ -280,6 +285,7 @@ class EventItem {
       category: JsonRead.nonEmpty(json['category']),
       barangay: JsonRead.nonEmpty(json['barangay']),
       recurrence: JsonRead.nonEmpty(json['recurrence']),
+      description: JsonRead.nonEmpty(json['description']),
       startsAt: parsed,
     );
   }
