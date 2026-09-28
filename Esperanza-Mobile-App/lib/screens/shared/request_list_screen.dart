@@ -362,14 +362,15 @@ class _RequestTile extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: AppSpacing.xs),
-                // Flexible, not a bare fixed-size child: a longer status
-                // label ("Under Verification") plus a longer typeName
-                // together can exceed a narrow phone's card width, and a
-                // non-flex StatusChip here reports its own unconstrained
-                // natural width to this Row regardless of the internal
-                // wrapping StatusChip already does for itself — see
-                // StatusChip's own doc comment on the same class of bug.
-                Flexible(child: StatusChip(status: AppStatusX.fromLabel(request.status), small: true)),
+                // Capped, not Flexible: next to the Expanded title a Flexible
+                // split the row 50/50, so a service name wrapped beside space
+                // a short badge never used. The cap (StatusChip wraps its own
+                // text inside it) still keeps a long label plus a long service
+                // name from overflowing a narrow card.
+                ConstrainedBox(
+                  constraints: BoxConstraints(maxWidth: MediaQuery.sizeOf(context).width * 0.4),
+                  child: StatusChip(status: AppStatusX.fromLabel(request.status), small: true),
+                ),
               ],
             ),
             const SizedBox(height: AppSpacing.xs),

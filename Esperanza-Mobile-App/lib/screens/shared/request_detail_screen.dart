@@ -202,12 +202,16 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
                     ),
                   ),
                   const SizedBox(width: AppSpacing.xs),
-                  // Flexible, not a bare fixed-size child — a longer status
-                  // label ("Under Verification") plus a longer typeName
-                  // together can exceed a narrow phone's width (see the
-                  // matching fix in request_list_screen.dart's own
-                  // _RequestTile row).
-                  Flexible(child: StatusChip(status: status)),
+                  // Capped at half the row, not a Flexible: a Flexible next to
+                  // the Expanded title split the row 50/50, so the title could
+                  // never use the space a short badge left over and wrapped
+                  // ("Barangay / Clearance") beside empty space. The cap still
+                  // stops a long label ("Under Verification") plus a long
+                  // service name from overflowing a narrow phone.
+                  ConstrainedBox(
+                    constraints: BoxConstraints(maxWidth: MediaQuery.sizeOf(context).width * 0.4),
+                    child: StatusChip(status: status),
+                  ),
                 ],
               ),
               const SizedBox(height: AppSpacing.xs),
