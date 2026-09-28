@@ -9,6 +9,7 @@ import '../../widgets/app_button.dart';
 import '../../widgets/app_dialogs.dart';
 import '../../widgets/app_text_field.dart';
 import '../../widgets/form_section.dart';
+import '../../theme/app_typography.dart';
 
 const _categories = [
   'Account/Profile',
@@ -94,7 +95,7 @@ class _ReportProblemScreenState extends State<ReportProblemScreen> {
     return Scaffold(
       appBar: AppBar(title: const Text('Report a Problem')),
       body: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
+        padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.md, AppSpacing.lg, AppSpacing.xxxl),
         children: [
           Container(
             padding: const EdgeInsets.all(AppSpacing.md),
@@ -108,7 +109,7 @@ class _ReportProblemScreenState extends State<ReportProblemScreen> {
                   child: Text(
                     'This is a demo submission. Esperanza Mobile does not yet have a live support backend, so '
                     'reports sent here are not delivered to municipal staff.',
-                    style: TextStyle(fontSize: 12, color: AppColors.amber700, height: 1.4),
+                    style: TextStyle(fontSize: AppTextSize.label, color: AppColors.amber700, height: 1.4),
                   ),
                 ),
               ],
@@ -145,7 +146,7 @@ class _ReportProblemScreenState extends State<ReportProblemScreen> {
           ),
           if (_error != null) ...[
             const SizedBox(height: AppSpacing.md),
-            Text(_error!, style: const TextStyle(fontSize: 12.5, color: AppColors.rose600)),
+            Text(_error!, style: const TextStyle(fontSize: AppTextSize.helper, color: AppColors.rose600)),
           ],
           const SizedBox(height: AppSpacing.xl),
           AppButton(
@@ -176,7 +177,7 @@ class _ScreenshotField extends StatelessWidget {
       children: [
         const Text(
           'Screenshot (optional)',
-          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: AppColors.slate700),
+          style: TextStyle(fontSize: AppTextSize.helper, fontWeight: FontWeight.w500, color: AppColors.slate700),
         ),
         const SizedBox(height: AppSpacing.sm),
         if (bytes != null)
@@ -189,7 +190,7 @@ class _ScreenshotField extends StatelessWidget {
             child: Row(
               children: [
                 ClipRRect(
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(AppRadius.sm),
                   child: Image(
                     image: pickedFileImageProvider(bytes: bytes)!,
                     width: 44,
@@ -203,7 +204,7 @@ class _ScreenshotField extends StatelessWidget {
                     fileName ?? 'Screenshot attached',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w500, color: AppColors.slate700),
+                    style: const TextStyle(fontSize: AppTextSize.helper, fontWeight: FontWeight.w500, color: AppColors.slate700),
                   ),
                 ),
                 IconButton(

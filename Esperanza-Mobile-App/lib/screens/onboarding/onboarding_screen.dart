@@ -448,7 +448,7 @@ class _IdentityBar extends StatelessWidget {
           else
             // Holds the bar's height steady when Skip goes, so the seal and
             // wordmark do not shift up on the last page.
-            const SizedBox(height: 48),
+            const SizedBox(height: AppSpacing.page),
         ],
       ),
     );

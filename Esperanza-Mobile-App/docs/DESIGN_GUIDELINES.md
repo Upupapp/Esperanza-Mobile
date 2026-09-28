@@ -138,8 +138,10 @@ to the role:
 | `cardTitle`, `subsectionLabel` (13) | `helper` w600 | `micro` (10.5), any 9–10.5 | `fine` (11) |
 | `documentTitle` (Lora 18) | `documentHeading` | raw `fontSize: n` | nearest role |
 
-After migrating, lower `_fontSizeCeiling` in `test/design_token_discipline_test.dart` to the
-new count (381 on 2026-09-28).
+Every screen was migrated on 2026-09-28 and the half-point styles now render at whole points
+(12.5→13, 13.5→14, 11.5→12, 10.5→11). `_fontSizeCeiling` in
+`test/design_token_discipline_test.dart` is **0**: a raw `fontSize:` number fails the build.
+The old names remain only so existing call sites compile; prefer the roles in new code.
 
 ---
 
@@ -294,5 +296,5 @@ reduce-motion users get the short version. Motion explains a change; it never de
 |---|---|
 | Cancelled/Archived badge contrast (§2.3) | Both lanes, web first |
 | The web uses `text-slate-400` for secondary text 1,073 times, the same AA failure this standard fixes on mobile | Web lane |
-| Raw `fontSize:` literals: **73 left** (381 → 73 on 2026-09-28). Migrated: all four bottom tabs (Home and everything under it, Balita, Events, Emergency), notifications and pop-ups. Left: the drawer's destination screens (profile, settings, support, directory, legal) and onboarding | This lane |
+| ~~Raw `fontSize:` literals~~: **done**, 381 → 0 on 2026-09-28, across every screen, sheet and widget. The half-point styles were snapped to whole points. `_fontSizeCeiling` is 0, so a new literal fails the build | — |
 | Off-scale spacing (6/10/14) and radius (10/14) literals | This lane, when touched |

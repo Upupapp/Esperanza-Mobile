@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
 import '../utils/password_standard.dart';
+import '../theme/app_typography.dart';
+import '../theme/app_spacing.dart';
 
 /// The password checklist shown under a "create a password" field: one line
 /// per requirement, a dot that turns green once the typed password meets it.
@@ -22,15 +24,15 @@ class PasswordRequirements extends StatelessWidget {
   Widget _line(PasswordRequirement r, bool met) {
     final color = met ? AppColors.emerald700 : AppColors.slate500;
     return Padding(
-      padding: const EdgeInsets.only(bottom: 6),
+      padding: const EdgeInsets.only(bottom: AppSpacing.xs),
       child: Row(
         children: [
           Icon(met ? Icons.check_circle_rounded : Icons.circle, size: met ? 14 : 10, color: met ? AppColors.emerald700 : AppColors.brand600),
-          const SizedBox(width: 10),
+          const SizedBox(width: AppSpacing.sm),
           Expanded(
             child: Text.rich(
               TextSpan(
-                style: TextStyle(fontSize: 12.5, color: color, height: 1.3),
+                style: TextStyle(fontSize: AppTextSize.helper, color: color, height: 1.3),
                 children: [
                   TextSpan(text: r.lead),
                   TextSpan(text: r.emphasis, style: const TextStyle(fontWeight: FontWeight.w700)),

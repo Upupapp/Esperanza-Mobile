@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../theme/app_typography.dart';
 
 /// Reusable "New Request" floating action button, used by both Dokyu and
 /// Tulong. Always sets an explicit white foreground: a FloatingActionButton
@@ -30,7 +31,7 @@ class NewRequestFab extends StatelessWidget {
       icon: const Icon(Icons.add_rounded, color: Colors.white),
       label: Text(
         label,
-        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 13.5),
+        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: AppTextSize.body),
       ),
     );
   }

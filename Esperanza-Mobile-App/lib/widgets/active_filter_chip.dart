@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
+import '../theme/app_typography.dart';
 
 /// A single removable "filter is active" pill — used in the row shown
 /// under Dokyu/Tulong's search bar once any filter facet is set, so it's
@@ -17,11 +18,11 @@ class ActiveFilterChip extends StatelessWidget {
   Widget build(BuildContext context) {
     final color = accent ?? AppColors.brand600;
     return Container(
-      margin: const EdgeInsets.only(right: 8),
-      padding: const EdgeInsets.only(left: 12, right: 6, top: 6, bottom: 6),
+      margin: const EdgeInsets.only(right: AppSpacing.sm),
+      padding: const EdgeInsets.only(left: AppSpacing.md, right: AppSpacing.xs, top: AppSpacing.xs, bottom: AppSpacing.xs),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(999),
+        borderRadius: BorderRadius.circular(AppRadius.full),
         border: Border.all(color: color.withValues(alpha: 0.25)),
       ),
       child: Row(
@@ -32,12 +33,12 @@ class ActiveFilterChip extends StatelessWidget {
               label,
               textWidthBasis: TextWidthBasis.longestLine,
               overflow: TextOverflow.ellipsis,
-              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: color),
+              style: TextStyle(fontSize: AppTextSize.label, fontWeight: FontWeight.w600, color: color),
             ),
           ),
-          const SizedBox(width: 2),
+          const SizedBox(width: AppSpacing.xs),
           InkWell(
-            borderRadius: BorderRadius.circular(999),
+            borderRadius: BorderRadius.circular(AppRadius.full),
             onTap: onRemove,
             child: Padding(
               padding: const EdgeInsets.all(AppSpacing.xs),

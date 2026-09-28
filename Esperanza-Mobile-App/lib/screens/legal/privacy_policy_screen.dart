@@ -26,17 +26,17 @@ class PrivacyPolicyScreen extends StatelessWidget {
               'Learn how Esperanza Mobile handles and protects your information.',
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(fontSize: 12, color: AppColors.textMuted),
+              style: const TextStyle(fontSize: AppTextSize.label, color: AppColors.textMuted),
             ),
           ),
         ),
       ),
       body: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
+        padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.md, AppSpacing.lg, AppSpacing.xxxl),
         children: [
           const Text(
             'Last updated: [TO BE PROVIDED BY MUNICIPALITY]',
-            style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: AppColors.slate400),
+            style: TextStyle(fontSize: AppTextSize.label, fontWeight: FontWeight.w600, color: AppColors.textMuted),
           ),
           const SizedBox(height: AppSpacing.lg),
           const Text(
@@ -98,7 +98,7 @@ class PrivacyPolicyScreen extends StatelessWidget {
                 const SizedBox(height: AppSpacing.sm),
                 const Text(
                   'This information is only collected if you choose to complete the relevant Resident Profile section.',
-                  style: TextStyle(fontSize: 12, color: AppColors.textMuted, height: 1.4),
+                  style: TextStyle(fontSize: AppTextSize.label, color: AppColors.textMuted, height: 1.4),
                 ),
               ],
             ),
@@ -153,7 +153,7 @@ class PrivacyPolicyScreen extends StatelessWidget {
                 const Text(
                   'Not every Tulong program requires all of the items listed above — requirements depend on the '
                   'specific assistance program you are applying for.',
-                  style: TextStyle(fontSize: 12, color: AppColors.textMuted, height: 1.4),
+                  style: TextStyle(fontSize: AppTextSize.label, color: AppColors.textMuted, height: 1.4),
                 ),
               ],
             ),
@@ -269,7 +269,7 @@ class PrivacyPolicyScreen extends StatelessWidget {
                 const SizedBox(height: AppSpacing.sm),
                 const Text(
                   'Specific retention periods: [TO BE PROVIDED/CONFIRMED BY MUNICIPALITY]',
-                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.amber700),
+                  style: TextStyle(fontSize: AppTextSize.helper, fontWeight: FontWeight.w600, color: AppColors.amber700),
                 ),
               ],
             ),
@@ -381,11 +381,11 @@ class _ContactBlock extends StatelessWidget {
         children: [
           for (int i = 0; i < lines.length; i++)
             Padding(
-              padding: EdgeInsets.only(bottom: i == lines.length - 1 ? 0 : 4),
+              padding: EdgeInsets.only(bottom: i == lines.length - 1 ? 0 : AppSpacing.xs),
               child: Text(
                 lines[i],
                 style: TextStyle(
-                  fontSize: 13,
+                  fontSize: AppTextSize.helper,
                   fontWeight: i == 0 ? FontWeight.w700 : FontWeight.w500,
                   color: AppColors.slate700,
                 ),

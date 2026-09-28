@@ -150,4 +150,45 @@ void main() {
       });
     }
   });
+
+  test('every AppTypography style is a whole point, 11 or larger', () {
+    final all = <String, TextStyle>{
+      'displayTitle': AppTypography.displayTitle,
+      'pageTitle': AppTypography.pageTitle,
+      'sectionTitle': AppTypography.sectionTitle,
+      'cardHeading': AppTypography.cardHeading,
+      'bodyText': AppTypography.bodyText,
+      'helper': AppTypography.helper,
+      'labelText': AppTypography.labelText,
+      'eyebrow': AppTypography.eyebrow,
+      'fine': AppTypography.fine,
+      'documentHeading': AppTypography.documentHeading,
+      'h1': AppTypography.h1,
+      'h2': AppTypography.h2,
+      'h3': AppTypography.h3,
+      'body': AppTypography.body,
+      'bodyMedium': AppTypography.bodyMedium,
+      'caption': AppTypography.caption,
+      'bodySmallRegular': AppTypography.bodySmallRegular,
+      'bodySmall': AppTypography.bodySmall,
+      'bodySmallMedium': AppTypography.bodySmallMedium,
+      'label': AppTypography.label,
+      'labelStrong': AppTypography.labelStrong,
+      'captionSmallRegular': AppTypography.captionSmallRegular,
+      'captionSmall': AppTypography.captionSmall,
+      'micro': AppTypography.micro,
+      'cardTitle': AppTypography.cardTitle,
+      'subsectionLabel': AppTypography.subsectionLabel,
+      'hero': AppTypography.hero,
+      'wordmark': AppTypography.wordmark,
+      'overline': AppTypography.overline,
+      'button': AppTypography.button,
+      'documentTitle': AppTypography.documentTitle,
+    };
+    for (final e in all.entries) {
+      final size = e.value.fontSize!;
+      expect(size % 1, 0, reason: '${e.key} is $size');
+      expect(size, greaterThanOrEqualTo(11), reason: '${e.key} is $size');
+    }
+  });
 }

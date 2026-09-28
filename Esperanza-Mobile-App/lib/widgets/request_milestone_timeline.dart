@@ -4,6 +4,7 @@ import '../models/service_request.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_motion.dart';
 import '../theme/app_spacing.dart';
+import '../theme/app_typography.dart';
 
 /// The richer Dokyu/Tulong milestone timeline (Phase 5, rewritten for the
 /// Mobile-only final request-flow correction pass — frontend simulation
@@ -147,18 +148,18 @@ class _MilestoneRow extends StatelessWidget {
       _MilestoneState.needsAction => AppColors.orange500,
     };
     final labelStyle = switch (state) {
-      _MilestoneState.future => const TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: AppColors.slate400),
-      _MilestoneState.rejected => const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.rose700),
-      _MilestoneState.needsAction => const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.orange700),
+      _MilestoneState.future => const TextStyle(fontSize: AppTextSize.helper, fontWeight: FontWeight.w500, color: AppColors.textMuted),
+      _MilestoneState.rejected => const TextStyle(fontSize: AppTextSize.helper, fontWeight: FontWeight.w700, color: AppColors.rose700),
+      _MilestoneState.needsAction => const TextStyle(fontSize: AppTextSize.helper, fontWeight: FontWeight.w700, color: AppColors.orange700),
       _ => TextStyle(
-          fontSize: 13,
+          fontSize: AppTextSize.helper,
           fontWeight: state == _MilestoneState.current ? FontWeight.w700 : FontWeight.w600,
           color: AppColors.textPrimary,
         ),
     };
 
     return Padding(
-      padding: const EdgeInsets.only(bottom: 4),
+      padding: const EdgeInsets.only(bottom: AppSpacing.xs),
       child: IntrinsicHeight(
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -182,16 +183,16 @@ class _MilestoneRow extends StatelessWidget {
                   Expanded(
                     child: Container(
                       width: 2,
-                      margin: const EdgeInsets.symmetric(vertical: 2),
+                      margin: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
                       color: state == _MilestoneState.future ? AppColors.slate100 : dotColor.withValues(alpha: 0.35),
                     ),
                   ),
               ],
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: AppSpacing.md),
             Expanded(
               child: Padding(
-                padding: const EdgeInsets.only(bottom: 16),
+                padding: const EdgeInsets.only(bottom: AppSpacing.lg),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -203,17 +204,17 @@ class _MilestoneRow extends StatelessWidget {
                         Text(
                           timestamp == null ? '—' : _fmt(timestamp!),
                           style: TextStyle(
-                            fontSize: 11,
+                            fontSize: AppTextSize.fine,
                             color: state == _MilestoneState.future ? AppColors.slate300 : AppColors.textMuted,
                           ),
                         ),
                       ],
                     ),
                     if (remarks != null) ...[
-                      const SizedBox(height: 2),
+                      const SizedBox(height: AppSpacing.xs),
                       Text(
                         remarks!,
-                        style: const TextStyle(fontSize: 11.5, color: AppColors.slate600, height: 1.3),
+                        style: const TextStyle(fontSize: AppTextSize.label, color: AppColors.slate600, height: 1.3),
                       ),
                     ],
                   ],
@@ -237,10 +238,10 @@ class _RejectionReasonCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
         color: AppColors.rose50,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(AppRadius.md),
         border: Border.all(color: AppColors.rose500.withValues(alpha: 0.25)),
       ),
       child: Column(
@@ -252,12 +253,12 @@ class _RejectionReasonCard extends StatelessWidget {
               const SizedBox(width: AppSpacing.sm),
               const Text(
                 'Reason for Rejection',
-                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.rose700),
+                style: TextStyle(fontSize: AppTextSize.helper, fontWeight: FontWeight.w700, color: AppColors.rose700),
               ),
             ],
           ),
           const SizedBox(height: AppSpacing.sm),
-          Text(reason, style: const TextStyle(fontSize: 12.5, color: AppColors.rose700, height: 1.45)),
+          Text(reason, style: const TextStyle(fontSize: AppTextSize.helper, color: AppColors.rose700, height: 1.45)),
         ],
       ),
     );

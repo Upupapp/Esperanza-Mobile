@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_spacing.dart';
 import '../../widgets/app_card.dart';
+import '../../theme/app_typography.dart';
 
 /// Basic account preferences. Kept intentionally small — matches what a
 /// citizen actually needs, not a copy of the Web Admin's admin-facing
@@ -24,7 +25,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     return Scaffold(
       appBar: AppBar(title: const Text('Settings')),
       body: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
+        padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.md, AppSpacing.lg, AppSpacing.xxxl),
         children: [
           const _SectionLabel('Notifications'),
           AppCard(
@@ -36,9 +37,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   onChanged: (v) => setState(() => _pushEnabled = v),
                   title: const Text(
                     'Push notifications',
-                    style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w500),
+                    style: TextStyle(fontSize: AppTextSize.body, fontWeight: FontWeight.w500),
                   ),
-                  subtitle: const Text('Request status updates and announcements', style: TextStyle(fontSize: 11.5)),
+                  subtitle: const Text('Request status updates and announcements', style: TextStyle(fontSize: AppTextSize.label)),
                   activeThumbColor: AppColors.brand500,
                 ),
                 const Divider(height: 1, indent: 16, endIndent: 16),
@@ -47,9 +48,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   onChanged: (v) => setState(() => _emailEnabled = v),
                   title: const Text(
                     'Email notifications',
-                    style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w500),
+                    style: TextStyle(fontSize: AppTextSize.body, fontWeight: FontWeight.w500),
                   ),
-                  subtitle: const Text('Copy of important updates by email', style: TextStyle(fontSize: 11.5)),
+                  subtitle: const Text('Copy of important updates by email', style: TextStyle(fontSize: AppTextSize.label)),
                   activeThumbColor: AppColors.brand500,
                 ),
               ],
@@ -67,7 +68,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     .map(
                       (lang) => RadioListTile<String>(
                         value: lang,
-                        title: Text(lang, style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w500)),
+                        title: Text(lang, style: const TextStyle(fontSize: AppTextSize.body, fontWeight: FontWeight.w500)),
                         activeColor: AppColors.brand500,
                       ),
                     )
@@ -81,16 +82,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: const [
-                Text('Esperanza Mobile', style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600)),
+                Text('Esperanza Mobile', style: TextStyle(fontSize: AppTextSize.body, fontWeight: FontWeight.w600)),
                 SizedBox(height: AppSpacing.xs),
                 Text(
                   'Version 1.0.0 (Frontend Preview Build)',
-                  style: TextStyle(fontSize: 12, color: AppColors.textMuted),
+                  style: TextStyle(fontSize: AppTextSize.label, color: AppColors.textMuted),
                 ),
                 SizedBox(height: AppSpacing.xs),
                 Text(
                   'Municipality of Esperanza, Masbate — Region V (Bicol Region)',
-                  style: TextStyle(fontSize: 12, color: AppColors.textMuted),
+                  style: TextStyle(fontSize: AppTextSize.label, color: AppColors.textMuted),
                 ),
               ],
             ),
@@ -107,11 +108,11 @@ class _SectionLabel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 8, left: 4),
+      padding: const EdgeInsets.only(bottom: AppSpacing.sm, left: AppSpacing.xs),
       child: Text(
         text.toUpperCase(),
         style: const TextStyle(
-          fontSize: 11,
+          fontSize: AppTextSize.fine,
           fontWeight: FontWeight.w600,
           color: AppColors.textMuted,
           letterSpacing: 0.5,

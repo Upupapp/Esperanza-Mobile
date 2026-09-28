@@ -8,6 +8,7 @@ import '../../theme/app_spacing.dart';
 import '../../widgets/app_button.dart';
 import '../../widgets/app_dialogs.dart';
 import '../../widgets/app_text_field.dart';
+import '../../theme/app_typography.dart';
 
 /// "Update/request profile correction" from the Constituent flow (Section
 /// 10). Since the Web Admin has no residents API to submit a correction
@@ -92,14 +93,14 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             children: [
               const Text(
                 'Full name',
-                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: AppColors.slate700),
+                style: TextStyle(fontSize: AppTextSize.helper, fontWeight: FontWeight.w500, color: AppColors.slate700),
               ),
-              const SizedBox(height: 6),
+              const SizedBox(height: AppSpacing.xs),
               Container(
                 width: double.infinity,
-                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: 14),
-                decoration: BoxDecoration(color: AppColors.slate100, borderRadius: BorderRadius.circular(12)),
-                child: Text(_original.fullName, style: const TextStyle(fontSize: 14, color: AppColors.slate500)),
+                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: AppSpacing.md),
+                decoration: BoxDecoration(color: AppColors.slate100, borderRadius: BorderRadius.circular(AppRadius.md)),
+                child: Text(_original.fullName, style: const TextStyle(fontSize: AppTextSize.body, color: AppColors.slate500)),
               ),
               const _ReadOnlyNote(),
               const SizedBox(height: AppSpacing.lg),
@@ -142,10 +143,10 @@ class _ReadOnlyNote extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return const Padding(
-      padding: EdgeInsets.only(top: 6),
+      padding: EdgeInsets.only(top: AppSpacing.xs),
       child: Text(
         'Name and Resident ID are locked — request a correction at your barangay hall if these are incorrect.',
-        style: TextStyle(fontSize: 11, color: AppColors.textMuted),
+        style: TextStyle(fontSize: AppTextSize.fine, color: AppColors.textMuted),
       ),
     );
   }

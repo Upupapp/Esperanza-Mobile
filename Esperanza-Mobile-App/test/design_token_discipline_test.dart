@@ -39,8 +39,10 @@ import 'package:flutter_test/flutter_test.dart';
 /// type roles lower it further. 127 the same day, after the Home tab, its
 /// sub-pages, notifications and pop-ups moved to `AppTextSize` roles; 94 after
 /// the Balita tab (feed, post card, comments, compose, viewer, share sheet);
-/// 73 after the Emergency tab.
-const _fontSizeCeiling = 73;
+/// 73 after the Emergency tab; **0** after the drawer's screens, onboarding
+/// and the shared widgets. It is a ban now: every size comes from
+/// `AppTextSize` or an `AppTypography` role (docs/DESIGN_GUIDELINES.md §3).
+const _fontSizeCeiling = 0;
 
 /// `Colors.white`, `Colors.black26`, `Colors.transparent` outside `lib/theme/`.
 ///
@@ -156,17 +158,16 @@ void main() {
     );
   });
 
-  test('the extended type scale covers the sizes the app actually uses', () {
-    // The half-point sizes were 177 of the 412 literals and had no token at
-    // all. If one of these disappears, the bypass it was added to prevent
-    // comes straight back.
+  test('the type scale covers every size the app uses, in whole points', () {
+    // FE 06 (2026-08-29) added half-point styles because 177 of 412 literals
+    // were half points with no token to use instead. The design standard
+    // (2026-09-28) rounded those to whole points and migrated every literal,
+    // so the ceiling above is 0; what must not disappear now is the
+    // whole-point scale that replaced them, or the bypass comes straight back.
     final typography = File('lib/theme/app_typography.dart').readAsStringSync();
-    for (final size in ['12.5', '13.5', '11.5', '10.5']) {
-      expect(
-        typography,
-        contains('fontSize: $size'),
-        reason: 'the type scale lost its $size style',
-      );
+    for (final role in ['display = 32', 'page = 24', 'section = 20', 'card = 16', 'body = 14', 'helper = 13', 'label = 12', 'fine = 11']) {
+      expect(typography, contains('static const double $role;'), reason: 'AppTextSize lost `$role`');
     }
+    expect(RegExp(r'^\s+fontSize: \d+\.5,', multiLine: true).hasMatch(typography), isFalse, reason: 'a half-point style came back');
   });
 }

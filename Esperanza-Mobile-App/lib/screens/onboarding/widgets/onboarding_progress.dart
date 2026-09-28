@@ -63,7 +63,7 @@ class OnboardingProgress extends StatelessWidget {
     // 1.0 on this page, 0.0 a full page away.
     final active = (1.0 - (progress - i).abs()).clamp(0.0, 1.0);
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: AppSpacing.xs - 1),
+      margin: const EdgeInsets.symmetric(horizontal: AppSpacing.xs),
       width: _minWidth + (_maxWidth - _minWidth) * active,
       height: _height,
       decoration: BoxDecoration(

@@ -110,7 +110,7 @@ class BulletList extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Padding(
-                  padding: EdgeInsets.only(top: 7, right: AppSpacing.sm),
+                  padding: EdgeInsets.only(top: AppSpacing.sm, right: AppSpacing.sm),
                   child: DecoratedBox(
                     decoration: BoxDecoration(color: AppColors.slate400, shape: BoxShape.circle),
                     child: SizedBox(width: 4, height: 4),

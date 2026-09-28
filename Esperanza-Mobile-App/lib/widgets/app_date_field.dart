@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../theme/app_colors.dart';
+import '../theme/app_typography.dart';
+import '../theme/app_spacing.dart';
 
 /// A labeled, tappable date field matching AppTextField/AppSelectField's
 /// visual language (it reuses the app-wide InputDecorationTheme via a
@@ -74,15 +76,15 @@ class _AppDateFieldState extends State<AppDateField> {
         if (widget.label != null) ...[
           Text(
             widget.label!,
-            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: AppColors.slate700),
+            style: const TextStyle(fontSize: AppTextSize.helper, fontWeight: FontWeight.w500, color: AppColors.slate700),
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: AppSpacing.xs),
         ],
         TextFormField(
           readOnly: true,
           controller: _controller,
           onTap: () => _pick(context),
-          style: const TextStyle(fontSize: 14, color: AppColors.textBody),
+          style: const TextStyle(fontSize: AppTextSize.body, color: AppColors.textBody),
           decoration: InputDecoration(
             hintText: widget.hintText,
             prefixIcon: const Icon(Icons.calendar_today_outlined, size: 17, color: AppColors.slate400),

@@ -35,16 +35,16 @@ class AppButton extends StatelessWidget {
 
   EdgeInsets get _padding => switch (size) {
     AppButtonSize.sm => const EdgeInsets.symmetric(
-      horizontal: 14,
-      vertical: 10,
+      horizontal: AppSpacing.md,
+      vertical: AppSpacing.sm,
     ),
     AppButtonSize.md => const EdgeInsets.symmetric(
-      horizontal: 18,
+      horizontal: AppSpacing.lg,
       vertical: AppSpacing.md,
     ),
     AppButtonSize.lg => const EdgeInsets.symmetric(
       horizontal: AppSpacing.xxl,
-      vertical: 15,
+      vertical: AppSpacing.lg,
     ),
   };
 
@@ -59,7 +59,7 @@ class AppButton extends StatelessWidget {
   };
 
   double get _fontSize =>
-      size == AppButtonSize.lg ? 15 : (size == AppButtonSize.sm ? 12.5 : 14);
+      size == AppButtonSize.lg ? AppTextSize.card : (size == AppButtonSize.sm ? AppTextSize.helper : AppTextSize.body);
 
   _VariantStyle get _colors => switch (variant) {
     AppButtonVariant.primary => _VariantStyle(

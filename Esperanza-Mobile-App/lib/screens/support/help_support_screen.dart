@@ -48,13 +48,13 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
               'Find answers, learn how to use Esperanza Mobile, or get help with a problem.',
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(fontSize: 12, color: AppColors.textMuted),
+              style: const TextStyle(fontSize: AppTextSize.label, color: AppColors.textMuted),
             ),
           ),
         ),
       ),
       body: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
+        padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.md, AppSpacing.lg, AppSpacing.xxxl),
         children: [
           const SectionHeader(title: 'Quick Help'),
           _QuickHelpGrid(
@@ -434,14 +434,14 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
                   width: 38,
                   height: 38,
                   alignment: Alignment.center,
-                  decoration: BoxDecoration(color: AppColors.rose50, borderRadius: BorderRadius.circular(11)),
+                  decoration: BoxDecoration(color: AppColors.rose50, borderRadius: BorderRadius.circular(AppRadius.md)),
                   child: const Icon(Icons.flag_outlined, size: 19, color: AppColors.rose600),
                 ),
                 const SizedBox(width: AppSpacing.md),
                 const Expanded(
                   child: Text(
                     'Report a Problem',
-                    style: TextStyle(fontSize: 14.5, fontWeight: FontWeight.w600, color: AppColors.slate700),
+                    style: TextStyle(fontSize: AppTextSize.body, fontWeight: FontWeight.w600, color: AppColors.slate700),
                   ),
                 ),
                 const Icon(Icons.chevron_right_rounded, color: AppColors.slate300),
@@ -456,7 +456,7 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
                   Navigator.of(context).push(MaterialPageRoute(builder: (_) => const PrivacyPolicyScreen())),
               child: const Text(
                 'Privacy Policy',
-                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.brand600),
+                style: TextStyle(fontSize: AppTextSize.helper, fontWeight: FontWeight.w600, color: AppColors.brand600),
               ),
             ),
           ),
@@ -464,7 +464,7 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
           const Center(
             child: Text(
               'Esperanza Mobile — Version 1.0.0 (Frontend Preview Build)',
-              style: TextStyle(fontSize: 11.5, color: AppColors.textMuted),
+              style: TextStyle(fontSize: AppTextSize.label, color: AppColors.textMuted),
             ),
           ),
         ],
@@ -488,11 +488,11 @@ class _ContactRow extends StatelessWidget {
         children: [
           Icon(icon, size: 16, color: AppColors.slate400),
           const SizedBox(width: AppSpacing.sm),
-          Text('$label: ', style: const TextStyle(fontSize: 12.5, color: AppColors.textMuted)),
+          Text('$label: ', style: const TextStyle(fontSize: AppTextSize.helper, color: AppColors.textMuted)),
           Expanded(
             child: Text(
               value,
-              style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: AppColors.slate700),
+              style: const TextStyle(fontSize: AppTextSize.helper, fontWeight: FontWeight.w600, color: AppColors.slate700),
             ),
           ),
         ],
@@ -582,7 +582,7 @@ class _QuickHelpCard extends StatelessWidget {
             alignment: Alignment.center,
             decoration: BoxDecoration(
               color: item.color.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(10),
+              borderRadius: BorderRadius.circular(AppRadius.sm),
             ),
             child: Icon(item.icon, size: 17, color: item.color),
           ),
@@ -592,7 +592,7 @@ class _QuickHelpCard extends StatelessWidget {
             textAlign: TextAlign.center,
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
-            style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.w600, color: AppColors.slate700, height: 1.2),
+            style: const TextStyle(fontSize: AppTextSize.fine, fontWeight: FontWeight.w600, color: AppColors.slate700, height: 1.2),
           ),
         ],
       ),

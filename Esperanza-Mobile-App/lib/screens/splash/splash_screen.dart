@@ -170,7 +170,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                           'Esperanza Mobile',
                           style: TextStyle(
                             fontFamily: AppTypography.display,
-                            fontSize: 24,
+                            fontSize: AppTextSize.page,
                             fontWeight: FontWeight.w600,
                             color: Colors.white,
                           ),

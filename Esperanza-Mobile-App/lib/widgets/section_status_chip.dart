@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../models/resident_profile.dart';
 import '../theme/app_colors.dart';
+import '../theme/app_typography.dart';
+import '../theme/app_spacing.dart';
 
 /// Small pill used across the Resident Profile flow to show whether a
 /// section (Personal/Family/Household) is Complete / In Progress / Not
@@ -20,13 +22,13 @@ class SectionStatusChip extends StatelessWidget {
   Widget build(BuildContext context) {
     final s = _style;
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-      decoration: BoxDecoration(color: s.bg, borderRadius: BorderRadius.circular(999)),
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: AppSpacing.xs),
+      decoration: BoxDecoration(color: s.bg, borderRadius: BorderRadius.circular(AppRadius.full)),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(s.icon, size: 12, color: s.fg),
-          const SizedBox(width: 5),
+          const SizedBox(width: AppSpacing.xs),
           // Flexible + longestLine: this chip is frequently placed as a
           // non-flex sibling next to an Expanded title (see
           // ResidentProfileOverviewScreen / ReviewSubmitScreen). A Row
@@ -38,7 +40,7 @@ class SectionStatusChip extends StatelessWidget {
             child: Text(
               status.label,
               textWidthBasis: TextWidthBasis.longestLine,
-              style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: s.fg),
+              style: TextStyle(fontSize: AppTextSize.fine, fontWeight: FontWeight.w600, color: s.fg),
             ),
           ),
         ],

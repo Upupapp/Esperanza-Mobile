@@ -5,6 +5,7 @@ import '../theme/app_status.dart';
 import 'app_button.dart';
 import 'app_card.dart';
 import 'status_chip.dart';
+import '../theme/app_typography.dart';
 
 /// Explains an account's verification state in plain language, not just a
 /// status label — Section 10's "the mobile user should clearly understand
@@ -57,19 +58,19 @@ class VerificationStatusPanel extends StatelessWidget {
                 width: 40,
                 height: 40,
                 alignment: Alignment.center,
-                decoration: BoxDecoration(color: status.style.background, borderRadius: BorderRadius.circular(12)),
+                decoration: BoxDecoration(color: status.style.background, borderRadius: BorderRadius.circular(AppRadius.md)),
                 child: Icon(_icon, size: 19, color: status.style.foreground),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: AppSpacing.md),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const Text(
                       'Account Verification',
-                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
+                      style: TextStyle(fontSize: AppTextSize.body, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
                     ),
-                    const SizedBox(height: 6),
+                    const SizedBox(height: AppSpacing.xs),
                     // StatusChip and this title never share a Row: the
                     // longest AppStatus label ("Under Verification") next
                     // to a title in the same Row is exactly the pattern
@@ -87,8 +88,8 @@ class VerificationStatusPanel extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 10),
-          Text(_explanation, style: const TextStyle(fontSize: 12.5, color: AppColors.textMuted, height: 1.4)),
+          const SizedBox(height: AppSpacing.sm),
+          Text(_explanation, style: const TextStyle(fontSize: AppTextSize.helper, color: AppColors.textMuted, height: 1.4)),
           if (actionLabel != null && onAction != null) ...[
             const SizedBox(height: AppSpacing.md),
             AppButton(

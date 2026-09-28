@@ -38,7 +38,7 @@ class DirectoryScreen extends StatelessWidget {
         builder: (context, offices, reload) => RefreshIndicator(
           onRefresh: () async => reload(),
           child: ListView(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+            padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.md, AppSpacing.lg, AppSpacing.xxl),
             children: [
               const Text('Municipal Offices', style: AppTypography.subsectionLabel),
               const SizedBox(height: AppSpacing.md),
@@ -72,14 +72,14 @@ class _OfficeTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.only(bottom: AppSpacing.sm),
       child: AppCard(
         child: Row(
           children: [
             Container(
               width: 42,
               height: 42,
-              decoration: BoxDecoration(color: AppColors.navy900, borderRadius: BorderRadius.circular(12)),
+              decoration: BoxDecoration(color: AppColors.navy900, borderRadius: BorderRadius.circular(AppRadius.md)),
               child: const Icon(Icons.account_balance_outlined, color: Colors.white, size: 18),
             ),
             const SizedBox(width: AppSpacing.md),
@@ -87,18 +87,18 @@ class _OfficeTile extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(name, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
-                  const SizedBox(height: 2),
-                  if (head.isNotEmpty) Text(head, style: const TextStyle(fontSize: 11.5, color: AppColors.textMuted)),
+                  Text(name, style: const TextStyle(fontSize: AppTextSize.helper, fontWeight: FontWeight.w600)),
+                  const SizedBox(height: AppSpacing.xs),
+                  if (head.isNotEmpty) Text(head, style: const TextStyle(fontSize: AppTextSize.label, color: AppColors.textMuted)),
                 ],
               ),
             ),
             if (dialUri(contact) != null)
               InkWell(
                 onTap: () => launchUrl(dialUri(contact)!),
-                borderRadius: BorderRadius.circular(999),
+                borderRadius: BorderRadius.circular(AppRadius.full),
                 child: Container(
-                  padding: const EdgeInsets.all(9),
+                  padding: const EdgeInsets.all(AppSpacing.sm),
                   decoration: BoxDecoration(color: AppColors.emerald50, shape: BoxShape.circle),
                   child: const Icon(Icons.call_outlined, size: 16, color: AppColors.emerald700),
                 ),

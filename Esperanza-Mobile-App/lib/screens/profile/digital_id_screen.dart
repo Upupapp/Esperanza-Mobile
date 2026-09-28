@@ -11,6 +11,7 @@ import '../../theme/app_spacing.dart';
 import '../../theme/app_status.dart';
 import '../../utils/digital_credentials.dart';
 import '../../widgets/app_card.dart';
+import '../../theme/app_typography.dart';
 
 /// Esperanza Digital ID — a resident's own wallet for *official,
 /// already-issued* digital government/LGU credentials (Barangay Resident
@@ -42,7 +43,7 @@ class DigitalIdScreen extends StatelessWidget {
       body: isVerified
           ? _DigitalIdWallet(credentials: digitalCredentialsFor(account))
           : ListView(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
+              padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.md, AppSpacing.lg, AppSpacing.xxxl),
               children: [_NotYetVerifiedCard(account: account)],
             ),
     );
@@ -190,13 +191,13 @@ class _DigitalIdWalletState extends State<_DigitalIdWallet> with TickerProviderS
   Widget build(BuildContext context) {
     if (widget.credentials.isEmpty) {
       return ListView(
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
+        padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.md, AppSpacing.lg, AppSpacing.xxxl),
         children: const [_EmptyWalletCard()],
       );
     }
 
     return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
+      padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.md, AppSpacing.lg, AppSpacing.xxxl),
       children: [
         _PositionIndicator(activeIndex: _activeIndex, total: widget.credentials.length),
         const SizedBox(height: AppSpacing.md),
@@ -251,7 +252,7 @@ class _DigitalIdWalletState extends State<_DigitalIdWallet> with TickerProviderS
                 child: Text(
                   'View Full Screen (${_showingBack ? 'Back' : 'Front'})',
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.brand600),
+                  style: const TextStyle(fontSize: AppTextSize.helper, fontWeight: FontWeight.w700, color: AppColors.brand600),
                 ),
               ),
             ],
@@ -376,11 +377,11 @@ class _CredentialFace extends StatelessWidget {
       width: width,
       height: height,
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(AppRadius.lg),
         boxShadow: elevated ? AppShadows.float : AppShadows.card,
       ),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(AppRadius.lg),
         child: Container(
           color: Colors.white,
           child: Image.asset(
@@ -418,20 +419,20 @@ class _PositionIndicator extends StatelessWidget {
       children: [
         Text(
           '${activeIndex + 1} of $total',
-          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.slate500),
+          style: const TextStyle(fontSize: AppTextSize.label, fontWeight: FontWeight.w700, color: AppColors.slate500),
         ),
-        const SizedBox(width: 8),
+        const SizedBox(width: AppSpacing.sm),
         Row(
           mainAxisSize: MainAxisSize.min,
           children: [
             for (int i = 0; i < total; i++)
               Container(
-                margin: const EdgeInsets.symmetric(horizontal: 2),
+                margin: const EdgeInsets.symmetric(horizontal: AppSpacing.xs),
                 width: i == activeIndex ? 16 : 6,
                 height: 6,
                 decoration: BoxDecoration(
                   color: i == activeIndex ? AppColors.brand600 : AppColors.slate200,
-                  borderRadius: BorderRadius.circular(999),
+                  borderRadius: BorderRadius.circular(AppRadius.full),
                 ),
               ),
           ],
@@ -455,7 +456,7 @@ class _GestureHint extends StatelessWidget {
       runSpacing: 4,
       children: [
         _HintChip(icon: Icons.touch_app_outlined, label: 'Tap to flip'),
-        SizedBox(width: 8),
+        SizedBox(width: AppSpacing.sm),
         _HintChip(icon: Icons.swap_vert_rounded, label: 'Swipe for other IDs'),
       ],
     );
@@ -473,8 +474,8 @@ class _HintChip extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         Icon(icon, size: 13, color: AppColors.slate400),
-        const SizedBox(width: 4),
-        Text(label, style: const TextStyle(fontSize: 11, color: AppColors.slate500)),
+        const SizedBox(width: AppSpacing.xs),
+        Text(label, style: const TextStyle(fontSize: AppTextSize.fine, color: AppColors.slate500)),
       ],
     );
   }
@@ -505,10 +506,10 @@ class _InformationPanel extends StatelessWidget {
         children: [
           Text(
             credential.displayName,
-            style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
+            style: const TextStyle(fontSize: AppTextSize.card, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
           ),
-          const SizedBox(height: 2),
-          Text(credential.holderName, style: const TextStyle(fontSize: 13, color: AppColors.textMuted)),
+          const SizedBox(height: AppSpacing.xs),
+          Text(credential.holderName, style: const TextStyle(fontSize: AppTextSize.helper, color: AppColors.textMuted)),
           const SizedBox(height: AppSpacing.md),
           const Divider(height: 1),
           const SizedBox(height: AppSpacing.md),
@@ -518,11 +519,11 @@ class _InformationPanel extends StatelessWidget {
                 child: _infoField(
                   'Status',
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                    decoration: BoxDecoration(color: statusBg, borderRadius: BorderRadius.circular(999)),
+                    padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: AppSpacing.xs),
+                    decoration: BoxDecoration(color: statusBg, borderRadius: BorderRadius.circular(AppRadius.full)),
                     child: Text(
                       credential.status.label,
-                      style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, color: statusColor),
+                      style: TextStyle(fontSize: AppTextSize.label, fontWeight: FontWeight.w700, color: statusColor),
                     ),
                   ),
                 ),
@@ -532,7 +533,7 @@ class _InformationPanel extends StatelessWidget {
                   'Valid Until',
                   child: Text(
                     credential.validUntil == null ? 'No Expiry' : _fmt(credential.validUntil!),
-                    style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: AppColors.slate700),
+                    style: const TextStyle(fontSize: AppTextSize.helper, fontWeight: FontWeight.w600, color: AppColors.slate700),
                   ),
                 ),
               ),
@@ -544,14 +545,14 @@ class _InformationPanel extends StatelessWidget {
               'Issued By',
               child: Text(
                 credential.issuer!,
-                style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: AppColors.slate700),
+                style: const TextStyle(fontSize: AppTextSize.helper, fontWeight: FontWeight.w600, color: AppColors.slate700),
               ),
             ),
           ],
           const SizedBox(height: AppSpacing.md),
           const Text(
             'This is a frontend simulation. No real government ID system issued this credential.',
-            style: TextStyle(fontSize: 10, color: AppColors.textMuted, height: 1.4),
+            style: TextStyle(fontSize: AppTextSize.fine, color: AppColors.textMuted, height: 1.4),
           ),
         ],
       ),
@@ -562,8 +563,8 @@ class _InformationPanel extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: const TextStyle(fontSize: 10.5, color: AppColors.textMuted, fontWeight: FontWeight.w600)),
-        const SizedBox(height: 4),
+        Text(label, style: const TextStyle(fontSize: AppTextSize.fine, color: AppColors.textMuted, fontWeight: FontWeight.w600)),
+        const SizedBox(height: AppSpacing.xs),
         child,
       ],
     );
@@ -589,19 +590,19 @@ class _EmptyWalletCard extends StatelessWidget {
             width: 56,
             height: 56,
             alignment: Alignment.center,
-            decoration: BoxDecoration(color: AppColors.slate100, borderRadius: BorderRadius.circular(16)),
+            decoration: BoxDecoration(color: AppColors.slate100, borderRadius: BorderRadius.circular(AppRadius.lg)),
             child: const Icon(Icons.badge_outlined, size: 26, color: AppColors.slate400),
           ),
           const SizedBox(height: AppSpacing.md),
           const Text(
             'No digital credentials yet',
-            style: TextStyle(fontSize: 14.5, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
+            style: TextStyle(fontSize: AppTextSize.body, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: AppSpacing.xs),
           const Text(
             'Digital government/LGU credentials will appear here as they become available.',
             textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 12.5, color: AppColors.textMuted, height: 1.45),
+            style: TextStyle(fontSize: AppTextSize.helper, color: AppColors.textMuted, height: 1.45),
           ),
         ],
       ),
@@ -622,20 +623,20 @@ class _NotYetVerifiedCard extends StatelessWidget {
             width: 56,
             height: 56,
             alignment: Alignment.center,
-            decoration: BoxDecoration(color: AppColors.amber50, borderRadius: BorderRadius.circular(16)),
+            decoration: BoxDecoration(color: AppColors.amber50, borderRadius: BorderRadius.circular(AppRadius.lg)),
             child: const Icon(Icons.hourglass_top_rounded, size: 26, color: AppColors.amber700),
           ),
           const SizedBox(height: AppSpacing.md),
           const Text(
             'Digital ID not yet available',
-            style: TextStyle(fontSize: 14.5, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
+            style: TextStyle(fontSize: AppTextSize.body, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: AppSpacing.xs),
           Text(
             'Your Digital IDs will become available after your resident account has been verified. '
             'Current status: ${AppStatusX.fromLabel(account.status).label}.',
             textAlign: TextAlign.center,
-            style: const TextStyle(fontSize: 12.5, color: AppColors.textMuted, height: 1.45),
+            style: const TextStyle(fontSize: AppTextSize.helper, color: AppColors.textMuted, height: 1.45),
           ),
         ],
       ),
@@ -659,7 +660,7 @@ class _CredentialFullScreenViewer extends StatelessWidget {
       appBar: AppBar(
         backgroundColor: Colors.black,
         foregroundColor: Colors.white,
-        titleTextStyle: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w600),
+        titleTextStyle: const TextStyle(color: Colors.white, fontSize: AppTextSize.card, fontWeight: FontWeight.w600),
         title: Text('${credential.displayName} — ${front ? 'Front' : 'Back'}'),
       ),
       body: SafeArea(

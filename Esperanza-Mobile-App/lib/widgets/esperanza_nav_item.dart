@@ -67,7 +67,7 @@ class EsperanzaNavItem extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                       fontFamily: AppTypography.sans,
-                      fontSize: 10.5,
+                      fontSize: AppTextSize.fine,
                       height: 1.1,
                       color: color,
                       letterSpacing: -0.3,

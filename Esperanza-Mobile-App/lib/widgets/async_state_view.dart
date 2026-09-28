@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../services/api_client.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
+import '../theme/app_typography.dart';
 
 /// Loading/error/data wrapper for a screen backed by a real API call —
 /// the mobile equivalent of the Web Admin's `x-ui.skeleton`/`x-ui.error-state`
@@ -67,7 +68,7 @@ class _ErrorState extends StatelessWidget {
           children: [
             const Icon(Icons.cloud_off_outlined, size: 36, color: AppColors.slate400),
             const SizedBox(height: AppSpacing.md),
-            Text(message, textAlign: TextAlign.center, style: const TextStyle(fontSize: 13, color: AppColors.slate600)),
+            Text(message, textAlign: TextAlign.center, style: const TextStyle(fontSize: AppTextSize.helper, color: AppColors.slate600)),
             const SizedBox(height: AppSpacing.lg),
             OutlinedButton(onPressed: onRetry, child: const Text('Try Again')),
           ],

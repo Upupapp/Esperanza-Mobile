@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../models/government_id_record.dart';
+import '../../theme/app_typography.dart';
 
 /// Full-screen, pinch-to-zoomable view of a seeded government ID document —
 /// same pattern as EventPosterViewer, built on Flutter's own
@@ -19,7 +20,7 @@ class GovernmentIdViewer extends StatelessWidget {
       appBar: AppBar(
         backgroundColor: Colors.black,
         foregroundColor: Colors.white,
-        titleTextStyle: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w600),
+        titleTextStyle: const TextStyle(color: Colors.white, fontSize: AppTextSize.card, fontWeight: FontWeight.w600),
         title: Text(record.idType),
       ),
       body: SafeArea(

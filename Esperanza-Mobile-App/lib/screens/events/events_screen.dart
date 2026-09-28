@@ -7,6 +7,7 @@ import '../../widgets/esperanza_drawer.dart';
 import '../../widgets/event_card.dart';
 import '../../widgets/async_state_view.dart';
 import '../home/root_shell.dart';
+import '../../theme/app_spacing.dart';
 
 /// Events — previously a segmented sub-tab inside Balita
 /// (`BalitaScreen`'s `_EventsList`), promoted to its own bottom-nav
@@ -36,7 +37,7 @@ class EventsScreen extends StatelessWidget {
           onRefresh: () async => reload(),
           child: ListView.builder(
             physics: const AlwaysScrollableScrollPhysics(),
-            padding: EdgeInsets.fromLTRB(16, 12, 16, 24 + MediaQuery.paddingOf(context).bottom),
+            padding: EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.md, AppSpacing.lg, 24 + MediaQuery.paddingOf(context).bottom),
             itemCount: events.isEmpty ? 1 : events.length,
             itemBuilder: (context, i) => events.isEmpty
                 ? const EmptyState(icon: Icons.event_outlined, title: 'No upcoming events')

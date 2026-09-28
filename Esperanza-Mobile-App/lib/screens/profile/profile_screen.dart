@@ -23,6 +23,7 @@ import 'digital_id_screen.dart';
 import 'edit_profile_screen.dart';
 import 'resident_profile/resident_profile_overview_screen.dart';
 import 'settings_screen.dart';
+import '../../theme/app_typography.dart';
 
 /// Profile hub — account summary + links to everything that doesn't get
 /// its own bottom-nav tab (Balita/Events, Directory, Risk Reduction,
@@ -42,10 +43,10 @@ class ProfileScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(title: const Text('Profile')),
       body: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
+        padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.md, AppSpacing.lg, AppSpacing.xxxl),
         children: [
           AppCard(
-            padding: const EdgeInsets.fromLTRB(20, 24, 20, 20),
+            padding: const EdgeInsets.fromLTRB(AppSpacing.xl, AppSpacing.xxl, AppSpacing.xl, AppSpacing.xl),
             child: Column(
               children: [
                 CircleAvatar(
@@ -55,23 +56,23 @@ class ProfileScreen extends StatelessWidget {
                   child: photo == null
                       ? Text(
                           account.initials,
-                          style: const TextStyle(fontSize: 21, fontWeight: FontWeight.w700, color: AppColors.brand600),
+                          style: const TextStyle(fontSize: AppTextSize.section, fontWeight: FontWeight.w700, color: AppColors.brand600),
                         )
                       : null,
                 ),
                 const SizedBox(height: AppSpacing.md),
                 Text(
                   account.fullName,
-                  style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
+                  style: const TextStyle(fontSize: AppTextSize.card, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
                 ),
-                const SizedBox(height: 3),
+                const SizedBox(height: AppSpacing.xs),
                 Text(
                   '${account.id} · Brgy. ${account.barangay}',
-                  style: const TextStyle(fontSize: 12, color: AppColors.textMuted),
+                  style: const TextStyle(fontSize: AppTextSize.label, color: AppColors.textMuted),
                 ),
                 const SizedBox(height: AppSpacing.lg),
                 ClipRRect(
-                  borderRadius: BorderRadius.circular(999),
+                  borderRadius: BorderRadius.circular(AppRadius.full),
                   child: LinearProgressIndicator(
                     value: account.profileCompleteness / 100,
                     minHeight: 7,
@@ -84,7 +85,7 @@ class ProfileScreen extends StatelessWidget {
                   // Names the form it measures — see home_screen.dart's
                   // Account Details tile.
                   'Account details ${account.profileCompleteness}% complete',
-                  style: const TextStyle(fontSize: 11.5, color: AppColors.textMuted),
+                  style: const TextStyle(fontSize: AppTextSize.label, color: AppColors.textMuted),
                 ),
                 const SizedBox(height: AppSpacing.lg),
                 SizedBox(
