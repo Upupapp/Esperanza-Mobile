@@ -180,6 +180,10 @@ catalogue change stalls the wizard visibly instead of hollowing the fixture out.
 
 ### HARD RULE — no GitHub Actions credits, minimal Netlify credits (owner, 2026-09-28)
 
+**Every deploy costs credits — the web host charges for each one (owner, restated 2026-09-28).**
+So every deploy, to Netlify or any other host, is the cost-efficient one: build locally,
+upload only the prebuilt output, deploy once, and never deploy just to test or preview.
+
 - **Never use GitHub Actions.** Do not add a `.github/workflows/` file, and do not
   trigger, re-run or dispatch a workflow run. The repo has no CI by design; the local gate
   below (`scripts/hooks`) is the only gate. This holds on every lane and every branch.
