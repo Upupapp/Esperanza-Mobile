@@ -15,6 +15,7 @@ import 'package:esperanza_mobile/services/notifications_service.dart';
 import 'package:esperanza_mobile/services/requests_service.dart';
 import 'package:esperanza_mobile/services/resident_profile_service.dart';
 import 'package:esperanza_mobile/services/sakuna_alerts.dart';
+import 'package:esperanza_mobile/widgets/restricted_feature_notice.dart';
 
 import 'support/fake_api.dart';
 
@@ -127,5 +128,41 @@ void main() {
     expect(find.text('Open now'), findsOneWidget);
     expect(find.text('Not open'), findsOneWidget);
     expect(find.textContaining('J.P. Rizal St.'), findsOneWidget);
+  });
+
+  testWidgets('a guest reporting an incident is asked to sign in, not shown a refused request', (tester) async {
+    final sent = await _pump(tester, (_) => <dynamic>[]);
+    await tester.ensureVisible(find.text('Report an Incident'));
+    await tester.tap(find.text('Report an Incident'));
+    await tester.pumpAndSettle();
+    expect(find.byType(RestrictedFeatureNotice), findsOneWidget);
+    expect(sent.where((r) => r.path == '/citizen/incidents'), isEmpty);
+  });
+
+  testWidgets('pulling down reloads the alerts, so a new one appears without restarting the app', (tester) async {
+    var calls = 0;
+    await _pump(tester, (_) {
+      calls++;
+      return calls == 1 ? <dynamic>[] : [_alert()];
+    });
+    expect(find.text('No emergency alerts in force right now.'), findsOneWidget);
+
+    // The same path a pull-down takes: the screen's own RefreshIndicator.
+    tester.state<RefreshIndicatorState>(find.byType(RefreshIndicator).first).show();
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
+    await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 50)));
+    await tester.pumpAndSettle();
+    expect(calls, 2);
+    expect(find.text('Bagyong Ompong: Signal No. 2'), findsOneWidget);
+  });
+
+  testWidgets('the "call 911" banner is itself a call button', (tester) async {
+    final semantics = tester.ensureSemantics();
+    await _pump(tester, (_) => <dynamic>[]);
+    final banner = find.bySemanticsLabel(RegExp(r'^Call 911'));
+    expect(banner, findsOneWidget);
+    expect(tester.getSemantics(banner).flagsCollection.isButton, isTrue);
+    semantics.dispose();
   });
 }

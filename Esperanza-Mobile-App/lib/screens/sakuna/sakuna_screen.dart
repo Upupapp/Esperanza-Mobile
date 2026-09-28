@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../../models/access_level.dart';
 import '../../models/evacuation_center.dart';
+import '../../utils/balita_post_actions.dart';
 import '../../models/service_request.dart';
 import '../../services/api_client.dart';
 import '../../services/mock_catalog.dart';
@@ -69,8 +71,19 @@ Future<List<EvacuationCenter>> _loadEvacuationCenters() async {
 /// the same request pipeline as Dokyu/Tulong.
 typedef _SakunaData = ({List<(String, String)> hotlines, List<EvacuationCenter> centers});
 
-class SakunaScreen extends StatelessWidget {
+class SakunaScreen extends StatefulWidget {
   const SakunaScreen({super.key});
+
+  @override
+  State<SakunaScreen> createState() => _SakunaScreenState();
+}
+
+class _SakunaScreenState extends State<SakunaScreen> {
+  /// Bumped by pull-to-refresh: alerts, hotlines and centres are rebuilt
+  /// under a new key, so each loads again. During a typhoon the tab stays
+  /// open for hours, and the only way to see a new alert used to be
+  /// restarting the app.
+  int _generation = 0;
 
   Future<_SakunaData> _load() async {
     final results = await Future.wait([_loadHotlines(), _loadEvacuationCenters()]);
@@ -88,94 +101,122 @@ class SakunaScreen extends StatelessWidget {
       // breathing room, or the last evacuation-center card ends up laid
       // out underneath the floating navbar's bounding box and can't be
       // scrolled fully into view — same pattern as balita_screen.dart.
-      body: ListView(
-        padding: EdgeInsets.fromLTRB(
-          AppSpacing.lg,
-          AppSpacing.md,
-          AppSpacing.lg,
-          32 + MediaQuery.paddingOf(context).bottom,
-        ),
-        children: [
-          Container(
-            padding: const EdgeInsets.all(AppSpacing.lg),
-            decoration: BoxDecoration(color: AppColors.rose600, borderRadius: BorderRadius.circular(AppRadius.lg)),
-            child: Row(
-              children: [
-                const Icon(Icons.warning_amber_rounded, color: Colors.white, size: 22),
-                const SizedBox(width: AppSpacing.md),
-                const Expanded(
-                  child: Text(
-                    'In a life-threatening emergency, call 911 or MDRRMO directly.',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: AppTextSize.helper,
-                      fontWeight: FontWeight.w600,
-                      height: 1.3,
-                    ),
-                  ),
-                ),
-              ],
-            ),
+      body: RefreshIndicator(
+        onRefresh: () async => setState(() => _generation++),
+        child: ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: EdgeInsets.fromLTRB(
+            AppSpacing.lg,
+            AppSpacing.md,
+            AppSpacing.lg,
+            32 + MediaQuery.paddingOf(context).bottom,
           ),
-          const SizedBox(height: AppSpacing.lg),
-          const _AlertsSection(),
-          const SizedBox(height: AppSpacing.xl),
-          // Reporting an incident has no dependency on the hotlines/centers
-          // fetch below -- it must stay reachable even if that fetch fails,
-          // so it renders unconditionally rather than living inside the
-          // AsyncStateView gate.
-          AppButton(
-            label: 'Report an Incident',
-            icon: Icons.report_outlined,
-            variant: AppButtonVariant.danger,
-            fullWidth: true,
-            size: AppButtonSize.lg,
-            onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute(
-                // Loads the citizen's own reports from GET /citizen/incidents
-                // before the list renders; it read /citizen/requests, which
-                // never holds an incident, so the list was always empty.
-                builder: (context) => AsyncStateView<void>(
-                  loader: () => context.read<RequestsService>().loadIncidents(),
-                  builder: (context, _, reload) => const RequestListScreen(
-                    category: ServiceCategory.sakunaIncident,
-                    title: 'Incident Reports',
-                    subtitle: 'Report and track disaster/emergency incidents.',
-                    // Incident types stay local: POST /citizen/incidents takes
-                    // `type` as free text, not a key into a server catalogue.
-                    catalog: MockCatalog.incidentTypes,
-                    accent: AppColors.rose600,
-                    icon: Icons.report_outlined,
+          children: [
+            // Dials 911 on tap: in a life-threatening emergency, the banner that
+            // says "call 911" should be the fastest way to do it.
+            Semantics(
+              button: true,
+              label: 'Call 911. In a life-threatening emergency, call 911 or MDRRMO directly.',
+              excludeSemantics: true,
+              child: Material(
+                color: AppColors.rose600,
+                borderRadius: BorderRadius.circular(AppRadius.lg),
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(AppRadius.lg),
+                  onTap: () => launchUrl(Uri.parse('tel:911')),
+                  child: const Padding(
+                    padding: EdgeInsets.all(AppSpacing.lg),
+                    child: Row(
+                      children: [
+                        Icon(Icons.warning_amber_rounded, color: Colors.white, size: 22),
+                        SizedBox(width: AppSpacing.md),
+                        Expanded(
+                          child: Text(
+                            'In a life-threatening emergency, call 911 or MDRRMO directly.',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: AppTextSize.helper,
+                              fontWeight: FontWeight.w600,
+                              height: 1.3,
+                            ),
+                          ),
+                        ),
+                        SizedBox(width: AppSpacing.sm),
+                        Icon(Icons.call_rounded, color: Colors.white, size: AppSizes.iconBase),
+                      ],
+                    ),
                   ),
                 ),
               ),
             ),
-          ),
-          const SizedBox(height: AppSpacing.xxl),
-          AsyncStateView<_SakunaData>(
-            loader: _load,
-            builder: (context, data, reload) => Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text('Emergency Hotlines', style: AppTypography.subsectionLabel),
-                const SizedBox(height: AppSpacing.md),
-                if (data.hotlines.isEmpty)
-                  const Padding(
-                    padding: EdgeInsets.symmetric(vertical: AppSpacing.md),
-                    child: Text('No hotlines listed yet.', style: TextStyle(color: AppColors.textMuted)),
-                  ),
-                ...data.hotlines.map(
-                  (h) => Padding(
-                    padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-                    child: _HotlineTile(office: h.$1, contact: h.$2),
+            const SizedBox(height: AppSpacing.lg),
+            _AlertsSection(key: ValueKey('alerts-$_generation')),
+            const SizedBox(height: AppSpacing.xl),
+            // Reporting an incident has no dependency on the hotlines/centers
+            // fetch below -- it must stay reachable even if that fetch fails,
+            // so it renders unconditionally rather than living inside the
+            // AsyncStateView gate.
+            AppButton(
+              label: 'Report an Incident',
+              icon: Icons.report_outlined,
+              variant: AppButtonVariant.danger,
+              fullWidth: true,
+              size: AppButtonSize.lg,
+              onPressed: () => requireAccountForBalita(
+                context,
+                'Reporting an incident',
+                // Open to unverified citizens (the backend's own rule); a guest
+                // is asked to sign in instead of meeting a refused request.
+                minLevel: AccessLevel.unverified,
+                () => Navigator.of(context).push(
+                  MaterialPageRoute(
+                    // Loads the citizen's own reports from GET /citizen/incidents
+                    // before the list renders; it read /citizen/requests, which
+                    // never holds an incident, so the list was always empty.
+                    builder: (context) => AsyncStateView<void>(
+                      loader: () => context.read<RequestsService>().loadIncidents(),
+                      builder: (context, _, reload) => const RequestListScreen(
+                        category: ServiceCategory.sakunaIncident,
+                        title: 'Incident Reports',
+                        subtitle: 'Report and track disaster/emergency incidents.',
+                        // Incident types stay local: POST /citizen/incidents takes
+                        // `type` as free text, not a key into a server catalogue.
+                        catalog: MockCatalog.incidentTypes,
+                        accent: AppColors.rose600,
+                        icon: Icons.report_outlined,
+                      ),
+                    ),
                   ),
                 ),
-                const SizedBox(height: AppSpacing.xl),
-                _EvacuationCentersSection(centers: data.centers),
-              ],
+              ),
             ),
-          ),
-        ],
+            const SizedBox(height: AppSpacing.xxl),
+            AsyncStateView<_SakunaData>(
+              key: ValueKey('directory-$_generation'),
+              loader: _load,
+              builder: (context, data, reload) => Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Emergency Hotlines', style: AppTypography.subsectionLabel),
+                  const SizedBox(height: AppSpacing.md),
+                  if (data.hotlines.isEmpty)
+                    const Padding(
+                      padding: EdgeInsets.symmetric(vertical: AppSpacing.md),
+                      child: Text('No hotlines listed yet.', style: TextStyle(color: AppColors.textMuted)),
+                    ),
+                  ...data.hotlines.map(
+                    (h) => Padding(
+                      padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+                      child: _HotlineTile(office: h.$1, contact: h.$2),
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.xl),
+                  _EvacuationCentersSection(centers: data.centers),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -380,7 +421,7 @@ class _HotlineTile extends StatelessWidget {
 /// never hides the hotlines, and scoped to the citizen's barangay
 /// (municipality-wide alerts included).
 class _AlertsSection extends StatefulWidget {
-  const _AlertsSection();
+  const _AlertsSection({super.key});
 
   @override
   State<_AlertsSection> createState() => _AlertsSectionState();
