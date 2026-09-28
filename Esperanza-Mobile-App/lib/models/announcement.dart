@@ -1,5 +1,6 @@
 import 'package:intl/intl.dart';
 import '../services/json_read.dart';
+import '../utils/date_text.dart';
 
 /// Which real table a [Announcement] came from — GET /announcements
 /// (admin-published, read-only from mobile) or GET /community-posts
@@ -93,13 +94,7 @@ class Announcement {
   /// day old — same thresholds as the Web Admin's own `fmtTime`.
   String get timeLabel {
     final when = at;
-    if (when == null) return '';
-    final minutes = DateTime.now().difference(when).inMinutes;
-    if (minutes < 1) return 'Just now';
-    if (minutes < 60) return '$minutes min${minutes == 1 ? '' : 's'} ago';
-    final hours = (minutes / 60).round();
-    if (hours < 24) return '$hours hr${hours == 1 ? '' : 's'} ago';
-    return DateFormat('MMM d, yyyy').format(when);
+    return when == null ? '' : timeAgo(when);
   }
 
   /// GET /announcements (PublicContentController::announcementRow()).

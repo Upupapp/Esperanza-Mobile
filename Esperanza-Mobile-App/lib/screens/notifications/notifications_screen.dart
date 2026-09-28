@@ -11,6 +11,8 @@ import '../../widgets/empty_state.dart';
 import '../../theme/app_typography.dart';
 import '../../services/api_client.dart';
 import '../../widgets/app_dialogs.dart';
+import '../../theme/app_status.dart';
+import '../../widgets/status_chip.dart';
 
 /// See notification_feed.dart for how the feed itself is assembled — this
 /// screen only renders it plus each tile's read/unread state (tracked by
@@ -50,6 +52,18 @@ class NotificationsScreen extends StatelessWidget {
   }
 }
 
+/// The canonical status a notification names, when it names one the app
+/// knows. An unknown label keeps the generic badge rather than guessing
+/// (never invent a status: CLAUDE.md).
+AppStatus? _statusOf(AppNotification n) {
+  final label = n.status;
+  if (label == null) return null;
+  for (final s in AppStatus.values) {
+    if (s.label == label) return s;
+  }
+  return null;
+}
+
 class _NotificationTile extends StatelessWidget {
   final AppNotification notification;
   final bool unread;
@@ -75,7 +89,10 @@ class _NotificationTile extends StatelessWidget {
                 Container(
                   width: 36,
                   height: 36,
-                  decoration: BoxDecoration(color: n.kind.background, borderRadius: BorderRadius.circular(AppRadius.sm)),
+                  decoration: BoxDecoration(
+                    color: n.kind.background,
+                    borderRadius: BorderRadius.circular(AppRadius.sm),
+                  ),
                   child: Icon(n.icon, size: 17, color: n.kind.foreground),
                 ),
                 // Small, subtle unread marker — not a numeric badge, since
@@ -106,7 +123,10 @@ class _NotificationTile extends StatelessWidget {
                       Expanded(
                         child: Text(
                           n.title,
-                          style: TextStyle(fontSize: AppTextSize.helper, fontWeight: unread ? FontWeight.w700 : FontWeight.w600),
+                          style: TextStyle(
+                            fontSize: AppTextSize.helper,
+                            fontWeight: unread ? FontWeight.w700 : FontWeight.w600,
+                          ),
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                         ),
@@ -117,26 +137,42 @@ class _NotificationTile extends StatelessWidget {
                   // Icon + text label together (never color alone) so the
                   // notification's severity/type reads clearly even for
                   // colorblind users or in bright outdoor sunlight.
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: AppSpacing.xs),
-                    decoration: BoxDecoration(color: n.kind.background, borderRadius: BorderRadius.circular(AppRadius.full)),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(n.kind.badgeIcon, size: 10, color: n.kind.foreground),
-                        const SizedBox(width: AppSpacing.xs),
-                        Text(
-                          n.kind.badgeLabel,
-                          style: TextStyle(fontSize: AppTextSize.fine, fontWeight: FontWeight.w700, color: n.kind.foreground),
-                        ),
-                      ],
+                  if (_statusOf(n) case final status?)
+                    StatusChip(status: status, small: true)
+                  else
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: AppSpacing.xs),
+                      decoration: BoxDecoration(
+                        color: n.kind.background,
+                        borderRadius: BorderRadius.circular(AppRadius.full),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(n.kind.badgeIcon, size: 10, color: n.kind.foreground),
+                          const SizedBox(width: AppSpacing.xs),
+                          Text(
+                            n.kind.badgeLabel,
+                            style: TextStyle(
+                              fontSize: AppTextSize.fine,
+                              fontWeight: FontWeight.w700,
+                              color: n.kind.foreground,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
                   const SizedBox(height: AppSpacing.xs),
-                  Text(n.body, style: const TextStyle(fontSize: AppTextSize.label, color: AppColors.slate500, height: 1.35)),
+                  Text(
+                    n.body,
+                    style: const TextStyle(fontSize: AppTextSize.label, color: AppColors.slate500, height: 1.35),
+                  ),
                   if (n.time != null) ...[
                     const SizedBox(height: AppSpacing.xs),
-                    Text(n.time!, style: const TextStyle(fontSize: AppTextSize.fine, color: AppColors.textMuted)),
+                    Text(
+                      n.time!,
+                      style: const TextStyle(fontSize: AppTextSize.fine, color: AppColors.textMuted),
+                    ),
                   ],
                   if (n.actionLabel != null) ...[
                     const SizedBox(height: AppSpacing.sm),
@@ -159,7 +195,11 @@ class _NotificationTile extends StatelessWidget {
                         children: [
                           Text(
                             n.actionLabel!,
-                            style: TextStyle(fontSize: AppTextSize.label, fontWeight: FontWeight.w700, color: n.kind.foreground),
+                            style: TextStyle(
+                              fontSize: AppTextSize.label,
+                              fontWeight: FontWeight.w700,
+                              color: n.kind.foreground,
+                            ),
                           ),
                           const SizedBox(width: AppSpacing.xs),
                           Icon(Icons.arrow_forward_rounded, size: 13, color: n.kind.foreground),

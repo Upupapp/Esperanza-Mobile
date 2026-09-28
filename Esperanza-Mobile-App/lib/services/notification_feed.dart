@@ -13,6 +13,7 @@ import 'mock_catalog.dart';
 import 'notifications_service.dart';
 import 'requests_service.dart';
 import 'resident_profile_service.dart';
+import '../utils/date_text.dart';
 
 /// Timestamp for evergreen/contextual notifications that have no real event
 /// of their own (a profile-completion reminder, a duplicate-account alert)
@@ -80,9 +81,11 @@ List<AppNotification> buildNotificationFeed(BuildContext context) {
         kind: NotificationKind.actionRequired,
         icon: Icons.badge_outlined,
         title: 'Complete Your Profile',
-        body: 'Finish your Resident Profile so Esperanza LGU can verify your account and unlock full access. ${profile.overallCompletionPercent}% complete.',
+        body:
+            'Finish your Resident Profile so Esperanza LGU can verify your account and unlock full access. ${profile.overallCompletionPercent}% complete.',
         at: _evergreenNotificationTime(0),
-        onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const ResidentProfileOverviewScreen())),
+        onTap: () =>
+            Navigator.of(context).push(MaterialPageRoute(builder: (_) => const ResidentProfileOverviewScreen())),
         actionLabel: 'Complete Profile',
       ),
     );
@@ -112,11 +115,13 @@ List<AppNotification> buildNotificationFeed(BuildContext context) {
           icon: n.pill != null ? _iconFor(n.pill!) : Icons.notifications_none_rounded,
           title: n.title,
           body: n.body,
-          time: ref,
+          time: [timeAgo(n.at), ?ref].join(' · '),
           at: n.at,
+          status: n.pill,
           onTap: ref == null
               ? null
-              : () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => RequestDetailScreen(requestId: ref))),
+              : () =>
+                    Navigator.of(context).push(MaterialPageRoute(builder: (_) => RequestDetailScreen(requestId: ref))),
         ),
       );
     }
@@ -174,14 +179,17 @@ List<AppNotification> _correctionNotifications(BuildContext context, List<Servic
           kind: NotificationKind.actionRequired,
           icon: Icons.description_outlined,
           title: 'Application Needs Correction',
-          body: '${r.typeName}\n\n'
+          body:
+              '${r.typeName}\n\n'
               '${unresolved.length} documents require correction.\n\n'
               '${unresolved.map((f) => '${f.requirementLabel}\nReason: ${f.reason}').join('\n\n')}',
           time: r.referenceNumber,
           at: latest,
           actionLabel: 'Review Documents',
-          onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => RequestDetailScreen(requestId: r.id))),
-          onAction: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => RequestDetailScreen(requestId: r.id))),
+          onTap: () =>
+              Navigator.of(context).push(MaterialPageRoute(builder: (_) => RequestDetailScreen(requestId: r.id))),
+          onAction: () =>
+              Navigator.of(context).push(MaterialPageRoute(builder: (_) => RequestDetailScreen(requestId: r.id))),
         ),
       ));
     } else {
@@ -213,7 +221,8 @@ AppNotification _correctionNotificationFor(
     kind: NotificationKind.actionRequired,
     icon: Icons.description_outlined,
     title: 'Application Needs Correction',
-    body: '${request.typeName}\n\n'
+    body:
+        '${request.typeName}\n\n'
         'Your ${request.typeName} application needs a correction.\n\n'
         '${flagged.requirementLabel}\n'
         'Reason: ${flagged.reason}\n\n'
@@ -221,15 +230,14 @@ AppNotification _correctionNotificationFor(
     time: request.referenceNumber,
     at: flagged.flaggedAt,
     actionLabel: canStillReplace ? 'Replace Document' : null,
-    onTap: () => Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => RequestDetailScreen(requestId: request.id)),
-    ),
+    onTap: () =>
+        Navigator.of(context).push(MaterialPageRoute(builder: (_) => RequestDetailScreen(requestId: request.id))),
     onAction: canStillReplace
         ? () => Navigator.of(context).push(
-              MaterialPageRoute(
-                builder: (_) => RequestDetailScreen(requestId: request.id, focusFlaggedRequirementId: flagged.id),
-              ),
-            )
+            MaterialPageRoute(
+              builder: (_) => RequestDetailScreen(requestId: request.id, focusFlaggedRequirementId: flagged.id),
+            ),
+          )
         : null,
   );
 }
@@ -262,9 +270,11 @@ List<AppNotification> _duplicateAccountNotifications(
     // No resolution choice on this side — see the class doc comment on
     // DuplicateAccountDetailsScreen for why (only enough information for
     // the *original* resident to confirm ownership, nothing exposed here).
-    final resolvedAsSameOwner = duplicateAlerts.duplicateResolutionFor('a') == 'confirmed' ||
+    final resolvedAsSameOwner =
+        duplicateAlerts.duplicateResolutionFor('a') == 'confirmed' ||
         duplicateAlerts.duplicateResolutionFor('b') == 'confirmed';
-    final resolvedAsReported = duplicateAlerts.duplicateResolutionFor('a') == 'reported' ||
+    final resolvedAsReported =
+        duplicateAlerts.duplicateResolutionFor('a') == 'reported' ||
         duplicateAlerts.duplicateResolutionFor('b') == 'reported';
     return [
       AppNotification(
@@ -274,17 +284,17 @@ List<AppNotification> _duplicateAccountNotifications(
         title: resolvedAsSameOwner
             ? 'Duplicate / Verification Blocked'
             : resolvedAsReported
-                ? 'Duplicate Account Flagged for Investigation'
-                : 'Duplicate Account Under Review',
+            ? 'Duplicate Account Flagged for Investigation'
+            : 'Duplicate Account Under Review',
         body: resolvedAsSameOwner
             ? 'The original resident confirmed this registration is theirs. Esperanza allows one account per '
-                'resident, so verification cannot continue on this account — sign in with your original account '
-                'instead.'
+                  'resident, so verification cannot continue on this account — sign in with your original account '
+                  'instead.'
             : resolvedAsReported
-                ? 'This registration has been flagged for administrative investigation. Verification remains on '
-                    'hold while it is reviewed.'
-                : 'An existing Esperanza account appears to match the information submitted for this account. '
-                    'Verification is temporarily restricted while the account is reviewed.',
+            ? 'This registration has been flagged for administrative investigation. Verification remains on '
+                  'hold while it is reviewed.'
+            : 'An existing Esperanza account appears to match the information submitted for this account. '
+                  'Verification is temporarily restricted while the account is reviewed.',
         at: _evergreenNotificationTime(1),
       ),
     ];
@@ -313,17 +323,20 @@ List<AppNotification> _unverifiedDuplicateNotifications(
   final NotificationKind kind;
   if (kept == null) {
     title = 'Possible Duplicate Registration Detected';
-    body = 'Two unverified Esperanza registrations appear to contain matching resident information. Choose which '
+    body =
+        'Two unverified Esperanza registrations appear to contain matching resident information. Choose which '
         'one to continue using for verification.';
     kind = NotificationKind.warning;
   } else if (kept == thisLabel) {
     title = 'Unverified — Continue Verification';
-    body = 'You chose to continue verification with this account. It is still Pending Review — an LGU officer '
+    body =
+        'You chose to continue verification with this account. It is still Pending Review — an LGU officer '
         'still has to approve it; this did not make it Verified automatically.';
     kind = NotificationKind.info;
   } else {
     title = 'Duplicate Registration — Verification Cancelled';
-    body = 'This registration was marked as a duplicate after the other account was chosen. Its verification has '
+    body =
+        'This registration was marked as a duplicate after the other account was chosen. Its verification has '
         'been cancelled.';
     kind = NotificationKind.warning;
   }
@@ -336,9 +349,8 @@ List<AppNotification> _unverifiedDuplicateNotifications(
       title: title,
       body: body,
       at: _evergreenNotificationTime(thisLabel == 'A' ? 3 : 4),
-      onTap: () => Navigator.of(context).push(
-        MaterialPageRoute(builder: (_) => const UnverifiedDuplicateResolutionScreen()),
-      ),
+      onTap: () =>
+          Navigator.of(context).push(MaterialPageRoute(builder: (_) => const UnverifiedDuplicateResolutionScreen())),
     ),
   ];
 }
@@ -360,34 +372,34 @@ AppNotification _duplicateAlertFor(
         : 'Possible Duplicate Account Detected ($label — Resolved)',
     body: resolution == null
         ? 'Another Esperanza account was created using information that appears to match your identity. Please '
-            'confirm whether the account belongs to you.'
+              'confirm whether the account belongs to you.'
         : resolution == 'confirmed'
-            ? 'You confirmed this duplicate account is yours — it remains blocked from verification. Tap to view details.'
-            : 'You reported this duplicate account does not belong to you — it has been flagged for '
-                'administrative investigation. Tap to view details.',
+        ? 'You confirmed this duplicate account is yours — it remains blocked from verification. Tap to view details.'
+        : 'You reported this duplicate account does not belong to you — it has been flagged for '
+              'administrative investigation. Tap to view details.',
     at: _evergreenNotificationTime(priority),
-    onTap: () => Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => DuplicateAccountDetailsScreen(scenarioId: scenarioId)),
-    ),
+    onTap: () => Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (_) => DuplicateAccountDetailsScreen(scenarioId: scenarioId))),
   );
 }
 
 NotificationKind _kindFor(String status) => switch (status) {
-      'Approved' || 'Mark to Release' || 'Released' || 'Completed' => NotificationKind.success,
-      'Rejected' => NotificationKind.warning,
-      // The backend's "your application needs correction" transition.
-      'Under Review' || 'Waiting Requirements' => NotificationKind.actionRequired,
-      _ => NotificationKind.info,
-    };
+  'Approved' || 'Mark to Release' || 'Released' || 'Completed' => NotificationKind.success,
+  'Rejected' => NotificationKind.warning,
+  // The backend's "your application needs correction" transition.
+  'Under Review' || 'Waiting Requirements' => NotificationKind.actionRequired,
+  _ => NotificationKind.info,
+};
 
 IconData _iconFor(String status) => switch (status) {
-      'Approved' => Icons.check_circle_outline_rounded,
-      'Rejected' => Icons.cancel_outlined,
-      'Released' || 'Completed' => Icons.task_alt_rounded,
-      'Under Review' || 'Waiting Requirements' => Icons.warning_amber_rounded,
-      // 'Ready for Release' is the retired label this replaced (see the
-      // status-terminology correction pass) — kept so anything still
-      // showing it briefly (pre-migration) gets the same icon.
-      'Mark to Release' || 'Ready for Release' => Icons.inventory_2_outlined,
-      _ => Icons.info_outline_rounded,
-    };
+  'Approved' => Icons.check_circle_outline_rounded,
+  'Rejected' => Icons.cancel_outlined,
+  'Released' || 'Completed' => Icons.task_alt_rounded,
+  'Under Review' || 'Waiting Requirements' => Icons.warning_amber_rounded,
+  // 'Ready for Release' is the retired label this replaced (see the
+  // status-terminology correction pass) — kept so anything still
+  // showing it briefly (pre-migration) gets the same icon.
+  'Mark to Release' || 'Ready for Release' => Icons.inventory_2_outlined,
+  _ => Icons.info_outline_rounded,
+};

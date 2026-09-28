@@ -16,6 +16,9 @@ import 'package:esperanza_mobile/services/citizen_session_service.dart';
 import 'package:esperanza_mobile/services/notifications_service.dart';
 import 'package:esperanza_mobile/services/requests_service.dart';
 import 'package:esperanza_mobile/services/resident_profile_service.dart';
+import 'package:esperanza_mobile/theme/app_status.dart';
+import 'package:esperanza_mobile/utils/date_text.dart';
+import 'package:esperanza_mobile/widgets/status_chip.dart';
 
 import 'support/fake_api.dart';
 
@@ -60,7 +63,9 @@ Future<void> _pump(
 }
 
 void main() {
-  testWidgets('signed-in resident with an incomplete profile sees the "Complete Your Profile" reminder', (tester) async {
+  testWidgets('signed-in resident with an incomplete profile sees the "Complete Your Profile" reminder', (
+    tester,
+  ) async {
     await _pump(tester, account: _incompleteAccount);
 
     expect(find.text('Complete Your Profile'), findsOneWidget);
@@ -120,7 +125,9 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('server notifications render in Filipino, mark read on the server, and open their request', (tester) async {
+  testWidgets('server notifications render in Filipino, mark read on the server, and open their request', (
+    tester,
+  ) async {
     final posts = <String>[];
     FakeApi.installFull((r) {
       if (r.path == '/citizen/notifications') {
@@ -164,5 +171,47 @@ void main() {
     expect(posts, ['/citizen/notifications/41/read']);
     expect(notifications.isRead('srv-41'), isTrue);
     expect(find.byType(RequestDetailScreen), findsOneWidget);
+  });
+
+  testWidgets('a server notification wears its own status badge and says when it arrived', (tester) async {
+    // "Ready for release" used to wear a generic "Approved" badge, and the
+    // line where every other notification shows its time showed only the
+    // request reference.
+    const time = '2026-09-01T01:15:00Z';
+    FakeApi.installFull((r) {
+      if (r.path == '/citizen/notifications') {
+        return [
+          {
+            'id': 42,
+            'title': {'fil': 'Handa nang kunin: Barangay Clearance'},
+            'body': {'fil': 'Handa nang kunin ang DR-2026-0120.'},
+            'pill': 'Mark to Release',
+            'ref': 'DR-2026-0120',
+            'unread': true,
+            'time': time,
+          },
+          {
+            'id': 43,
+            'title': {'fil': 'May bagong paalala'},
+            'body': {'fil': 'Walang status ang abisong ito.'},
+            'pill': 'Not A Canonical Status',
+            'unread': true,
+            'time': time,
+          },
+        ];
+      }
+      return <dynamic>[];
+    });
+    addTearDown(FakeApi.restore);
+
+    final notifications = NotificationsService();
+    await _pump(tester, account: _incompleteAccount, notifications: notifications);
+    await tester.runAsync(notifications.loadServer);
+    await tester.pumpAndSettle();
+
+    final chips = tester.widgetList<StatusChip>(find.byType(StatusChip)).map((c) => c.status).toList();
+    expect(chips, [AppStatus.readyForRelease], reason: 'an unknown pill keeps the generic badge');
+    expect(find.text('Approved'), findsNothing);
+    expect(find.text('${shortDate(DateTime.parse(time))} · DR-2026-0120'), findsOneWidget);
   });
 }

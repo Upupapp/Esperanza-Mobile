@@ -38,6 +38,13 @@ class AppNotification {
   /// requirement's own replacement uploader.
   final VoidCallback? onAction;
 
+  /// The canonical status this notification is about (`Mark to Release`,
+  /// `Pending Review`, ...), when it is about one. The card then shows that
+  /// status's own badge instead of [kind]'s generic one: [kind] lumps every
+  /// good outcome under "Approved", so a "ready for release" notice used to
+  /// wear an Approved badge.
+  final String? status;
+
   const AppNotification({
     required this.id,
     required this.kind,
@@ -49,5 +56,6 @@ class AppNotification {
     this.onTap,
     this.actionLabel,
     this.onAction,
+    this.status,
   });
 }

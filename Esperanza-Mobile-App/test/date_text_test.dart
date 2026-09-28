@@ -27,4 +27,13 @@ void main() {
     }
     expect(offenders, isEmpty);
   });
+
+  test('timeAgo matches the Web Admin thresholds', () {
+    final now = DateTime(2026, 9, 28, 12);
+    expect(timeAgo(now.subtract(const Duration(seconds: 30)), now: now), 'Just now');
+    expect(timeAgo(now.subtract(const Duration(minutes: 1)), now: now), '1 min ago');
+    expect(timeAgo(now.subtract(const Duration(minutes: 12)), now: now), '12 mins ago');
+    expect(timeAgo(now.subtract(const Duration(hours: 3)), now: now), '3 hrs ago');
+    expect(timeAgo(DateTime(2026, 9, 20, 9), now: now), 'Sep 20, 2026');
+  });
 }

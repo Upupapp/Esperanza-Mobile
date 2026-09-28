@@ -14,3 +14,14 @@ String shortDate(DateTime d) => DateFormat('MMM d, y').format(d.toLocal());
 
 /// `Sep 24, 2026, 8:30 AM`
 String dateAndTime(DateTime d) => DateFormat('MMM d, y, h:mm a').format(d.toLocal());
+
+/// "Just now" / "12 mins ago" / "3 hrs ago", then [shortDate] beyond a day:
+/// the same thresholds as the Web Admin's own `fmtTime`.
+String timeAgo(DateTime d, {DateTime? now}) {
+  final minutes = (now ?? DateTime.now()).difference(d).inMinutes;
+  if (minutes < 1) return 'Just now';
+  if (minutes < 60) return '$minutes min${minutes == 1 ? '' : 's'} ago';
+  final hours = (minutes / 60).round();
+  if (hours < 24) return '$hours hr${hours == 1 ? '' : 's'} ago';
+  return shortDate(d);
+}
