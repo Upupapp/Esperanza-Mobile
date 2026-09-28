@@ -37,6 +37,7 @@ Mobile already reads everything above; nothing more is needed on mobile for A1โ€
 | B6 | **Event registration does not exist** (tickets, QR, capacity, check-in, as in the PAAIPE app). Mobile's event page stops at the details for this reason. | `events` | Owner decision first: it is a large feature (backend, Web Admin, mobile). |
 | B7 | **Events have no image.** Every card shows a placeholder panel. | `events` has no image column; Web Admin says "Posters aren't part of this pass" | An image upload (signed, scanned, like other uploads), then web and mobile show it. |
 | B8 | **One office, three names** in the service catalogue: "Office of the Municipal Civil Registrar" (19), "Civil Registrar" (4), "Civil Registrar / appropriate local office" (1). Mobile groups them for display only. | catalogue data (vendored from the web config) | Normalise at the source; mobile's alias map (`lib/utils/office_name.dart`) then becomes a no-op. (PENDING 27, web handoff ยง4) |
+| B9 | **The profile photo never leaves the phone.** A citizen's chosen photo (and its once-in-6-months rule) is stored on the device only; the LGU, the Digital ID and the web never see it. Mobile's preview now says so. | no profile-photo route in `routes/api.php`; `/citizen/digital-id` has no photo | Owner decision first (is the photo an identification record?), then an upload on `/citizen/profile` that the Digital ID and the verification queue show; the cooldown then belongs on the server. |
 
 ---
 

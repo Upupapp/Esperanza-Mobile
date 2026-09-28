@@ -224,7 +224,7 @@ class _PersonalInformationScreenState extends State<PersonalInformationScreen> {
     if (source == null || !mounted) return;
 
     while (true) {
-      final file = await pickImageProtected(context, source: source!);
+      final file = await pickImageProtected(context, source: source!, maxDimension: 1024);
       if (file == null || !mounted) return;
       // Read bytes up front — on Flutter Web, `file.path` is a blob: URL
       // that `dart:io`'s `File()` cannot open, and bytes are what actually

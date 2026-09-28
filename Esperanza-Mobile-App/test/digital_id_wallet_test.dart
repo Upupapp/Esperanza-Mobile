@@ -89,15 +89,16 @@ void main() {
       final session = await _signedInAs(tester, MockCatalog.demoAccounts.last);
       await _pumpWallet(tester, session);
 
-      expect(find.textContaining('View Full Screen (Front)'), findsOneWidget);
+      // Below the fold at 844pt once the "could not be loaded" notice shows.
+      expect(find.textContaining('View Full Screen (Front)', skipOffstage: false), findsOneWidget);
 
       await tester.tap(find.byKey(_stackKey));
       await tester.pumpAndSettle();
-      expect(find.textContaining('View Full Screen (Back)'), findsOneWidget);
+      expect(find.textContaining('View Full Screen (Back)', skipOffstage: false), findsOneWidget);
 
       await tester.tap(find.byKey(_stackKey));
       await tester.pumpAndSettle();
-      expect(find.textContaining('View Full Screen (Front)'), findsOneWidget);
+      expect(find.textContaining('View Full Screen (Front)', skipOffstage: false), findsOneWidget);
       expect(tester.takeException(), isNull);
     });
 
@@ -193,7 +194,8 @@ void main() {
       await tester.tap(find.byKey(_stackKey)); // flip to back
       await tester.pumpAndSettle();
 
-      await tester.ensureVisible(find.textContaining('View Full Screen'));
+      await tester.ensureVisible(find.textContaining('View Full Screen', skipOffstage: false));
+      await tester.pumpAndSettle();
       await tester.tap(find.textContaining('View Full Screen'));
       await tester.pumpAndSettle();
 

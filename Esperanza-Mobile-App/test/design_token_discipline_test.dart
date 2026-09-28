@@ -49,8 +49,9 @@ const _fontSizeCeiling = 0;
 /// 2026-08-29: 141 at the start of FE 06. 128 on 2026-08-30: the retired
 /// onboarding artwork needed a dozen `Colors.white`/`Colors.black38` values to
 /// keep overlay text legible against three unknown photographs. The redesign
-/// draws its own surfaces, so it can use palette tokens instead.
-const _materialColorCeiling = 128;
+/// draws its own surfaces, so it can use palette tokens instead. 103 on
+/// 2026-09-28: the five full-screen image viewers now share one scaffold.
+const _materialColorCeiling = 103;
 
 final _fontSizeLiteral = RegExp(r'fontSize:\s*[0-9]');
 

@@ -407,13 +407,15 @@ class _IdentityBar extends StatelessWidget {
           const SizedBox(width: AppSpacing.sm + 2),
           // Flexible + ellipsis: this exact Row overflowed once already, when
           // the wordmark's natural width exceeded what was left beside Skip on
-          // a narrow phone. At text scale 2.0 it would again.
+          // a narrow phone. At text scale 2.0 it would again. Two lines, not
+          // one: on a 320pt phone one line cut the Municipality's own name to
+          // "Municipalidad ng Esperan…".
           Flexible(
             child: Semantics(
               header: true,
               child: Text(
                 onboardingBrandName,
-                maxLines: 1,
+                maxLines: 2,
                 overflow: TextOverflow.ellipsis,
                 style: AppTypography.wordmark.copyWith(
                   color: AppColors.surface,

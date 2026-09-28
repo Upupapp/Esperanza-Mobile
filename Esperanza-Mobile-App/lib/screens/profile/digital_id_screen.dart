@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:qr_flutter/qr_flutter.dart';
@@ -14,9 +15,11 @@ import '../../theme/app_shadows.dart';
 import '../../theme/app_spacing.dart';
 import '../../theme/app_status.dart';
 import '../../utils/digital_credentials.dart';
+import '../../utils/date_text.dart';
 import '../../utils/esperanza_seal.dart';
 import '../../widgets/app_card.dart';
 import '../../theme/app_typography.dart';
+import '../../widgets/image_viewer_scaffold.dart';
 
 /// Esperanza Digital ID — a resident's own wallet for *official,
 /// already-issued* digital government/LGU credentials (Barangay Resident
@@ -61,7 +64,10 @@ class DigitalIdScreen extends StatelessWidget {
 /// between credentials. See this file's own inline comments per gesture.
 class _DigitalIdWallet extends StatefulWidget {
   final List<DigitalCredential> credentials;
-  const _DigitalIdWallet({required this.credentials});
+
+  /// Shown above the wallet; says why the live card is not here.
+  final Widget? notice;
+  const _DigitalIdWallet({required this.credentials, this.notice});
 
   @override
   State<_DigitalIdWallet> createState() => _DigitalIdWalletState();
@@ -180,6 +186,15 @@ class _DigitalIdWalletState extends State<_DigitalIdWallet> with TickerProviderS
     });
   }
 
+  void _jumpTo(int index) {
+    if (_dragging || _swipeController.isAnimating) return;
+    setState(() {
+      _activeIndex = index;
+      _dragOffset = 0;
+      _flipController.value = 0;
+    });
+  }
+
   void _openFullScreen(BuildContext context) {
     Navigator.of(context).push(
       MaterialPageRoute(
@@ -204,6 +219,7 @@ class _DigitalIdWalletState extends State<_DigitalIdWallet> with TickerProviderS
     return ListView(
       padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.md, AppSpacing.lg, AppSpacing.xxxl),
       children: [
+        if (widget.notice != null) ...[widget.notice!, const SizedBox(height: AppSpacing.lg)],
         _PositionIndicator(activeIndex: _activeIndex, total: widget.credentials.length),
         const SizedBox(height: AppSpacing.md),
         LayoutBuilder(
@@ -311,8 +327,14 @@ class _DigitalIdWalletState extends State<_DigitalIdWallet> with TickerProviderS
         child: Semantics(
           label:
               '${_active.displayName}, ${_showingBack ? 'back' : 'front'} side. '
-              'Double tap to flip. Swipe up or down for other credentials.',
+              'Double tap to flip.',
           button: true,
+          // A screen reader cannot make the swipe, so the other credentials
+          // are also reachable as actions.
+          customSemanticsActions: {
+            if (_next != null) const CustomSemanticsAction(label: 'Next ID'): () => _jumpTo(_activeIndex + 1),
+            if (_previous != null) const CustomSemanticsAction(label: 'Previous ID'): () => _jumpTo(_activeIndex - 1),
+          },
           child: GestureDetector(
             behavior: HitTestBehavior.opaque,
             onTap: _toggleFlip,
@@ -519,6 +541,7 @@ class _InformationPanel extends StatelessWidget {
           const Divider(height: 1),
           const SizedBox(height: AppSpacing.md),
           Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Expanded(
                 child: _infoField(
@@ -537,7 +560,7 @@ class _InformationPanel extends StatelessWidget {
                 child: _infoField(
                   'Valid Until',
                   child: Text(
-                    credential.validUntil == null ? 'No Expiry' : _fmt(credential.validUntil!),
+                    credential.validUntil == null ? 'No Expiry' : shortDate(credential.validUntil!),
                     style: const TextStyle(fontSize: AppTextSize.helper, fontWeight: FontWeight.w600, color: AppColors.slate700),
                   ),
                 ),
@@ -575,12 +598,6 @@ class _InformationPanel extends StatelessWidget {
     );
   }
 
-  String _fmt(DateTime d) {
-    const months = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
-    ];
-    return '${months[d.month - 1]} ${d.day}, ${d.year}';
-  }
 }
 
 class _EmptyWalletCard extends StatelessWidget {
@@ -659,24 +676,11 @@ class _CredentialFullScreenViewer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final asset = front ? credential.frontAsset : credential.backAsset;
-    return Scaffold(
-      backgroundColor: Colors.black,
-      appBar: AppBar(
-        backgroundColor: Colors.black,
-        foregroundColor: Colors.white,
-        titleTextStyle: const TextStyle(color: Colors.white, fontSize: AppTextSize.card, fontWeight: FontWeight.w600),
-        title: Text('${credential.displayName} — ${front ? 'Front' : 'Back'}'),
-      ),
-      body: SafeArea(
-        child: Center(
-          child: InteractiveViewer(
-            minScale: 1,
-            maxScale: 4,
-            child: Image.asset(asset, fit: BoxFit.contain),
-          ),
-        ),
-      ),
+    final side = front ? 'Front' : 'Back';
+    return ImageViewerScaffold(
+      title: '${credential.displayName} — $side',
+      image: AssetImage(front ? credential.frontAsset : credential.backAsset),
+      semanticLabel: '${credential.displayName}, ${side.toLowerCase()} side',
     );
   }
 }
@@ -696,6 +700,14 @@ class _LiveOrWallet extends StatefulWidget {
 
 class _LiveOrWalletState extends State<_LiveOrWallet> {
   late Future<DigitalIdCard> _future = DigitalIdService.fetch();
+
+  // A block body: an arrow here hands setState the Future, which throws in a
+  // debug build, so Try Again used to fail there.
+  void _retry() {
+    setState(() {
+      _future = DigitalIdService.fetch();
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -721,7 +733,12 @@ class _LiveOrWalletState extends State<_LiveOrWallet> {
           );
         }
         final demo = digitalCredentialsFor(widget.account);
-        if (demo.isNotEmpty) return _DigitalIdWallet(credentials: demo);
+        if (demo.isNotEmpty) {
+          return _DigitalIdWallet(
+            credentials: demo,
+            notice: _OfflineNotice(onRetry: _retry),
+          );
+        }
         final err = snap.error;
         return Center(
           child: Padding(
@@ -738,7 +755,7 @@ class _LiveOrWalletState extends State<_LiveOrWallet> {
                 ),
                 const SizedBox(height: AppSpacing.lg),
                 OutlinedButton(
-                  onPressed: () => setState(() => _future = DigitalIdService.fetch()),
+                  onPressed: _retry,
                   child: const Text('Try Again'),
                 ),
               ],
@@ -746,6 +763,37 @@ class _LiveOrWalletState extends State<_LiveOrWallet> {
           ),
         );
       },
+    );
+  }
+}
+
+/// Over the demo wallet when GET /citizen/digital-id fails. It used to
+/// replace the live card silently, with no sign anything had failed and no
+/// way to try again short of leaving the screen.
+class _OfflineNotice extends StatelessWidget {
+  const _OfflineNotice({required this.onRetry});
+
+  final VoidCallback onRetry;
+
+  static const text = 'Your Digital ID could not be loaded, so the sample IDs saved on this phone are shown.';
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(AppSpacing.md, AppSpacing.sm, AppSpacing.xs, AppSpacing.sm),
+      decoration: BoxDecoration(
+        color: AppColors.amber50,
+        borderRadius: BorderRadius.circular(AppRadius.md),
+        border: Border.all(color: AppColors.amber500.withValues(alpha: 0.4)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.cloud_off_rounded, size: AppSizes.iconBase, color: AppColors.amber700),
+          const SizedBox(width: AppSpacing.sm),
+          const Expanded(child: Text(text, style: AppTypography.helper)),
+          TextButton(onPressed: onRetry, child: const Text('Try Again')),
+        ],
+      ),
     );
   }
 }

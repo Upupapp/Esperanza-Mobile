@@ -99,7 +99,11 @@ Future<void> _showDeniedDialog(BuildContext context, ProtectedResource resource)
 /// result, distinguish "the citizen just cancelled the picker" (do
 /// nothing, exactly like today) from "the permission was actually denied"
 /// (show the friendly denied message).
-Future<XFile?> pickImageProtected(BuildContext context, {required ImageSource source}) async {
+///
+/// [maxDimension] caps the longer side in pixels. The profile photo passes
+/// 1024: it is shown at 192pt at most and is kept on the phone, where a
+/// full-size camera shot (several MB) could exceed what the store holds.
+Future<XFile?> pickImageProtected(BuildContext context, {required ImageSource source, double? maxDimension}) async {
   final resource = source == ImageSource.camera ? ProtectedResource.camera : ProtectedResource.photos;
   if (!await _confirmExplanation(context, resource)) return null;
   if (!context.mounted) return null;
@@ -108,7 +112,12 @@ Future<XFile?> pickImageProtected(BuildContext context, {required ImageSource so
   // browser handles its own camera/file-access prompts as part of the
   // picker call itself, so permission_handler is skipped entirely here.
   if (kIsWeb) {
-    return ImagePicker().pickImage(source: source, imageQuality: 85);
+    return ImagePicker().pickImage(
+      source: source,
+      imageQuality: 85,
+      maxWidth: maxDimension,
+      maxHeight: maxDimension,
+    );
   }
 
   final permission = source == ImageSource.camera ? Permission.camera : Permission.photos;
@@ -118,7 +127,12 @@ Future<XFile?> pickImageProtected(BuildContext context, {required ImageSource so
     return null;
   }
 
-  final file = await ImagePicker().pickImage(source: source, imageQuality: 85);
+  final file = await ImagePicker().pickImage(
+      source: source,
+      imageQuality: 85,
+      maxWidth: maxDimension,
+      maxHeight: maxDimension,
+    );
   if (file != null) return file;
   if (!context.mounted) return null;
 

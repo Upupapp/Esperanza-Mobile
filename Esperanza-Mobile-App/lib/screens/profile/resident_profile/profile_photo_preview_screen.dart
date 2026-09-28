@@ -7,6 +7,7 @@ import '../../../services/resident_profile_service.dart';
 import '../../../theme/app_colors.dart';
 import '../../../theme/app_spacing.dart';
 import '../../../widgets/app_button.dart';
+import '../../../widgets/app_dialogs.dart';
 import '../../../theme/app_typography.dart';
 
 /// The mandatory preview step between picking/capturing a photo and it
@@ -22,6 +23,14 @@ class ProfilePhotoPreviewScreen extends StatefulWidget {
   final Uint8List bytes;
   final ImageSource source;
   const ProfilePhotoPreviewScreen({super.key, required this.bytes, required this.source});
+
+  static const saveFailedText = 'Your photo could not be saved. Please try again.';
+
+  /// The photo stays on this phone: the backend has no profile-photo
+  /// endpoint yet (docs/WEB_AND_BACKEND_BACKLOG.md B9), so say so rather
+  /// than let the citizen think the Municipality now has it.
+  static const deviceOnlyText = 'Your photo is kept on this phone. It is not sent to the Municipality.';
+
 
   @override
   State<ProfilePhotoPreviewScreen> createState() => _ProfilePhotoPreviewScreenState();
@@ -39,12 +48,21 @@ class _ProfilePhotoPreviewScreenState extends State<ProfilePhotoPreviewScreen> {
 
   Future<void> _save() async {
     setState(() => _saving = true);
-    final accountId = context.read<CitizenSessionService>().account!.id;
-    await context.read<ResidentProfileService>().updateProfilePhoto(
-      accountId,
-      photoBytes: widget.bytes,
-      startCooldown: true,
-    );
+    try {
+      final accountId = context.read<CitizenSessionService>().account!.id;
+      await context.read<ResidentProfileService>().updateProfilePhoto(
+        accountId,
+        photoBytes: widget.bytes,
+        startCooldown: true,
+      );
+    } catch (_) {
+      // Until 2026-09-28 a failed save left the spinner running and both
+      // buttons disabled for good; the only way out was the back arrow.
+      if (!mounted) return;
+      setState(() => _saving = false);
+      AppDialogs.toast(context, ProfilePhotoPreviewScreen.saveFailedText, success: false);
+      return;
+    }
     if (!mounted) return;
     Navigator.of(context).pop(true);
   }
@@ -54,42 +72,69 @@ class _ProfilePhotoPreviewScreenState extends State<ProfilePhotoPreviewScreen> {
     return Scaffold(
       appBar: AppBar(title: const Text('Preview Photo')),
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(AppSpacing.xl),
-          child: Column(
-            children: [
-              const Spacer(),
-              CircleAvatar(
-                radius: 96,
-                backgroundColor: AppColors.brand50,
-                backgroundImage: ResizeImage.resizeIfNeeded(
-                  (_previewDiameter * MediaQuery.devicePixelRatioOf(context)).round(),
-                  null,
-                  MemoryImage(widget.bytes),
+        // Scrolls when it must (a short phone, large text) while the buttons
+        // still sit at the bottom when there is room.
+        child: LayoutBuilder(
+          builder: (context, constraints) => SingleChildScrollView(
+            padding: const EdgeInsets.all(AppSpacing.xl),
+            child: ConstrainedBox(
+              constraints: BoxConstraints(minHeight: constraints.maxHeight - AppSpacing.xl * 2),
+              child: IntrinsicHeight(
+                child: Column(
+                  children: [
+                    const Spacer(),
+                    CircleAvatar(
+                      radius: _previewDiameter / 2,
+                      backgroundColor: AppColors.brand50,
+                      backgroundImage: ResizeImage.resizeIfNeeded(
+                        (_previewDiameter * MediaQuery.devicePixelRatioOf(context)).round(),
+                        null,
+                        MemoryImage(widget.bytes),
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.lg),
+                    const Text(
+                      'This is how your profile photo will look. Make sure your full face is clearly visible before saving.',
+                      textAlign: TextAlign.center,
+                      style: AppTypography.helper,
+                    ),
+                    const SizedBox(height: AppSpacing.sm),
+                    const Text.rich(
+                      TextSpan(
+                        children: [
+                          WidgetSpan(
+                            alignment: PlaceholderAlignment.middle,
+                            child: Padding(
+                              padding: EdgeInsets.only(right: AppSpacing.xs),
+                              child: Icon(Icons.smartphone_rounded, size: AppSizes.iconSm, color: AppColors.textMuted),
+                            ),
+                          ),
+                          TextSpan(text: ProfilePhotoPreviewScreen.deviceOnlyText),
+                        ],
+                      ),
+                      textAlign: TextAlign.center,
+                      style: AppTypography.fine,
+                    ),
+                    const Spacer(),
+                    const SizedBox(height: AppSpacing.xl),
+                    AppButton(
+                      label: widget.source == ImageSource.camera ? 'Retake' : 'Choose Another',
+                      variant: AppButtonVariant.secondary,
+                      fullWidth: true,
+                      onPressed: _saving ? null : () => Navigator.of(context).pop(false),
+                    ),
+                    const SizedBox(height: AppSpacing.sm),
+                    AppButton(
+                      label: 'Save Profile Photo',
+                      fullWidth: true,
+                      size: AppButtonSize.lg,
+                      loading: _saving,
+                      onPressed: _saving ? null : _save,
+                    ),
+                  ],
                 ),
               ),
-              const SizedBox(height: AppSpacing.lg),
-              const Text(
-                'This is how your profile photo will look. Make sure your full face is clearly visible before saving.',
-                textAlign: TextAlign.center,
-                style: TextStyle(fontSize: AppTextSize.helper, color: AppColors.textMuted, height: 1.4),
-              ),
-              const Spacer(),
-              AppButton(
-                label: widget.source == ImageSource.camera ? 'Retake' : 'Choose Another',
-                variant: AppButtonVariant.secondary,
-                fullWidth: true,
-                onPressed: _saving ? null : () => Navigator.of(context).pop(false),
-              ),
-              const SizedBox(height: AppSpacing.sm),
-              AppButton(
-                label: 'Save Profile Photo',
-                fullWidth: true,
-                size: AppButtonSize.lg,
-                loading: _saving,
-                onPressed: _saving ? null : _save,
-              ),
-            ],
+            ),
           ),
         ),
       ),

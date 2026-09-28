@@ -8,6 +8,7 @@ import '../utils/cross_platform_image.dart';
 import '../utils/protected_action.dart';
 import '../utils/requirement_document_type.dart';
 import '../theme/app_typography.dart';
+import 'image_viewer_scaffold.dart';
 
 /// One requirement's own upload section — the standard per-requirement
 /// attachment architecture shared by every Dokyu and Tulong service (see
@@ -492,23 +493,9 @@ class _AttachmentImageViewer extends StatelessWidget {
   const _AttachmentImageViewer({required this.title, required this.attachment});
 
   @override
-  Widget build(BuildContext context) {
-    final provider = pickedFileImageProvider(bytes: attachment.bytes, path: attachment.localPath);
-    return Scaffold(
-      backgroundColor: Colors.black,
-      appBar: AppBar(
-        backgroundColor: Colors.black,
-        foregroundColor: Colors.white,
-        titleTextStyle: const TextStyle(color: Colors.white, fontSize: AppTextSize.card, fontWeight: FontWeight.w600),
-        title: Text(title),
-      ),
-      body: SafeArea(
-        child: Center(
-          child: provider != null
-              ? InteractiveViewer(minScale: 1, maxScale: 4, child: Image(image: provider, fit: BoxFit.contain))
-              : const Text('Preview not available.', style: TextStyle(color: Colors.white70)),
-        ),
-      ),
-    );
-  }
+  Widget build(BuildContext context) => ImageViewerScaffold(
+    title: title,
+    image: pickedFileImageProvider(bytes: attachment.bytes, path: attachment.localPath),
+    semanticLabel: title,
+  );
 }

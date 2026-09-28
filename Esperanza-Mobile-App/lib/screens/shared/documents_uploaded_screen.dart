@@ -15,6 +15,7 @@ import '../../theme/app_typography.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../services/api_client.dart';
 import '../../widgets/app_dialogs.dart';
+import '../../widgets/image_viewer_scaffold.dart';
 
 /// Resident-facing history/library of every document uploaded through a
 /// Dokyu or Tulong requirement uploader (see widgets/requirement_uploader.dart)
@@ -260,26 +261,6 @@ class _DocumentViewer extends StatelessWidget {
   const _DocumentViewer({required this.title, required this.provider});
 
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.black,
-      appBar: AppBar(
-        backgroundColor: Colors.black,
-        foregroundColor: Colors.white,
-        titleTextStyle: const TextStyle(color: Colors.white, fontSize: AppTextSize.card, fontWeight: FontWeight.w600),
-        title: Text(title),
-      ),
-      body: SafeArea(
-        child: Center(
-          child: provider != null
-              ? InteractiveViewer(
-                  minScale: 1,
-                  maxScale: 4,
-                  child: Image(image: provider!, fit: BoxFit.contain),
-                )
-              : const Text('Preview not available.', style: TextStyle(color: Colors.white70)),
-        ),
-      ),
-    );
-  }
+  Widget build(BuildContext context) =>
+      ImageViewerScaffold(title: title, image: provider, semanticLabel: title);
 }
