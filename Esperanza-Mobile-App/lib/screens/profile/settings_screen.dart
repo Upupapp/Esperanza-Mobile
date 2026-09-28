@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import '../../services/api_client.dart';
+import '../legal/privacy_policy_screen.dart';
+import 'change_password_screen.dart';
+import 'data_requests_screen.dart';
 import '../../services/notification_preferences_service.dart';
 import '../../theme/app_colors.dart';
 import '../../utils/app_version.dart';
@@ -86,6 +89,32 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
           ),
           AppCard(padding: EdgeInsets.zero, child: _preferencesBody()),
+          const SizedBox(height: AppSpacing.xl),
+          const _SectionLabel('Account & Privacy'),
+          AppCard(
+            padding: EdgeInsets.zero,
+            child: Column(
+              children: [
+                _LinkTile(
+                  icon: Icons.lock_reset_rounded,
+                  label: 'Change Password',
+                  open: () => const ChangePasswordScreen(),
+                ),
+                const Divider(height: 1, indent: AppSpacing.lg, endIndent: AppSpacing.lg),
+                _LinkTile(
+                  icon: Icons.manage_accounts_outlined,
+                  label: 'My Data Requests',
+                  open: () => const DataRequestsScreen(),
+                ),
+                const Divider(height: 1, indent: AppSpacing.lg, endIndent: AppSpacing.lg),
+                _LinkTile(
+                  icon: Icons.privacy_tip_outlined,
+                  label: 'Privacy Policy',
+                  open: () => const PrivacyPolicyScreen(),
+                ),
+              ],
+            ),
+          ),
           const SizedBox(height: AppSpacing.xl),
           const _SectionLabel('About'),
           AppCard(
@@ -215,6 +244,27 @@ class _ChannelChip extends StatelessWidget {
       side: BorderSide(color: selected ? AppColors.brand200 : AppColors.slate200),
       // Chips draw at 32pt; the padded tap target keeps them at 48.
       materialTapTargetSize: MaterialTapTargetSize.padded,
+    );
+  }
+}
+
+class _LinkTile extends StatelessWidget {
+  const _LinkTile({required this.icon, required this.label, required this.open});
+
+  final IconData icon;
+  final String label;
+  final Widget Function() open;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListTile(
+      leading: Icon(icon, color: AppColors.slate600),
+      title: Text(
+        label,
+        style: const TextStyle(fontSize: AppTextSize.body, fontWeight: FontWeight.w500),
+      ),
+      trailing: const Icon(Icons.chevron_right_rounded, color: AppColors.slate400),
+      onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => open())),
     );
   }
 }

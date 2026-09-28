@@ -6,13 +6,25 @@
 // likely to overflow.
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:esperanza_mobile/screens/legal/privacy_policy_screen.dart';
+import 'package:esperanza_mobile/services/citizen_session_service.dart';
 import 'package:esperanza_mobile/screens/support/help_support_screen.dart';
 import 'package:esperanza_mobile/screens/support/report_problem_screen.dart';
 import 'package:esperanza_mobile/widgets/expandable_panel.dart';
 
+/// The screens read the session (Privacy Policy offers data requests to a
+/// signed-in citizen), as they do inside the app.
+Widget _app(Widget home) => ChangeNotifierProvider(
+  create: (_) => CitizenSessionService(),
+  child: MaterialApp(home: home),
+);
+
 void main() {
+  setUp(() => SharedPreferences.setMockInitialValues({}));
+
   final sizes = <String, Size>{
     'extreme narrow (280x568)': const Size(280, 568),
     'small (320x568)': const Size(320, 568),
@@ -37,7 +49,7 @@ void main() {
           addTearDown(tester.view.resetDevicePixelRatio);
           addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
 
-          await tester.pumpWidget(MaterialApp(home: screenEntry.value()));
+          await tester.pumpWidget(_app(screenEntry.value()));
           await tester.pumpAndSettle();
 
           expect(tester.takeException(), isNull);
@@ -63,7 +75,7 @@ void main() {
       addTearDown(tester.view.resetPhysicalSize);
       addTearDown(tester.view.resetDevicePixelRatio);
 
-      await tester.pumpWidget(MaterialApp(home: screenEntry.value()));
+      await tester.pumpWidget(_app(screenEntry.value()));
       await tester.pumpAndSettle();
 
       final titles = tester.widgetList<ExpandablePanel>(find.byType(ExpandablePanel)).map((p) => p.title).toList();

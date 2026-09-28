@@ -1,20 +1,64 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
+
+import '../../services/citizen_session_service.dart';
+import '../../services/site_content_service.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_spacing.dart';
 import '../../theme/app_typography.dart';
+import '../../widgets/app_button.dart';
+import '../../widgets/app_card.dart';
 import '../../widgets/expandable_panel.dart';
+import '../profile/data_requests_screen.dart';
 
-/// Privacy Policy — accessible from the hamburger drawer. Every fact this
-/// screen states must be traceable to what Esperanza Mobile actually does
-/// (see individual section comments below); anything still owned by the
-/// Municipality/DPO is spelled out as a `[TO BE PROVIDED ...]` placeholder
-/// rather than invented, since this app has no backend and the production
-/// policy still needs LGU/legal review before release.
-class PrivacyPolicyScreen extends StatelessWidget {
+/// Privacy Policy — the one the Municipality publishes for the whole
+/// platform (web and mobile) from the Web Admin's Settings > Site Content,
+/// read from `GET /site-content/privacy`.
+///
+/// Until 2026-09-28 this screen carried its own text, written when the app
+/// had no backend: it said the app connected to no server and left the
+/// effective date and the privacy contact as placeholders for the
+/// Municipality to fill in. The
+/// Municipality had already published all three. Now the text, the date and
+/// the contact details are theirs, and change when they publish.
+///
+/// It never waits on the network: the bundled version 1 shows at once and is
+/// replaced by the saved or live copy as soon as one arrives.
+class PrivacyPolicyScreen extends StatefulWidget {
   const PrivacyPolicyScreen({super.key});
 
   @override
+  State<PrivacyPolicyScreen> createState() => _PrivacyPolicyScreenState();
+}
+
+class _PrivacyPolicyScreenState extends State<PrivacyPolicyScreen> {
+  PublishedDocument _policy = SiteContentService.bundledPrivacyPolicyDocument;
+  bool _loaded = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    final policy = await SiteContentService.privacyPolicy();
+    if (!mounted) return;
+    setState(() {
+      _policy = policy;
+      _loaded = true;
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final policy = _policy;
+    final signedIn = context.watch<CitizenSessionService>().isSignedIn;
+    final meta = [
+      if (policy.effectiveDate != null) 'Effective ${DateFormat('MMM d, yyyy').format(policy.effectiveDate!)}',
+      if (policy.version != null) 'Version ${policy.version}',
+    ].join(' · ');
     return Scaffold(
       appBar: AppBar(
         title: const Text('Privacy Policy'),
@@ -31,370 +75,65 @@ class PrivacyPolicyScreen extends StatelessWidget {
           ),
         ),
       ),
-      body: ListView(
-        padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.md, AppSpacing.lg, AppSpacing.xxxl),
-        children: [
-          const Text(
-            'Last updated: [TO BE PROVIDED BY MUNICIPALITY]',
-            style: TextStyle(fontSize: AppTextSize.label, fontWeight: FontWeight.w600, color: AppColors.textMuted),
-          ),
-          const SizedBox(height: AppSpacing.lg),
-          const Text(
-            'Esperanza Mobile is designed to help residents of the Municipality of Esperanza interact with '
-            'municipal services digitally — including requesting documents, applying for assistance programs, and '
-            'staying informed through municipal announcements. Protecting your personal information is important '
-            'to us. This Privacy Policy describes what information Esperanza Mobile may collect, why it is used, '
-            'and how you can manage your information.',
-            style: AppTypography.body,
-          ),
-          const SizedBox(height: AppSpacing.xl),
-
-          ExpandablePanel(
-            title: '1. Information We Collect',
-            icon: Icons.badge_outlined,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text('Personal Information', style: AppTypography.subsectionLabel),
-                const SizedBox(height: AppSpacing.sm),
-                const Text(
-                  'When you create an account or complete your Resident Profile, Esperanza Mobile may collect '
-                  'information such as:',
-                  style: AppTypography.body,
-                ),
-                const SizedBox(height: AppSpacing.sm),
-                const BulletList([
-                  'Full name',
-                  'Date of birth',
-                  'Automatically calculated age, derived from your date of birth, where applicable',
-                  'Sex/gender information, where required by a municipal form',
-                  'Contact information (e.g., mobile number, email address)',
-                  'Address, sitio/purok, and barangay',
-                  'Other information required by the specific municipal service you are using',
-                ]),
-                const SizedBox(height: AppSpacing.lg),
-                const Text('Account Information', style: AppTypography.subsectionLabel),
-                const SizedBox(height: AppSpacing.sm),
-                const Text('To use Esperanza Mobile, the app maintains:', style: AppTypography.body),
-                const SizedBox(height: AppSpacing.sm),
-                const BulletList([
-                  'Account/profile information',
-                  'Authentication-related information used to sign you in',
-                  'Resident profile information you submit',
-                ]),
-                const SizedBox(height: AppSpacing.lg),
-                const Text('Family and Household Information', style: AppTypography.subsectionLabel),
-                const SizedBox(height: AppSpacing.sm),
-                const Text(
-                  'If you choose to complete the Resident Profile feature, Esperanza Mobile may also process:',
-                  style: AppTypography.body,
-                ),
-                const SizedBox(height: AppSpacing.sm),
-                const BulletList([
-                  "Family information, including family members and their relationship to the family's head",
-                  'Household information, including other families that share the same physical household, where applicable',
-                  'Other information required for municipal resident records',
-                ]),
-                const SizedBox(height: AppSpacing.sm),
-                const Text(
-                  'This information is only collected if you choose to complete the relevant Resident Profile section.',
-                  style: TextStyle(fontSize: AppTextSize.label, color: AppColors.textMuted, height: 1.4),
-                ),
-              ],
-            ),
-          ),
-
-          ExpandablePanel(
-            title: '2. Dokyu & Tulong Information',
-            icon: Icons.description_outlined,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text('Dokyu (Document Requests)', style: AppTypography.subsectionLabel),
-                const SizedBox(height: AppSpacing.sm),
-                const Text(
-                  'When you request a document or municipal service through Dokyu, you may provide:',
-                  style: AppTypography.body,
-                ),
-                const SizedBox(height: AppSpacing.sm),
-                const BulletList([
-                  'Application/form information',
-                  'Supporting documents',
-                  'Identification',
-                  'Photos',
-                  'PDF/DOCX attachments',
-                  'Request/application history',
-                  'Status information',
-                ]),
-                const SizedBox(height: AppSpacing.sm),
-                const Text(
-                  'This information is used to process and manage the municipal service you requested.',
-                  style: AppTypography.body,
-                ),
-                const SizedBox(height: AppSpacing.lg),
-                const Text('Tulong (Assistance Requests)', style: AppTypography.subsectionLabel),
-                const SizedBox(height: AppSpacing.sm),
-                const Text(
-                  'Tulong applications may require information related to the specific assistance being '
-                  'requested. Depending on the program, this may include:',
-                  style: AppTypography.body,
-                ),
-                const SizedBox(height: AppSpacing.sm),
-                const BulletList([
-                  'Applicant information',
-                  'Supporting documents',
-                  'Proof or requirements specific to that program',
-                  'Images',
-                  'Identification',
-                  'Application information',
-                  'Assistance request history and status',
-                ]),
-                const SizedBox(height: AppSpacing.sm),
-                const Text(
-                  'Not every Tulong program requires all of the items listed above — requirements depend on the '
-                  'specific assistance program you are applying for.',
-                  style: TextStyle(fontSize: AppTextSize.label, color: AppColors.textMuted, height: 1.4),
-                ),
-              ],
-            ),
-          ),
-
-          ExpandablePanel(
-            title: '3. Device Permissions',
-            icon: Icons.camera_alt_outlined,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  "Esperanza Mobile only requests access to your camera, photos, or documents when you choose to "
-                  'use a feature that needs it — never automatically, and never at startup. For example:',
-                  style: AppTypography.body,
-                ),
-                const SizedBox(height: AppSpacing.sm),
-                const BulletList([
-                  'Take a photo → Camera access may be requested.',
-                  "Choose from gallery → Photo/gallery access may be requested where required by your device's platform.",
-                  "Choose a document → Esperanza uses your device's own document picker wherever possible, rather than requesting broad storage access.",
-                ]),
-                const SizedBox(height: AppSpacing.sm),
-                const Text(
-                  'Esperanza Mobile uses the minimum access necessary to complete the action you requested. '
-                  'Esperanza Mobile does not access all photos or files on your device.',
-                  style: AppTypography.body,
-                ),
-              ],
-            ),
-          ),
-
-          ExpandablePanel(
-            title: '4. How We Use Information',
-            icon: Icons.settings_outlined,
-            child: const BulletList([
-              'Providing municipal services',
-              'Processing Dokyu (document) requests',
-              'Processing Tulong (assistance) requests',
-              'Maintaining your submitted Resident Profile information',
-              'Providing request/application status updates',
-              'Sending relevant notifications',
-              'Supporting municipal service administration',
-              'Maintaining app functionality and security',
-            ]),
-          ),
-
-          ExpandablePanel(
-            title: '5. Notifications',
-            icon: Icons.notifications_outlined,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text('Esperanza Mobile may use notifications for purposes such as:', style: AppTypography.body),
-                const SizedBox(height: AppSpacing.sm),
-                const BulletList([
-                  'Dokyu request updates',
-                  'Tulong request updates',
-                  'Application/request status changes',
-                  'Municipal announcements',
-                  'Important service information',
-                  'Emergency/safety information, where applicable',
-                ]),
-                const SizedBox(height: AppSpacing.sm),
-                const Text(
-                  'Notification behavior and permissions depend on your device and platform settings.',
-                  style: AppTypography.body,
-                ),
-              ],
-            ),
-          ),
-
-          ExpandablePanel(
-            title: '6. Information Sharing',
-            icon: Icons.share_outlined,
-            child: const Text(
-              'Information you submit through Esperanza Mobile may need to be accessible to authorized municipal '
-              "personnel or offices responsible for processing the relevant service (for example, the office "
-              'handling your Dokyu or Tulong request). Esperanza Mobile does not share your information with any '
-              'specific external organization unless this is confirmed by the Municipality.\n\n'
-              'Details regarding authorized recipients, service providers, or other data-sharing arrangements '
-              'must be confirmed by the Municipality of Esperanza before production release.',
-              style: AppTypography.body,
-            ),
-          ),
-
-          ExpandablePanel(
-            title: '7. Data Security',
-            icon: Icons.shield_outlined,
-            child: const Text(
-              'Esperanza Mobile aims to use reasonable technical and organizational safeguards to help protect '
-              'your information against unauthorized access, unauthorized disclosure, alteration, loss, and '
-              'misuse.\n\n'
-              'No system can be guaranteed to be completely secure. Specific security measures or encryption '
-              'systems used in production must be confirmed by the Municipality of Esperanza before this policy '
-              'is finalized.',
-              style: AppTypography.body,
-            ),
-          ),
-
-          ExpandablePanel(
-            title: '8. Data Retention',
-            icon: Icons.schedule_outlined,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Esperanza Mobile does not define its own retention periods. Information should only be '
-                  'retained according to applicable municipal requirements, legal obligations, and approved '
-                  'retention policies of the Municipality of Esperanza.',
-                  style: AppTypography.body,
-                ),
-                const SizedBox(height: AppSpacing.sm),
-                const Text(
-                  'Specific retention periods: [TO BE PROVIDED/CONFIRMED BY MUNICIPALITY]',
-                  style: TextStyle(fontSize: AppTextSize.helper, fontWeight: FontWeight.w600, color: AppColors.amber700),
-                ),
-              ],
-            ),
-          ),
-
-          ExpandablePanel(
-            title: '9. Your Privacy Rights',
-            icon: Icons.gavel_outlined,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Depending on applicable Philippine data-protection requirements, you may have rights '
-                  'concerning your personal information, which can include requesting access to, or correction '
-                  'of, your information, and raising privacy concerns with the appropriate office. This section '
-                  'is general information only and is not individualized legal advice.',
-                  style: AppTypography.body,
-                ),
-                const SizedBox(height: AppSpacing.md),
-                _ContactBlock(
-                  lines: const [
-                    'Privacy / Data Protection Contact',
-                    'Email: [TO BE PROVIDED]',
-                    'Phone: [TO BE PROVIDED]',
-                    'Office: [TO BE PROVIDED]',
-                  ],
-                ),
-              ],
-            ),
-          ),
-
-          ExpandablePanel(
-            title: '10. Information About Minors',
-            icon: Icons.family_restroom_outlined,
-            child: const Text(
-              'Household and family records may include information about minors (for example, children listed '
-              'as family members). Information about minors should only be provided where it is legitimately '
-              'required for municipal services, and should be handled with appropriate safeguards. Esperanza '
-              'Mobile does not define specific age thresholds or consent mechanisms beyond what is implemented '
-              'in the app.',
-              style: AppTypography.body,
-            ),
-          ),
-
-          ExpandablePanel(
-            title: '11. Third-Party Services',
-            icon: Icons.extension_outlined,
-            child: const Text(
-              'The information you submit (your account, Resident Profile, Dokyu and Tulong requests, uploaded '
-              'documents, reports and comments) is sent to the Municipality of Esperanza\'s own server, where '
-              'authorized municipal staff process it. Esperanza Mobile does not use analytics or advertising '
-              'services.\n\n'
-              "The app also uses a small number of device-level packages to support its features (for example, "
-              "selecting a photo, choosing a document, opening your device's share menu, or opening a phone/map "
-              'link). These operate on your device and do not send your information anywhere themselves.\n\n'
-              'This section must be reviewed and confirmed by the Municipality of Esperanza before production '
-              'release, including where the server is hosted and by whom.',
-              style: AppTypography.body,
-            ),
-          ),
-
-          ExpandablePanel(
-            title: '12. Changes to This Policy',
-            icon: Icons.update_outlined,
-            child: const Text(
-              'This Privacy Policy may be updated when app functionality changes, municipal procedures change, '
-              'privacy/security practices change, or applicable requirements change. Please check this page '
-              'periodically for updates.',
-              style: AppTypography.body,
-            ),
-          ),
-
-          ExpandablePanel(
-            title: '13. Contact Us',
-            icon: Icons.mail_outline_rounded,
-            initiallyExpanded: true,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text('Privacy Questions or Concerns', style: AppTypography.subsectionLabel),
-                const SizedBox(height: AppSpacing.sm),
-                _ContactBlock(
-                  lines: const [
-                    'Municipality of Esperanza',
-                    'Privacy / Data Protection Contact',
-                    'Email: [TO BE PROVIDED]',
-                    'Phone: [TO BE PROVIDED]',
-                    'Office: [TO BE PROVIDED]',
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ContactBlock extends StatelessWidget {
-  final List<String> lines;
-  const _ContactBlock({required this.lines});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(AppSpacing.md),
-      decoration: BoxDecoration(color: AppColors.slate50, borderRadius: BorderRadius.circular(AppRadius.sm)),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          for (int i = 0; i < lines.length; i++)
-            Padding(
-              padding: EdgeInsets.only(bottom: i == lines.length - 1 ? 0 : AppSpacing.xs),
-              child: Text(
-                lines[i],
-                style: TextStyle(
-                  fontSize: AppTextSize.helper,
-                  fontWeight: i == 0 ? FontWeight.w700 : FontWeight.w500,
-                  color: AppColors.slate700,
+      body: RefreshIndicator(
+        onRefresh: _load,
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.md, AppSpacing.lg, AppSpacing.xxxl),
+          children: [
+            if (meta.isNotEmpty)
+              Text(
+                meta,
+                style: const TextStyle(
+                  fontSize: AppTextSize.label,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textMuted,
                 ),
               ),
-            ),
-        ],
+            if (_loaded && policy.source != ContentSource.live) ...[
+              const SizedBox(height: AppSpacing.xs),
+              Text(
+                policy.source == ContentSource.saved
+                    ? 'Could not reach the server, so this is the copy saved on this phone. Pull down to try again.'
+                    : 'Could not reach the server, so this is the version included with the app. Pull down to try again.',
+                style: AppTypography.helper,
+              ),
+            ],
+            if (policy.intro != null) ...[
+              const SizedBox(height: AppSpacing.lg),
+              Text(policy.intro!, style: AppTypography.body),
+            ],
+            const SizedBox(height: AppSpacing.xl),
+            for (final section in policy.sections)
+              ExpandablePanel(
+                title: section.heading,
+                child: Text(section.body, style: AppTypography.body),
+              ),
+            if (signedIn) ...[
+              const SizedBox(height: AppSpacing.lg),
+              AppCard(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    const Text('Your privacy rights', style: AppTypography.cardHeading),
+                    const SizedBox(height: AppSpacing.xs),
+                    const Text(
+                      'Ask the Municipality to show, correct, delete or give you a copy of the information it holds about you.',
+                      style: AppTypography.helper,
+                    ),
+                    const SizedBox(height: AppSpacing.md),
+                    AppButton(
+                      label: 'Make a Data Request',
+                      variant: AppButtonVariant.secondary,
+                      fullWidth: true,
+                      onPressed: () =>
+                          Navigator.of(context).push(MaterialPageRoute(builder: (_) => const DataRequestsScreen())),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ],
+        ),
       ),
     );
   }
