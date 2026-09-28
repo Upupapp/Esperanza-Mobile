@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
+import '../theme/app_typography.dart';
 
 /// Mirrors `resources/views/components/ui/input.blade.php`: label above,
 /// optional leading icon, slate-50 fill, brand-colored focus ring, rose
@@ -41,7 +42,7 @@ class AppTextField extends StatelessWidget {
         if (label != null) ...[
           Text(
             label!,
-            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: AppColors.slate700),
+            style: const TextStyle(fontSize: AppTextSize.helper, fontWeight: FontWeight.w500, color: AppColors.slate700),
           ),
           const SizedBox(height: AppSpacing.sm),
         ],
@@ -51,7 +52,7 @@ class AppTextField extends StatelessWidget {
           keyboardType: keyboardType,
           maxLines: obscureText ? 1 : maxLines,
           onChanged: onChanged,
-          style: const TextStyle(fontSize: 14, color: AppColors.textBody, height: 1.3),
+          style: const TextStyle(fontSize: AppTextSize.body, color: AppColors.textBody, height: 1.3),
           decoration: InputDecoration(
             hintText: hintText,
             prefixIcon: icon != null ? Icon(icon, size: 18, color: AppColors.slate400) : null,
@@ -60,8 +61,8 @@ class AppTextField extends StatelessWidget {
           ),
         ),
         if (hint != null && error == null) ...[
-          const SizedBox(height: 6),
-          Text(hint!, style: const TextStyle(fontSize: 12, color: AppColors.textMuted, height: 1.35)),
+          const SizedBox(height: AppSpacing.xs),
+          Text(hint!, style: const TextStyle(fontSize: AppTextSize.label, color: AppColors.textMuted, height: 1.35)),
         ],
       ],
     );
@@ -96,7 +97,7 @@ class AppSelectField<T> extends StatelessWidget {
         if (label != null) ...[
           Text(
             label!,
-            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: AppColors.slate700),
+            style: const TextStyle(fontSize: AppTextSize.helper, fontWeight: FontWeight.w500, color: AppColors.slate700),
           ),
           const SizedBox(height: AppSpacing.sm),
         ],
@@ -109,7 +110,7 @@ class AppSelectField<T> extends StatelessWidget {
               .map(
                 (o) => DropdownMenuItem<T>(
                   value: o,
-                  child: Text(labelBuilder(o), style: const TextStyle(fontSize: 14)),
+                  child: Text(labelBuilder(o), style: const TextStyle(fontSize: AppTextSize.body)),
                 ),
               )
               .toList(),

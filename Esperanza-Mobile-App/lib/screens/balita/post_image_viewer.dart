@@ -7,6 +7,7 @@ import '../../theme/app_spacing.dart';
 import '../../utils/balita_post_actions.dart';
 import '../../widgets/balita_share_sheet.dart';
 import 'post_card.dart';
+import '../../theme/app_typography.dart';
 
 /// A lightweight full-screen overlay for a single Balita post's image —
 /// opened by tapping the image in [PostCard], not a separate post-detail
@@ -82,7 +83,7 @@ class PostImageViewer extends StatelessWidget {
                 ],
               ),
               Padding(
-                padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
+                padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.md, AppSpacing.lg, 0),
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -92,13 +93,13 @@ class PostImageViewer extends StatelessWidget {
                       child: Text(
                         isOfficial ? 'LGU' : (post.author.isNotEmpty ? post.author.substring(0, 1).toUpperCase() : '?'),
                         style: TextStyle(
-                          fontSize: 12,
+                          fontSize: AppTextSize.label,
                           fontWeight: FontWeight.w700,
                           color: isOfficial ? AppColors.gold700 : AppColors.brand600,
                         ),
                       ),
                     ),
-                    const SizedBox(width: 10),
+                    const SizedBox(width: AppSpacing.sm),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -108,7 +109,7 @@ class PostImageViewer extends StatelessWidget {
                               Flexible(
                                 child: Text(
                                   post.author,
-                                  style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
+                                  style: const TextStyle(fontSize: AppTextSize.helper, fontWeight: FontWeight.w700),
                                   overflow: TextOverflow.ellipsis,
                                 ),
                               ),
@@ -118,12 +119,12 @@ class PostImageViewer extends StatelessWidget {
                               ],
                             ],
                           ),
-                          const SizedBox(height: 1),
+                          const SizedBox(height: AppSpacing.xs),
                           Text(
                             post.barangay != null
                                 ? 'Brgy. ${post.barangay} · ${post.timeLabel}'
                                 : (isOfficial ? 'Official account · ${post.timeLabel}' : post.timeLabel),
-                            style: const TextStyle(fontSize: 11.5, color: AppColors.textMuted),
+                            style: const TextStyle(fontSize: AppTextSize.label, color: AppColors.textMuted),
                           ),
                         ],
                       ),
@@ -133,19 +134,19 @@ class PostImageViewer extends StatelessWidget {
               ),
               if (post.body.trim().isNotEmpty)
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
+                  padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.sm, AppSpacing.lg, 0),
                   child: Text(
                     post.body,
-                    style: const TextStyle(fontSize: 13.5, color: AppColors.slate700, height: 1.45),
+                    style: const TextStyle(fontSize: AppTextSize.body, color: AppColors.slate700, height: 1.45),
                   ),
                 ),
-              const SizedBox(height: 12),
+              const SizedBox(height: AppSpacing.md),
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
                 child: BalitaEngagementRow(post: post),
               ),
               Padding(
-                padding: const EdgeInsets.fromLTRB(8, 8, 8, 4),
+                padding: const EdgeInsets.fromLTRB(AppSpacing.sm, AppSpacing.sm, AppSpacing.sm, AppSpacing.xs),
                 child: Row(
                   children: [
                     Expanded(
@@ -208,7 +209,7 @@ class _CloseButton extends StatelessWidget {
         customBorder: const CircleBorder(),
         onTap: onTap,
         child: const Padding(
-          padding: EdgeInsets.all(9),
+          padding: EdgeInsets.all(AppSpacing.sm),
           child: Icon(Icons.close_rounded, color: Colors.white, size: 22),
         ),
       ),

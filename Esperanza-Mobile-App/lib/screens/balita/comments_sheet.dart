@@ -5,6 +5,7 @@ import '../../services/api_client.dart';
 import '../../services/balita_service.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_spacing.dart';
+import '../../theme/app_typography.dart';
 
 /// Bottom sheet for viewing a post's real comments (GET .../comments) and
 /// posting a new one (POST .../comments) as the signed-in citizen.
@@ -69,27 +70,27 @@ class _CommentsSheetState extends State<CommentsSheet> {
       padding: EdgeInsets.only(bottom: viewInsets),
       child: SafeArea(
         child: Container(
-          margin: const EdgeInsets.fromLTRB(0, 12, 0, 0),
+          margin: const EdgeInsets.fromLTRB(0, AppSpacing.md, 0, 0),
           constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.75),
           decoration: const BoxDecoration(
             color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+            borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.xl)),
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const SizedBox(height: 10),
+              const SizedBox(height: AppSpacing.sm),
               Container(
                 width: 36,
                 height: 4,
-                decoration: BoxDecoration(color: AppColors.slate200, borderRadius: BorderRadius.circular(999)),
+                decoration: BoxDecoration(color: AppColors.slate200, borderRadius: BorderRadius.circular(AppRadius.full)),
               ),
-              const SizedBox(height: 14),
+              const SizedBox(height: AppSpacing.md),
               const Text(
                 'Comments',
-                style: TextStyle(fontSize: 14.5, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
+                style: TextStyle(fontSize: AppTextSize.body, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: AppSpacing.sm),
               const Divider(height: 1),
               Flexible(
                 child: FutureBuilder<List<PostComment>>(
@@ -97,39 +98,39 @@ class _CommentsSheetState extends State<CommentsSheet> {
                   builder: (context, snapshot) {
                     if (snapshot.connectionState != ConnectionState.done) {
                       return const Padding(
-                        padding: EdgeInsets.symmetric(vertical: 40),
+                        padding: EdgeInsets.symmetric(vertical: AppSpacing.xxxl),
                         child: Center(child: CircularProgressIndicator()),
                       );
                     }
                     if (snapshot.hasError) {
                       final err = snapshot.error;
                       return Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 40, horizontal: AppSpacing.xl),
+                        padding: const EdgeInsets.symmetric(vertical: AppSpacing.xxxl, horizontal: AppSpacing.xl),
                         child: Text(
                           err is ApiException ? err.message() : 'Could not load comments.',
                           textAlign: TextAlign.center,
-                          style: const TextStyle(fontSize: 12.5, color: AppColors.textMuted),
+                          style: const TextStyle(fontSize: AppTextSize.helper, color: AppColors.textMuted),
                         ),
                       );
                     }
                     final comments = snapshot.data ?? const [];
                     if (comments.isEmpty) {
                       return const Padding(
-                        padding: EdgeInsets.symmetric(vertical: 40),
+                        padding: EdgeInsets.symmetric(vertical: AppSpacing.xxxl),
                         child: Text(
                           'No comments yet. Be the first to comment.',
-                          style: TextStyle(fontSize: 12.5, color: AppColors.textMuted),
+                          style: TextStyle(fontSize: AppTextSize.helper, color: AppColors.textMuted),
                         ),
                       );
                     }
                     return ListView.builder(
                       shrinkWrap: true,
-                      padding: const EdgeInsets.fromLTRB(16, 14, 16, 8),
+                      padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.md, AppSpacing.lg, AppSpacing.sm),
                       itemCount: comments.length,
                       itemBuilder: (context, i) {
                         final c = comments[i];
                         return Padding(
-                          padding: const EdgeInsets.only(bottom: 14),
+                          padding: const EdgeInsets.only(bottom: AppSpacing.md),
                           child: Row(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
@@ -139,19 +140,19 @@ class _CommentsSheetState extends State<CommentsSheet> {
                                 child: Text(
                                   c.author.isNotEmpty ? c.author.substring(0, 1).toUpperCase() : '?',
                                   style: const TextStyle(
-                                    fontSize: 11,
+                                    fontSize: AppTextSize.fine,
                                     fontWeight: FontWeight.w700,
                                     color: AppColors.slate600,
                                   ),
                                 ),
                               ),
-                              const SizedBox(width: 10),
+                              const SizedBox(width: AppSpacing.sm),
                               Expanded(
                                 child: Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: 10),
+                                  padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.sm),
                                   decoration: BoxDecoration(
                                     color: AppColors.slate50,
-                                    borderRadius: BorderRadius.circular(14),
+                                    borderRadius: BorderRadius.circular(AppRadius.md),
                                   ),
                                   child: Column(
                                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -159,16 +160,16 @@ class _CommentsSheetState extends State<CommentsSheet> {
                                       Text(
                                         c.author,
                                         style: const TextStyle(
-                                          fontSize: 12,
+                                          fontSize: AppTextSize.label,
                                           fontWeight: FontWeight.w700,
                                           color: AppColors.textPrimary,
                                         ),
                                       ),
-                                      const SizedBox(height: 2),
+                                      const SizedBox(height: AppSpacing.xs),
                                       Text(
                                         c.body,
                                         style: const TextStyle(
-                                          fontSize: 12.5,
+                                          fontSize: AppTextSize.helper,
                                           color: AppColors.slate700,
                                           height: 1.35,
                                         ),
@@ -188,11 +189,11 @@ class _CommentsSheetState extends State<CommentsSheet> {
               const Divider(height: 1),
               if (_error != null)
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-                  child: Text(_error!, style: const TextStyle(fontSize: 12, color: AppColors.rose600)),
+                  padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.sm, AppSpacing.lg, 0),
+                  child: Text(_error!, style: const TextStyle(fontSize: AppTextSize.label, color: AppColors.rose600)),
                 ),
               Padding(
-                padding: const EdgeInsets.fromLTRB(12, 10, 8, 10),
+                padding: const EdgeInsets.fromLTRB(AppSpacing.md, AppSpacing.sm, AppSpacing.sm, AppSpacing.sm),
                 child: Row(
                   children: [
                     Expanded(
@@ -200,14 +201,14 @@ class _CommentsSheetState extends State<CommentsSheet> {
                         controller: _controller,
                         minLines: 1,
                         maxLines: 4,
-                        style: const TextStyle(fontSize: 13.5),
+                        style: const TextStyle(fontSize: AppTextSize.body),
                         decoration: InputDecoration(
                           hintText: 'Write a comment…',
                           filled: true,
                           fillColor: AppColors.slate50,
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                          contentPadding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.sm),
                           border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(999),
+                            borderRadius: BorderRadius.circular(AppRadius.full),
                             borderSide: BorderSide.none,
                           ),
                         ),

@@ -15,6 +15,7 @@ import '../../widgets/esperanza_drawer.dart';
 import '../home/root_shell.dart';
 import 'compose_post_screen.dart';
 import 'post_card.dart';
+import '../../theme/app_typography.dart';
 
 /// Balita ("news" in Filipino) — announcements and the community feed,
 /// both real now (production-readiness programme, 2026-09-25). Mirrors
@@ -110,7 +111,7 @@ class _Feed extends StatelessWidget {
         // post's image can end up laid out underneath the navbar's
         // full hit-testable bounding box and become untappable even
         // though it looks like ordinary scrolled content.
-        padding: EdgeInsets.fromLTRB(16, 12, 16, 24 + MediaQuery.paddingOf(context).bottom),
+        padding: EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.md, AppSpacing.lg, 24 + MediaQuery.paddingOf(context).bottom),
         itemCount: (balita.communityUnavailable ? 1 : 0) + (posts.isEmpty ? 1 : posts.length),
         itemBuilder: (context, i) {
           if (balita.communityUnavailable) {
@@ -140,7 +141,7 @@ class _CommunityUnavailableNotice extends StatelessWidget {
       padding: EdgeInsets.only(bottom: AppSpacing.md),
       child: Text(
         'Community posts could not be loaded right now. Pull down to try again.',
-        style: TextStyle(fontSize: 12.5, color: AppColors.textMuted),
+        style: TextStyle(fontSize: AppTextSize.helper, color: AppColors.textMuted),
       ),
     );
   }

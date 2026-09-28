@@ -7,6 +7,7 @@ import '../models/announcement.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
 import 'app_dialogs.dart';
+import '../theme/app_typography.dart';
 
 /// Social-share chooser opened from Balita's Share action — a small sheet
 /// of practical destinations rather than jumping straight to the OS share
@@ -76,12 +77,12 @@ class _ShareSheet extends StatelessWidget {
       child: Container(
         margin: const EdgeInsets.all(AppSpacing.md),
         padding: const EdgeInsets.fromLTRB(AppSpacing.xl, AppSpacing.lg, AppSpacing.xl, AppSpacing.md),
-        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20)),
+        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(AppRadius.xl)),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Share Balita Post', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+            const Text('Share Balita Post', style: TextStyle(fontSize: AppTextSize.card, fontWeight: FontWeight.w700)),
             const SizedBox(height: AppSpacing.lg),
             Wrap(
               spacing: 18,
@@ -175,10 +176,10 @@ class _ShareOption extends StatelessWidget {
     return SizedBox(
       width: 72,
       child: InkWell(
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(AppRadius.md),
         onTap: onTap,
         child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 6),
+          padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
           child: Column(
             children: [
               Container(
@@ -188,12 +189,12 @@ class _ShareOption extends StatelessWidget {
                 decoration: BoxDecoration(color: color.withValues(alpha: 0.12), shape: BoxShape.circle),
                 child: Icon(icon, color: color, size: 22),
               ),
-              const SizedBox(height: 6),
+              const SizedBox(height: AppSpacing.xs),
               Text(
                 label,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
+                style: const TextStyle(fontSize: AppTextSize.fine, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
               ),
             ],
           ),

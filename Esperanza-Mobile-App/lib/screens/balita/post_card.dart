@@ -11,6 +11,7 @@ import '../../widgets/app_card.dart';
 import '../../widgets/balita_share_sheet.dart';
 import 'comments_sheet.dart';
 import 'post_image_viewer.dart';
+import '../../theme/app_typography.dart';
 
 /// A single Balita feed post — header (avatar/author/verified badge/
 /// barangay/timestamp/overflow menu), body text, optional image, an
@@ -36,9 +37,9 @@ class PostCard extends StatelessWidget {
     final pendingReview = post.mine && post.status == 'Pending Review';
 
     return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.only(bottom: AppSpacing.md),
       child: AppCard(
-        padding: const EdgeInsets.fromLTRB(14, 14, 14, 4),
+        padding: const EdgeInsets.fromLTRB(AppSpacing.md, AppSpacing.md, AppSpacing.md, AppSpacing.xs),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -51,13 +52,13 @@ class PostCard extends StatelessWidget {
                   child: Text(
                     isOfficial ? 'LGU' : (post.author.isNotEmpty ? post.author.substring(0, 1).toUpperCase() : '?'),
                     style: TextStyle(
-                      fontSize: 12,
+                      fontSize: AppTextSize.label,
                       fontWeight: FontWeight.w700,
                       color: isOfficial ? AppColors.gold700 : AppColors.brand600,
                     ),
                   ),
                 ),
-                const SizedBox(width: 10),
+                const SizedBox(width: AppSpacing.sm),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -67,7 +68,7 @@ class PostCard extends StatelessWidget {
                           Flexible(
                             child: Text(
                               post.author,
-                              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
+                              style: const TextStyle(fontSize: AppTextSize.helper, fontWeight: FontWeight.w700),
                               overflow: TextOverflow.ellipsis,
                             ),
                           ),
@@ -77,7 +78,7 @@ class PostCard extends StatelessWidget {
                           ],
                         ],
                       ),
-                      const SizedBox(height: 1),
+                      const SizedBox(height: AppSpacing.xs),
                       Text(
                         [
                           if (post.barangay != null) 'Brgy. ${post.barangay}' else if (isOfficial) 'Official account',
@@ -85,7 +86,7 @@ class PostCard extends StatelessWidget {
                           if (pendingReview) 'Pending review — only visible to you',
                         ].where((s) => s.isNotEmpty).join(' · '),
                         style: TextStyle(
-                          fontSize: 11.5,
+                          fontSize: AppTextSize.label,
                           color: pendingReview ? AppColors.amber700 : AppColors.textMuted,
                           fontWeight: pendingReview ? FontWeight.w600 : FontWeight.w400,
                         ),
@@ -100,7 +101,7 @@ class PostCard extends StatelessWidget {
                 // post makes no sense either.
                 if (post.kind == PostKind.community && !post.mine)
                   InkWell(
-                    borderRadius: BorderRadius.circular(20),
+                    borderRadius: BorderRadius.circular(AppRadius.xl),
                     onTap: () => _showPostMenu(context, balita),
                     child: const Padding(
                       padding: EdgeInsets.all(AppSpacing.sm),
@@ -109,13 +110,16 @@ class PostCard extends StatelessWidget {
                   ),
               ],
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: AppSpacing.sm),
             if (post.body.trim().isNotEmpty)
-              Text(post.body, style: const TextStyle(fontSize: 13.5, color: AppColors.slate700, height: 1.45)),
+              Text(
+                post.body,
+                style: const TextStyle(fontSize: AppTextSize.body, color: AppColors.slate700, height: 1.45),
+              ),
             if (post.imageUrl != null) ...[
-              if (post.body.trim().isNotEmpty) const SizedBox(height: 12),
+              if (post.body.trim().isNotEmpty) const SizedBox(height: AppSpacing.md),
               ClipRRect(
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(AppRadius.md),
                 child: AspectRatio(
                   aspectRatio: 16 / 10,
                   child: InkWell(
@@ -125,7 +129,7 @@ class PostCard extends StatelessWidget {
                 ),
               ),
             ],
-            const SizedBox(height: 12),
+            const SizedBox(height: AppSpacing.md),
             BalitaEngagementRow(post: post),
             Row(
               children: [
@@ -134,7 +138,8 @@ class PostCard extends StatelessWidget {
                     icon: post.likedByMe == true ? Icons.favorite_rounded : Icons.favorite_border_rounded,
                     label: 'Like',
                     color: post.likedByMe == true ? AppColors.rose500 : AppColors.slate500,
-                    onTap: () => requireAccountForBalita(context, 'Reacting to Balita posts', () => _like(context, balita)),
+                    onTap: () =>
+                        requireAccountForBalita(context, 'Reacting to Balita posts', () => _like(context, balita)),
                   ),
                 ),
                 Expanded(
@@ -182,22 +187,34 @@ class PostCard extends StatelessWidget {
       context: context,
       backgroundColor: Colors.transparent,
       builder: (ctx) => SafeArea(
-        child: Container(
-          margin: const EdgeInsets.all(AppSpacing.md),
-          padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
-          decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20)),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              ListTile(
-                leading: const Icon(Icons.flag_outlined, color: AppColors.slate600),
-                title: const Text('Report post', style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w500)),
-                onTap: () {
-                  Navigator.of(ctx).pop();
-                  requireAccountForBalita(context, 'Reporting Balita posts', () => _report(context, balita));
-                },
+        // A Material, not a decorated Container: ListTile paints its ink on
+        // the nearest Material, so a white DecoratedBox in between hid the
+        // tap feedback (and tripped ListTile's debug assertion).
+        child: Padding(
+          padding: const EdgeInsets.all(AppSpacing.md),
+          child: Material(
+            color: AppColors.surface,
+            borderRadius: BorderRadius.circular(AppRadius.xl),
+            clipBehavior: Clip.antiAlias,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  ListTile(
+                    leading: const Icon(Icons.flag_outlined, color: AppColors.slate600),
+                    title: const Text(
+                      'Report post',
+                      style: TextStyle(fontSize: AppTextSize.body, fontWeight: FontWeight.w500),
+                    ),
+                    onTap: () {
+                      Navigator.of(ctx).pop();
+                      requireAccountForBalita(context, 'Reporting Balita posts', () => _report(context, balita));
+                    },
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
         ),
       ),
@@ -205,10 +222,7 @@ class PostCard extends StatelessWidget {
   }
 
   Future<void> _report(BuildContext context, BalitaService balita) async {
-    final reason = await showDialog<String>(
-      context: context,
-      builder: (ctx) => _ReportDialog(),
-    );
+    final reason = await showDialog<String>(context: context, builder: (ctx) => _ReportDialog());
     if (reason == null || reason.trim().isEmpty || !context.mounted) return;
     try {
       await balita.reportPost(post, reason.trim());
@@ -245,10 +259,7 @@ class _ReportDialogState extends State<_ReportDialog> {
       ),
       actions: [
         TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Cancel')),
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(_controller.text),
-          child: const Text('Submit'),
-        ),
+        TextButton(onPressed: () => Navigator.of(context).pop(_controller.text), child: const Text('Submit')),
       ],
     );
   }
@@ -291,11 +302,7 @@ class PostMediaView extends StatelessWidget {
         return Container(
           color: AppColors.slate100,
           alignment: Alignment.center,
-          child: const SizedBox(
-            width: 22,
-            height: 22,
-            child: CircularProgressIndicator(strokeWidth: 2.5),
-          ),
+          child: const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2.5)),
         );
       },
       errorBuilder: (context, error, stackTrace) => Container(
@@ -322,7 +329,7 @@ class BalitaEngagementRow extends StatelessWidget {
     final hasEngagement = post.likes > 0 || post.commentsCount > 0 || post.shares > 0;
     if (!hasEngagement) return const SizedBox.shrink();
 
-    const style = TextStyle(fontSize: 12, color: AppColors.slate500);
+    const style = TextStyle(fontSize: AppTextSize.label, color: AppColors.slate500);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -341,7 +348,7 @@ class BalitaEngagementRow extends StatelessWidget {
                           decoration: const BoxDecoration(color: AppColors.rose500, shape: BoxShape.circle),
                           child: const Icon(Icons.favorite_rounded, size: 11, color: Colors.white),
                         ),
-                        const SizedBox(width: 6),
+                        const SizedBox(width: AppSpacing.xs),
                         Text('${post.likes}', style: style.copyWith(fontWeight: FontWeight.w500)),
                       ],
                     )
@@ -353,7 +360,7 @@ class BalitaEngagementRow extends StatelessWidget {
                 children: [
                   if (post.commentsCount > 0)
                     Text('${post.commentsCount} comment${post.commentsCount == 1 ? '' : 's'}', style: style),
-                  if (post.commentsCount > 0 && post.shares > 0) const SizedBox(width: 14),
+                  if (post.commentsCount > 0 && post.shares > 0) const SizedBox(width: AppSpacing.md),
                   if (post.shares > 0) Text('${post.shares} share${post.shares == 1 ? '' : 's'}', style: style),
                 ],
               ),
@@ -388,7 +395,7 @@ class PostActionButton extends StatelessWidget {
     return Material(
       color: Colors.transparent,
       child: InkWell(
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(AppRadius.sm),
         onTap: onTap,
         child: Padding(
           padding: const EdgeInsets.symmetric(vertical: AppSpacing.md, horizontal: AppSpacing.xs),
@@ -396,7 +403,7 @@ class PostActionButton extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Icon(icon, size: 18, color: color),
-              const SizedBox(width: 6),
+              const SizedBox(width: AppSpacing.xs),
               // Flexible: a Row with no flex child sizes to the natural
               // (unconstrained) width of its content — Like/Comment/Share
               // sit in three equal Expanded thirds of the card width, and
@@ -407,7 +414,7 @@ class PostActionButton extends StatelessWidget {
                 child: Text(
                   label,
                   textWidthBasis: TextWidthBasis.longestLine,
-                  style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: color),
+                  style: TextStyle(fontSize: AppTextSize.helper, fontWeight: FontWeight.w600, color: color),
                 ),
               ),
             ],

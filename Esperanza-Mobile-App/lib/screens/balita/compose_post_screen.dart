@@ -13,6 +13,7 @@ import '../../utils/protected_action.dart';
 import '../../widgets/app_button.dart';
 import '../../widgets/app_text_field.dart';
 import '../../widgets/form_section.dart';
+import '../../theme/app_typography.dart';
 
 /// Same category vocabulary the Web Admin's own "New Balita" composer
 /// offers for an announcement (communications.blade.php) -- there is no
@@ -96,7 +97,7 @@ class _ComposePostScreenState extends State<ComposePostScreen> {
       appBar: AppBar(title: const Text('New Post')),
       body: SafeArea(
         child: ListView(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
+          padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.md, AppSpacing.lg, AppSpacing.xxxl),
           children: [
             Container(
               padding: const EdgeInsets.all(AppSpacing.md),
@@ -110,7 +111,7 @@ class _ComposePostScreenState extends State<ComposePostScreen> {
                     child: Text(
                       "Your post is reviewed by Esperanza LGU before it appears to other residents. You'll see it "
                       'right away marked "Pending review" -- only you can see it until then.',
-                      style: TextStyle(fontSize: 12, color: AppColors.brand700, height: 1.4),
+                      style: TextStyle(fontSize: AppTextSize.label, color: AppColors.brand700, height: 1.4),
                     ),
                   ),
                 ],
@@ -146,7 +147,7 @@ class _ComposePostScreenState extends State<ComposePostScreen> {
             ),
             if (_error != null) ...[
               const SizedBox(height: AppSpacing.md),
-              Text(_error!, style: const TextStyle(fontSize: 12.5, color: AppColors.rose600)),
+              Text(_error!, style: const TextStyle(fontSize: AppTextSize.helper, color: AppColors.rose600)),
             ],
             const SizedBox(height: AppSpacing.xl),
             AppButton(
@@ -178,7 +179,7 @@ class _ImageField extends StatelessWidget {
       children: [
         const Text(
           'Photo (optional)',
-          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: AppColors.slate700),
+          style: TextStyle(fontSize: AppTextSize.helper, fontWeight: FontWeight.w500, color: AppColors.slate700),
         ),
         const SizedBox(height: AppSpacing.sm),
         if (bytes != null)
@@ -191,7 +192,7 @@ class _ImageField extends StatelessWidget {
             child: Row(
               children: [
                 ClipRRect(
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(AppRadius.sm),
                   child: Image(
                     image: pickedFileImageProvider(bytes: bytes)!,
                     width: 44,
@@ -205,7 +206,7 @@ class _ImageField extends StatelessWidget {
                     fileName ?? 'Photo attached',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w500, color: AppColors.slate700),
+                    style: const TextStyle(fontSize: AppTextSize.helper, fontWeight: FontWeight.w500, color: AppColors.slate700),
                   ),
                 ),
                 IconButton(
