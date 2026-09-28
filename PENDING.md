@@ -37,6 +37,8 @@ item, move it to **Done** with its commit — do not delete it, so the arc stays
 | 26 | **Two web-owned fixes, handed to the web lane** — *deferred by the owner (2026-09-28): do after the next 10 tasks* | Cancelled/Archived badge contrast and the web's 1,054 `text-slate-400` uses. Exact changes in `Esperanza-Mobile-App/docs/HANDOFF_TO_WEB_LANE_2026-09-28.md`. Mobile lands its matching badge change only once web `main` carries it (parity rule). Not pushed from here: mobile doesn't commit to the web repo, and a web `main` push runs a Netlify build. |
 | 25 | **Web frontend ↔ backend drift (web repo, read-only from this lane)** | Audited 2026-09-28 (web `950eb0f`, backend `9f4555c`): the web's citizen Balita calls omit `/citizen` (whole feed errors, `announcements.blade.php:19`); all 45 admin Sakuna calls omit `/admin` (`admin/sakuna.blade.php`); Internal Forms omits `/admin`; user archive sends `u.id` where the route keys on `employee_id` (`admin/users.blade.php:149`); Dokyu/Tulong on both citizen and admin sides are still `setTimeout`/localStorage simulations though the routes exist. For the web lane to fix. |
 
+| 27 | **Catalogue names the Civil Registrar three ways** (upstream data) | "Office of the Municipal Civil Registrar" (19 services), "Civil Registrar" (4), "Civil Registrar / appropriate local office" (1), in esperanza-backend's catalogue, vendored from the web config. Mobile groups them in the Dokyu office step (`lib/utils/office_name.dart`, 2026-09-28), so residents see one office; the data itself should be normalised at the source. In the web handoff §4. |
+
 ## Deferred by decision
 
 | # | Item | Decision |

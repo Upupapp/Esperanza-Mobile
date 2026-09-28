@@ -16,6 +16,7 @@ import 'request_detail_screen.dart';
 import 'service_request_wizard_screen.dart';
 import '../sakuna/report_incident_screen.dart';
 import '../../theme/app_typography.dart';
+import '../../utils/office_name.dart';
 
 /// Step 1 of the request wizard — pick a document/assistance type, guided
 /// by progressive filtering (Barangay/LGU -> Department -> Specific
@@ -55,10 +56,10 @@ class _ServiceCatalogScreenState extends State<ServiceCatalogScreen> {
   List<CatalogItem> get _afterScope =>
       _scope == null ? widget.catalog : widget.catalog.where((i) => scopeOfOffice(i.office) == _scope).toList();
 
-  List<String> get _availableDepartments => _afterScope.map((i) => i.office).toSet().toList()..sort();
+  List<String> get _availableDepartments => _afterScope.map((i) => canonicalOffice(i.office)).toSet().toList()..sort();
 
   List<CatalogItem> get _afterDepartment =>
-      _department == null ? _afterScope : _afterScope.where((i) => i.office == _department).toList();
+      _department == null ? _afterScope : _afterScope.where((i) => canonicalOffice(i.office) == _department).toList();
 
   bool get _needsScopeStep => _availableScopes.length > 1;
   bool get _needsDepartmentStep => _availableDepartments.length > 1;

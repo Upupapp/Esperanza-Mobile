@@ -66,3 +66,13 @@ One regex covers it: `(?<![:\w-])text-slate-400\b` → `text-slate-500`.
   on `employee_id`, so it always 404s.
 
 Full table: `PENDING.md` item 25 in this repo.
+
+## 4. One office, three names in the service catalogue
+
+**Failure mode (MEASURED, esperanza-backend `9f4555c`, which vendors the web config):** the
+catalogue's `office` field names the Civil Registrar as "Office of the Municipal Civil
+Registrar" (19 services), "Civil Registrar" (4) and "Civil Registrar / appropriate local
+office" (1). Any screen that groups by office shows two Civil Registrars and splits their
+services. Mobile now groups the three for display only (`lib/utils/office_name.dart`); the fix
+belongs in the source config, after which mobile's alias map becomes a no-op.
+
