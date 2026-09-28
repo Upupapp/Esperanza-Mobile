@@ -12,6 +12,123 @@ class AppTypography {
   static const sans = 'Inter';
   static const display = 'Lora';
 
+  // =====================================================================
+  // THE STANDARD SCALE — use these for all new and touched code.
+  //
+  // Eight roles, the web platform's own (resources/css/app.css `.type-*`),
+  // sized for a phone: the two desktop-only steps (display 36, page 28) come
+  // down one notch, everything from card title to label matches the web
+  // exactly. Every style carries its line height, so a block of text has the
+  // same rhythm on both platforms. Sizes are whole points only: 11 is the
+  // floor for anything a citizen must read. See docs/DESIGN_GUIDELINES.md §3.
+  //
+  // The older names below (h1–h3, body, caption, the half-point sizes) stay
+  // so existing screens do not shift; the guideline maps each to its role.
+  // =====================================================================
+
+  /// Hero numbers and splash headlines. Web `type-display`/`type-kpi` (32/40).
+  static const TextStyle displayTitle = TextStyle(
+    fontFamily: sans,
+    fontSize: 32,
+    height: 40 / 32,
+    fontWeight: FontWeight.w700,
+    letterSpacing: -0.5,
+    color: AppColors.textPrimary,
+  );
+
+  /// One per screen, when the AppBar title is not enough. Web page title.
+  static const TextStyle pageTitle = TextStyle(
+    fontFamily: sans,
+    fontSize: 24,
+    height: 32 / 24,
+    fontWeight: FontWeight.w700,
+    letterSpacing: -0.3,
+    color: AppColors.textPrimary,
+  );
+
+  /// Section headings within a screen. Web `type-section-title` (20/28, 700).
+  static const TextStyle sectionTitle = TextStyle(
+    fontFamily: sans,
+    fontSize: 20,
+    height: 28 / 20,
+    fontWeight: FontWeight.w700,
+    letterSpacing: -0.2,
+    color: AppColors.textPrimary,
+  );
+
+  /// Card and sheet titles. Web `type-card-title` (16/24, 600).
+  static const TextStyle cardHeading = TextStyle(
+    fontFamily: sans,
+    fontSize: 16,
+    height: 24 / 16,
+    fontWeight: FontWeight.w600,
+    color: AppColors.textPrimary,
+  );
+
+  /// Running text. Web `type-body` (14/22, 400).
+  static const TextStyle bodyText = TextStyle(
+    fontFamily: sans,
+    fontSize: 14,
+    height: 22 / 14,
+    fontWeight: FontWeight.w400,
+    color: AppColors.textBody,
+  );
+
+  /// Secondary lines, list subtitles, form help. Web `type-helper` (13/20).
+  static const TextStyle helper = TextStyle(
+    fontFamily: sans,
+    fontSize: 13,
+    height: 20 / 13,
+    fontWeight: FontWeight.w400,
+    color: AppColors.textMuted,
+  );
+
+  /// Field labels, badges, tab labels, metadata. Web `type-label` (12/16,
+  /// 600, +0.02em).
+  static const TextStyle labelText = TextStyle(
+    fontFamily: sans,
+    fontSize: 12,
+    height: 16 / 12,
+    fontWeight: FontWeight.w600,
+    letterSpacing: 0.24,
+    color: AppColors.textBody,
+  );
+
+  /// Small caps-style section markers ("RECENT REQUESTS"). Web
+  /// `type-eyebrow` (+0.08em, uppercase — apply `.toUpperCase()` to the
+  /// string; Flutter has no text-transform).
+  static const TextStyle eyebrow = TextStyle(
+    fontFamily: sans,
+    fontSize: 11,
+    height: 16 / 11,
+    fontWeight: FontWeight.w600,
+    letterSpacing: 0.88,
+    color: AppColors.textMuted,
+  );
+
+  /// The floor: timestamps, legal footnotes, nav labels. Nothing smaller.
+  static const TextStyle fine = TextStyle(
+    fontFamily: sans,
+    fontSize: 11,
+    height: 14 / 11,
+    fontWeight: FontWeight.w400,
+    color: AppColors.textMuted,
+  );
+
+  /// The one serif: official-document titles and the wordmark (Lora).
+  static const TextStyle documentHeading = TextStyle(
+    fontFamily: display,
+    fontSize: 20,
+    height: 28 / 20,
+    fontWeight: FontWeight.w600,
+    color: AppColors.textPrimary,
+  );
+
+  // =====================================================================
+  // Existing styles (pre-standard). Keep for current screens; do not use in
+  // new code — see the migration map in docs/DESIGN_GUIDELINES.md §3.
+  // =====================================================================
+
   static const TextStyle h1 = TextStyle(
     fontFamily: sans,
     fontSize: 24,

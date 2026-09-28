@@ -89,6 +89,13 @@ which appears in zero files on the current web platform. It is inert —
 `resources/css/app.css` `@theme` block — all 23 navy/brand/gold hexes verified
 matching on 2026-08-29. **Never introduce a color outside that set.**
 
+**The design standard is `Esperanza-Mobile-App/docs/DESIGN_GUIDELINES.md`** (2026-09-28):
+the type roles (`AppTypography.displayTitle` … `fine`), the spacing stops and roles
+(`AppSpacing.screenGutter`, `itemGap`, …), `AppRadius`, `AppSizes` (44 pt touch targets),
+component rules and the accessibility checklist. Pick tokens by role; `textMuted` is now
+slate-500 (AA), and slate-400 is `textDisabled`, never for content.
+`test/design_standard_test.dart` enforces contrast and the scales.
+
 ## Privacy — this repository is PUBLIC
 
 **Never add a real person's data, document scan, or identifying image.** Use synthetic

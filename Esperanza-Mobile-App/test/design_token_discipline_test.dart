@@ -34,8 +34,10 @@ import 'package:flutter_test/flutter_test.dart';
 /// when the onboarding redesign replaced its inline sizes with the type scale —
 /// the two new tokens it needed (`hero`, `wordmark`) were added to
 /// `app_typography.dart` rather than written as numbers, which is what this
-/// file's own failure message asks for.
-const _fontSizeCeiling = 398;
+/// file's own failure message asks for. 381 on 2026-09-28, measured when the
+/// design standard (docs/DESIGN_GUIDELINES.md) landed; screens adopting its
+/// type roles lower it further.
+const _fontSizeCeiling = 381;
 
 /// `Colors.white`, `Colors.black26`, `Colors.transparent` outside `lib/theme/`.
 ///

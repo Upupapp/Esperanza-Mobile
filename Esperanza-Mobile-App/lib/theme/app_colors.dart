@@ -104,5 +104,16 @@ class AppColors {
   static const border = slate100;
   static const textPrimary = navy900;
   static const textBody = slate800;
-  static const textMuted = slate400;
+
+  /// Secondary text: captions, helper lines, timestamps, metadata.
+  ///
+  /// Was `slate400`, which is **2.56:1** on white — below WCAG AA's 4.5:1
+  /// for text — and was used for ~100 lines of real content. `slate500` is
+  /// 4.76:1 on white and 4.55:1 on [background]; the smallest step darker
+  /// that passes on both surfaces. See docs/DESIGN_GUIDELINES.md §2.
+  static const textMuted = slate500;
+
+  /// Placeholders, disabled labels and purely decorative glyphs only —
+  /// never information a citizen has to read (2.56:1 on white).
+  static const textDisabled = slate400;
 }

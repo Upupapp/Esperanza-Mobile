@@ -48,6 +48,16 @@ class AppButton extends StatelessWidget {
     ),
   };
 
+  /// Minimum heights from the design standard (AppSizes, web `--size-btn-*`).
+  /// Padding plus line height already reaches them today (38/44/51 measured
+  /// in widget tests), but that sum depends on the font's metrics; the floor
+  /// makes the 44pt touch target a guarantee rather than a coincidence.
+  double get _minHeight => switch (size) {
+    AppButtonSize.sm => AppSizes.buttonHeightCompact,
+    AppButtonSize.md => AppSizes.buttonHeight,
+    AppButtonSize.lg => AppSizes.buttonHeightLg,
+  };
+
   double get _fontSize =>
       size == AppButtonSize.lg ? 15 : (size == AppButtonSize.sm ? 12.5 : 14);
 
@@ -156,7 +166,12 @@ class AppButton extends StatelessWidget {
                       ? Border.all(color: c.border!)
                       : null,
                 ),
-                child: child,
+                // Row centres its children vertically, so a taller floor
+                // keeps the label centred without changing the width.
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(minHeight: _minHeight - _padding.vertical),
+                  child: child,
+                ),
               ),
             ),
           ),
