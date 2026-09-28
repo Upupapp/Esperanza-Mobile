@@ -63,7 +63,11 @@ class _HomeScreenState extends State<HomeScreen> {
       // next, not whichever two rows came back first.
       final res = await api.get('/events', query: {'per_page': 20});
       final events = EventItem.inCalendarOrder(JsonRead.rows(res.list, EventItem.fromApi).where((e) => e.title.isNotEmpty));
-      return events.take(2).toList();
+      // Upcoming only: under an "Upcoming Events" heading, a past event
+      // (which calendar order puts after the upcoming ones) must not fill a
+      // slot when fewer than two are coming up.
+      final today = DateTime.now();
+      return events.where((e) => !e.isPast(today)).take(2).toList();
     } on ApiException {
       // Caught, not rethrown: this teaser has no retry affordance of its
       // own (see the class-level doc comment), so a failure here should

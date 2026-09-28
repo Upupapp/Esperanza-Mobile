@@ -201,6 +201,13 @@ class EventItem {
   final String? imagePath;
   final String? category;
 
+  /// Set when the event is for one barangay; null when it is municipality-wide
+  /// (GET /events `barangay`, validated against the barangays table).
+  final String? barangay;
+
+  /// Free text from the Web Admin ("Every Saturday"), when it repeats.
+  final String? recurrence;
+
   /// The parsed [date], kept so a list can be put in calendar order; null
   /// for the bundled mock events and for an unparseable date.
   final DateTime? startsAt;
@@ -212,8 +219,18 @@ class EventItem {
     required this.venue,
     this.imagePath,
     this.category,
+    this.barangay,
+    this.recurrence,
     this.startsAt,
   });
+
+  /// Whether its date is before [today] (a date-only comparison, so an
+  /// event is upcoming all day on its own date). An undated event is never
+  /// past.
+  bool isPast(DateTime today) {
+    final d = startsAt;
+    return d != null && DateTime(d.year, d.month, d.day).isBefore(DateTime(today.year, today.month, today.day));
+  }
 
   /// Upcoming events first (soonest first), then past ones (most recent
   /// first), then undated ones -- the order the server sent was not
@@ -261,6 +278,8 @@ class EventItem {
       time: JsonRead.string(json['time']) ?? '',
       venue: JsonRead.string(json['venue']) ?? '',
       category: JsonRead.nonEmpty(json['category']),
+      barangay: JsonRead.nonEmpty(json['barangay']),
+      recurrence: JsonRead.nonEmpty(json['recurrence']),
       startsAt: parsed,
     );
   }

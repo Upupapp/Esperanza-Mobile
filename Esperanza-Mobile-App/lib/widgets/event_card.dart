@@ -78,7 +78,10 @@ class EventCard extends StatelessWidget {
                         const SizedBox(width: AppSpacing.sm),
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: AppSpacing.xs),
-                          decoration: BoxDecoration(color: AppColors.brand50, borderRadius: BorderRadius.circular(AppRadius.full)),
+                          decoration: BoxDecoration(
+                            color: AppColors.brand50,
+                            borderRadius: BorderRadius.circular(AppRadius.full),
+                          ),
                           child: Text(
                             event.category!,
                             style: const TextStyle(
@@ -92,11 +95,26 @@ class EventCard extends StatelessWidget {
                     ],
                   ),
                   const SizedBox(height: AppSpacing.sm),
-                  _MetaRow(icon: Icons.calendar_today_rounded, text: event.date),
-                  const SizedBox(height: AppSpacing.xs),
-                  _MetaRow(icon: Icons.schedule_rounded, text: event.time),
-                  const SizedBox(height: AppSpacing.xs),
-                  _MetaRow(icon: Icons.place_outlined, text: event.venue),
+                  // Only what the event actually has: time and venue are
+                  // optional in the Web Admin, and an empty one used to
+                  // leave a bare icon with nothing beside it.
+                  for (final (icon, text) in [
+                    (Icons.calendar_today_rounded, event.date),
+                    if (event.recurrence != null) (Icons.repeat_rounded, event.recurrence!),
+                    (Icons.schedule_rounded, event.time),
+                    (
+                      Icons.place_outlined,
+                      [
+                        event.venue.trim(),
+                        if (event.barangay != null) 'Brgy. ${event.barangay}',
+                      ].where((s) => s.isNotEmpty).join(' · '),
+                    ),
+                  ])
+                    if (text.trim().isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: AppSpacing.xs),
+                        child: _MetaRow(icon: icon, text: text),
+                      ),
                   if (event.imagePath != null) ...[
                     const SizedBox(height: AppSpacing.sm),
                     Row(
@@ -146,7 +164,10 @@ class _MetaRow extends StatelessWidget {
         Icon(icon, size: 13, color: AppColors.slate400),
         const SizedBox(width: AppSpacing.xs),
         Expanded(
-          child: Text(text, style: const TextStyle(fontSize: AppTextSize.label, color: AppColors.textMuted, height: 1.3)),
+          child: Text(
+            text,
+            style: const TextStyle(fontSize: AppTextSize.label, color: AppColors.textMuted, height: 1.3),
+          ),
         ),
       ],
     );

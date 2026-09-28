@@ -8,6 +8,7 @@ import '../../widgets/event_card.dart';
 import '../../widgets/async_state_view.dart';
 import '../home/root_shell.dart';
 import '../../theme/app_spacing.dart';
+import '../../theme/app_typography.dart';
 
 /// Events — previously a segmented sub-tab inside Balita
 /// (`BalitaScreen`'s `_EventsList`), promoted to its own bottom-nav
@@ -35,16 +36,44 @@ class EventsScreen extends StatelessWidget {
         },
         builder: (context, events, reload) => RefreshIndicator(
           onRefresh: () async => reload(),
-          child: ListView.builder(
+          child: ListView(
             physics: const AlwaysScrollableScrollPhysics(),
-            padding: EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.md, AppSpacing.lg, 24 + MediaQuery.paddingOf(context).bottom),
-            itemCount: events.isEmpty ? 1 : events.length,
-            itemBuilder: (context, i) => events.isEmpty
-                ? const EmptyState(icon: Icons.event_outlined, title: 'No upcoming events')
-                : EventCard(event: events[i]),
+            padding: EdgeInsets.fromLTRB(
+              AppSpacing.lg,
+              AppSpacing.md,
+              AppSpacing.lg,
+              24 + MediaQuery.paddingOf(context).bottom,
+            ),
+            children: _sections(events),
           ),
         ),
       ),
     );
   }
+}
+
+/// Upcoming first, then past, each under its own heading. Past events used
+/// to follow the upcoming ones with nothing to say they were over, so a
+/// finished clean-up drive read like the next thing on the calendar.
+List<Widget> _sections(List<EventItem> events) {
+  final today = DateTime.now();
+  final upcoming = [
+    for (final e in events)
+      if (!e.isPast(today)) e,
+  ];
+  final past = [
+    for (final e in events)
+      if (e.isPast(today)) e,
+  ];
+  return [
+    if (upcoming.isEmpty) const EmptyState(icon: Icons.event_outlined, title: 'No upcoming events'),
+    for (final e in upcoming) EventCard(event: e),
+    if (past.isNotEmpty) ...[
+      const Padding(
+        padding: EdgeInsets.only(top: AppSpacing.sm, bottom: AppSpacing.sm, left: AppSpacing.xs),
+        child: Text('Past events', style: AppTypography.cardHeading),
+      ),
+      for (final e in past) EventCard(event: e),
+    ],
+  ];
 }
