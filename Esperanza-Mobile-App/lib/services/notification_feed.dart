@@ -14,6 +14,9 @@ import 'notifications_service.dart';
 import 'requests_service.dart';
 import 'resident_profile_service.dart';
 import '../utils/date_text.dart';
+import '../screens/shared/my_requests_screen.dart';
+import '../screens/profile/profile_screen.dart';
+import '../screens/support/help_support_screen.dart';
 
 /// Timestamp for evergreen/contextual notifications that have no real event
 /// of their own (a profile-completion reminder, a duplicate-account alert)
@@ -118,10 +121,10 @@ List<AppNotification> buildNotificationFeed(BuildContext context) {
           time: [timeAgo(n.at), ?ref].join(' · '),
           at: n.at,
           status: n.pill,
-          onTap: ref == null
-              ? null
-              : () =>
-                    Navigator.of(context).push(MaterialPageRoute(builder: (_) => RequestDetailScreen(requestId: ref))),
+          onTap: switch (serverNotificationDestination(n)) {
+            final destination? => () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => destination)),
+            null => null,
+          },
         ),
       );
     }
@@ -403,3 +406,31 @@ IconData _iconFor(String status) => switch (status) {
   'Mark to Release' || 'Ready for Release' => Icons.inventory_2_outlined,
   _ => Icons.info_outline_rounded,
 };
+
+/// Where tapping a server notification leads, read from the backend's own
+/// `link` (esperanza-backend NotificationService and its callers).
+///
+/// Every notification with a `ref` used to open that ref as a request, but
+/// the ref is not always a request: "Your account is verified" carries the
+/// account number, a support reply its ticket number, a rejected payment its
+/// payment number. Each of those opened a request page for something that
+/// is not a request. A link the app does not know leads nowhere rather than
+/// somewhere wrong.
+Widget? serverNotificationDestination(ServerNotification n) {
+  final link = n.link;
+  if (link == null) {
+    // Rows written before links existed: only a Dokyu/Tulong ref is a request.
+    final ref = n.ref;
+    return ref != null && (n.category == 'dokyu' || n.category == 'tulong')
+        ? RequestDetailScreen(requestId: ref)
+        : null;
+  }
+  final request = RegExp(r'^/citizen/(?:document|assistance)-requests/([^/?#]+)$').firstMatch(link);
+  if (request != null) return RequestDetailScreen(requestId: Uri.decodeComponent(request.group(1)!));
+  return switch (link) {
+    '/citizen/document-requests' || '/citizen/assistance-requests' => const MyRequestsScreen(),
+    '/citizen/profile' => const ProfileScreen(),
+    _ when link.startsWith('/citizen/help') => const HelpSupportScreen(),
+    _ => null,
+  };
+}

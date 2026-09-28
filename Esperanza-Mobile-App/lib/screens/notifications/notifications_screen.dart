@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../models/app_notification.dart';
 import '../../models/notification_kind.dart';
+import '../../services/citizen_session_service.dart';
 import '../../services/notification_feed.dart';
 import '../../services/notifications_service.dart';
 import '../../theme/app_colors.dart';
@@ -17,8 +18,24 @@ import '../../widgets/status_chip.dart';
 /// See notification_feed.dart for how the feed itself is assembled — this
 /// screen only renders it plus each tile's read/unread state (tracked by
 /// [NotificationsService]).
-class NotificationsScreen extends StatelessWidget {
+class NotificationsScreen extends StatefulWidget {
   const NotificationsScreen({super.key});
+
+  @override
+  State<NotificationsScreen> createState() => _NotificationsScreenState();
+}
+
+class _NotificationsScreenState extends State<NotificationsScreen> {
+  @override
+  void initState() {
+    super.initState();
+    // The shell loads the feed once, when it appears; without this a
+    // notification that arrived since then stayed hidden until the citizen
+    // thought to pull down. Quiet on failure: what is already here stays.
+    if (context.read<CitizenSessionService>().account != null) {
+      context.read<NotificationsService>().loadServer().catchError((Object _) {}, test: (e) => e is ApiException);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {

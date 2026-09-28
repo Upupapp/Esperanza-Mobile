@@ -194,6 +194,7 @@ class ServerNotification {
     required this.body,
     required this.pill,
     required this.ref,
+    this.link,
     required this.unread,
     required this.pinned,
     required this.at,
@@ -208,8 +209,14 @@ class ServerNotification {
   /// when it is about one.
   final String? pill;
 
-  /// The request reference it concerns, when it concerns one.
+  /// The reference it concerns: a request, but also an account number, a
+  /// support ticket or a payment. Never assume it is a request: [link] says
+  /// what it is.
   final String? ref;
+
+  /// Where the backend says it leads (`/citizen/document-requests/DR-...`,
+  /// `/citizen/profile`, `/citizen/help/support`, ...).
+  final String? link;
   bool unread;
   final bool pinned;
   final DateTime at;
@@ -235,6 +242,7 @@ class ServerNotification {
       body: _text(json['body']),
       pill: JsonRead.nonEmpty(json['pill']),
       ref: JsonRead.nonEmpty(json['ref']),
+      link: JsonRead.nonEmpty(json['link']),
       unread: JsonRead.boolean(json['unread']) ?? true,
       pinned: JsonRead.boolean(json['pinned']) ?? false,
       at: JsonRead.date(json['time'])?.toLocal() ?? DateTime.now(),

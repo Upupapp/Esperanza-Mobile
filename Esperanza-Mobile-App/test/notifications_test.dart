@@ -13,7 +13,11 @@ import 'package:esperanza_mobile/screens/notifications/notifications_screen.dart
 import 'package:esperanza_mobile/screens/profile/resident_profile/resident_profile_overview_screen.dart';
 import 'package:esperanza_mobile/screens/shared/request_detail_screen.dart';
 import 'package:esperanza_mobile/services/citizen_session_service.dart';
+import 'package:esperanza_mobile/services/notification_feed.dart';
 import 'package:esperanza_mobile/services/notifications_service.dart';
+import 'package:esperanza_mobile/screens/profile/profile_screen.dart';
+import 'package:esperanza_mobile/screens/shared/my_requests_screen.dart';
+import 'package:esperanza_mobile/screens/support/help_support_screen.dart';
 import 'package:esperanza_mobile/services/requests_service.dart';
 import 'package:esperanza_mobile/services/resident_profile_service.dart';
 import 'package:esperanza_mobile/theme/app_status.dart';
@@ -213,5 +217,83 @@ void main() {
     expect(chips, [AppStatus.readyForRelease], reason: 'an unknown pill keeps the generic badge');
     expect(find.text('Approved'), findsNothing);
     expect(find.text('${shortDate(DateTime.parse(time))} · DR-2026-0120'), findsOneWidget);
+  });
+
+  group('a tap goes where the server\'s link says, never to a fake request', () {
+    ServerNotification n({String? link, String? ref, String? category}) => ServerNotification(
+      id: 1,
+      category: category,
+      title: 't',
+      body: 'b',
+      pill: null,
+      ref: ref,
+      link: link,
+      unread: true,
+      pinned: false,
+      at: DateTime(2026, 9, 28),
+    );
+
+    test('a request link opens that request', () {
+      final d = serverNotificationDestination(
+        n(link: '/citizen/assistance-requests/TA-2026-0031', ref: 'TA-2026-0031'),
+      );
+      expect(d, isA<RequestDetailScreen>());
+      expect((d! as RequestDetailScreen).requestId, 'TA-2026-0031');
+    });
+
+    test('an account review opens the profile, not the account number as a request', () {
+      expect(
+        serverNotificationDestination(n(link: '/citizen/profile', ref: 'ESP-RES-2026-0001', category: 'account')),
+        isA<ProfileScreen>(),
+      );
+    });
+
+    test('a support reply opens Help & Support, not the ticket as a request', () {
+      expect(
+        serverNotificationDestination(n(link: '/citizen/help/support', ref: 'TKT-2026-0042', category: 'account')),
+        isA<HelpSupportScreen>(),
+      );
+    });
+
+    test('a rejected payment opens the request list, not the payment as a request', () {
+      expect(
+        serverNotificationDestination(n(link: '/citizen/document-requests', ref: 'PAY-2026-0007', category: 'dokyu')),
+        isA<MyRequestsScreen>(),
+      );
+    });
+
+    test('no link: only a Dokyu/Tulong ref is treated as a request', () {
+      expect(serverNotificationDestination(n(ref: 'DR-2026-0001', category: 'dokyu')), isA<RequestDetailScreen>());
+      expect(serverNotificationDestination(n(ref: 'ESP-RES-2026-0001', category: 'account')), isNull);
+    });
+
+    test('an unknown link leads nowhere rather than somewhere wrong', () {
+      expect(serverNotificationDestination(n(link: '/citizen/something-new', ref: 'X-1')), isNull);
+    });
+  });
+
+  testWidgets('opening Notifications fetches what arrived since the app started', (tester) async {
+    var loads = 0;
+    FakeApi.installFull((r) {
+      if (r.path == '/citizen/notifications') {
+        loads++;
+        return [
+          {
+            'id': 50,
+            'title': {'fil': 'Bagong abiso'},
+            'body': {'fil': 'Dumating habang bukas ang app.'},
+            'time': '2026-09-28T01:00:00Z',
+          },
+        ];
+      }
+      return <dynamic>[];
+    });
+    addTearDown(FakeApi.restore);
+
+    await _pump(tester, account: _incompleteAccount);
+    await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 50)));
+    await tester.pumpAndSettle();
+    expect(loads, 1);
+    expect(find.text('Bagong abiso'), findsOneWidget);
   });
 }
