@@ -14,6 +14,7 @@ import '../../widgets/app_card.dart';
 import '../../widgets/app_text_field.dart';
 import 'request_detail_screen.dart';
 import 'request_submitted_screen.dart';
+import '../../theme/app_typography.dart';
 
 /// Fallback wizard for a catalog item with no curated [CatalogItem.formSpec]
 /// (see [ServiceFormSpecs] — only real backend services whose `key` matches
@@ -130,7 +131,7 @@ class _NewRequestScreenState extends State<NewRequestScreen> {
       appBar: AppBar(title: Text(widget.item.name)),
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
+          padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.md, AppSpacing.lg, AppSpacing.xxxl),
           child: _formPhase(),
         ),
       ),
@@ -149,10 +150,10 @@ class _NewRequestScreenState extends State<NewRequestScreen> {
                 children: [
                   Icon(Icons.timeline_rounded, size: 16, color: widget.accent),
                   const SizedBox(width: AppSpacing.sm),
-                  const Text('Process', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                  const Text('Process', style: TextStyle(fontSize: AppTextSize.helper, fontWeight: FontWeight.w600)),
                 ],
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: AppSpacing.sm),
               Wrap(
                 spacing: 6,
                 runSpacing: 6,
@@ -176,29 +177,29 @@ class _NewRequestScreenState extends State<NewRequestScreen> {
           const SizedBox(height: AppSpacing.xl),
           const Text(
             'Requirements',
-            style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
+            style: TextStyle(fontSize: AppTextSize.body, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
           ),
           const SizedBox(height: AppSpacing.xs),
           const Text(
             "You'll be asked to submit these if staff need them while reviewing your request — no need to attach "
             'anything now.',
-            style: TextStyle(fontSize: 12, color: AppColors.textMuted, height: 1.4),
+            style: TextStyle(fontSize: AppTextSize.label, color: AppColors.textMuted, height: 1.4),
           ),
           const SizedBox(height: AppSpacing.md),
           Container(
             padding: const EdgeInsets.all(AppSpacing.md),
-            decoration: BoxDecoration(color: AppColors.slate50, borderRadius: BorderRadius.circular(12)),
+            decoration: BoxDecoration(color: AppColors.slate50, borderRadius: BorderRadius.circular(AppRadius.md)),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 for (final req in _requirementInfos)
                   Padding(
-                    padding: const EdgeInsets.only(bottom: 6),
+                    padding: const EdgeInsets.only(bottom: AppSpacing.xs),
                     child: Row(
                       children: [
                         Icon(Icons.description_outlined, size: 15, color: widget.accent),
-                        const SizedBox(width: 8),
-                        Expanded(child: Text(req.label, style: const TextStyle(fontSize: 12.5, color: AppColors.slate700))),
+                        const SizedBox(width: AppSpacing.sm),
+                        Expanded(child: Text(req.label, style: const TextStyle(fontSize: AppTextSize.helper, color: AppColors.slate700))),
                       ],
                     ),
                   ),
@@ -208,7 +209,7 @@ class _NewRequestScreenState extends State<NewRequestScreen> {
         ],
         if (_error != null) ...[
           const SizedBox(height: AppSpacing.md),
-          Text(_error!, style: const TextStyle(fontSize: 12.5, color: AppColors.rose600)),
+          Text(_error!, style: const TextStyle(fontSize: AppTextSize.helper, color: AppColors.rose600)),
         ],
         const SizedBox(height: AppSpacing.xxl),
         AppButton(
@@ -225,8 +226,8 @@ class _NewRequestScreenState extends State<NewRequestScreen> {
 
   Widget _stepChip(int n, String label) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
-      decoration: BoxDecoration(color: AppColors.slate100, borderRadius: BorderRadius.circular(999)),
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: AppSpacing.xs),
+      decoration: BoxDecoration(color: AppColors.slate100, borderRadius: BorderRadius.circular(AppRadius.full)),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -235,15 +236,15 @@ class _NewRequestScreenState extends State<NewRequestScreen> {
             backgroundColor: widget.accent,
             child: Text(
               '$n',
-              style: const TextStyle(fontSize: 9, color: Colors.white, fontWeight: FontWeight.w700),
+              style: const TextStyle(fontSize: AppTextSize.fine, color: Colors.white, fontWeight: FontWeight.w700),
             ),
           ),
-          const SizedBox(width: 5),
+          const SizedBox(width: AppSpacing.xs),
           Flexible(
             child: Text(
               label,
               textWidthBasis: TextWidthBasis.longestLine,
-              style: const TextStyle(fontSize: 11, color: AppColors.slate600, fontWeight: FontWeight.w500),
+              style: const TextStyle(fontSize: AppTextSize.fine, color: AppColors.slate600, fontWeight: FontWeight.w500),
             ),
           ),
         ],

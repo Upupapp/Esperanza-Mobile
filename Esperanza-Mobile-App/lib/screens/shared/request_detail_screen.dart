@@ -187,7 +187,7 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
     final usesMilestones = request.category != ServiceCategory.sakunaIncident;
 
     return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
+      padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.md, AppSpacing.lg, AppSpacing.xxxl),
       children: [
         AppCard(
           child: Column(
@@ -198,10 +198,10 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
                   Expanded(
                     child: Text(
                       request.typeName,
-                      style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
+                      style: const TextStyle(fontSize: AppTextSize.card, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
                     ),
                   ),
-                  const SizedBox(width: 6),
+                  const SizedBox(width: AppSpacing.xs),
                   // Flexible, not a bare fixed-size child — a longer status
                   // label ("Under Verification") plus a longer typeName
                   // together can exceed a narrow phone's width (see the
@@ -210,7 +210,7 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
                   Flexible(child: StatusChip(status: status)),
                 ],
               ),
-              const SizedBox(height: 6),
+              const SizedBox(height: AppSpacing.xs),
               Text(request.office, style: AppTypography.bodySmallRegular.copyWith(color: AppColors.textMuted)),
               const Divider(height: AppSpacing.xxl),
               _infoRow('Submitted', _fmtFull(request.submittedAt)),
@@ -253,14 +253,14 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
         const SizedBox(height: AppSpacing.xl),
         Text(
           usesMilestones ? 'Request Timeline' : 'Status Timeline',
-          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
+          style: const TextStyle(fontSize: AppTextSize.body, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
         ),
         const SizedBox(height: AppSpacing.md),
         AppCard(
           child: request.statusHistory.isEmpty
               ? const Padding(
                   padding: EdgeInsets.symmetric(vertical: AppSpacing.md),
-                  child: Text('No history recorded yet.', style: TextStyle(color: AppColors.textMuted, fontSize: 12)),
+                  child: Text('No history recorded yet.', style: TextStyle(color: AppColors.textMuted, fontSize: AppTextSize.label)),
                 )
               : usesMilestones
                   ? RequestMilestoneTimeline(request: request, accent: accent)
@@ -281,13 +281,13 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
 
   Widget _infoRow(String label, String value) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.only(bottom: AppSpacing.sm),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           SizedBox(
             width: 130,
-            child: Text(label, style: const TextStyle(fontSize: 12, color: AppColors.textMuted)),
+            child: Text(label, style: const TextStyle(fontSize: AppTextSize.label, color: AppColors.textMuted)),
           ),
           Expanded(
             child: Text(
@@ -319,7 +319,7 @@ class _RejectedApplicationCard extends StatelessWidget {
       padding: const EdgeInsets.all(AppSpacing.lg),
       decoration: BoxDecoration(
         color: AppColors.rose50,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(AppRadius.lg),
         border: Border.all(color: AppColors.rose500.withValues(alpha: 0.35), width: 1.2),
       ),
       child: Column(
@@ -331,7 +331,7 @@ class _RejectedApplicationCard extends StatelessWidget {
               const SizedBox(width: AppSpacing.sm),
               const Text(
                 'Application Rejected',
-                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.rose700),
+                style: TextStyle(fontSize: AppTextSize.body, fontWeight: FontWeight.w700, color: AppColors.rose700),
               ),
             ],
           ),
@@ -340,9 +340,9 @@ class _RejectedApplicationCard extends StatelessWidget {
           const SizedBox(height: AppSpacing.md),
           const Text(
             'What you can do:',
-            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.slate700),
+            style: TextStyle(fontSize: AppTextSize.label, fontWeight: FontWeight.w700, color: AppColors.slate700),
           ),
-          const SizedBox(height: 3),
+          const SizedBox(height: AppSpacing.xs),
           Text(guidance, style: AppTypography.bodySmallRegular.copyWith(color: AppColors.slate600, height: 1.4)),
           const SizedBox(height: AppSpacing.lg),
           AppButton(label: 'Apply Again', fullWidth: true, onPressed: onApplyAgain),
@@ -383,7 +383,7 @@ class _CorrectionsSection extends StatelessWidget {
       padding: const EdgeInsets.all(AppSpacing.lg),
       decoration: BoxDecoration(
         color: AppColors.orange50,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(AppRadius.lg),
         border: Border.all(color: AppColors.orange500.withValues(alpha: 0.35), width: 1.2),
       ),
       child: Column(
@@ -396,7 +396,7 @@ class _CorrectionsSection extends StatelessWidget {
               const Expanded(
                 child: Text(
                   'Application Needs Correction',
-                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.orange700),
+                  style: TextStyle(fontSize: AppTextSize.body, fontWeight: FontWeight.w700, color: AppColors.orange700),
                 ),
               ),
             ],
@@ -480,7 +480,7 @@ class _FlaggedRequirementCard extends StatelessWidget {
       padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(AppRadius.md),
         border: Border.all(color: AppColors.orange500.withValues(alpha: 0.25)),
       ),
       child: Column(
@@ -488,12 +488,12 @@ class _FlaggedRequirementCard extends StatelessWidget {
         children: [
           Text(
             flagged.requirementLabel,
-            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
+            style: const TextStyle(fontSize: AppTextSize.helper, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: AppSpacing.xs),
           Text(
             'Reason: ${flagged.reason}',
-            style: const TextStyle(fontSize: 12, color: AppColors.slate600, height: 1.4),
+            style: const TextStyle(fontSize: AppTextSize.label, color: AppColors.slate600, height: 1.4),
           ),
           const SizedBox(height: AppSpacing.sm),
           Opacity(
@@ -555,7 +555,7 @@ class _ManualVerificationCard extends StatelessWidget {
       padding: const EdgeInsets.all(AppSpacing.lg),
       decoration: BoxDecoration(
         color: AppColors.orange50,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(AppRadius.lg),
         border: Border.all(color: AppColors.orange500.withValues(alpha: 0.35), width: 1.2),
       ),
       child: Column(
@@ -568,7 +568,7 @@ class _ManualVerificationCard extends StatelessWidget {
               const Expanded(
                 child: Text(
                   'Under Review',
-                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.orange700),
+                  style: TextStyle(fontSize: AppTextSize.body, fontWeight: FontWeight.w700, color: AppColors.orange700),
                 ),
               ),
             ],
@@ -596,7 +596,7 @@ class _TimelineRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 4),
+      padding: const EdgeInsets.only(bottom: AppSpacing.xs),
       child: IntrinsicHeight(
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -611,24 +611,24 @@ class _TimelineRow extends StatelessWidget {
                 if (!isLast) Expanded(child: Container(width: 2, color: AppColors.slate100)),
               ],
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: AppSpacing.md),
             Expanded(
               child: Padding(
-                padding: const EdgeInsets.only(bottom: 16),
+                padding: const EdgeInsets.only(bottom: AppSpacing.lg),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(entry.status as String, style: AppTypography.cardTitle),
-                    const SizedBox(height: 2),
+                    const SizedBox(height: AppSpacing.xs),
                     Text(
                       '${entry.actor} · ${_fmt(entry.at as DateTime)}',
-                      style: const TextStyle(fontSize: 11, color: AppColors.textMuted),
+                      style: const TextStyle(fontSize: AppTextSize.fine, color: AppColors.textMuted),
                     ),
                     if (entry.remarks != null) ...[
                       const SizedBox(height: AppSpacing.xs),
                       Text(
                         entry.remarks as String,
-                        style: const TextStyle(fontSize: 12, color: AppColors.slate600, height: 1.3),
+                        style: const TextStyle(fontSize: AppTextSize.label, color: AppColors.slate600, height: 1.3),
                       ),
                     ],
                   ],

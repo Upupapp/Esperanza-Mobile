@@ -78,7 +78,7 @@ class _LoginScreenState extends State<LoginScreen> {
       body: SafeArea(
         child: SingleChildScrollView(
           controller: _scrollController,
-          padding: const EdgeInsets.fromLTRB(24, 32, 24, 24),
+          padding: const EdgeInsets.fromLTRB(AppSpacing.xxl, AppSpacing.xxxl, AppSpacing.xxl, AppSpacing.xxl),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
@@ -123,15 +123,15 @@ class _LoginScreenState extends State<LoginScreen> {
                         'Esperanza',
                         style: TextStyle(
                           fontFamily: 'Lora',
-                          fontSize: 26,
+                          fontSize: AppTextSize.page,
                           fontWeight: FontWeight.w600,
                           color: Colors.white,
                         ),
                       ),
-                      const SizedBox(height: 2),
+                      const SizedBox(height: AppSpacing.xs),
                       Text(
                         'Citizen Portal · Municipality of Esperanza, Masbate',
-                        style: TextStyle(fontSize: 12.5, color: Colors.white.withValues(alpha: 0.55)),
+                        style: TextStyle(fontSize: AppTextSize.helper, color: Colors.white.withValues(alpha: 0.55)),
                         textAlign: TextAlign.center,
                       ),
                     ],
@@ -147,12 +147,12 @@ class _LoginScreenState extends State<LoginScreen> {
                   children: [
                     const Text(
                       'Welcome back',
-                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
+                      style: TextStyle(fontSize: AppTextSize.section, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
                     ),
                     const SizedBox(height: AppSpacing.xs),
                     const Text(
                       'Sign in to manage your requests.',
-                      style: TextStyle(fontSize: 12.5, color: AppColors.textMuted),
+                      style: TextStyle(fontSize: AppTextSize.helper, color: AppColors.textMuted),
                     ),
                     const SizedBox(height: AppSpacing.xl),
                     AppTextField(
@@ -171,7 +171,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                     if (_error != null) ...[
                       const SizedBox(height: AppSpacing.md),
-                      Text(_error!, style: const TextStyle(fontSize: 12.5, color: AppColors.rose600)),
+                      Text(_error!, style: const TextStyle(fontSize: AppTextSize.helper, color: AppColors.rose600)),
                     ],
                     const SizedBox(height: AppSpacing.xl),
                     AppButton(
@@ -208,7 +208,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     TextSpan(
                       style: TextStyle(
                         fontFamily: AppTypography.sans,
-                        fontSize: 13,
+                        fontSize: AppTextSize.helper,
                         color: Colors.white.withValues(alpha: 0.7),
                       ),
                       children: const [

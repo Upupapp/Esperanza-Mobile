@@ -23,6 +23,7 @@ import '../../widgets/onboarding_step_indicator.dart';
 import '../profile/resident_profile/personal_information_screen.dart';
 import 'request_detail_screen.dart';
 import 'request_submitted_screen.dart';
+import '../../theme/app_typography.dart';
 
 /// "Sir Paul's Required Form Experience" — a data-driven, multi-step
 /// service-request wizard mirroring `RegisterScreen`'s step pattern
@@ -591,14 +592,14 @@ class _ServiceRequestWizardScreenState extends State<ServiceRequestWizardScreen>
         child: Column(
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+              padding: const EdgeInsets.fromLTRB(AppSpacing.xl, AppSpacing.md, AppSpacing.xl, 0),
               child: OnboardingStepIndicator(currentStep: _step, stepLabels: _stepLabels),
             ),
             Expanded(
               child: SingleChildScrollView(padding: const EdgeInsets.all(AppSpacing.xl), child: _buildStep()),
             ),
             Padding(
-              padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+              padding: const EdgeInsets.fromLTRB(AppSpacing.xl, 0, AppSpacing.xl, AppSpacing.xl),
               child: Row(
                 children: [
                   Expanded(
@@ -642,24 +643,24 @@ class _ServiceRequestWizardScreenState extends State<ServiceRequestWizardScreen>
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Container(
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(color: AppColors.brand50, borderRadius: BorderRadius.circular(14)),
+          padding: const EdgeInsets.all(AppSpacing.md),
+          decoration: BoxDecoration(color: AppColors.brand50, borderRadius: BorderRadius.circular(AppRadius.md)),
           child: Row(
             children: [
               const Icon(Icons.info_outline_rounded, color: AppColors.brand600, size: 18),
-              const SizedBox(width: 10),
+              const SizedBox(width: AppSpacing.sm),
               const Expanded(
                 child: Text(
                   "We've prefilled this from your Resident Profile. Changes here only apply to this request — to update your saved profile, use Edit Profile.",
-                  style: TextStyle(fontSize: 12, color: AppColors.brand700, height: 1.4),
+                  style: TextStyle(fontSize: AppTextSize.label, color: AppColors.brand700, height: 1.4),
                 ),
               ),
-              const SizedBox(width: 6),
+              const SizedBox(width: AppSpacing.xs),
               GestureDetector(
                 onTap: _goToEditProfile,
                 child: const Text(
                   'Edit Profile',
-                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.brand700),
+                  style: TextStyle(fontSize: AppTextSize.label, fontWeight: FontWeight.w700, color: AppColors.brand700),
                 ),
               ),
             ],
@@ -695,7 +696,7 @@ class _ServiceRequestWizardScreenState extends State<ServiceRequestWizardScreen>
         ),
         if (_error != null) ...[
           const SizedBox(height: AppSpacing.md),
-          Text(_error!, style: const TextStyle(fontSize: 12.5, color: AppColors.rose600)),
+          Text(_error!, style: const TextStyle(fontSize: AppTextSize.helper, color: AppColors.rose600)),
         ],
       ],
     );
@@ -712,7 +713,7 @@ class _ServiceRequestWizardScreenState extends State<ServiceRequestWizardScreen>
         ),
         if (_error != null) ...[
           const SizedBox(height: AppSpacing.md),
-          Text(_error!, style: const TextStyle(fontSize: 12.5, color: AppColors.rose600)),
+          Text(_error!, style: const TextStyle(fontSize: AppTextSize.helper, color: AppColors.rose600)),
         ],
       ],
     );
@@ -792,29 +793,29 @@ class _ServiceRequestWizardScreenState extends State<ServiceRequestWizardScreen>
           const SizedBox(height: AppSpacing.xl),
           const Text(
             'Requirements',
-            style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
+            style: TextStyle(fontSize: AppTextSize.body, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
           ),
           const SizedBox(height: AppSpacing.xs),
           const Text(
             "You'll be asked to submit these if staff need them while reviewing your request — no need to attach "
             'anything now.',
-            style: TextStyle(fontSize: 12, color: AppColors.textMuted, height: 1.4),
+            style: TextStyle(fontSize: AppTextSize.label, color: AppColors.textMuted, height: 1.4),
           ),
           const SizedBox(height: AppSpacing.md),
           Container(
             padding: const EdgeInsets.all(AppSpacing.md),
-            decoration: BoxDecoration(color: AppColors.slate50, borderRadius: BorderRadius.circular(12)),
+            decoration: BoxDecoration(color: AppColors.slate50, borderRadius: BorderRadius.circular(AppRadius.md)),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 for (final req in _requirementInfos)
                   Padding(
-                    padding: const EdgeInsets.only(bottom: 6),
+                    padding: const EdgeInsets.only(bottom: AppSpacing.xs),
                     child: Row(
                       children: [
                         Icon(Icons.description_outlined, size: 15, color: widget.accent),
-                        const SizedBox(width: 8),
-                        Expanded(child: Text(req.label, style: const TextStyle(fontSize: 12.5, color: AppColors.slate700))),
+                        const SizedBox(width: AppSpacing.sm),
+                        Expanded(child: Text(req.label, style: const TextStyle(fontSize: AppTextSize.helper, color: AppColors.slate700))),
                       ],
                     ),
                   ),
@@ -824,7 +825,7 @@ class _ServiceRequestWizardScreenState extends State<ServiceRequestWizardScreen>
         ],
         if (_error != null) ...[
           const SizedBox(height: AppSpacing.md),
-          Text(_error!, style: const TextStyle(fontSize: 12.5, color: AppColors.rose600)),
+          Text(_error!, style: const TextStyle(fontSize: AppTextSize.helper, color: AppColors.rose600)),
         ],
       ],
     );
@@ -836,12 +837,12 @@ class _ServiceRequestWizardScreenState extends State<ServiceRequestWizardScreen>
       children: [
         const Text(
           'Review Your Request',
-          style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
+          style: TextStyle(fontSize: AppTextSize.card, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
         ),
-        const SizedBox(height: 6),
+        const SizedBox(height: AppSpacing.xs),
         const Text(
           'Make sure everything looks correct before submitting.',
-          style: TextStyle(fontSize: 12.5, color: AppColors.textMuted, height: 1.4),
+          style: TextStyle(fontSize: AppTextSize.helper, color: AppColors.textMuted, height: 1.4),
         ),
         const SizedBox(height: AppSpacing.xl),
         _reviewRow('Full name', _fullName.text.trim(), onEdit: () => setState(() => _step = 0)),
@@ -882,7 +883,7 @@ class _ServiceRequestWizardScreenState extends State<ServiceRequestWizardScreen>
         if (widget.item.fee != 'Free') _reviewRow('Fee', widget.item.fee, onEdit: null),
         if (_error != null) ...[
           const SizedBox(height: AppSpacing.md),
-          Text(_error!, style: const TextStyle(fontSize: 12.5, color: AppColors.rose600)),
+          Text(_error!, style: const TextStyle(fontSize: AppTextSize.helper, color: AppColors.rose600)),
         ],
       ],
     );
@@ -890,7 +891,7 @@ class _ServiceRequestWizardScreenState extends State<ServiceRequestWizardScreen>
 
   Widget _reviewRow(String label, String value, {required VoidCallback? onEdit, String editLabel = 'Edit'}) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.only(bottom: AppSpacing.md),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -898,11 +899,11 @@ class _ServiceRequestWizardScreenState extends State<ServiceRequestWizardScreen>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(label, style: const TextStyle(fontSize: 11.5, color: AppColors.textMuted)),
-                const SizedBox(height: 2),
+                Text(label, style: const TextStyle(fontSize: AppTextSize.label, color: AppColors.textMuted)),
+                const SizedBox(height: AppSpacing.xs),
                 Text(
                   value,
-                  style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600, color: AppColors.slate700),
+                  style: const TextStyle(fontSize: AppTextSize.body, fontWeight: FontWeight.w600, color: AppColors.slate700),
                 ),
               ],
             ),
@@ -912,7 +913,7 @@ class _ServiceRequestWizardScreenState extends State<ServiceRequestWizardScreen>
               onTap: onEdit,
               child: Text(
                 editLabel,
-                style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: AppColors.brand600),
+                style: const TextStyle(fontSize: AppTextSize.helper, fontWeight: FontWeight.w600, color: AppColors.brand600),
               ),
             ),
         ],
@@ -939,24 +940,24 @@ class _DerivedAgeField extends StatelessWidget {
       children: [
         Text(
           label,
-          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: AppColors.slate700),
+          style: const TextStyle(fontSize: AppTextSize.helper, fontWeight: FontWeight.w500, color: AppColors.slate700),
         ),
         const SizedBox(height: AppSpacing.sm),
         Container(
           width: double.infinity,
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.md),
           decoration: BoxDecoration(
             color: AppColors.slate100,
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(AppRadius.md),
             border: Border.all(color: AppColors.border),
           ),
           child: Row(
             children: [
               const Icon(Icons.cake_outlined, size: 17, color: AppColors.slate400),
-              const SizedBox(width: 10),
+              const SizedBox(width: AppSpacing.sm),
               Text(
                 age == null ? 'Select your Date of Birth above first' : '$age years old',
-                style: const TextStyle(fontSize: 14, color: AppColors.textBody, fontWeight: FontWeight.w500),
+                style: const TextStyle(fontSize: AppTextSize.body, color: AppColors.textBody, fontWeight: FontWeight.w500),
               ),
             ],
           ),
@@ -995,7 +996,7 @@ class _MasterSourcedField extends StatelessWidget {
               child: Text(
                 label,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: AppColors.slate700),
+                style: const TextStyle(fontSize: AppTextSize.helper, fontWeight: FontWeight.w500, color: AppColors.slate700),
               ),
             ),
             const SizedBox(width: AppSpacing.sm),
@@ -1003,7 +1004,7 @@ class _MasterSourcedField extends StatelessWidget {
               onTap: onEditProfile,
               child: const Text(
                 'Edit Profile',
-                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.brand600),
+                style: TextStyle(fontSize: AppTextSize.label, fontWeight: FontWeight.w600, color: AppColors.brand600),
               ),
             ),
           ],
@@ -1011,20 +1012,20 @@ class _MasterSourcedField extends StatelessWidget {
         const SizedBox(height: AppSpacing.sm),
         Container(
           width: double.infinity,
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.md),
           decoration: BoxDecoration(
             color: AppColors.slate100,
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(AppRadius.md),
             border: Border.all(color: AppColors.border),
           ),
           child: Row(
             children: [
               const Icon(Icons.lock_outline_rounded, size: 16, color: AppColors.slate400),
-              const SizedBox(width: 10),
+              const SizedBox(width: AppSpacing.sm),
               Expanded(
                 child: Text(
                   value,
-                  style: const TextStyle(fontSize: 14, color: AppColors.textBody, fontWeight: FontWeight.w500),
+                  style: const TextStyle(fontSize: AppTextSize.body, color: AppColors.textBody, fontWeight: FontWeight.w500),
                 ),
               ),
             ],
@@ -1055,7 +1056,7 @@ class _MultiSelectField extends StatelessWidget {
       children: [
         Text(
           label,
-          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: AppColors.slate700),
+          style: const TextStyle(fontSize: AppTextSize.helper, fontWeight: FontWeight.w500, color: AppColors.slate700),
         ),
         const SizedBox(height: AppSpacing.sm),
         Wrap(
@@ -1064,7 +1065,7 @@ class _MultiSelectField extends StatelessWidget {
           children: [
             for (final o in options)
               FilterChip(
-                label: Text(o, style: const TextStyle(fontSize: 12)),
+                label: Text(o, style: const TextStyle(fontSize: AppTextSize.label)),
                 selected: selected.contains(o),
                 onSelected: (v) {
                   final next = Set<String>.from(selected);
@@ -1102,17 +1103,17 @@ class _CheckboxField extends StatelessWidget {
   Widget build(BuildContext context) {
     return InkWell(
       onTap: () => onChanged(!value),
-      borderRadius: BorderRadius.circular(10),
+      borderRadius: BorderRadius.circular(AppRadius.sm),
       child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 2),
+        padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Checkbox(value: value, onChanged: (v) => onChanged(v ?? false), activeColor: AppColors.brand500),
             Expanded(
               child: Padding(
-                padding: const EdgeInsets.only(top: 12),
-                child: Text(label, style: const TextStyle(fontSize: 13, color: AppColors.slate700)),
+                padding: const EdgeInsets.only(top: AppSpacing.md),
+                child: Text(label, style: const TextStyle(fontSize: AppTextSize.helper, color: AppColors.slate700)),
               ),
             ),
           ],

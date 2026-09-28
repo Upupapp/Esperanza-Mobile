@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
+import '../theme/app_typography.dart';
 
 /// Mirrors `resources/views/components/ui/empty-state.blade.php`.
 class EmptyState extends StatelessWidget {
@@ -16,7 +17,7 @@ class EmptyState extends StatelessWidget {
     required this.title,
     this.description,
     this.action,
-    this.padding = const EdgeInsets.symmetric(vertical: 56, horizontal: AppSpacing.xxl),
+    this.padding = const EdgeInsets.symmetric(vertical: AppSpacing.page, horizontal: AppSpacing.xxl),
   });
 
   @override
@@ -34,14 +35,14 @@ class EmptyState extends StatelessWidget {
           const SizedBox(height: AppSpacing.lg),
           Text(
             title,
-            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.slate700),
+            style: const TextStyle(fontSize: AppTextSize.body, fontWeight: FontWeight.w600, color: AppColors.slate700),
           ),
           if (description != null) ...[
             const SizedBox(height: AppSpacing.xs),
             Text(
               description!,
               textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 13, color: AppColors.textMuted),
+              style: const TextStyle(fontSize: AppTextSize.helper, color: AppColors.textMuted),
             ),
           ],
           if (action != null) ...[const SizedBox(height: AppSpacing.xl), action!],
@@ -114,7 +115,7 @@ class ErrorState extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 56, horizontal: AppSpacing.xxl),
+      padding: const EdgeInsets.symmetric(vertical: AppSpacing.page, horizontal: AppSpacing.xxl),
       child: Column(
         children: [
           Container(
@@ -126,14 +127,14 @@ class ErrorState extends StatelessWidget {
           const SizedBox(height: AppSpacing.lg),
           Text(
             title,
-            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.slate700),
+            style: const TextStyle(fontSize: AppTextSize.body, fontWeight: FontWeight.w600, color: AppColors.slate700),
           ),
           if (description != null) ...[
             const SizedBox(height: AppSpacing.xs),
             Text(
               description!,
               textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 13, color: AppColors.textMuted),
+              style: const TextStyle(fontSize: AppTextSize.helper, color: AppColors.textMuted),
             ),
           ],
           if (onRetry != null) ...[

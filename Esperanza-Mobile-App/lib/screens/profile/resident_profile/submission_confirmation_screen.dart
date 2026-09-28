@@ -3,6 +3,7 @@ import '../../../theme/app_colors.dart';
 import '../../../theme/app_spacing.dart';
 import '../../../widgets/app_button.dart';
 import '../profile_screen.dart';
+import '../../../theme/app_typography.dart';
 
 /// Shown immediately after "Submit for LGU Verification" — confirms the
 /// (local, simulated) submission and routes back to Profile (reached via
@@ -32,29 +33,29 @@ class SubmissionConfirmationScreen extends StatelessWidget {
                   const SizedBox(height: AppSpacing.xl),
                   const Text(
                     'Profile Submitted',
-                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
+                    style: TextStyle(fontSize: AppTextSize.section, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
                   ),
                   const SizedBox(height: AppSpacing.sm),
                   const Text(
                     'Your resident information has been submitted to Esperanza LGU for verification.',
                     textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 13.5, color: AppColors.textMuted, height: 1.45),
+                    style: TextStyle(fontSize: AppTextSize.body, color: AppColors.textMuted, height: 1.45),
                   ),
                   const SizedBox(height: AppSpacing.xl),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: 10),
-                    decoration: BoxDecoration(color: AppColors.amber50, borderRadius: BorderRadius.circular(999)),
+                    padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: AppSpacing.sm),
+                    decoration: BoxDecoration(color: AppColors.amber50, borderRadius: BorderRadius.circular(AppRadius.full)),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         const Icon(Icons.hourglass_top_rounded, size: 15, color: AppColors.amber700),
-                        const SizedBox(width: 6),
+                        const SizedBox(width: AppSpacing.xs),
                         Flexible(
                           child: Text(
                             'Pending Verification',
                             textWidthBasis: TextWidthBasis.longestLine,
                             style: const TextStyle(
-                              fontSize: 12.5,
+                              fontSize: AppTextSize.helper,
                               fontWeight: FontWeight.w700,
                               color: AppColors.amber700,
                             ),

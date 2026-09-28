@@ -7,6 +7,7 @@ import '../theme/app_spacing.dart';
 import '../utils/cross_platform_image.dart';
 import '../utils/protected_action.dart';
 import '../utils/requirement_document_type.dart';
+import '../theme/app_typography.dart';
 
 /// One requirement's own upload section — the standard per-requirement
 /// attachment architecture shared by every Dokyu and Tulong service (see
@@ -126,17 +127,17 @@ class RequirementUploader extends StatelessWidget {
               Expanded(
                 child: Text(
                   requirement.label,
-                  style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
+                  style: const TextStyle(fontSize: AppTextSize.helper, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
                 ),
               ),
               if (!requirement.isRequired)
                 Container(
-                  margin: const EdgeInsets.only(left: 6),
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                  decoration: BoxDecoration(color: AppColors.slate100, borderRadius: BorderRadius.circular(999)),
+                  margin: const EdgeInsets.only(left: AppSpacing.xs),
+                  padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xs, vertical: AppSpacing.xs),
+                  decoration: BoxDecoration(color: AppColors.slate100, borderRadius: BorderRadius.circular(AppRadius.full)),
                   child: const Text(
                     'Optional',
-                    style: TextStyle(fontSize: 9.5, fontWeight: FontWeight.w700, color: AppColors.slate500),
+                    style: TextStyle(fontSize: AppTextSize.fine, fontWeight: FontWeight.w700, color: AppColors.slate500),
                   ),
                 ),
             ],
@@ -190,7 +191,7 @@ class _UploadSourceSheet extends StatelessWidget {
         margin: const EdgeInsets.all(AppSpacing.md),
         child: Material(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(AppRadius.xl),
           clipBehavior: Clip.antiAlias,
           child: Padding(
             padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
@@ -203,7 +204,7 @@ class _UploadSourceSheet extends StatelessWidget {
                     alignment: Alignment.centerLeft,
                     child: Text(
                       requirementLabel,
-                      style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
+                      style: const TextStyle(fontSize: AppTextSize.body, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
                     ),
                   ),
                 ),
@@ -213,7 +214,7 @@ class _UploadSourceSheet extends StatelessWidget {
                 const Divider(height: 1),
                 ListTile(
                   leading: const Icon(Icons.close_rounded, color: AppColors.rose600),
-                  title: const Text('Cancel', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: AppColors.rose600)),
+                  title: const Text('Cancel', style: TextStyle(fontSize: AppTextSize.body, fontWeight: FontWeight.w500, color: AppColors.rose600)),
                   onTap: () => Navigator.pop(context),
                 ),
               ],
@@ -227,7 +228,7 @@ class _UploadSourceSheet extends StatelessWidget {
   Widget _option(BuildContext context, IconData icon, String label, _UploadSource source) {
     return ListTile(
       leading: Icon(icon, color: AppColors.brand600),
-      title: Text(label, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
+      title: Text(label, style: const TextStyle(fontSize: AppTextSize.body, fontWeight: FontWeight.w500)),
       onTap: () => Navigator.pop(context, source),
     );
   }
@@ -243,12 +244,12 @@ class _UploadPrompt extends StatelessWidget {
   Widget build(BuildContext context) {
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
+      borderRadius: BorderRadius.circular(AppRadius.md),
       child: Container(
         width: double.infinity,
-        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 10),
+        padding: const EdgeInsets.symmetric(vertical: AppSpacing.lg, horizontal: AppSpacing.sm),
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(AppRadius.md),
           border: Border.all(color: accent.withValues(alpha: 0.35)),
           color: accent.withValues(alpha: 0.08),
         ),
@@ -256,7 +257,7 @@ class _UploadPrompt extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(Icons.upload_file_outlined, color: accent, size: 20),
-            const SizedBox(height: 4),
+            const SizedBox(height: AppSpacing.xs),
             // Requirement-specific, not a generic "Upload Document" — see
             // this widget's own doc comment. No maxLines/overflow set, so a
             // long requirement name wraps onto a second line instead of
@@ -264,7 +265,7 @@ class _UploadPrompt extends StatelessWidget {
             Text(
               'Upload $label',
               textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: accent),
+              style: TextStyle(fontSize: AppTextSize.helper, fontWeight: FontWeight.w600, color: accent),
             ),
           ],
         ),
@@ -291,7 +292,7 @@ class _ExistingDocumentPrompt extends StatelessWidget {
       padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
         color: AppColors.emerald50,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(AppRadius.md),
         border: Border.all(color: AppColors.emerald500.withValues(alpha: 0.3)),
       ),
       child: Column(
@@ -300,7 +301,7 @@ class _ExistingDocumentPrompt extends StatelessWidget {
           const Row(
             children: [
               Icon(Icons.folder_copy_outlined, size: 15, color: AppColors.emerald700),
-              SizedBox(width: 6),
+              SizedBox(width: AppSpacing.xs),
               // Flexible — this card's available width was previously only
               // ever exercised inside NewRequestScreen (Dokyu); reusing the
               // same per-requirement uploaders inside
@@ -309,17 +310,17 @@ class _ExistingDocumentPrompt extends StatelessWidget {
               Flexible(
                 child: Text(
                   'Existing document found',
-                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.emerald700),
+                  style: TextStyle(fontSize: AppTextSize.label, fontWeight: FontWeight.w700, color: AppColors.emerald700),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: AppSpacing.xs),
           Text(
             masterDoc.attachment.fileName,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: AppColors.slate700),
+            style: const TextStyle(fontSize: AppTextSize.helper, fontWeight: FontWeight.w600, color: AppColors.slate700),
           ),
           const SizedBox(height: AppSpacing.md),
           Row(
@@ -327,19 +328,19 @@ class _ExistingDocumentPrompt extends StatelessWidget {
               Expanded(
                 child: OutlinedButton(
                   onPressed: onUploadNew,
-                  style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 10)),
-                  child: const Text('Upload New Document', style: TextStyle(fontSize: 12)),
+                  style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm)),
+                  child: const Text('Upload New Document', style: TextStyle(fontSize: AppTextSize.label)),
                 ),
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: AppSpacing.sm),
               Expanded(
                 child: ElevatedButton(
                   onPressed: onUseExisting,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.emerald500,
-                    padding: const EdgeInsets.symmetric(vertical: 10),
+                    padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
                   ),
-                  child: const Text('Use Existing Document', style: TextStyle(fontSize: 12, color: Colors.white)),
+                  child: const Text('Use Existing Document', style: TextStyle(fontSize: AppTextSize.label, color: Colors.white)),
                 ),
               ),
             ],
@@ -383,10 +384,10 @@ class _AttachedTile extends StatelessWidget {
     final provider = isImage ? pickedFileImageProvider(bytes: attachment.bytes, path: attachment.localPath) : null;
 
     return Container(
-      padding: const EdgeInsets.all(10),
+      padding: const EdgeInsets.all(AppSpacing.sm),
       decoration: BoxDecoration(
         color: AppColors.slate50,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(AppRadius.md),
         border: Border.all(color: AppColors.border),
       ),
       child: Column(
@@ -395,12 +396,12 @@ class _AttachedTile extends StatelessWidget {
           Row(
             children: [
               ClipRRect(
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.circular(AppRadius.sm),
                 child: provider != null
                     ? Image(image: provider, width: 44, height: 44, fit: BoxFit.cover)
                     : Container(width: 44, height: 44, color: s.bg, child: Icon(s.icon, size: 19, color: s.fg)),
               ),
-              const SizedBox(width: 10),
+              const SizedBox(width: AppSpacing.sm),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -409,25 +410,25 @@ class _AttachedTile extends StatelessWidget {
                       attachment.fileName,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: AppColors.slate700),
+                      style: const TextStyle(fontSize: AppTextSize.helper, fontWeight: FontWeight.w600, color: AppColors.slate700),
                     ),
-                    const SizedBox(height: 2),
+                    const SizedBox(height: AppSpacing.xs),
                     Text(
                       '${attachment.category.shortLabel} • ${attachment.readableSize} • Uploaded',
-                      style: const TextStyle(fontSize: 11, color: AppColors.textMuted),
+                      style: const TextStyle(fontSize: AppTextSize.fine, color: AppColors.textMuted),
                     ),
                   ],
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: AppSpacing.sm),
           Row(
             children: [
               if (isImage) _actionButton('View', onView, color: accent),
-              if (isImage) const SizedBox(width: 14),
+              if (isImage) const SizedBox(width: AppSpacing.md),
               _actionButton('Replace', onReplace, color: accent),
-              const SizedBox(width: 14),
+              const SizedBox(width: AppSpacing.md),
               _actionButton('Remove', onRemove, color: AppColors.rose600),
             ],
           ),
@@ -439,10 +440,10 @@ class _AttachedTile extends StatelessWidget {
   Widget _actionButton(String label, VoidCallback onTap, {required Color color}) {
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(6),
+      borderRadius: BorderRadius.circular(AppRadius.sm),
       child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 2),
-        child: Text(label, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: color)),
+        padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs, horizontal: AppSpacing.xs),
+        child: Text(label, style: TextStyle(fontSize: AppTextSize.label, fontWeight: FontWeight.w600, color: color)),
       ),
     );
   }
@@ -462,21 +463,21 @@ class _StaffProcessNote extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.md),
       decoration: BoxDecoration(
         color: AppColors.slate50,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(AppRadius.md),
         border: Border.all(color: AppColors.border),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Icon(Icons.info_outline_rounded, size: 16, color: AppColors.slate400),
-          const SizedBox(width: 8),
+          const SizedBox(width: AppSpacing.sm),
           const Expanded(
             child: Text(
               'Handled by our staff during processing — no document to upload here.',
-              style: TextStyle(fontSize: 12, color: AppColors.textMuted, height: 1.35),
+              style: TextStyle(fontSize: AppTextSize.label, color: AppColors.textMuted, height: 1.35),
             ),
           ),
         ],
@@ -498,7 +499,7 @@ class _AttachmentImageViewer extends StatelessWidget {
       appBar: AppBar(
         backgroundColor: Colors.black,
         foregroundColor: Colors.white,
-        titleTextStyle: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w600),
+        titleTextStyle: const TextStyle(color: Colors.white, fontSize: AppTextSize.card, fontWeight: FontWeight.w600),
         title: Text(title),
       ),
       body: SafeArea(

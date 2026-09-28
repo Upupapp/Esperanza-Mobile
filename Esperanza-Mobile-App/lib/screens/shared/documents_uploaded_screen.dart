@@ -11,6 +11,7 @@ import '../../utils/cross_platform_image.dart';
 import '../../widgets/app_card.dart';
 import '../../widgets/empty_state.dart';
 import '../../widgets/segmented_tabs.dart';
+import '../../theme/app_typography.dart';
 
 /// Resident-facing history/library of every document uploaded through a
 /// Dokyu or Tulong requirement uploader (see widgets/requirement_uploader.dart)
@@ -50,13 +51,13 @@ class _DocumentsUploadedScreenState extends State<DocumentsUploadedScreen> {
       appBar: AppBar(title: const Text('Documents Uploaded')),
       body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+          padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.md, AppSpacing.lg, 0),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               const Text(
                 'Documents you’ve uploaded through Dokyu and Tulong requests.',
-                style: TextStyle(fontSize: 13, color: AppColors.textMuted, height: 1.4),
+                style: TextStyle(fontSize: AppTextSize.helper, color: AppColors.textMuted, height: 1.4),
               ),
               const SizedBox(height: AppSpacing.lg),
               SegmentedTabs(
@@ -133,26 +134,26 @@ class _DocumentCard extends StatelessWidget {
               width: 44,
               height: 44,
               alignment: Alignment.center,
-              decoration: BoxDecoration(color: s.bg, borderRadius: BorderRadius.circular(10)),
+              decoration: BoxDecoration(color: s.bg, borderRadius: BorderRadius.circular(AppRadius.sm)),
               child: Icon(s.icon, size: 20, color: s.fg),
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: AppSpacing.md),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
                     document.label,
-                    style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
+                    style: const TextStyle(fontSize: AppTextSize.body, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
                   ),
-                  const SizedBox(height: 2),
+                  const SizedBox(height: AppSpacing.xs),
                   Text(
                     document.attachment.fileName,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontSize: 12, color: AppColors.textMuted),
+                    style: const TextStyle(fontSize: AppTextSize.label, color: AppColors.textMuted),
                   ),
-                  const SizedBox(height: 6),
+                  const SizedBox(height: AppSpacing.xs),
                   Wrap(
                     spacing: 6,
                     runSpacing: 4,
@@ -162,7 +163,7 @@ class _DocumentCard extends StatelessWidget {
                       if (document.serviceName != null) _tag(document.serviceName!, AppColors.slate600),
                       Text(
                         '${document.attachment.category.shortLabel} · ${DateFormat('MMM d, y').format(document.uploadedAt)}',
-                        style: const TextStyle(fontSize: 11, color: AppColors.textMuted),
+                        style: const TextStyle(fontSize: AppTextSize.fine, color: AppColors.textMuted),
                       ),
                     ],
                   ),
@@ -178,9 +179,9 @@ class _DocumentCard extends StatelessWidget {
 
   Widget _tag(String label, Color color) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-      decoration: BoxDecoration(color: color.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(999)),
-      child: Text(label, style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: color)),
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xs, vertical: AppSpacing.xs),
+      decoration: BoxDecoration(color: color.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(AppRadius.full)),
+      child: Text(label, style: TextStyle(fontSize: AppTextSize.fine, fontWeight: FontWeight.w700, color: color)),
     );
   }
 }
@@ -203,7 +204,7 @@ class _DocumentViewer extends StatelessWidget {
       appBar: AppBar(
         backgroundColor: Colors.black,
         foregroundColor: Colors.white,
-        titleTextStyle: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w600),
+        titleTextStyle: const TextStyle(color: Colors.white, fontSize: AppTextSize.card, fontWeight: FontWeight.w600),
         title: Text(title),
       ),
       body: SafeArea(

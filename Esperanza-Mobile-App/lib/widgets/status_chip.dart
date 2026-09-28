@@ -17,7 +17,7 @@ class StatusChip extends StatelessWidget {
   Widget build(BuildContext context) {
     final style = status.style;
     return Container(
-      padding: EdgeInsets.symmetric(horizontal: small ? 8 : 10, vertical: small ? 3 : 5),
+      padding: EdgeInsets.symmetric(horizontal: small ? 8 : AppSpacing.sm, vertical: small ? 3 : AppSpacing.xs),
       decoration: BoxDecoration(
         color: style.background,
         borderRadius: BorderRadius.circular(AppRadius.full),
@@ -31,7 +31,7 @@ class StatusChip extends StatelessWidget {
             height: 6,
             decoration: BoxDecoration(color: style.dot, shape: BoxShape.circle),
           ),
-          const SizedBox(width: 6),
+          const SizedBox(width: AppSpacing.xs),
           // Flexible + longestLine: a Row with no flex child measures its
           // content at unconstrained natural width, so a longer label
           // ("Under Verification", "Pending Review") can overflow a

@@ -20,6 +20,7 @@ import '../notifications/notifications_screen.dart';
 import '../sakuna/sakuna_screen.dart';
 import '../tulong/tulong_screen.dart';
 import 'home_screen.dart';
+import '../../theme/app_spacing.dart';
 
 /// Mobile bottom-nav IA: Home / Balita / + / Events / Emergency, laid out
 /// and animated as a direct port of the Servana Client App's curved main
@@ -274,7 +275,7 @@ class AlertsAction extends StatelessWidget {
       // equivalent margin — this pulls the bell in by roughly the same
       // amount so the header reads as symmetrical left-to-right, without
       // touching icon size or notification behavior.
-      padding: const EdgeInsets.only(right: 8),
+      padding: const EdgeInsets.only(right: AppSpacing.sm),
       child: Stack(
         clipBehavior: Clip.none,
         children: [

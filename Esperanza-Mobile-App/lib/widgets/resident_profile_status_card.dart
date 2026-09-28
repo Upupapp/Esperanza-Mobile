@@ -4,6 +4,7 @@ import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
 import 'app_button.dart';
 import 'app_card.dart';
+import '../theme/app_typography.dart';
 
 /// The Resident Profile status card — used identically on both the Home
 /// screen and the Profile screen, reading the same ResidentProfile so the
@@ -34,7 +35,7 @@ class ResidentProfileStatusCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _iconBadge(Icons.badge_outlined, AppColors.brand50, AppColors.brand600),
-          const SizedBox(width: 12),
+          const SizedBox(width: AppSpacing.md),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -44,18 +45,18 @@ class ResidentProfileStatusCard extends StatelessWidget {
                     const Expanded(
                       child: Text(
                         'Resident Profile',
-                        style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
+                        style: TextStyle(fontSize: AppTextSize.body, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
                       ),
                     ),
                     Text(
                       '$pct%',
-                      style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.brand600),
+                      style: const TextStyle(fontSize: AppTextSize.helper, fontWeight: FontWeight.w700, color: AppColors.brand600),
                     ),
                   ],
                 ),
-                const SizedBox(height: 6),
+                const SizedBox(height: AppSpacing.xs),
                 ClipRRect(
-                  borderRadius: BorderRadius.circular(999),
+                  borderRadius: BorderRadius.circular(AppRadius.full),
                   child: LinearProgressIndicator(
                     value: pct / 100,
                     minHeight: 6,
@@ -66,7 +67,7 @@ class ResidentProfileStatusCard extends StatelessWidget {
                 const SizedBox(height: AppSpacing.sm),
                 Text(
                   'Complete your resident and household information.',
-                  style: const TextStyle(fontSize: 12, color: AppColors.textMuted, height: 1.35),
+                  style: const TextStyle(fontSize: AppTextSize.label, color: AppColors.textMuted, height: 1.35),
                 ),
                 const SizedBox(height: AppSpacing.md),
                 AppButton(
@@ -91,21 +92,21 @@ class ResidentProfileStatusCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _iconBadge(Icons.hourglass_top_rounded, AppColors.amber50, AppColors.amber700),
-          const SizedBox(width: 12),
+          const SizedBox(width: AppSpacing.md),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Text(
                   'Resident Profile',
-                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
+                  style: TextStyle(fontSize: AppTextSize.body, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
                 ),
                 const SizedBox(height: AppSpacing.xs),
                 _pill('Pending LGU Verification', AppColors.amber50, AppColors.amber700),
                 const SizedBox(height: AppSpacing.sm),
                 const Text(
                   'Your submitted information is currently being reviewed.',
-                  style: TextStyle(fontSize: 12, color: AppColors.textMuted, height: 1.35),
+                  style: TextStyle(fontSize: AppTextSize.label, color: AppColors.textMuted, height: 1.35),
                 ),
               ],
             ),
@@ -123,21 +124,21 @@ class ResidentProfileStatusCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _iconBadge(Icons.error_outline_rounded, AppColors.rose50, AppColors.rose600),
-          const SizedBox(width: 12),
+          const SizedBox(width: AppSpacing.md),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Text(
                   'Resident Profile',
-                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
+                  style: TextStyle(fontSize: AppTextSize.body, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
                 ),
                 const SizedBox(height: AppSpacing.xs),
                 _pill('Needs Correction', AppColors.rose50, AppColors.rose600),
                 const SizedBox(height: AppSpacing.sm),
                 Text(
                   profile.correctionMessage ?? 'Some information needs to be updated.',
-                  style: const TextStyle(fontSize: 12, color: AppColors.textMuted, height: 1.35),
+                  style: const TextStyle(fontSize: AppTextSize.label, color: AppColors.textMuted, height: 1.35),
                 ),
                 const SizedBox(height: AppSpacing.md),
                 AppButton(
@@ -161,21 +162,21 @@ class ResidentProfileStatusCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _iconBadge(Icons.verified_rounded, AppColors.emerald50, AppColors.emerald700),
-          const SizedBox(width: 12),
+          const SizedBox(width: AppSpacing.md),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Text(
                   'Resident Profile',
-                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
+                  style: TextStyle(fontSize: AppTextSize.body, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
                 ),
                 const SizedBox(height: AppSpacing.xs),
                 _pill('Verified', AppColors.emerald50, AppColors.emerald700),
                 const SizedBox(height: AppSpacing.sm),
                 const Text(
                   'Your resident profile has been verified by Esperanza LGU.',
-                  style: TextStyle(fontSize: 12, color: AppColors.textMuted, height: 1.35),
+                  style: TextStyle(fontSize: AppTextSize.label, color: AppColors.textMuted, height: 1.35),
                 ),
               ],
             ),
@@ -191,18 +192,18 @@ class ResidentProfileStatusCard extends StatelessWidget {
       width: 40,
       height: 40,
       alignment: Alignment.center,
-      decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(12)),
+      decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(AppRadius.md)),
       child: Icon(icon, size: 19, color: fg),
     );
   }
 
   Widget _pill(String label, Color bg, Color fg) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: AppSpacing.xs),
-      decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(999)),
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: AppSpacing.xs),
+      decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(AppRadius.full)),
       child: Text(
         label,
-        style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: fg),
+        style: TextStyle(fontSize: AppTextSize.fine, fontWeight: FontWeight.w700, color: fg),
       ),
     );
   }

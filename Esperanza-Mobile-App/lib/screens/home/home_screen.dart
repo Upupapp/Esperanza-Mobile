@@ -131,7 +131,7 @@ class _HomeScreenState extends State<HomeScreen> {
             // RequestListScreen's own list already uses for this — so the
             // last card can scroll clear of it without needing SafeArea's
             // much larger, opaquely-backed inset to do that job.
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
+            padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.lg, AppSpacing.lg, AppSpacing.page),
             children: [
               _Hero(account: account, scrollController: _scrollController),
               const SizedBox(height: AppSpacing.lg),
@@ -167,7 +167,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           onTap: () => RootShell.openService(context, ServiceLauncherTarget.dokyu),
                         ),
                       ),
-                      const SizedBox(width: 12),
+                      const SizedBox(width: AppSpacing.md),
                       Expanded(
                         child: StatTile(
                           label: 'Tulong Requests',
@@ -180,7 +180,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     ],
                   ),
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: AppSpacing.md),
                 IntrinsicHeight(
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -193,7 +193,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           color: StatTileColor.orange,
                         ),
                       ),
-                      const SizedBox(width: 12),
+                      const SizedBox(width: AppSpacing.md),
                       Expanded(
                         child: StatTile(
                           // "Account Details", not "Profile Complete": this is
@@ -227,7 +227,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       icon: Icons.inbox_outlined,
                       title: 'No active requests',
                       description: 'Start a Dokyu or Tulong request and track it here.',
-                      padding: const EdgeInsets.symmetric(vertical: 28, horizontal: AppSpacing.xl),
+                      padding: const EdgeInsets.symmetric(vertical: AppSpacing.xxl, horizontal: AppSpacing.xl),
                     ),
                   )
                 else
@@ -266,7 +266,7 @@ class _Hero extends StatelessWidget {
   final ScrollController scrollController;
   const _Hero({required this.account, required this.scrollController});
 
-  static const _labelStyle = TextStyle(fontFamily: AppTypography.sans, fontSize: 12.5, fontWeight: FontWeight.w500);
+  static const _labelStyle = TextStyle(fontFamily: AppTypography.sans, fontSize: AppTextSize.helper, fontWeight: FontWeight.w500);
   static const _buttonGap = 10.0;
   // Matches AppButtonSize.sm's own geometry (padding/icon/icon-gap) — used
   // only to measure whether the full label fits, never to render.
@@ -285,7 +285,7 @@ class _Hero extends StatelessWidget {
   Widget build(BuildContext context) {
     return ParallaxHeader(
       scrollController: scrollController,
-      borderRadius: BorderRadius.circular(20),
+      borderRadius: BorderRadius.circular(AppRadius.xl),
       background: const DecoratedBox(
         decoration: BoxDecoration(
           gradient: LinearGradient(
@@ -307,7 +307,7 @@ class _Hero extends StatelessWidget {
       children: [
         Builder(
           builder: (context) => InkWell(
-            borderRadius: BorderRadius.circular(20),
+            borderRadius: BorderRadius.circular(AppRadius.xl),
             onTap: () => Scaffold.of(context).openDrawer(),
             child: const Padding(
               padding: EdgeInsets.all(AppSpacing.xs),
@@ -345,7 +345,7 @@ class _Hero extends StatelessWidget {
                       )
                     : null,
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: AppSpacing.md),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -355,16 +355,16 @@ class _Hero extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
                         color: Colors.white,
-                        fontSize: 16,
+                        fontSize: AppTextSize.card,
                         fontWeight: FontWeight.w700,
                         height: 1.25,
                       ),
                     ),
-                    const SizedBox(height: 2),
+                    const SizedBox(height: AppSpacing.xs),
                     Text(
                       'Brgy. ${account.barangay}',
                       overflow: TextOverflow.ellipsis,
-                      style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 12, height: 1.3),
+                      style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: AppTextSize.label, height: 1.3),
                     ),
                   ],
                 ),
@@ -451,18 +451,18 @@ class _Hero extends StatelessWidget {
           context,
           middle: const Text(
             'Esperanza',
-            style: TextStyle(fontFamily: 'Lora', color: Colors.white, fontSize: 18, fontWeight: FontWeight.w600),
+            style: TextStyle(fontFamily: 'Lora', color: Colors.white, fontSize: AppTextSize.section, fontWeight: FontWeight.w600),
           ),
         ),
         const SizedBox(height: AppSpacing.lg),
         const Text(
           'Welcome, Guest 👋',
-          style: TextStyle(color: Colors.white, fontSize: 17, fontWeight: FontWeight.w700),
+          style: TextStyle(color: Colors.white, fontSize: AppTextSize.card, fontWeight: FontWeight.w700),
         ),
         const SizedBox(height: AppSpacing.xs),
         Text(
           "You're browsing public content. Sign in or create an account for full access.",
-          style: TextStyle(color: Colors.white.withValues(alpha: 0.75), fontSize: 12, height: 1.35),
+          style: TextStyle(color: Colors.white.withValues(alpha: 0.75), fontSize: AppTextSize.label, height: 1.35),
         ),
         const SizedBox(height: AppSpacing.lg),
         Row(
@@ -500,9 +500,9 @@ class _RequestPreviewTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.only(bottom: AppSpacing.sm),
       child: AppCard(
-        padding: const EdgeInsets.all(14),
+        padding: const EdgeInsets.all(AppSpacing.md),
         onTap: () {
           final target = request.category == ServiceCategory.dokyu
               ? ServiceLauncherTarget.dokyu
@@ -519,10 +519,10 @@ class _RequestPreviewTile extends StatelessWidget {
                     request.typeName,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600),
+                    style: const TextStyle(fontSize: AppTextSize.helper, fontWeight: FontWeight.w600),
                   ),
-                  const SizedBox(height: 2),
-                  Text(request.referenceNumber, style: const TextStyle(fontSize: 11, color: AppColors.textMuted)),
+                  const SizedBox(height: AppSpacing.xs),
+                  Text(request.referenceNumber, style: const TextStyle(fontSize: AppTextSize.fine, color: AppColors.textMuted)),
                 ],
               ),
             ),

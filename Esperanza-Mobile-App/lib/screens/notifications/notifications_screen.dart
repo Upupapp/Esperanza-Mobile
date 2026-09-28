@@ -8,6 +8,7 @@ import '../../theme/app_colors.dart';
 import '../../theme/app_spacing.dart';
 import '../../widgets/app_card.dart';
 import '../../widgets/empty_state.dart';
+import '../../theme/app_typography.dart';
 
 /// See notification_feed.dart for how the feed itself is assembled — this
 /// screen only renders it plus each tile's read/unread state (tracked by
@@ -25,7 +26,7 @@ class NotificationsScreen extends StatelessWidget {
       body: items.isEmpty
           ? const EmptyState(icon: Icons.notifications_none_rounded, title: "You're all caught up")
           : ListView.builder(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+              padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.md, AppSpacing.lg, AppSpacing.xxl),
               itemCount: items.length,
               itemBuilder: (context, i) {
                 final n = items[i];
@@ -46,7 +47,7 @@ class _NotificationTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final n = notification;
     return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.only(bottom: AppSpacing.sm),
       child: AppCard(
         onTap: () {
           context.read<NotificationsService>().markRead(n.id);
@@ -61,7 +62,7 @@ class _NotificationTile extends StatelessWidget {
                 Container(
                   width: 36,
                   height: 36,
-                  decoration: BoxDecoration(color: n.kind.background, borderRadius: BorderRadius.circular(10)),
+                  decoration: BoxDecoration(color: n.kind.background, borderRadius: BorderRadius.circular(AppRadius.sm)),
                   child: Icon(n.icon, size: 17, color: n.kind.foreground),
                 ),
                 // Small, subtle unread marker — not a numeric badge, since
@@ -92,7 +93,7 @@ class _NotificationTile extends StatelessWidget {
                       Expanded(
                         child: Text(
                           n.title,
-                          style: TextStyle(fontSize: 13, fontWeight: unread ? FontWeight.w700 : FontWeight.w600),
+                          style: TextStyle(fontSize: AppTextSize.helper, fontWeight: unread ? FontWeight.w700 : FontWeight.w600),
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                         ),
@@ -104,25 +105,25 @@ class _NotificationTile extends StatelessWidget {
                   // notification's severity/type reads clearly even for
                   // colorblind users or in bright outdoor sunlight.
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-                    decoration: BoxDecoration(color: n.kind.background, borderRadius: BorderRadius.circular(999)),
+                    padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: AppSpacing.xs),
+                    decoration: BoxDecoration(color: n.kind.background, borderRadius: BorderRadius.circular(AppRadius.full)),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Icon(n.kind.badgeIcon, size: 10, color: n.kind.foreground),
-                        const SizedBox(width: 3),
+                        const SizedBox(width: AppSpacing.xs),
                         Text(
                           n.kind.badgeLabel,
-                          style: TextStyle(fontSize: 9.5, fontWeight: FontWeight.w700, color: n.kind.foreground),
+                          style: TextStyle(fontSize: AppTextSize.fine, fontWeight: FontWeight.w700, color: n.kind.foreground),
                         ),
                       ],
                     ),
                   ),
-                  const SizedBox(height: 6),
-                  Text(n.body, style: const TextStyle(fontSize: 12, color: AppColors.slate500, height: 1.35)),
+                  const SizedBox(height: AppSpacing.xs),
+                  Text(n.body, style: const TextStyle(fontSize: AppTextSize.label, color: AppColors.slate500, height: 1.35)),
                   if (n.time != null) ...[
                     const SizedBox(height: AppSpacing.xs),
-                    Text(n.time!, style: const TextStyle(fontSize: 11, color: AppColors.textMuted)),
+                    Text(n.time!, style: const TextStyle(fontSize: AppTextSize.fine, color: AppColors.textMuted)),
                   ],
                   if (n.actionLabel != null) ...[
                     const SizedBox(height: AppSpacing.sm),
@@ -145,7 +146,7 @@ class _NotificationTile extends StatelessWidget {
                         children: [
                           Text(
                             n.actionLabel!,
-                            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: n.kind.foreground),
+                            style: TextStyle(fontSize: AppTextSize.label, fontWeight: FontWeight.w700, color: n.kind.foreground),
                           ),
                           const SizedBox(width: AppSpacing.xs),
                           Icon(Icons.arrow_forward_rounded, size: 13, color: n.kind.foreground),

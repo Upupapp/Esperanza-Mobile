@@ -4,6 +4,7 @@ import '../screens/shared/event_poster_viewer.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
 import 'app_card.dart';
+import '../theme/app_typography.dart';
 
 /// One event as its own independent card — used on both Home's "Upcoming
 /// Events" preview ([compact]) and the dedicated Events list. Never
@@ -24,7 +25,7 @@ class EventCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: EdgeInsets.only(bottom: compact ? 10 : 12),
+      padding: EdgeInsets.only(bottom: compact ? 10 : AppSpacing.md),
       child: AppCard(
         padding: EdgeInsets.zero,
         onTap: event.imagePath != null ? () => EventPosterViewer.open(context, event) : null,
@@ -33,7 +34,7 @@ class EventCard extends StatelessWidget {
           children: [
             if (event.imagePath != null)
               ClipRRect(
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(AppRadius.lg)),
                 child: Container(
                   color: AppColors.slate100,
                   constraints: BoxConstraints(maxHeight: compact ? 220 : 420),
@@ -54,7 +55,7 @@ class EventCard extends StatelessWidget {
                 ),
               ),
             Padding(
-              padding: const EdgeInsets.all(14),
+              padding: const EdgeInsets.all(AppSpacing.md),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -67,7 +68,7 @@ class EventCard extends StatelessWidget {
                           maxLines: compact ? 1 : 2,
                           overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
-                            fontSize: 13,
+                            fontSize: AppTextSize.helper,
                             fontWeight: FontWeight.w700,
                             color: AppColors.textPrimary,
                           ),
@@ -76,12 +77,12 @@ class EventCard extends StatelessWidget {
                       if (event.category != null) ...[
                         const SizedBox(width: AppSpacing.sm),
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: 3),
-                          decoration: BoxDecoration(color: AppColors.brand50, borderRadius: BorderRadius.circular(999)),
+                          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: AppSpacing.xs),
+                          decoration: BoxDecoration(color: AppColors.brand50, borderRadius: BorderRadius.circular(AppRadius.full)),
                           child: Text(
                             event.category!,
                             style: const TextStyle(
-                              fontSize: 10,
+                              fontSize: AppTextSize.fine,
                               fontWeight: FontWeight.w700,
                               color: AppColors.brand600,
                             ),
@@ -111,7 +112,7 @@ class EventCard extends StatelessWidget {
                             textWidthBasis: TextWidthBasis.longestLine,
                             overflow: TextOverflow.ellipsis,
                             style: const TextStyle(
-                              fontSize: 11.5,
+                              fontSize: AppTextSize.label,
                               fontWeight: FontWeight.w600,
                               color: AppColors.brand600,
                             ),
@@ -143,9 +144,9 @@ class _MetaRow extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Icon(icon, size: 13, color: AppColors.slate400),
-        const SizedBox(width: 6),
+        const SizedBox(width: AppSpacing.xs),
         Expanded(
-          child: Text(text, style: const TextStyle(fontSize: 12, color: AppColors.textMuted, height: 1.3)),
+          child: Text(text, style: const TextStyle(fontSize: AppTextSize.label, color: AppColors.textMuted, height: 1.3)),
         ),
       ],
     );

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../models/announcement.dart';
+import '../../theme/app_typography.dart';
 
 /// Full-screen event poster view — the entire poster, pinch-to-zoomable,
 /// so dates/times/team names printed on it stay legible even after the
@@ -29,7 +30,7 @@ class EventPosterViewer extends StatelessWidget {
         // overrides a local foregroundColor for the title specifically —
         // icons still follow foregroundColor, but the title needs its own
         // override here or it renders dark on this black header.
-        titleTextStyle: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w600),
+        titleTextStyle: const TextStyle(color: Colors.white, fontSize: AppTextSize.card, fontWeight: FontWeight.w600),
         title: Text(event.title, maxLines: 1, overflow: TextOverflow.ellipsis),
       ),
       body: SafeArea(

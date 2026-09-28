@@ -9,6 +9,7 @@ import '../../theme/app_spacing.dart';
 import '../../widgets/app_button.dart';
 import '../../widgets/app_card.dart';
 import '../../widgets/app_dialogs.dart';
+import '../../theme/app_typography.dart';
 
 /// Unverified + Unverified duplicate-registration demo (FRONTEND
 /// SIMULATION ONLY — see MockCatalog.unverifiedDuplicateAccountA's doc
@@ -55,13 +56,13 @@ class UnverifiedDuplicateResolutionScreen extends StatelessWidget {
           children: [
             const Text(
               'Choose the Account You Want to Keep',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
+              style: TextStyle(fontSize: AppTextSize.card, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
             ),
             const SizedBox(height: AppSpacing.sm),
             const Text(
               'Two unverified Esperanza registrations appear to belong to the same resident. Choose which account '
               'you want to continue using for verification.',
-              style: TextStyle(fontSize: 12.5, color: AppColors.slate700, height: 1.45),
+              style: TextStyle(fontSize: AppTextSize.helper, color: AppColors.slate700, height: 1.45),
             ),
             const SizedBox(height: AppSpacing.xl),
             _AccountCard(
@@ -121,9 +122,9 @@ class _AccountCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
+          Text(label, style: const TextStyle(fontSize: AppTextSize.body, fontWeight: FontWeight.w700)),
           if (resolution != null) ...[
-            const SizedBox(height: 6),
+            const SizedBox(height: AppSpacing.xs),
             // Its own row (not inline with the label) — the resolved
             // status text is long enough ("Duplicate Registration —
             // Verification Cancelled") that squeezing it beside the label
@@ -132,9 +133,9 @@ class _AccountCard extends StatelessWidget {
           ],
           const SizedBox(height: AppSpacing.sm),
           _InfoRow(icon: Icons.mail_outline_rounded, text: _maskEmail(account.email)),
-          const SizedBox(height: 4),
+          const SizedBox(height: AppSpacing.xs),
           _InfoRow(icon: Icons.phone_outlined, text: _maskMobile(account.mobile)),
-          const SizedBox(height: 4),
+          const SizedBox(height: AppSpacing.xs),
           _InfoRow(icon: Icons.event_outlined, text: 'Registered $createdAt'),
           const SizedBox(height: AppSpacing.md),
           if (resolution == null)
@@ -145,7 +146,7 @@ class _AccountCard extends StatelessWidget {
                   ? 'This account continues toward verification. It is still Pending Review — it has not become '
                       'Verified automatically.'
                   : 'This registration was marked as a duplicate. Its verification has been cancelled.',
-              style: const TextStyle(fontSize: 11.5, color: AppColors.textMuted, height: 1.4),
+              style: const TextStyle(fontSize: AppTextSize.label, color: AppColors.textMuted, height: 1.4),
             ),
         ],
       ),
@@ -163,9 +164,9 @@ class _InfoRow extends StatelessWidget {
     return Row(
       children: [
         Icon(icon, size: 14, color: AppColors.slate400),
-        const SizedBox(width: 6),
+        const SizedBox(width: AppSpacing.xs),
         Expanded(
-          child: Text(text, style: const TextStyle(fontSize: 12.5, color: AppColors.slate700)),
+          child: Text(text, style: const TextStyle(fontSize: AppTextSize.helper, color: AppColors.slate700)),
         ),
       ],
     );
@@ -180,15 +181,15 @@ class _ResolutionBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     final kept = resolution == _Resolution.kept;
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: AppSpacing.xs),
       decoration: BoxDecoration(
         color: kept ? AppColors.emerald50 : AppColors.rose50,
-        borderRadius: BorderRadius.circular(999),
+        borderRadius: BorderRadius.circular(AppRadius.full),
       ),
       child: Text(
         kept ? 'Unverified — Continue Verification' : 'Duplicate Registration — Verification Cancelled',
         style: TextStyle(
-          fontSize: 10,
+          fontSize: AppTextSize.fine,
           fontWeight: FontWeight.w700,
           color: kept ? AppColors.emerald700 : AppColors.rose700,
         ),

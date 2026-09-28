@@ -98,7 +98,7 @@ class AppDialogs {
               size: 18,
               color: success ? AppColors.emerald500 : AppColors.brand400,
             ),
-            const SizedBox(width: 10),
+            const SizedBox(width: AppSpacing.sm),
             Expanded(child: Text(message)),
           ],
         ),
@@ -128,7 +128,7 @@ class _ConfirmSheet extends StatelessWidget {
       child: Container(
         margin: const EdgeInsets.all(AppSpacing.md),
         padding: const EdgeInsets.all(AppSpacing.xl),
-        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20)),
+        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(AppRadius.xl)),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -144,7 +144,7 @@ class _ConfirmSheet extends StatelessWidget {
                   children: [
                     Text(title, style: AppTypography.h3),
                     const SizedBox(height: AppSpacing.sm),
-                    Text(message, style: const TextStyle(fontSize: 13.5, color: AppColors.slate500, height: 1.4)),
+                    Text(message, style: const TextStyle(fontSize: AppTextSize.body, color: AppColors.slate500, height: 1.4)),
                   ],
                 ),
               ),
@@ -159,7 +159,7 @@ class _ConfirmSheet extends StatelessWidget {
                     onPressed: () => Navigator.of(context).pop(false),
                   ),
                 ),
-                const SizedBox(width: 10),
+                const SizedBox(width: AppSpacing.sm),
                 Expanded(
                   child: AppButton(
                     label: confirmLabel,
@@ -198,7 +198,7 @@ class _CenteredConfirmDialog extends StatelessWidget {
       insetPadding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
       child: Container(
         padding: const EdgeInsets.all(AppSpacing.xl),
-        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20)),
+        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(AppRadius.xl)),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -211,7 +211,7 @@ class _CenteredConfirmDialog extends StatelessWidget {
                   children: [
                     Text(title, style: AppTypography.h3),
                     const SizedBox(height: AppSpacing.sm),
-                    Text(message, style: const TextStyle(fontSize: 13.5, color: AppColors.slate500, height: 1.4)),
+                    Text(message, style: const TextStyle(fontSize: AppTextSize.body, color: AppColors.slate500, height: 1.4)),
                   ],
                 ),
               ),
@@ -226,7 +226,7 @@ class _CenteredConfirmDialog extends StatelessWidget {
                     onPressed: () => Navigator.of(context).pop(false),
                   ),
                 ),
-                const SizedBox(width: 10),
+                const SizedBox(width: AppSpacing.sm),
                 Expanded(
                   child: AppButton(
                     label: confirmLabel,
@@ -257,7 +257,7 @@ class _CenteredInfoDialog extends StatelessWidget {
       insetPadding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
       child: Container(
         padding: const EdgeInsets.all(AppSpacing.xl),
-        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20)),
+        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(AppRadius.xl)),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -270,7 +270,7 @@ class _CenteredInfoDialog extends StatelessWidget {
                   children: [
                     Text(title, style: AppTypography.h3),
                     const SizedBox(height: AppSpacing.sm),
-                    Text(message, style: const TextStyle(fontSize: 13.5, color: AppColors.slate500, height: 1.4)),
+                    Text(message, style: const TextStyle(fontSize: AppTextSize.body, color: AppColors.slate500, height: 1.4)),
                   ],
                 ),
               ),
@@ -302,7 +302,7 @@ class _InfoSheet extends StatelessWidget {
       child: Container(
         margin: const EdgeInsets.all(AppSpacing.md),
         padding: const EdgeInsets.all(AppSpacing.xl),
-        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20)),
+        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(AppRadius.xl)),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -317,7 +317,7 @@ class _InfoSheet extends StatelessWidget {
                   children: [
                     Text(title, style: AppTypography.h3),
                     const SizedBox(height: AppSpacing.sm),
-                    Text(message, style: const TextStyle(fontSize: 13.5, color: AppColors.slate500, height: 1.4)),
+                    Text(message, style: const TextStyle(fontSize: AppTextSize.body, color: AppColors.slate500, height: 1.4)),
                   ],
                 ),
               ),

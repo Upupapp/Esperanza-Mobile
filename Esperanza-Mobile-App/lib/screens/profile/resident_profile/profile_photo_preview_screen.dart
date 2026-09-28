@@ -7,6 +7,7 @@ import '../../../services/resident_profile_service.dart';
 import '../../../theme/app_colors.dart';
 import '../../../theme/app_spacing.dart';
 import '../../../widgets/app_button.dart';
+import '../../../theme/app_typography.dart';
 
 /// The mandatory preview step between picking/capturing a photo and it
 /// actually replacing the profile photo — nothing is saved just because a
@@ -71,7 +72,7 @@ class _ProfilePhotoPreviewScreenState extends State<ProfilePhotoPreviewScreen> {
               const Text(
                 'This is how your profile photo will look. Make sure your full face is clearly visible before saving.',
                 textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 12.5, color: AppColors.textMuted, height: 1.4),
+                style: TextStyle(fontSize: AppTextSize.helper, color: AppColors.textMuted, height: 1.4),
               ),
               const Spacer(),
               AppButton(

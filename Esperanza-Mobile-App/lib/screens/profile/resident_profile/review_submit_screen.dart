@@ -12,6 +12,7 @@ import 'family_information_screen.dart';
 import 'household_information_screen.dart';
 import 'personal_information_screen.dart';
 import 'submission_confirmation_screen.dart';
+import '../../../theme/app_typography.dart';
 
 /// Final step — a read-only summary of all three sections with per-section
 /// Edit links, gated on all three being SectionStatus.complete. Submitting
@@ -44,11 +45,11 @@ class _ReviewSubmitScreenState extends State<ReviewSubmitScreen> {
       appBar: AppBar(title: const Text('Review & Submit')),
       body: SafeArea(
         child: ListView(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
+          padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.md, AppSpacing.lg, AppSpacing.xxxl),
           children: [
             const Text(
               'Check your information before submitting it to Esperanza LGU for verification.',
-              style: TextStyle(fontSize: 13, color: AppColors.textMuted, height: 1.4),
+              style: TextStyle(fontSize: AppTextSize.helper, color: AppColors.textMuted, height: 1.4),
             ),
             const SizedBox(height: AppSpacing.lg),
             _SummaryCard(
@@ -61,7 +62,7 @@ class _ReviewSubmitScreenState extends State<ReviewSubmitScreen> {
                 if (profile.personal.barangay.isNotEmpty) 'Brgy. ${profile.personal.barangay}',
               ],
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: AppSpacing.sm),
             _SummaryCard(
               title: 'Family',
               status: profile.familyStatus,
@@ -73,7 +74,7 @@ class _ReviewSubmitScreenState extends State<ReviewSubmitScreen> {
                 '${profile.allFamilyIndividuals.length} Member${profile.allFamilyIndividuals.length == 1 ? '' : 's'}',
               ],
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: AppSpacing.sm),
             _SummaryCard(
               title: 'Household',
               status: profile.householdStatus,
@@ -86,21 +87,21 @@ class _ReviewSubmitScreenState extends State<ReviewSubmitScreen> {
                 '${profile.householdResidentCount} Resident${profile.householdResidentCount == 1 ? '' : 's'}',
               ],
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: AppSpacing.sm),
             AppCard(
               child: Row(
                 children: [
                   const Icon(Icons.attach_file_rounded, size: 18, color: AppColors.slate500),
-                  const SizedBox(width: 10),
+                  const SizedBox(width: AppSpacing.sm),
                   const Expanded(
                     child: Text(
                       'Supporting Documents',
-                      style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
+                      style: TextStyle(fontSize: AppTextSize.body, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
                     ),
                   ),
                   Text(
                     '${profile.documentCount} Attached',
-                    style: const TextStyle(fontSize: 12.5, color: AppColors.textMuted),
+                    style: const TextStyle(fontSize: AppTextSize.helper, color: AppColors.textMuted),
                   ),
                 ],
               ),
@@ -108,9 +109,9 @@ class _ReviewSubmitScreenState extends State<ReviewSubmitScreen> {
             const SizedBox(height: AppSpacing.xxl),
             if (!profile.readyToSubmit)
               Container(
-                padding: const EdgeInsets.all(14),
+                padding: const EdgeInsets.all(AppSpacing.md),
                 margin: const EdgeInsets.only(bottom: AppSpacing.md),
-                decoration: BoxDecoration(color: AppColors.amber50, borderRadius: BorderRadius.circular(14)),
+                decoration: BoxDecoration(color: AppColors.amber50, borderRadius: BorderRadius.circular(AppRadius.md)),
                 child: const Row(
                   children: [
                     Icon(Icons.info_outline_rounded, size: 16, color: AppColors.amber700),
@@ -118,7 +119,7 @@ class _ReviewSubmitScreenState extends State<ReviewSubmitScreen> {
                     Expanded(
                       child: Text(
                         'Complete Personal, Family, and Household Information before submitting.',
-                        style: TextStyle(fontSize: 12, color: AppColors.amber700, height: 1.35),
+                        style: TextStyle(fontSize: AppTextSize.label, color: AppColors.amber700, height: 1.35),
                       ),
                     ),
                   ],
@@ -156,7 +157,7 @@ class _SummaryCard extends StatelessWidget {
           Text(
             title.toUpperCase(),
             style: const TextStyle(
-              fontSize: 11,
+              fontSize: AppTextSize.fine,
               fontWeight: FontWeight.w700,
               color: AppColors.textMuted,
               letterSpacing: 0.4,
@@ -176,18 +177,18 @@ class _SummaryCard extends StatelessWidget {
                 onTap: onEdit,
                 child: const Text(
                   'Edit',
-                  style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: AppColors.brand600),
+                  style: TextStyle(fontSize: AppTextSize.helper, fontWeight: FontWeight.w600, color: AppColors.brand600),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: AppSpacing.sm),
           for (final r in rows)
             Padding(
-              padding: const EdgeInsets.only(bottom: 2),
+              padding: const EdgeInsets.only(bottom: AppSpacing.xs),
               child: Text(
                 r,
-                style: const TextStyle(fontSize: 13.5, color: AppColors.slate700, fontWeight: FontWeight.w500),
+                style: const TextStyle(fontSize: AppTextSize.body, color: AppColors.slate700, fontWeight: FontWeight.w500),
               ),
             ),
         ],

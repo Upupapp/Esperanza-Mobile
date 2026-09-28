@@ -36,8 +36,9 @@ import 'package:flutter_test/flutter_test.dart';
 /// `app_typography.dart` rather than written as numbers, which is what this
 /// file's own failure message asks for. 381 on 2026-09-28, measured when the
 /// design standard (docs/DESIGN_GUIDELINES.md) landed; screens adopting its
-/// type roles lower it further.
-const _fontSizeCeiling = 381;
+/// type roles lower it further. 127 the same day, after the Home tab, its
+/// sub-pages, notifications and pop-ups moved to `AppTextSize` roles.
+const _fontSizeCeiling = 127;
 
 /// `Colors.white`, `Colors.black26`, `Colors.transparent` outside `lib/theme/`.
 ///

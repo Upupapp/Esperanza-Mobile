@@ -22,6 +22,7 @@ import '../../../widgets/app_text_field.dart';
 import '../../../widgets/form_section.dart';
 import '../government_id_viewer.dart';
 import 'profile_photo_preview_screen.dart';
+import '../../../theme/app_typography.dart';
 
 /// Step 1 — Personal Information. Maps conceptually to a Web Admin
 /// Constituents > Individual record for the citizen themself. Pre-filled
@@ -263,7 +264,7 @@ class _PersonalInformationScreenState extends State<PersonalInformationScreen> {
           margin: const EdgeInsets.all(AppSpacing.md),
           child: Material(
             color: Colors.white,
-            borderRadius: BorderRadius.circular(20),
+            borderRadius: BorderRadius.circular(AppRadius.xl),
             clipBehavior: Clip.antiAlias,
             child: Padding(
               padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
@@ -276,7 +277,7 @@ class _PersonalInformationScreenState extends State<PersonalInformationScreen> {
                       alignment: Alignment.centerLeft,
                       child: Text(
                         'Change Profile Photo',
-                        style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
+                        style: TextStyle(fontSize: AppTextSize.card, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
                       ),
                     ),
                   ),
@@ -287,7 +288,7 @@ class _PersonalInformationScreenState extends State<PersonalInformationScreen> {
                     leading: const Icon(Icons.close_rounded, color: AppColors.rose600),
                     title: const Text(
                       'Cancel',
-                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: AppColors.rose600),
+                      style: TextStyle(fontSize: AppTextSize.body, fontWeight: FontWeight.w500, color: AppColors.rose600),
                     ),
                     onTap: () => Navigator.pop(ctx),
                   ),
@@ -303,7 +304,7 @@ class _PersonalInformationScreenState extends State<PersonalInformationScreen> {
   Widget _photoSourceOption(BuildContext context, IconData icon, String label, ImageSource source) {
     return ListTile(
       leading: Icon(icon, color: AppColors.brand600),
-      title: Text(label, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
+      title: Text(label, style: const TextStyle(fontSize: AppTextSize.body, fontWeight: FontWeight.w500)),
       onTap: () => Navigator.pop(context, source),
     );
   }
@@ -332,7 +333,7 @@ class _PersonalInformationScreenState extends State<PersonalInformationScreen> {
       appBar: AppBar(title: const Text('Personal Information')),
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
+          padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.md, AppSpacing.lg, AppSpacing.xxxl),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
@@ -518,20 +519,20 @@ class _PersonalInformationScreenState extends State<PersonalInformationScreen> {
                 const SizedBox(height: AppSpacing.lg),
                 const Text(
                   'Submitted Government ID',
-                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
+                  style: TextStyle(fontSize: AppTextSize.card, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: AppSpacing.xs),
                 const Text(
                   'The identification you submitted during registration. This stays on file regardless of your '
                   'verification status.',
-                  style: TextStyle(fontSize: 12.5, color: AppColors.textMuted),
+                  style: TextStyle(fontSize: AppTextSize.helper, color: AppColors.textMuted),
                 ),
                 const SizedBox(height: AppSpacing.md),
                 _SubmittedGovernmentIdCard(record: governmentId),
               ],
               if (_error != null) ...[
                 const SizedBox(height: AppSpacing.md),
-                Text(_error!, style: const TextStyle(fontSize: 12.5, color: AppColors.rose600)),
+                Text(_error!, style: const TextStyle(fontSize: AppTextSize.helper, color: AppColors.rose600)),
               ],
               const SizedBox(height: AppSpacing.xxl),
               AppButton(
@@ -599,7 +600,7 @@ class _PhotoPicker extends StatelessWidget {
                     customBorder: const CircleBorder(),
                     onTap: onCameraTap,
                     child: const Padding(
-                      padding: EdgeInsets.all(7),
+                      padding: EdgeInsets.all(AppSpacing.sm),
                       child: Icon(Icons.camera_alt_rounded, size: 15, color: Colors.white),
                     ),
                   ),
@@ -611,10 +612,10 @@ class _PhotoPicker extends StatelessWidget {
           if (hasCustomPhoto)
             TextButton(
               onPressed: onRemove,
-              child: const Text('Remove photo', style: TextStyle(fontSize: 12)),
+              child: const Text('Remove photo', style: TextStyle(fontSize: AppTextSize.label)),
             )
           else
-            Text('Profile photo (optional)', style: const TextStyle(fontSize: 12, color: AppColors.textMuted)),
+            Text('Profile photo (optional)', style: const TextStyle(fontSize: AppTextSize.label, color: AppColors.textMuted)),
         ],
       ),
     );
@@ -637,20 +638,20 @@ class _ReadOnlyAgeField extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('Age', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: AppColors.slate700)),
+        const Text('Age', style: TextStyle(fontSize: AppTextSize.helper, fontWeight: FontWeight.w500, color: AppColors.slate700)),
         const SizedBox(height: AppSpacing.sm),
         Container(
           width: double.infinity,
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.md),
           decoration: BoxDecoration(
             color: AppColors.slate100,
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(AppRadius.md),
             border: Border.all(color: AppColors.border),
           ),
           child: Row(
             children: [
               const Icon(Icons.cake_outlined, size: 17, color: AppColors.slate400),
-              const SizedBox(width: 10),
+              const SizedBox(width: AppSpacing.sm),
               // Expanded — at extreme narrow widths combined with a large
               // text scale, an unwrapped Text here overflowed the Row on
               // the right (this is the same fix _MasterSourcedField's own
@@ -658,7 +659,7 @@ class _ReadOnlyAgeField extends StatelessWidget {
               Expanded(
                 child: Text(
                   birthdate == null ? 'Select your Birthdate above first' : '${calculateAge(birthdate)} years old',
-                  style: const TextStyle(fontSize: 14, color: AppColors.textBody, fontWeight: FontWeight.w500),
+                  style: const TextStyle(fontSize: AppTextSize.body, color: AppColors.textBody, fontWeight: FontWeight.w500),
                 ),
               ),
             ],
@@ -679,7 +680,7 @@ class _ClassificationSwitch extends StatelessWidget {
   Widget build(BuildContext context) {
     return InkWell(
       onTap: () => onChanged(!value),
-      borderRadius: BorderRadius.circular(10),
+      borderRadius: BorderRadius.circular(AppRadius.sm),
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
         child: Row(
@@ -687,7 +688,7 @@ class _ClassificationSwitch extends StatelessWidget {
             Expanded(
               child: Text(
                 label,
-                style: const TextStyle(fontSize: 13.5, color: AppColors.slate700, fontWeight: FontWeight.w500),
+                style: const TextStyle(fontSize: AppTextSize.body, color: AppColors.slate700, fontWeight: FontWeight.w500),
               ),
             ),
             Switch(value: value, onChanged: onChanged, activeThumbColor: AppColors.brand500),
@@ -712,23 +713,23 @@ class _DocumentTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.all(10),
+      margin: const EdgeInsets.only(bottom: AppSpacing.sm),
+      padding: const EdgeInsets.all(AppSpacing.sm),
       decoration: BoxDecoration(
         color: AppColors.slate50,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(AppRadius.md),
         border: Border.all(color: AppColors.border),
       ),
       child: Row(
         children: [
           const Icon(Icons.insert_drive_file_outlined, size: 18, color: AppColors.slate500),
-          const SizedBox(width: 10),
+          const SizedBox(width: AppSpacing.sm),
           Expanded(
             child: Text(
               _fileName,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w500, color: AppColors.slate700),
+              style: const TextStyle(fontSize: AppTextSize.helper, fontWeight: FontWeight.w500, color: AppColors.slate700),
             ),
           ),
           IconButton(
@@ -764,7 +765,7 @@ class _SubmittedGovernmentIdCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           ClipRRect(
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(AppRadius.lg)),
             child: AspectRatio(
               aspectRatio: 16 / 10,
               // This card preview is card-width, not full document
@@ -780,7 +781,7 @@ class _SubmittedGovernmentIdCard extends StatelessWidget {
             ),
           ),
           Padding(
-            padding: const EdgeInsets.all(14),
+            padding: const EdgeInsets.all(AppSpacing.md),
             // A Column, not a Row-of-two-columns: at extreme narrow widths
             // combined with a large text scale, a fixed-width trailing
             // "View ID ›" group next to an Expanded info column overflowed
@@ -798,31 +799,31 @@ class _SubmittedGovernmentIdCard extends StatelessWidget {
                   children: [
                     Text(
                       record.idType,
-                      style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
+                      style: const TextStyle(fontSize: AppTextSize.body, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
                     ),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                      decoration: BoxDecoration(color: AppColors.emerald50, borderRadius: BorderRadius.circular(999)),
+                      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xs, vertical: AppSpacing.xs),
+                      decoration: BoxDecoration(color: AppColors.emerald50, borderRadius: BorderRadius.circular(AppRadius.full)),
                       child: const Text(
                         'On File',
-                        style: TextStyle(fontSize: 9.5, fontWeight: FontWeight.w700, color: AppColors.emerald700),
+                        style: TextStyle(fontSize: AppTextSize.fine, fontWeight: FontWeight.w700, color: AppColors.emerald700),
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 2),
+                const SizedBox(height: AppSpacing.xs),
                 Text(
                   'Issued by ${record.issuingOffice}',
-                  style: const TextStyle(fontSize: 12, color: AppColors.textMuted),
+                  style: const TextStyle(fontSize: AppTextSize.label, color: AppColors.textMuted),
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: AppSpacing.sm),
                 const Row(
                   children: [
                     Text(
                       'View ID',
-                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.brand600),
+                      style: TextStyle(fontSize: AppTextSize.label, fontWeight: FontWeight.w600, color: AppColors.brand600),
                     ),
-                    SizedBox(width: 2),
+                    SizedBox(width: AppSpacing.xs),
                     Icon(Icons.chevron_right_rounded, size: 16, color: AppColors.brand600),
                   ],
                 ),

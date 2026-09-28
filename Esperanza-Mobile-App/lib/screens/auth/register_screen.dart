@@ -15,6 +15,7 @@ import '../../widgets/app_text_field.dart';
 import '../../widgets/onboarding_step_indicator.dart';
 import '../../widgets/password_requirements.dart';
 import '../../widgets/verification_status_panel.dart';
+import '../../theme/app_typography.dart';
 
 /// Citizen registration, restructured (Section 9) from one long form into
 /// a step-by-step wizard: Personal Information -> Terms & Conditions ->
@@ -342,7 +343,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
           children: [
             if (showIndicator)
               Padding(
-                padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+                padding: const EdgeInsets.fromLTRB(AppSpacing.xl, AppSpacing.md, AppSpacing.xl, 0),
                 child: OnboardingStepIndicator(currentStep: _step, stepLabels: _stepLabels),
               ),
             Expanded(
@@ -350,7 +351,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
             ),
             if (_step < 5)
               Padding(
-                padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+                padding: const EdgeInsets.fromLTRB(AppSpacing.xl, 0, AppSpacing.xl, AppSpacing.xl),
                 child: Row(
                   children: [
                     if (_step > 0)
@@ -405,16 +406,16 @@ class _RegisterScreenState extends State<RegisterScreen> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Container(
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(color: AppColors.brand50, borderRadius: BorderRadius.circular(14)),
+          padding: const EdgeInsets.all(AppSpacing.md),
+          decoration: BoxDecoration(color: AppColors.brand50, borderRadius: BorderRadius.circular(AppRadius.md)),
           child: const Row(
             children: [
               Icon(Icons.info_outline_rounded, color: AppColors.brand600, size: 18),
-              SizedBox(width: 10),
+              SizedBox(width: AppSpacing.sm),
               Expanded(
                 child: Text(
                   "Let's start with your basic information. You can complete your full Resident Profile later.",
-                  style: TextStyle(fontSize: 12, color: AppColors.brand700, height: 1.4),
+                  style: TextStyle(fontSize: AppTextSize.label, color: AppColors.brand700, height: 1.4),
                 ),
               ),
             ],
@@ -450,17 +451,17 @@ class _RegisterScreenState extends State<RegisterScreen> {
             // 26 = the label above the field (13px text + 8px gap), so the
             // button sits level with the input itself.
             Padding(
-              padding: const EdgeInsets.only(top: 26),
+              padding: const EdgeInsets.only(top: AppSpacing.xxl),
               child: SizedBox(
                 height: 48,
                 child: _emailVerified
                     ? const Row(
                         children: [
                           Icon(Icons.verified_rounded, color: AppColors.emerald700, size: 20),
-                          SizedBox(width: 4),
+                          SizedBox(width: AppSpacing.xs),
                           Text(
                             'Verified',
-                            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.emerald700),
+                            style: TextStyle(fontSize: AppTextSize.helper, fontWeight: FontWeight.w600, color: AppColors.emerald700),
                           ),
                         ],
                       )
@@ -491,7 +492,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
               ),
               const SizedBox(width: AppSpacing.md),
               Padding(
-                padding: const EdgeInsets.only(top: 26),
+                padding: const EdgeInsets.only(top: AppSpacing.xxl),
                 child: SizedBox(
                   height: 48,
                   child: AppButton(
@@ -536,7 +537,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         PasswordRequirements(password: _password.text),
         if (_error != null) ...[
           const SizedBox(height: AppSpacing.md),
-          Text(_error!, style: const TextStyle(fontSize: 12.5, color: AppColors.rose600)),
+          Text(_error!, style: const TextStyle(fontSize: AppTextSize.helper, color: AppColors.rose600)),
         ],
       ],
     );
@@ -548,14 +549,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
       children: [
         const Text(
           'Terms & Conditions',
-          style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
+          style: TextStyle(fontSize: AppTextSize.card, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
         ),
         const SizedBox(height: AppSpacing.sm),
         Container(
           padding: const EdgeInsets.all(AppSpacing.lg),
           decoration: BoxDecoration(
             color: AppColors.slate50,
-            borderRadius: BorderRadius.circular(14),
+            borderRadius: BorderRadius.circular(AppRadius.md),
             border: Border.all(color: AppColors.border),
           ),
           child: const Text(
@@ -564,13 +565,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
             'not shared with third parties. Esperanza LGU staff may contact you to verify submitted information. False or '
             'misleading information may result in your verification being rejected.\n\n'
             'This is a frontend demo build — no data leaves your device.',
-            style: TextStyle(fontSize: 12.5, color: AppColors.slate600, height: 1.5),
+            style: TextStyle(fontSize: AppTextSize.helper, color: AppColors.slate600, height: 1.5),
           ),
         ),
         const SizedBox(height: AppSpacing.lg),
         InkWell(
           onTap: () => setState(() => _termsAccepted = !_termsAccepted),
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: BorderRadius.circular(AppRadius.sm),
           child: Padding(
             padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
             child: Row(
@@ -583,10 +584,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 ),
                 const Expanded(
                   child: Padding(
-                    padding: EdgeInsets.only(top: 12),
+                    padding: EdgeInsets.only(top: AppSpacing.md),
                     child: Text(
                       'I have read and agree to the Terms & Conditions and Privacy Policy.',
-                      style: TextStyle(fontSize: 13, color: AppColors.slate700),
+                      style: TextStyle(fontSize: AppTextSize.helper, color: AppColors.slate700),
                     ),
                   ),
                 ),
@@ -596,7 +597,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         ),
         if (_error != null) ...[
           const SizedBox(height: AppSpacing.sm),
-          Text(_error!, style: const TextStyle(fontSize: 12.5, color: AppColors.rose600)),
+          Text(_error!, style: const TextStyle(fontSize: AppTextSize.helper, color: AppColors.rose600)),
         ],
       ],
     );
@@ -608,32 +609,32 @@ class _RegisterScreenState extends State<RegisterScreen> {
       children: [
         const Text(
           'Valid ID Upload',
-          style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
+          style: TextStyle(fontSize: AppTextSize.card, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
         ),
-        const SizedBox(height: 6),
+        const SizedBox(height: AppSpacing.xs),
         const Text(
           'Upload a photo or scan of any valid government-issued ID. This helps Esperanza LGU verify your identity.',
-          style: TextStyle(fontSize: 12.5, color: AppColors.textMuted, height: 1.4),
+          style: TextStyle(fontSize: AppTextSize.helper, color: AppColors.textMuted, height: 1.4),
         ),
         const SizedBox(height: AppSpacing.xl),
         if (_idFilePath != null)
           Container(
-            padding: const EdgeInsets.all(14),
+            padding: const EdgeInsets.all(AppSpacing.md),
             decoration: BoxDecoration(
               color: AppColors.emerald50,
-              borderRadius: BorderRadius.circular(14),
+              borderRadius: BorderRadius.circular(AppRadius.md),
               border: Border.all(color: AppColors.emerald500.withValues(alpha: 0.25)),
             ),
             child: Row(
               children: [
                 const Icon(Icons.check_circle_rounded, color: AppColors.emerald700, size: 22),
-                const SizedBox(width: 12),
+                const SizedBox(width: AppSpacing.md),
                 Expanded(
                   child: Text(
                     _idFileName ?? 'ID uploaded',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.emerald700),
+                    style: const TextStyle(fontSize: AppTextSize.helper, fontWeight: FontWeight.w600, color: AppColors.emerald700),
                   ),
                 ),
                 TextButton(
@@ -649,32 +650,32 @@ class _RegisterScreenState extends State<RegisterScreen> {
         else
           InkWell(
             onTap: _pickId,
-            borderRadius: BorderRadius.circular(14),
+            borderRadius: BorderRadius.circular(AppRadius.md),
             child: Container(
               width: double.infinity,
-              padding: const EdgeInsets.symmetric(vertical: 32),
+              padding: const EdgeInsets.symmetric(vertical: AppSpacing.xxxl),
               decoration: BoxDecoration(
                 color: AppColors.brand50,
-                borderRadius: BorderRadius.circular(14),
+                borderRadius: BorderRadius.circular(AppRadius.md),
                 border: Border.all(color: AppColors.brand200),
               ),
               child: const Column(
                 children: [
                   Icon(Icons.badge_outlined, color: AppColors.brand500, size: 30),
-                  SizedBox(height: 10),
+                  SizedBox(height: AppSpacing.sm),
                   Text(
                     'Upload Valid ID',
-                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.brand600),
+                    style: TextStyle(fontSize: AppTextSize.helper, fontWeight: FontWeight.w700, color: AppColors.brand600),
                   ),
-                  SizedBox(height: 2),
-                  Text('JPG, PNG, or PDF', style: TextStyle(fontSize: 11.5, color: AppColors.textMuted)),
+                  SizedBox(height: AppSpacing.xs),
+                  Text('JPG, PNG, or PDF', style: TextStyle(fontSize: AppTextSize.label, color: AppColors.textMuted)),
                 ],
               ),
             ),
           ),
         if (_error != null) ...[
           const SizedBox(height: AppSpacing.md),
-          Text(_error!, style: const TextStyle(fontSize: 12.5, color: AppColors.rose600)),
+          Text(_error!, style: const TextStyle(fontSize: AppTextSize.helper, color: AppColors.rose600)),
         ],
       ],
     );
@@ -686,12 +687,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
       children: [
         const Text(
           'Face Verification',
-          style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
+          style: TextStyle(fontSize: AppTextSize.card, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
         ),
-        const SizedBox(height: 6),
+        const SizedBox(height: AppSpacing.xs),
         const Text(
           'We\'ll match a quick face scan against your uploaded ID to help confirm it\'s really you.',
-          style: TextStyle(fontSize: 12.5, color: AppColors.textMuted, height: 1.4),
+          style: TextStyle(fontSize: AppTextSize.helper, color: AppColors.textMuted, height: 1.4),
         ),
         const SizedBox(height: AppSpacing.xxl),
         Center(
@@ -726,14 +727,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
         const Text(
           'Frontend simulation — no camera access or facial data is actually captured in this demo build.',
           textAlign: TextAlign.center,
-          style: TextStyle(fontSize: 11, color: AppColors.textMuted),
+          style: TextStyle(fontSize: AppTextSize.fine, color: AppColors.textMuted),
         ),
         if (_error != null) ...[
           const SizedBox(height: AppSpacing.md),
           Text(
             _error!,
             textAlign: TextAlign.center,
-            style: const TextStyle(fontSize: 12.5, color: AppColors.rose600),
+            style: const TextStyle(fontSize: AppTextSize.helper, color: AppColors.rose600),
           ),
         ],
       ],
@@ -746,12 +747,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
       children: [
         const Text(
           'Review Your Information',
-          style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
+          style: TextStyle(fontSize: AppTextSize.card, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
         ),
-        const SizedBox(height: 6),
+        const SizedBox(height: AppSpacing.xs),
         const Text(
           'Make sure everything looks correct before submitting for verification.',
-          style: TextStyle(fontSize: 12.5, color: AppColors.textMuted, height: 1.4),
+          style: TextStyle(fontSize: AppTextSize.helper, color: AppColors.textMuted, height: 1.4),
         ),
         const SizedBox(height: AppSpacing.xl),
         _reviewRow(
@@ -779,7 +780,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         ),
         if (_error != null) ...[
           const SizedBox(height: AppSpacing.md),
-          Text(_error!, style: const TextStyle(fontSize: 12.5, color: AppColors.rose600)),
+          Text(_error!, style: const TextStyle(fontSize: AppTextSize.helper, color: AppColors.rose600)),
         ],
       ],
     );
@@ -787,7 +788,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   Widget _reviewRow(String label, String value, {required VoidCallback onEdit}) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.only(bottom: AppSpacing.md),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -795,11 +796,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(label, style: const TextStyle(fontSize: 11.5, color: AppColors.textMuted)),
-                const SizedBox(height: 2),
+                Text(label, style: const TextStyle(fontSize: AppTextSize.label, color: AppColors.textMuted)),
+                const SizedBox(height: AppSpacing.xs),
                 Text(
                   value,
-                  style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600, color: AppColors.slate700),
+                  style: const TextStyle(fontSize: AppTextSize.body, fontWeight: FontWeight.w600, color: AppColors.slate700),
                 ),
               ],
             ),
@@ -808,7 +809,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
             onTap: onEdit,
             child: const Text(
               'Edit',
-              style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: AppColors.brand600),
+              style: TextStyle(fontSize: AppTextSize.helper, fontWeight: FontWeight.w600, color: AppColors.brand600),
             ),
           ),
         ],
@@ -843,7 +844,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         Text(
           _alreadyHasAccount ? 'Your Verification Status' : 'You\'re All Set!',
           textAlign: TextAlign.center,
-          style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
+          style: const TextStyle(fontSize: AppTextSize.card, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
         ),
         const SizedBox(height: AppSpacing.xs),
         if (!_alreadyHasAccount)
@@ -852,7 +853,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 ? 'Enter the 6-digit code sent to $_otpDestination to confirm your account.'
                 : 'Na-verify na ang iyong email. Naipasa na ang iyong impormasyon sa Esperanza LGU para ma-review.',
             textAlign: TextAlign.center,
-            style: const TextStyle(fontSize: 13, color: AppColors.textMuted, height: 1.4),
+            style: const TextStyle(fontSize: AppTextSize.helper, color: AppColors.textMuted, height: 1.4),
           ),
         if (_accountNo != null) ...[
           const SizedBox(height: AppSpacing.lg),
@@ -864,7 +865,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
           ),
           if (_error != null) ...[
             const SizedBox(height: AppSpacing.sm),
-            Text(_error!, style: const TextStyle(fontSize: 12.5, color: AppColors.rose600)),
+            Text(_error!, style: const TextStyle(fontSize: AppTextSize.helper, color: AppColors.rose600)),
           ],
           const SizedBox(height: AppSpacing.md),
           AppButton(

@@ -4,6 +4,7 @@ import '../theme/app_elevation.dart';
 import '../theme/app_haptics.dart';
 import '../theme/app_typography.dart';
 import 'esperanza_nav_motion.dart';
+import '../theme/app_spacing.dart';
 
 /// The two destinations the bottom nav's center "+" launches — Dokyu and
 /// Tulong no longer have their own permanent nav slots (see root_shell.dart).
@@ -175,7 +176,7 @@ class _ServiceLauncherBubblesState extends State<_ServiceLauncherBubbles> with S
                       interval: const Interval(0.0, 0.85, curve: Curves.easeOutCubic),
                       onTap: () => _select(ServiceLauncherTarget.dokyu),
                     ),
-                    const SizedBox(width: 28),
+                    const SizedBox(width: AppSpacing.xxl),
                     _LauncherBubble(
                       target: ServiceLauncherTarget.tulong,
                       controller: _controller,
@@ -238,7 +239,7 @@ class _LauncherBubble extends StatelessWidget {
                 ),
                 child: Icon(target.icon, color: Colors.white, size: EsperanzaNavMotion.iconSize),
               ),
-              const SizedBox(height: 6),
+              const SizedBox(height: AppSpacing.xs),
               // The label carries its own background, for the same reason the
               // bubble above carries a white ring: the scrim behind this menu
               // is a deliberate 12% tint rather than a modal barrier, so
@@ -253,10 +254,10 @@ class _LauncherBubble extends StatelessWidget {
               // overlay, and the labels no longer depend on what is behind
               // them.
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: AppSpacing.xs),
                 decoration: BoxDecoration(
                   color: AppColors.surface,
-                  borderRadius: BorderRadius.circular(999),
+                  borderRadius: BorderRadius.circular(AppRadius.full),
                   boxShadow: [
                     BoxShadow(color: AppElevation.tabPillShadow, blurRadius: 6, offset: const Offset(0, 2)),
                   ],
@@ -265,7 +266,7 @@ class _LauncherBubble extends StatelessWidget {
                   target.label,
                   style: const TextStyle(
                     fontFamily: AppTypography.sans,
-                    fontSize: 11.5,
+                    fontSize: AppTextSize.label,
                     fontWeight: FontWeight.w700,
                     // Esperanza primary blue — the same color the navbar's
                     // own active-tab label uses (EsperanzaNavItem._activeColor)

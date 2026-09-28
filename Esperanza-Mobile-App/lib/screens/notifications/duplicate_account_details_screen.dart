@@ -6,6 +6,7 @@ import '../../theme/app_haptics.dart';
 import '../../theme/app_spacing.dart';
 import '../../widgets/app_button.dart';
 import '../../widgets/app_dialogs.dart';
+import '../../theme/app_typography.dart';
 
 /// Phase 6 — "One Person, One Account" duplicate-account simulation,
 /// FRONTEND SIMULATION ONLY (see module doc). Opened from the original
@@ -72,8 +73,8 @@ class DuplicateAccountDetailsScreen extends StatelessWidget {
           padding: const EdgeInsets.all(AppSpacing.xl),
           children: [
             Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(color: AppColors.amber50, borderRadius: BorderRadius.circular(16)),
+              padding: const EdgeInsets.all(AppSpacing.lg),
+              decoration: BoxDecoration(color: AppColors.amber50, borderRadius: BorderRadius.circular(AppRadius.lg)),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -84,7 +85,7 @@ class DuplicateAccountDetailsScreen extends StatelessWidget {
                       const Expanded(
                         child: Text(
                           'Duplicate Account Detected',
-                          style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: AppColors.amber700),
+                          style: TextStyle(fontSize: AppTextSize.card, fontWeight: FontWeight.w700, color: AppColors.amber700),
                         ),
                       ),
                     ],
@@ -93,7 +94,7 @@ class DuplicateAccountDetailsScreen extends StatelessWidget {
                   const Text(
                     'Another account has been detected using information that appears to match your resident '
                     'profile. Please confirm whether you created this account.',
-                    style: TextStyle(fontSize: 12.5, color: AppColors.slate700, height: 1.45),
+                    style: TextStyle(fontSize: AppTextSize.helper, color: AppColors.slate700, height: 1.45),
                   ),
                 ],
               ),
@@ -102,7 +103,7 @@ class DuplicateAccountDetailsScreen extends StatelessWidget {
             const Text(
               'This is a preview of a future duplicate-detection feature — no password, uploaded ID, or other '
               'private information from the other account is shown here.',
-              style: TextStyle(fontSize: 11.5, color: AppColors.textMuted, height: 1.4),
+              style: TextStyle(fontSize: AppTextSize.label, color: AppColors.textMuted, height: 1.4),
             ),
             const SizedBox(height: AppSpacing.xxl),
             if (resolution == null) ...[
@@ -135,10 +136,10 @@ class _ResolvedCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final confirmed = resolution == 'confirmed';
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(AppSpacing.lg),
       decoration: BoxDecoration(
         color: confirmed ? AppColors.emerald50 : AppColors.rose50,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(AppRadius.lg),
         border: Border.all(color: (confirmed ? AppColors.emerald500 : AppColors.rose500).withValues(alpha: 0.25)),
       ),
       child: Column(
@@ -156,7 +157,7 @@ class _ResolvedCard extends StatelessWidget {
                 child: Text(
                   confirmed ? 'Resolved: Confirmed — Duplicate Stays Unverified' : 'Resolved: Reported — Duplicate Flagged for Investigation',
                   style: TextStyle(
-                    fontSize: 13,
+                    fontSize: AppTextSize.helper,
                     fontWeight: FontWeight.w700,
                     color: confirmed ? AppColors.emerald700 : AppColors.rose700,
                   ),
@@ -172,7 +173,7 @@ class _ResolvedCard extends StatelessWidget {
                     'verified account for Dokyu, Tulong, and other verified resident services.'
                 : 'You reported this account does not belong to you. It has been flagged for administrative '
                     'investigation; no automatic suspension has been applied from this app.',
-            style: const TextStyle(fontSize: 12, color: AppColors.slate700, height: 1.4),
+            style: const TextStyle(fontSize: AppTextSize.label, color: AppColors.slate700, height: 1.4),
           ),
         ],
       ),

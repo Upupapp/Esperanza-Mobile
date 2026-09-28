@@ -5,6 +5,7 @@ import '../../../theme/app_spacing.dart';
 import '../../../widgets/app_button.dart';
 import '../../../widgets/app_date_field.dart';
 import '../../../widgets/app_text_field.dart';
+import '../../../theme/app_typography.dart';
 
 /// Add/edit sheet for one family member. Deliberately lighter than the
 /// citizen's own Personal Information step (Section 4: "Full Name" as one
@@ -86,30 +87,30 @@ class _FamilyMemberFormSheetState extends State<FamilyMemberFormSheet> {
         child: SafeArea(
           top: false,
           child: Container(
-            margin: const EdgeInsets.fromLTRB(0, 12, 0, 0),
+            margin: const EdgeInsets.fromLTRB(0, AppSpacing.md, 0, 0),
             decoration: const BoxDecoration(
               color: Colors.white,
-              borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+              borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.xl)),
             ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+                  padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.md, AppSpacing.lg, AppSpacing.sm),
                   child: Column(
                     children: [
                       Container(
                         width: 36,
                         height: 4,
-                        margin: const EdgeInsets.only(bottom: 16),
-                        decoration: BoxDecoration(color: AppColors.slate200, borderRadius: BorderRadius.circular(999)),
+                        margin: const EdgeInsets.only(bottom: AppSpacing.lg),
+                        decoration: BoxDecoration(color: AppColors.slate200, borderRadius: BorderRadius.circular(AppRadius.full)),
                       ),
                       Align(
                         alignment: Alignment.centerLeft,
                         child: Text(
                           widget.existing == null ? 'Add Family Member' : 'Edit Family Member',
                           style: const TextStyle(
-                            fontSize: 15.5,
+                            fontSize: AppTextSize.card,
                             fontWeight: FontWeight.w700,
                             color: AppColors.textPrimary,
                           ),
@@ -120,12 +121,12 @@ class _FamilyMemberFormSheetState extends State<FamilyMemberFormSheet> {
                 ),
                 Flexible(
                   child: SingleChildScrollView(
-                    padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+                    padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.xs, AppSpacing.lg, AppSpacing.sm),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         AppTextField(label: 'Full name', controller: _fullName, icon: Icons.person_outline_rounded),
-                        const SizedBox(height: 14),
+                        const SizedBox(height: AppSpacing.md),
                         AppSelectField<String>(
                           label: 'Relationship to Head of Family',
                           value: _relationship,
@@ -133,7 +134,7 @@ class _FamilyMemberFormSheetState extends State<FamilyMemberFormSheet> {
                           labelBuilder: (v) => v,
                           onChanged: (v) => setState(() => _relationship = v),
                         ),
-                        const SizedBox(height: 14),
+                        const SizedBox(height: AppSpacing.md),
                         Row(
                           children: [
                             Expanded(
@@ -145,7 +146,7 @@ class _FamilyMemberFormSheetState extends State<FamilyMemberFormSheet> {
                                 onChanged: (v) => setState(() => _sex = v),
                               ),
                             ),
-                            const SizedBox(width: 12),
+                            const SizedBox(width: AppSpacing.md),
                             Expanded(
                               child: AppDateField(
                                 label: 'Birthdate',
@@ -155,7 +156,7 @@ class _FamilyMemberFormSheetState extends State<FamilyMemberFormSheet> {
                             ),
                           ],
                         ),
-                        const SizedBox(height: 14),
+                        const SizedBox(height: AppSpacing.md),
                         AppSelectField<String>(
                           label: 'Civil status',
                           value: _civilStatus,
@@ -163,19 +164,19 @@ class _FamilyMemberFormSheetState extends State<FamilyMemberFormSheet> {
                           labelBuilder: (v) => v,
                           onChanged: (v) => setState(() => _civilStatus = v),
                         ),
-                        const SizedBox(height: 14),
+                        const SizedBox(height: AppSpacing.md),
                         AppTextField(label: 'Occupation', controller: _occupation, icon: Icons.work_outline_rounded),
-                        const SizedBox(height: 14),
+                        const SizedBox(height: AppSpacing.md),
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: AppSpacing.xs),
-                          decoration: BoxDecoration(color: AppColors.slate50, borderRadius: BorderRadius.circular(12)),
+                          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.xs),
+                          decoration: BoxDecoration(color: AppColors.slate50, borderRadius: BorderRadius.circular(AppRadius.md)),
                           child: Row(
                             children: [
                               const Expanded(
                                 child: Text(
                                   'Has Esperanza Account?',
                                   style: TextStyle(
-                                    fontSize: 13.5,
+                                    fontSize: AppTextSize.body,
                                     fontWeight: FontWeight.w500,
                                     color: AppColors.slate700,
                                   ),
@@ -192,18 +193,18 @@ class _FamilyMemberFormSheetState extends State<FamilyMemberFormSheet> {
                         const SizedBox(height: AppSpacing.xs),
                         const Text(
                           'It\'s okay if they don\'t have one — children, seniors, and dependents can still be added.',
-                          style: TextStyle(fontSize: 11, color: AppColors.textMuted, height: 1.3),
+                          style: TextStyle(fontSize: AppTextSize.fine, color: AppColors.textMuted, height: 1.3),
                         ),
                         if (_error != null) ...[
-                          const SizedBox(height: 10),
-                          Text(_error!, style: const TextStyle(fontSize: 12.5, color: AppColors.rose600)),
+                          const SizedBox(height: AppSpacing.sm),
+                          Text(_error!, style: const TextStyle(fontSize: AppTextSize.helper, color: AppColors.rose600)),
                         ],
                       ],
                     ),
                   ),
                 ),
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+                  padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.sm, AppSpacing.lg, AppSpacing.lg),
                   child: AppButton(
                     label: widget.existing == null ? 'Add Member' : 'Save Changes',
                     icon: Icons.check_rounded,

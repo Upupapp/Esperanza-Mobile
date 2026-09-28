@@ -10,6 +10,7 @@ import '../../widgets/empty_state.dart';
 import '../../widgets/segmented_tabs.dart';
 import '../../widgets/status_chip.dart';
 import 'request_detail_screen.dart';
+import '../../theme/app_typography.dart';
 
 /// The signed-in resident's full Dokyu + Tulong request history in one
 /// place — derived straight from [RequestsService], never a separate
@@ -52,7 +53,7 @@ class _MyRequestsScreenState extends State<MyRequestsScreen> {
       body: Column(
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+            padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.md, AppSpacing.lg, AppSpacing.xs),
             child: SegmentedTabs(
               labels: const ['All', 'Dokyu', 'Tulong'],
               selectedIndex: _tab,
@@ -67,7 +68,7 @@ class _MyRequestsScreenState extends State<MyRequestsScreen> {
                     description: 'Your submitted Dokyu and Tulong requests will appear here.',
                   )
                 : ListView.builder(
-                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+                    padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.sm, AppSpacing.lg, AppSpacing.xxl),
                     itemCount: mine.length,
                     itemBuilder: (context, i) => _MyRequestCard(request: mine[i]),
                   ),
@@ -92,7 +93,7 @@ class _MyRequestCard extends StatelessWidget {
     };
 
     return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.only(bottom: AppSpacing.sm),
       child: AppCard(
         onTap: () =>
             Navigator.of(context).push(MaterialPageRoute(builder: (_) => RequestDetailScreen(requestId: request.id))),
@@ -103,46 +104,46 @@ class _MyRequestCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                  padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: AppSpacing.xs),
                   decoration: BoxDecoration(
                     color: categoryColor.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(999),
+                    borderRadius: BorderRadius.circular(AppRadius.full),
                   ),
                   child: Text(
                     request.category.label,
-                    style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: categoryColor),
+                    style: TextStyle(fontSize: AppTextSize.fine, fontWeight: FontWeight.w700, color: categoryColor),
                   ),
                 ),
-                const SizedBox(width: 8),
+                const SizedBox(width: AppSpacing.sm),
                 Expanded(
                   child: Text(
                     request.typeName,
-                    style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
+                    style: const TextStyle(fontSize: AppTextSize.body, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
                   ),
                 ),
-                const SizedBox(width: 8),
+                const SizedBox(width: AppSpacing.sm),
                 StatusChip(status: AppStatusX.fromLabel(request.status), small: true),
               ],
             ),
-            const SizedBox(height: 6),
+            const SizedBox(height: AppSpacing.xs),
             Text(
               request.referenceNumber,
               style: const TextStyle(
-                fontSize: 12,
+                fontSize: AppTextSize.label,
                 color: AppColors.textMuted,
                 fontFeatures: [FontFeature.tabularFigures()],
               ),
             ),
-            const SizedBox(height: 2),
+            const SizedBox(height: AppSpacing.xs),
             Text(
               'Submitted ${_fmt(request.submittedAt)}',
-              style: const TextStyle(fontSize: 12, color: AppColors.textMuted),
+              style: const TextStyle(fontSize: AppTextSize.label, color: AppColors.textMuted),
             ),
             const Divider(height: AppSpacing.xl),
             Row(
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
-                Text('Track', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: categoryColor)),
+                Text('Track', style: TextStyle(fontSize: AppTextSize.label, fontWeight: FontWeight.w600, color: categoryColor)),
                 Icon(Icons.chevron_right_rounded, size: 15, color: categoryColor),
               ],
             ),

@@ -65,7 +65,7 @@ class PromotionalBannerDialog extends StatelessWidget {
             // — regardless of phone width/height.
             constraints: BoxConstraints(maxWidth: maxWidth, maxHeight: maxHeight),
             child: ClipRRect(
-              borderRadius: BorderRadius.circular(20),
+              borderRadius: BorderRadius.circular(AppRadius.xl),
               // These source posters are ~1024x1536 — bigger than this
               // dialog ever displays them at (it's width-bound in
               // practice, per maxWidth/maxHeight above). cacheWidth tells

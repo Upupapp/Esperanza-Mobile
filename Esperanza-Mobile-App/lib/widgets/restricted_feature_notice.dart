@@ -5,6 +5,7 @@ import '../services/citizen_session_service.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
 import 'app_button.dart';
+import '../theme/app_typography.dart';
 
 /// Why a feature is being withheld — drives which message/actions
 /// [RestrictedFeatureNotice] shows. See Sections 6/7 of the nav-and-access
@@ -53,7 +54,7 @@ class RestrictedFeatureNotice extends StatelessWidget {
                   Text(
                     featureName,
                     textAlign: TextAlign.center,
-                    style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
+                    style: const TextStyle(fontSize: AppTextSize.card, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
                   ),
                   const SizedBox(height: AppSpacing.sm),
                   Text(
@@ -61,7 +62,7 @@ class RestrictedFeatureNotice extends StatelessWidget {
                         ? 'This feature is available to registered Esperanza users. Create an account or sign in to continue.'
                         : 'Complete your account verification to access this service.',
                     textAlign: TextAlign.center,
-                    style: const TextStyle(fontSize: 13.5, color: AppColors.textMuted, height: 1.45),
+                    style: const TextStyle(fontSize: AppTextSize.body, color: AppColors.textMuted, height: 1.45),
                   ),
                   const SizedBox(height: AppSpacing.xxl),
                   if (isGuest) ..._guestActions(context) else ..._unverifiedActions(context),

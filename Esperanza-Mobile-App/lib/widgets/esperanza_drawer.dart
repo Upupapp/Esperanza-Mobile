@@ -20,6 +20,7 @@ import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
 import '../utils/demo_resident_photo.dart';
 import 'app_dialogs.dart';
+import '../theme/app_typography.dart';
 
 /// The app's hamburger-menu drawer (Section 2) — hosts Profile and the
 /// screens that no longer have a dedicated bottom tab now that Balita and
@@ -186,7 +187,7 @@ class _Header extends StatelessWidget {
     final photo = profileImageFor(account, personal);
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(20, 28, 20, 20),
+      padding: const EdgeInsets.fromLTRB(AppSpacing.xl, AppSpacing.xxl, AppSpacing.xl, AppSpacing.xl),
       decoration: const BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topLeft,
@@ -206,19 +207,19 @@ class _Header extends StatelessWidget {
                 : (account != null
                     ? Text(
                         account.initials,
-                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 16),
+                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: AppTextSize.card),
                       )
                     : const Icon(Icons.person_outline_rounded, color: Colors.white, size: 26)),
           ),
           const SizedBox(height: AppSpacing.md),
           Text(
             account?.fullName ?? 'Guest',
-            style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w700),
+            style: const TextStyle(color: Colors.white, fontSize: AppTextSize.card, fontWeight: FontWeight.w700),
           ),
-          const SizedBox(height: 2),
+          const SizedBox(height: AppSpacing.xs),
           Text(
             account != null ? 'Brgy. ${account.barangay}' : 'Sign in to access more features',
-            style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 12),
+            style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: AppTextSize.label),
           ),
         ],
       ),
@@ -240,7 +241,7 @@ class _DrawerTile extends StatelessWidget {
       leading: Icon(icon, color: danger ? AppColors.rose500 : AppColors.slate500, size: 22),
       title: Text(
         label,
-        style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: color),
+        style: TextStyle(fontSize: AppTextSize.body, fontWeight: FontWeight.w600, color: color),
       ),
       onTap: onTap,
     );

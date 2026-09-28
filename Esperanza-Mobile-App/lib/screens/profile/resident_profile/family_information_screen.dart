@@ -12,6 +12,7 @@ import '../../../widgets/app_dialogs.dart';
 import '../../../widgets/app_text_field.dart';
 import '../../../widgets/form_section.dart';
 import 'family_member_form_sheet.dart';
+import '../../../theme/app_typography.dart';
 
 /// Step 2 — Family Information. Citizen-facing framing of the Web Admin's
 /// Constituents > Families module: members are added/edited/removed
@@ -130,11 +131,11 @@ class _FamilyInformationScreenState extends State<FamilyInformationScreen> {
       appBar: AppBar(title: const Text('Family Information')),
       body: SafeArea(
         child: ListView(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
+          padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.md, AppSpacing.lg, AppSpacing.xxxl),
           children: [
             const Text(
               'Tell us about your family members living with you.',
-              style: TextStyle(fontSize: 13, color: AppColors.textMuted, height: 1.4),
+              style: TextStyle(fontSize: AppTextSize.helper, color: AppColors.textMuted, height: 1.4),
             ),
             if (showMatch) ...[
               const SizedBox(height: AppSpacing.lg),
@@ -177,22 +178,22 @@ class _FamilyInformationScreenState extends State<FamilyInformationScreen> {
             const SizedBox(height: AppSpacing.xl),
             const Text(
               'Family Members',
-              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.slate600),
+              style: TextStyle(fontSize: AppTextSize.helper, fontWeight: FontWeight.w600, color: AppColors.slate600),
             ),
             const SizedBox(height: AppSpacing.sm),
             if (profile.familyMembers.isEmpty)
               Container(
                 padding: const EdgeInsets.all(AppSpacing.lg),
-                decoration: BoxDecoration(color: AppColors.slate50, borderRadius: BorderRadius.circular(14)),
+                decoration: BoxDecoration(color: AppColors.slate50, borderRadius: BorderRadius.circular(AppRadius.md)),
                 child: const Text(
                   'No family members added yet. Add anyone living with you — even if they don\'t have an Esperanza account.',
-                  style: TextStyle(fontSize: 12.5, color: AppColors.textMuted, height: 1.4),
+                  style: TextStyle(fontSize: AppTextSize.helper, color: AppColors.textMuted, height: 1.4),
                 ),
               )
             else
               for (final member in profile.familyMembers)
                 _MemberTile(member: member, onEdit: () => _editMember(member), onRemove: () => _removeMember(member)),
-            const SizedBox(height: 10),
+            const SizedBox(height: AppSpacing.sm),
             OutlinedButton.icon(
               onPressed: _addMember,
               icon: const Icon(Icons.person_add_alt_1_rounded, size: 17),
@@ -200,7 +201,7 @@ class _FamilyInformationScreenState extends State<FamilyInformationScreen> {
             ),
             if (_error != null) ...[
               const SizedBox(height: AppSpacing.md),
-              Text(_error!, style: const TextStyle(fontSize: 12.5, color: AppColors.rose600)),
+              Text(_error!, style: const TextStyle(fontSize: AppTextSize.helper, color: AppColors.rose600)),
             ],
             const SizedBox(height: AppSpacing.xxl),
             AppButton(
@@ -235,21 +236,21 @@ class _InfoRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 2),
+      padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           SizedBox(
             width: 110,
-            child: Text(label, style: const TextStyle(fontSize: 12, color: AppColors.textMuted)),
+            child: Text(label, style: const TextStyle(fontSize: AppTextSize.label, color: AppColors.textMuted)),
           ),
           Expanded(
             child: Text(
               value,
               style: TextStyle(
-                fontSize: 12.5,
+                fontSize: AppTextSize.helper,
                 fontWeight: FontWeight.w600,
-                color: muted ? AppColors.slate400 : AppColors.slate700,
+                color: muted ? AppColors.textMuted : AppColors.slate700,
               ),
             ),
           ),
@@ -258,7 +259,7 @@ class _InfoRow extends StatelessWidget {
               onTap: onAction,
               child: Text(
                 actionLabel!,
-                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.brand600),
+                style: const TextStyle(fontSize: AppTextSize.label, fontWeight: FontWeight.w600, color: AppColors.brand600),
               ),
             ),
         ],
@@ -392,7 +393,7 @@ class _EmergencyContactSectionState extends State<_EmergencyContactSection> {
               const Expanded(
                 child: Text(
                   'Emergency Contact',
-                  style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
+                  style: TextStyle(fontSize: AppTextSize.body, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
                 ),
               ),
               if (!_editing)
@@ -400,7 +401,7 @@ class _EmergencyContactSectionState extends State<_EmergencyContactSection> {
                   onTap: _startEdit,
                   child: const Text(
                     'Edit',
-                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.brand600),
+                    style: TextStyle(fontSize: AppTextSize.label, fontWeight: FontWeight.w600, color: AppColors.brand600),
                   ),
                 ),
             ],
@@ -408,9 +409,9 @@ class _EmergencyContactSectionState extends State<_EmergencyContactSection> {
           const SizedBox(height: AppSpacing.lg),
           if (_editing) ...[
             AppTextField(label: 'Name', controller: _name, icon: Icons.person_outline_rounded),
-            const SizedBox(height: 18),
+            const SizedBox(height: AppSpacing.lg),
             AppTextField(label: 'Relationship', controller: _relationship, icon: Icons.people_outline_rounded),
-            const SizedBox(height: 18),
+            const SizedBox(height: AppSpacing.lg),
             AppTextField(
               label: 'Contact number',
               controller: _number,
@@ -420,7 +421,7 @@ class _EmergencyContactSectionState extends State<_EmergencyContactSection> {
             ),
             if (_error != null) ...[
               const SizedBox(height: AppSpacing.md),
-              Text(_error!, style: const TextStyle(fontSize: 12.5, color: AppColors.rose600)),
+              Text(_error!, style: const TextStyle(fontSize: AppTextSize.helper, color: AppColors.rose600)),
             ],
             const SizedBox(height: AppSpacing.lg),
             Row(
@@ -466,9 +467,9 @@ class _MemberTile extends StatelessWidget {
       member.hasEsperanzaAccount ? 'Has Esperanza account' : 'No Esperanza account',
     ];
     return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.only(bottom: AppSpacing.sm),
       child: AppCard(
-        padding: const EdgeInsets.all(14),
+        padding: const EdgeInsets.all(AppSpacing.md),
         onTap: onEdit,
         child: Row(
           children: [
@@ -477,20 +478,20 @@ class _MemberTile extends StatelessWidget {
               backgroundColor: AppColors.slate100,
               child: Text(
                 member.firstName.isNotEmpty ? member.firstName.substring(0, 1).toUpperCase() : '?',
-                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.slate600),
+                style: const TextStyle(fontSize: AppTextSize.helper, fontWeight: FontWeight.w700, color: AppColors.slate600),
               ),
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: AppSpacing.md),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
                     member.fullName,
-                    style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
+                    style: const TextStyle(fontSize: AppTextSize.body, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
                   ),
-                  const SizedBox(height: 2),
-                  Text(subtitleParts.join(' · '), style: const TextStyle(fontSize: 11.5, color: AppColors.textMuted)),
+                  const SizedBox(height: AppSpacing.xs),
+                  Text(subtitleParts.join(' · '), style: const TextStyle(fontSize: AppTextSize.label, color: AppColors.textMuted)),
                 ],
               ),
             ),
@@ -519,7 +520,7 @@ class _ExistingMatchBanner extends StatelessWidget {
       padding: const EdgeInsets.all(AppSpacing.lg),
       decoration: BoxDecoration(
         color: AppColors.brand50,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(AppRadius.lg),
         border: Border.all(color: AppColors.brand200),
       ),
       child: Column(
@@ -532,17 +533,17 @@ class _ExistingMatchBanner extends StatelessWidget {
               Expanded(
                 child: Text(
                   'We found a possible existing family record.',
-                  style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: AppColors.brand700),
+                  style: TextStyle(fontSize: AppTextSize.helper, fontWeight: FontWeight.w600, color: AppColors.brand700),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: AppSpacing.sm),
           Text(
             match.familyName,
-            style: const TextStyle(fontSize: 14.5, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
+            style: const TextStyle(fontSize: AppTextSize.body, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
           ),
-          Text('Brgy. ${match.barangay}', style: const TextStyle(fontSize: 12, color: AppColors.textMuted)),
+          Text('Brgy. ${match.barangay}', style: const TextStyle(fontSize: AppTextSize.label, color: AppColors.textMuted)),
           const SizedBox(height: AppSpacing.md),
           AppButton(label: 'Request to Join Family', size: AppButtonSize.sm, onPressed: onJoin),
         ],
@@ -562,7 +563,7 @@ class _HeadPickerSheet extends StatelessWidget {
       child: Container(
         margin: const EdgeInsets.all(AppSpacing.md),
         padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
-        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20)),
+        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(AppRadius.xl)),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -572,11 +573,11 @@ class _HeadPickerSheet extends StatelessWidget {
                 alignment: Alignment.centerLeft,
                 child: Text(
                   'Head of Family',
-                  style: TextStyle(fontSize: 14.5, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
+                  style: TextStyle(fontSize: AppTextSize.body, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
                 ),
               ),
             ),
-            const SizedBox(height: 6),
+            const SizedBox(height: AppSpacing.xs),
             for (final i in individuals)
               ListTile(
                 leading: CircleAvatar(
@@ -584,10 +585,10 @@ class _HeadPickerSheet extends StatelessWidget {
                   backgroundColor: AppColors.slate100,
                   child: Text(
                     i.firstName.isNotEmpty ? i.firstName.substring(0, 1).toUpperCase() : '?',
-                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.slate600),
+                    style: const TextStyle(fontSize: AppTextSize.label, fontWeight: FontWeight.w700, color: AppColors.slate600),
                   ),
                 ),
-                title: Text(i.fullName, style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600)),
+                title: Text(i.fullName, style: const TextStyle(fontSize: AppTextSize.body, fontWeight: FontWeight.w600)),
                 trailing: i.individualId == currentHeadId
                     ? const Icon(Icons.check_circle_rounded, color: AppColors.brand600, size: 20)
                     : null,

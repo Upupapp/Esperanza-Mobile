@@ -329,3 +329,20 @@ class AppTypography {
     color: AppColors.textPrimary,
   );
 }
+
+/// The standard scale as bare sizes, for the inline `TextStyle(fontSize: …)`
+/// and `.copyWith(fontSize: …)` that a role style cannot replace outright
+/// (a coloured count, a one-off weight). Same roles as [AppTypography]; see
+/// docs/DESIGN_GUIDELINES.md §3. Never write a number instead.
+class AppTextSize {
+  AppTextSize._();
+
+  static const double display = 32;
+  static const double page = 24;
+  static const double section = 20;
+  static const double card = 16;
+  static const double body = 14;
+  static const double helper = 13;
+  static const double label = 12;
+  static const double fine = 11;
+}

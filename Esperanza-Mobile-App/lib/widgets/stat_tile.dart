@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_shadows.dart';
 import '../theme/app_spacing.dart';
+import '../theme/app_typography.dart';
 
 enum StatTileColor { brand, green, purple, orange, red, gold }
 
@@ -37,15 +38,15 @@ class StatTile extends StatelessWidget {
     final c = _colors;
     return Material(
       color: Colors.transparent,
-      borderRadius: BorderRadius.circular(16),
+      borderRadius: BorderRadius.circular(AppRadius.lg),
       child: InkWell(
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(AppRadius.lg),
         onTap: onTap,
         child: Container(
-          padding: const EdgeInsets.all(14),
+          padding: const EdgeInsets.all(AppSpacing.md),
           decoration: BoxDecoration(
             color: AppColors.surface,
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(AppRadius.lg),
             border: Border.all(color: AppColors.border),
             boxShadow: AppShadows.card,
           ),
@@ -55,19 +56,19 @@ class StatTile extends StatelessWidget {
               Container(
                 width: 36,
                 height: 36,
-                decoration: BoxDecoration(color: c.bg, borderRadius: BorderRadius.circular(10)),
+                decoration: BoxDecoration(color: c.bg, borderRadius: BorderRadius.circular(AppRadius.sm)),
                 child: Icon(icon, size: 17, color: c.fg),
               ),
               const SizedBox(height: AppSpacing.md),
               Text(
                 value,
-                style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: AppColors.navy900),
+                style: const TextStyle(fontSize: AppTextSize.section, fontWeight: FontWeight.w700, color: AppColors.navy900),
               ),
-              const SizedBox(height: 2),
+              const SizedBox(height: AppSpacing.xs),
               Text(
                 label.toUpperCase(),
                 style: const TextStyle(
-                  fontSize: 10.5,
+                  fontSize: AppTextSize.fine,
                   fontWeight: FontWeight.w600,
                   color: AppColors.textMuted,
                   letterSpacing: 0.4,

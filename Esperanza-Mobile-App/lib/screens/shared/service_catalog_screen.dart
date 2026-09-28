@@ -15,6 +15,7 @@ import 'new_request_screen.dart';
 import 'request_detail_screen.dart';
 import 'service_request_wizard_screen.dart';
 import '../sakuna/report_incident_screen.dart';
+import '../../theme/app_typography.dart';
 
 /// Step 1 of the request wizard — pick a document/assistance type, guided
 /// by progressive filtering (Barangay/LGU -> Department -> Specific
@@ -106,7 +107,7 @@ class _ServiceCatalogScreenState extends State<ServiceCatalogScreen> {
         children: [
           if (crumbs.isNotEmpty)
             Padding(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+              padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.md, AppSpacing.lg, 0),
               child: Wrap(
                 crossAxisAlignment: WrapCrossAlignment.center,
                 children: [
@@ -118,7 +119,7 @@ class _ServiceCatalogScreenState extends State<ServiceCatalogScreen> {
                       ),
                     Text(
                       crumbs[i],
-                      style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: widget.accent),
+                      style: TextStyle(fontSize: AppTextSize.helper, fontWeight: FontWeight.w600, color: widget.accent),
                     ),
                   ],
                 ],
@@ -140,16 +141,16 @@ class _ScopeStep extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+      padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.lg, AppSpacing.lg, AppSpacing.xxl),
       children: [
         const Text(
           'Where is this service administered?',
-          style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
+          style: TextStyle(fontSize: AppTextSize.card, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
         ),
         const SizedBox(height: AppSpacing.xs),
         const Text(
           'Choose Barangay or Municipality-level services to narrow the list.',
-          style: TextStyle(fontSize: 12.5, color: AppColors.textMuted, height: 1.4),
+          style: TextStyle(fontSize: AppTextSize.helper, color: AppColors.textMuted, height: 1.4),
         ),
         const SizedBox(height: AppSpacing.xl),
         for (final scope in scopes)
@@ -173,16 +174,16 @@ class _DepartmentStep extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+      padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.lg, AppSpacing.lg, AppSpacing.xxl),
       children: [
         const Text(
           'Which office handles this?',
-          style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
+          style: TextStyle(fontSize: AppTextSize.card, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
         ),
         const SizedBox(height: AppSpacing.xs),
         const Text(
           'Choose a department to see its specific services.',
-          style: TextStyle(fontSize: 12.5, color: AppColors.textMuted, height: 1.4),
+          style: TextStyle(fontSize: AppTextSize.helper, color: AppColors.textMuted, height: 1.4),
         ),
         const SizedBox(height: AppSpacing.xl),
         for (final dept in departments)
@@ -220,7 +221,7 @@ class _StepTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.only(bottom: AppSpacing.sm),
       child: AppCard(
         onTap: onTap,
         child: Row(
@@ -228,10 +229,10 @@ class _StepTile extends StatelessWidget {
             Container(
               width: 42,
               height: 42,
-              decoration: BoxDecoration(color: accent.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(12)),
+              decoration: BoxDecoration(color: accent.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(AppRadius.md)),
               child: logoAsset != null
                   ? Padding(
-                      padding: const EdgeInsets.all(6),
+                      padding: const EdgeInsets.all(AppSpacing.xs),
                       child: Image.asset(logoAsset!, fit: BoxFit.contain),
                     )
                   : Icon(icon, color: accent, size: 19),
@@ -240,7 +241,7 @@ class _StepTile extends StatelessWidget {
             Expanded(
               child: Text(
                 label,
-                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
+                style: const TextStyle(fontSize: AppTextSize.body, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
               ),
             ),
             const Icon(Icons.chevron_right_rounded, color: AppColors.slate300),
@@ -298,12 +299,12 @@ class _ItemList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListView.builder(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+      padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.md, AppSpacing.lg, AppSpacing.xxl),
       itemCount: items.length,
       itemBuilder: (context, i) {
         final item = items[i];
         return Padding(
-          padding: const EdgeInsets.only(bottom: 10),
+          padding: const EdgeInsets.only(bottom: AppSpacing.sm),
           child: AppCard(
             onTap: () => _open(context, item),
             child: Row(
@@ -314,14 +315,14 @@ class _ItemList extends StatelessWidget {
                   height: 42,
                   decoration: BoxDecoration(
                     color: accent.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(AppRadius.md),
                   ),
                   // The Esperanza municipal seal — every individual Dokyu/
                   // Tulong service card uses it (no per-document logo
                   // exists, unlike the office-selection step above, which
                   // does have some office-specific logos).
                   child: Padding(
-                    padding: const EdgeInsets.all(6),
+                    padding: const EdgeInsets.all(AppSpacing.xs),
                     child: Image.asset(esperanzaSealAsset, fit: BoxFit.contain),
                   ),
                 ),
@@ -333,13 +334,13 @@ class _ItemList extends StatelessWidget {
                       Text(
                         item.name,
                         style: const TextStyle(
-                          fontSize: 13.5,
+                          fontSize: AppTextSize.body,
                           fontWeight: FontWeight.w600,
                           color: AppColors.textPrimary,
                         ),
                       ),
-                      const SizedBox(height: 3),
-                      Text(item.office, style: const TextStyle(fontSize: 12, color: AppColors.textMuted)),
+                      const SizedBox(height: AppSpacing.xs),
+                      Text(item.office, style: const TextStyle(fontSize: AppTextSize.label, color: AppColors.textMuted)),
                       const SizedBox(height: AppSpacing.sm),
                       Wrap(
                         spacing: 8,
@@ -375,14 +376,14 @@ class _ItemList extends StatelessWidget {
   /// short pills from stretching to fill that width unnecessarily.
   Widget _pill(IconData icon, String text) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: 6),
-      decoration: BoxDecoration(color: AppColors.slate100, borderRadius: BorderRadius.circular(8)),
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: AppSpacing.xs),
+      decoration: BoxDecoration(color: AppColors.slate100, borderRadius: BorderRadius.circular(AppRadius.sm)),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Padding(
-            padding: const EdgeInsets.only(top: 1.5),
+            padding: const EdgeInsets.only(top: AppSpacing.xs),
             child: Icon(icon, size: 11, color: AppColors.slate500),
           ),
           const SizedBox(width: AppSpacing.xs),
@@ -391,7 +392,7 @@ class _ItemList extends StatelessWidget {
               text,
               textWidthBasis: TextWidthBasis.longestLine,
               style: const TextStyle(
-                fontSize: 10.5,
+                fontSize: AppTextSize.fine,
                 color: AppColors.slate600,
                 fontWeight: FontWeight.w500,
                 height: 1.3,

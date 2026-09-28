@@ -4,6 +4,7 @@ import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
 import 'app_button.dart';
 import 'app_text_field.dart';
+import '../theme/app_typography.dart';
 
 /// The shared filtering UI for Dokyu and Tulong (and reusable for any
 /// future request-style list) — keeps the main list screen clean per the
@@ -48,29 +49,29 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
       padding: EdgeInsets.only(bottom: viewInsets),
       child: SafeArea(
         child: Container(
-          margin: const EdgeInsets.fromLTRB(0, 12, 0, 0),
+          margin: const EdgeInsets.fromLTRB(0, AppSpacing.md, 0, 0),
           constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.88),
           decoration: const BoxDecoration(
             color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+            borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.xl)),
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const SizedBox(height: 10),
+              const SizedBox(height: AppSpacing.sm),
               Container(
                 width: 36,
                 height: 4,
-                decoration: BoxDecoration(color: AppColors.slate200, borderRadius: BorderRadius.circular(999)),
+                decoration: BoxDecoration(color: AppColors.slate200, borderRadius: BorderRadius.circular(AppRadius.full)),
               ),
               Padding(
-                padding: const EdgeInsets.fromLTRB(20, 16, 12, 4),
+                padding: const EdgeInsets.fromLTRB(AppSpacing.xl, AppSpacing.lg, AppSpacing.md, AppSpacing.xs),
                 child: Row(
                   children: [
                     const Expanded(
                       child: Text(
                         'Filter Requests',
-                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
+                        style: TextStyle(fontSize: AppTextSize.card, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
                       ),
                     ),
                     TextButton(
@@ -85,7 +86,7 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
               ),
               Flexible(
                 child: SingleChildScrollView(
-                  padding: const EdgeInsets.fromLTRB(20, 8, 20, 8),
+                  padding: const EdgeInsets.fromLTRB(AppSpacing.xl, AppSpacing.sm, AppSpacing.xl, AppSpacing.sm),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -99,7 +100,7 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
                       if (widget.typeOptions.isNotEmpty) ...[
                         const SizedBox(height: AppSpacing.xl),
                         _sectionLabel('Request Type'),
-                        const SizedBox(height: 10),
+                        const SizedBox(height: AppSpacing.sm),
                         Wrap(
                           spacing: 8,
                           runSpacing: 8,
@@ -121,7 +122,7 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
                       if (widget.statusOptions.isNotEmpty) ...[
                         const SizedBox(height: AppSpacing.xl),
                         _sectionLabel('Status'),
-                        const SizedBox(height: 10),
+                        const SizedBox(height: AppSpacing.sm),
                         Wrap(
                           spacing: 8,
                           runSpacing: 8,
@@ -142,26 +143,26 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
                       ],
                       const SizedBox(height: AppSpacing.xl),
                       _sectionLabel('Date Submitted'),
-                      const SizedBox(height: 10),
+                      const SizedBox(height: AppSpacing.sm),
                       InkWell(
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(AppRadius.md),
                         onTap: _pickDateRange,
                         child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+                          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.md),
                           decoration: BoxDecoration(
                             color: AppColors.slate50,
-                            borderRadius: BorderRadius.circular(12),
+                            borderRadius: BorderRadius.circular(AppRadius.md),
                             border: Border.all(color: AppColors.slate200),
                           ),
                           child: Row(
                             children: [
                               const Icon(Icons.calendar_today_rounded, size: 16, color: AppColors.slate500),
-                              const SizedBox(width: 10),
+                              const SizedBox(width: AppSpacing.sm),
                               Expanded(
                                 child: Text(
                                   _draft.dateRange == null ? 'Any date' : _formatRange(_draft.dateRange!),
                                   style: const TextStyle(
-                                    fontSize: 13.5,
+                                    fontSize: AppTextSize.body,
                                     color: AppColors.slate700,
                                     fontWeight: FontWeight.w500,
                                   ),
@@ -178,7 +179,7 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
                       ),
                       const SizedBox(height: AppSpacing.xl),
                       _sectionLabel('Sort By'),
-                      const SizedBox(height: 10),
+                      const SizedBox(height: AppSpacing.sm),
                       Wrap(
                         spacing: 8,
                         runSpacing: 8,
@@ -197,7 +198,7 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
                 ),
               ),
               Padding(
-                padding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
+                padding: const EdgeInsets.fromLTRB(AppSpacing.xl, AppSpacing.md, AppSpacing.xl, AppSpacing.lg),
                 child: AppButton(
                   label: 'Apply Filters',
                   fullWidth: true,
@@ -214,7 +215,7 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
 
   Widget _sectionLabel(String text) => Text(
     text,
-    style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: AppColors.slate600),
+    style: const TextStyle(fontSize: AppTextSize.helper, fontWeight: FontWeight.w700, color: AppColors.slate600),
   );
 
   Future<void> _pickDateRange() async {
@@ -242,18 +243,18 @@ class _Pill extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return InkWell(
-      borderRadius: BorderRadius.circular(999),
+      borderRadius: BorderRadius.circular(AppRadius.full),
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.sm),
         decoration: BoxDecoration(
           color: selected ? accent.withValues(alpha: 0.1) : AppColors.slate50,
-          borderRadius: BorderRadius.circular(999),
+          borderRadius: BorderRadius.circular(AppRadius.full),
           border: Border.all(color: selected ? accent : AppColors.slate200),
         ),
         child: Text(
           label,
-          style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: selected ? accent : AppColors.slate600),
+          style: TextStyle(fontSize: AppTextSize.helper, fontWeight: FontWeight.w600, color: selected ? accent : AppColors.slate600),
         ),
       ),
     );

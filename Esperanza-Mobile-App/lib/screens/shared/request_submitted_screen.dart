@@ -3,6 +3,7 @@ import '../../theme/app_colors.dart';
 import '../../theme/app_spacing.dart';
 import '../../widgets/app_button.dart';
 import 'request_detail_screen.dart';
+import '../../theme/app_typography.dart';
 
 /// "Show confirmation" step from Section 5 — a dedicated success screen
 /// (not just a toast) so the submission feels real and gives the citizen
@@ -50,20 +51,20 @@ class RequestSubmittedScreen extends StatelessWidget {
               const SizedBox(height: AppSpacing.xxl),
               const Text(
                 'Request Submitted',
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
+                style: TextStyle(fontSize: AppTextSize.section, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
               ),
               const SizedBox(height: AppSpacing.sm),
               Text(
                 typeName,
                 textAlign: TextAlign.center,
-                style: const TextStyle(fontSize: 13.5, color: AppColors.slate500),
+                style: const TextStyle(fontSize: AppTextSize.body, color: AppColors.slate500),
               ),
               const SizedBox(height: AppSpacing.xl),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl, vertical: 14),
+                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl, vertical: AppSpacing.md),
                 decoration: BoxDecoration(
                   color: AppColors.slate50,
-                  borderRadius: BorderRadius.circular(14),
+                  borderRadius: BorderRadius.circular(AppRadius.md),
                   border: Border.all(color: AppColors.slate100),
                 ),
                 child: Column(
@@ -71,7 +72,7 @@ class RequestSubmittedScreen extends StatelessWidget {
                     const Text(
                       'REFERENCE NUMBER',
                       style: TextStyle(
-                        fontSize: 10.5,
+                        fontSize: AppTextSize.fine,
                         fontWeight: FontWeight.w600,
                         color: AppColors.textMuted,
                         letterSpacing: 0.6,
@@ -80,7 +81,7 @@ class RequestSubmittedScreen extends StatelessWidget {
                     const SizedBox(height: AppSpacing.xs),
                     Text(
                       referenceNumber,
-                      style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: accent, letterSpacing: 1),
+                      style: TextStyle(fontSize: AppTextSize.section, fontWeight: FontWeight.w700, color: accent, letterSpacing: 1),
                     ),
                   ],
                 ),
@@ -89,7 +90,7 @@ class RequestSubmittedScreen extends StatelessWidget {
               const Text(
                 'Your request status is now "Submitted". You\'ll be notified as it moves through review, approval, and release.',
                 textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 12.5, color: AppColors.textMuted, height: 1.4),
+                style: TextStyle(fontSize: AppTextSize.helper, color: AppColors.textMuted, height: 1.4),
               ),
               const SizedBox(height: AppSpacing.huge),
               AppButton(
@@ -100,7 +101,7 @@ class RequestSubmittedScreen extends StatelessWidget {
                 fullWidth: true,
                 size: AppButtonSize.lg,
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: AppSpacing.sm),
               AppButton(
                 label: 'Back to Home',
                 variant: AppButtonVariant.ghost,

@@ -111,6 +111,9 @@ height, so paragraphs have the same rhythm on both platforms.
 
 - **11 pt is the floor** for anything a citizen reads. **Whole points only**; no 12.5.
 - **Colour with `copyWith(color: AppColors.…)`**, never by writing a new `TextStyle`.
+- **One-off inline styles** (a coloured count, a single weight change) take their size from
+  `AppTextSize` (`display 32 · page 24 · section 20 · card 16 · body 14 · helper 13 · label 12 ·
+  fine 11`). Never write the number.
 - **Weights:** 400 for reading, 600 for labels and headings, 700 for page and section titles
   only. Avoid 500 in new code; it reads as neither.
 - **Let text wrap.** Filipino strings run 20–30% longer. Use `maxLines` + ellipsis only on
@@ -145,7 +148,8 @@ new count (381 on 2026-09-28).
 ### 4.1 The scale: only these stops
 
 `4 · 8 · 12 · 16 · 20 · 24 · 32 · 48` (`xs sm md lg xl xxl xxxl page`), the web's rhythm.
-A 6, 10 or 14 isn't a finer design; it's drift. **Round to the nearest stop.** `huge` (40) is
+A 6, 10 or 14 isn't a finer design; it's drift. **Round to the nearest stop, and on a tie
+round down** (6→4, 10→8, 14→12), so migrating never makes a layout grow into an overflow. `huge` (40) is
 kept only for existing call sites.
 
 ### 4.2 Roles: reach for these first
@@ -290,5 +294,5 @@ reduce-motion users get the short version. Motion explains a change; it never de
 |---|---|
 | Cancelled/Archived badge contrast (§2.3) | Both lanes, web first |
 | The web uses `text-slate-400` for secondary text 1,073 times, the same AA failure this standard fixes on mobile | Web lane |
-| 381 raw `fontSize:` literals and the half-point styles still to migrate (§3.3) | This lane, screen by screen |
+| Raw `fontSize:` literals: **127 left** (381 → 127 on 2026-09-28). The Home tab, its sub-pages (resident profile, Dokyu/Tulong request flows, sign-in, registration), notifications and pop-ups are migrated. Left: Balita, Events, Sakuna, the drawer's destination screens (profile, settings, support, directory, legal) and onboarding | This lane |
 | Off-scale spacing (6/10/14) and radius (10/14) literals | This lane, when touched |

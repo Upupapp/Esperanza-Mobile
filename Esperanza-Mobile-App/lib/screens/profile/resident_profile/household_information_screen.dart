@@ -10,6 +10,7 @@ import '../../../widgets/app_button.dart';
 import '../../../widgets/app_dialogs.dart';
 import '../../../widgets/app_text_field.dart';
 import '../../../widgets/form_section.dart';
+import '../../../theme/app_typography.dart';
 
 /// Step 3 — Household Information. Maps to Web Admin Constituents >
 /// Households. "Number of People" / "Number of Families" are shown as
@@ -142,16 +143,16 @@ class _HouseholdInformationScreenState extends State<HouseholdInformationScreen>
       appBar: AppBar(title: const Text('Household Information')),
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
+          padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.md, AppSpacing.lg, AppSpacing.xxxl),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Container(
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(color: AppColors.brand50, borderRadius: BorderRadius.circular(14)),
+                padding: const EdgeInsets.all(AppSpacing.md),
+                decoration: BoxDecoration(color: AppColors.brand50, borderRadius: BorderRadius.circular(AppRadius.md)),
                 child: const Text(
                   'A household represents the people who live together at the same residence. This is different from a family — one household can contain more than one family.',
-                  style: TextStyle(fontSize: 12, color: AppColors.brand700, height: 1.4),
+                  style: TextStyle(fontSize: AppTextSize.label, color: AppColors.brand700, height: 1.4),
                 ),
               ),
               const SizedBox(height: AppSpacing.lg),
@@ -221,14 +222,14 @@ class _HouseholdInformationScreenState extends State<HouseholdInformationScreen>
                     onChanged: (v) => setState(() => _electricitySource = v),
                   ),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: AppSpacing.xs),
-                    decoration: BoxDecoration(color: AppColors.slate50, borderRadius: BorderRadius.circular(12)),
+                    padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.xs),
+                    decoration: BoxDecoration(color: AppColors.slate50, borderRadius: BorderRadius.circular(AppRadius.md)),
                     child: Row(
                       children: [
                         const Expanded(
                           child: Text(
                             'Internet Access',
-                            style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w500, color: AppColors.slate700),
+                            style: TextStyle(fontSize: AppTextSize.body, fontWeight: FontWeight.w500, color: AppColors.slate700),
                           ),
                         ),
                         Switch(
@@ -282,7 +283,7 @@ class _HouseholdInformationScreenState extends State<HouseholdInformationScreen>
               ),
               if (_error != null) ...[
                 const SizedBox(height: AppSpacing.md),
-                Text(_error!, style: const TextStyle(fontSize: 12.5, color: AppColors.rose600)),
+                Text(_error!, style: const TextStyle(fontSize: AppTextSize.helper, color: AppColors.rose600)),
               ],
               const SizedBox(height: AppSpacing.xxl),
               AppButton(
@@ -319,11 +320,11 @@ class _CompositionRow extends StatelessWidget {
       child: Row(
         children: [
           Expanded(
-            child: Text(label, style: const TextStyle(fontSize: 13, color: AppColors.slate600)),
+            child: Text(label, style: const TextStyle(fontSize: AppTextSize.helper, color: AppColors.slate600)),
           ),
           Text(
             value,
-            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
+            style: const TextStyle(fontSize: AppTextSize.body, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
           ),
         ],
       ),
@@ -350,16 +351,16 @@ class _FamilyChip extends StatelessWidget {
       if (memberCount > 0) '$memberCount member${memberCount == 1 ? '' : 's'}',
     ];
     return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: 10),
+      margin: const EdgeInsets.only(bottom: AppSpacing.sm),
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.sm),
       decoration: BoxDecoration(
         color: isOwn ? AppColors.brand50 : AppColors.slate50,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(AppRadius.md),
       ),
       child: Row(
         children: [
           Icon(Icons.diversity_3_outlined, size: 17, color: isOwn ? AppColors.brand600 : AppColors.slate500),
-          const SizedBox(width: 10),
+          const SizedBox(width: AppSpacing.sm),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -367,13 +368,13 @@ class _FamilyChip extends StatelessWidget {
                 Text(
                   name,
                   style: TextStyle(
-                    fontSize: 13,
+                    fontSize: AppTextSize.helper,
                     fontWeight: FontWeight.w600,
                     color: isOwn ? AppColors.brand700 : AppColors.slate700,
                   ),
                 ),
                 if (subtitleParts.isNotEmpty)
-                  Text(subtitleParts.join(' · '), style: const TextStyle(fontSize: 11, color: AppColors.textMuted)),
+                  Text(subtitleParts.join(' · '), style: const TextStyle(fontSize: AppTextSize.fine, color: AppColors.textMuted)),
               ],
             ),
           ),
@@ -387,7 +388,7 @@ class _FamilyChip extends StatelessWidget {
               child: Text(
                 'Your family',
                 textAlign: TextAlign.end,
-                style: TextStyle(fontSize: 11, color: AppColors.brand600, fontWeight: FontWeight.w600),
+                style: TextStyle(fontSize: AppTextSize.fine, color: AppColors.brand600, fontWeight: FontWeight.w600),
               ),
             )
           else if (onRemove != null)
@@ -480,21 +481,21 @@ class _OtherFamilyFormSheetState extends State<_OtherFamilyFormSheet> {
         child: Container(
           margin: const EdgeInsets.all(AppSpacing.md),
           constraints: BoxConstraints(maxHeight: MediaQuery.sizeOf(context).height * 0.85),
-          decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20)),
+          decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(AppRadius.xl)),
           child: SingleChildScrollView(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
+            padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.lg, AppSpacing.lg, AppSpacing.lg),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
                 const Text(
                   'Add Another Family',
-                  style: TextStyle(fontSize: 15.5, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
+                  style: TextStyle(fontSize: AppTextSize.card, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
                 ),
                 const SizedBox(height: AppSpacing.xs),
                 const Text(
                   'A different family group living in this same household.',
-                  style: TextStyle(fontSize: 12, color: AppColors.textMuted, height: 1.35),
+                  style: TextStyle(fontSize: AppTextSize.label, color: AppColors.textMuted, height: 1.35),
                 ),
                 const SizedBox(height: AppSpacing.lg),
                 AppTextField(label: 'Family name', controller: _familyName, icon: Icons.diversity_3_outlined),
@@ -506,12 +507,12 @@ class _OtherFamilyFormSheetState extends State<_OtherFamilyFormSheet> {
                 const SizedBox(height: AppSpacing.md),
                 const Text(
                   'Family Members',
-                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.slate600),
+                  style: TextStyle(fontSize: AppTextSize.helper, fontWeight: FontWeight.w600, color: AppColors.slate600),
                 ),
                 const SizedBox(height: AppSpacing.sm),
                 for (var i = 0; i < _memberNames.length; i++)
                   Padding(
-                    padding: const EdgeInsets.only(bottom: 8),
+                    padding: const EdgeInsets.only(bottom: AppSpacing.sm),
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -551,7 +552,7 @@ class _OtherFamilyFormSheetState extends State<_OtherFamilyFormSheet> {
                 ),
                 if (_error != null) ...[
                   const SizedBox(height: AppSpacing.sm),
-                  Text(_error!, style: const TextStyle(fontSize: 12.5, color: AppColors.rose600)),
+                  Text(_error!, style: const TextStyle(fontSize: AppTextSize.helper, color: AppColors.rose600)),
                 ],
                 const SizedBox(height: AppSpacing.xl),
                 Row(

@@ -19,6 +19,7 @@ import '../../widgets/status_chip.dart';
 import '../home/root_shell.dart';
 import 'request_detail_screen.dart';
 import 'service_catalog_screen.dart';
+import '../../theme/app_typography.dart';
 
 // This screen's own FAB-clearance constants — not navbar geometry. Pair
 // with `MediaQuery.paddingOf(context).bottom`, which RootShell's
@@ -118,7 +119,7 @@ class _RequestListScreenState extends State<RequestListScreen> {
           preferredSize: const Size.fromHeight(40),
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: AppSpacing.xs),
-            child: Text(widget.subtitle, style: const TextStyle(fontSize: 12, color: AppColors.textMuted)),
+            child: Text(widget.subtitle, style: const TextStyle(fontSize: AppTextSize.label, color: AppColors.textMuted)),
           ),
         ),
       ),
@@ -155,7 +156,7 @@ class _RequestListScreenState extends State<RequestListScreen> {
       body: Column(
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+            padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.md, AppSpacing.lg, AppSpacing.xs),
             child: SegmentedTabs(
               labels: ['Active (${activeAll.length})', 'Done (${doneAll.length})'],
               selectedIndex: _tab,
@@ -164,7 +165,7 @@ class _RequestListScreenState extends State<RequestListScreen> {
             ),
           ),
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
+            padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.sm, AppSpacing.lg, 0),
             child: Row(
               children: [
                 Expanded(
@@ -188,14 +189,14 @@ class _RequestListScreenState extends State<RequestListScreen> {
                     ),
                   ),
                 ),
-                const SizedBox(width: 10),
+                const SizedBox(width: AppSpacing.sm),
                 IconButton(
                   onPressed: visible.isEmpty ? null : () => _shareFilteredResults(visible),
                   icon: const Icon(Icons.ios_share_rounded),
                   tooltip: 'Share results',
                   style: IconButton.styleFrom(
                     side: const BorderSide(color: AppColors.slate200),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
                   ),
                 ),
               ],
@@ -203,7 +204,7 @@ class _RequestListScreenState extends State<RequestListScreen> {
           ),
           if (_filters.isActive) ...[
             Padding(
-              padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
+              padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.sm, AppSpacing.lg, 0),
               child: Row(
                 children: [
                   Expanded(
@@ -248,12 +249,12 @@ class _RequestListScreenState extends State<RequestListScreen> {
             ),
           ],
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+            padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.sm, AppSpacing.lg, 0),
             child: Align(
               alignment: Alignment.centerLeft,
               child: Text(
                 '${visible.length} result${visible.length == 1 ? '' : 's'}',
-                style: const TextStyle(fontSize: 11.5, color: AppColors.textMuted, fontWeight: FontWeight.w500),
+                style: const TextStyle(fontSize: AppTextSize.label, color: AppColors.textMuted, fontWeight: FontWeight.w500),
               ),
             ),
           ),
@@ -273,7 +274,7 @@ class _RequestListScreenState extends State<RequestListScreen> {
                         : null,
                   )
                 : ListView.builder(
-                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
+                    padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.sm, AppSpacing.lg, AppSpacing.page),
                     itemCount: visible.length,
                     itemBuilder: (context, i) => _RequestTile(request: visible[i], accent: widget.accent),
                   ),
@@ -345,7 +346,7 @@ class _RequestTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.only(bottom: AppSpacing.sm),
       child: AppCard(
         onTap: () =>
             Navigator.of(context).push(MaterialPageRoute(builder: (_) => RequestDetailScreen(requestId: request.id))),
@@ -357,10 +358,10 @@ class _RequestTile extends StatelessWidget {
                 Expanded(
                   child: Text(
                     request.typeName,
-                    style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
+                    style: const TextStyle(fontSize: AppTextSize.body, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
                   ),
                 ),
-                const SizedBox(width: 6),
+                const SizedBox(width: AppSpacing.xs),
                 // Flexible, not a bare fixed-size child: a longer status
                 // label ("Under Verification") plus a longer typeName
                 // together can exceed a narrow phone's card width, and a
@@ -371,11 +372,11 @@ class _RequestTile extends StatelessWidget {
                 Flexible(child: StatusChip(status: AppStatusX.fromLabel(request.status), small: true)),
               ],
             ),
-            const SizedBox(height: 6),
+            const SizedBox(height: AppSpacing.xs),
             Text(
               request.referenceNumber,
               style: const TextStyle(
-                fontSize: 12,
+                fontSize: AppTextSize.label,
                 color: AppColors.textMuted,
                 fontFeatures: [FontFeature.tabularFigures()],
               ),
@@ -395,14 +396,14 @@ class _RequestTile extends StatelessWidget {
                   child: Text(
                     'Submitted ${_fmt(request.submittedAt)}',
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontSize: 11, color: AppColors.textMuted),
+                    style: const TextStyle(fontSize: AppTextSize.fine, color: AppColors.textMuted),
                   ),
                 ),
                 Row(
                   children: [
                     Text(
                       'Track',
-                      style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: accent),
+                      style: TextStyle(fontSize: AppTextSize.label, fontWeight: FontWeight.w600, color: accent),
                     ),
                     Icon(Icons.chevron_right_rounded, size: 15, color: accent),
                   ],
