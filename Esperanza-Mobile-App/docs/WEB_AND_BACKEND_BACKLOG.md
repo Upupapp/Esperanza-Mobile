@@ -13,13 +13,13 @@ When an item is done, move it to "Done" at the bottom with the commit, rather th
 
 ---
 
-## A. Ready now — waiting only on the owner to merge and deploy
+## A. Merged 2026-09-29 — two deploy steps left for the owner
 
-| # | What | Where | Order and notes |
+| # | What | Where | State |
 |---|---|---|---|
-| A1 | **SMS preference showed off but was sent on** (B-050). Settings on web and mobile told almost every citizen texts were off while the server texted them. One default now, shown and sent. | esperanza-backend branch `claude/youthful-ritchie-qvxwry`, `f2704f4` | Deploy with A2. Full backend gate green, PostgreSQL included. |
-| A2 | **Event descriptions**: `events.description` (text, 2,000 max), accepted by POST/PUT `/admin/events`, returned by admin and public `GET /events`. | same backend branch, `05ccc12` | **Backend first**: migration `2026_09_28_000100_add_description_to_events`. |
-| A3 | **Description box in the Web Admin** (Communications > Events > New Event), shown in Review Event and on the citizen Events page. | Esperanza-Web-Platform-frontend- branch `claude/youthful-ritchie-qvxwry`, `ef4bb60` | **After A2.** Merging to web `main` deploys on Netlify: do it once. Web gate green. |
+| A1 | **SMS preference showed off but was sent on** (B-050). Settings on web and mobile told almost every citizen texts were off while the server texted them. One default now, shown and sent. | esperanza-backend `main` at `05ccc12` (`f2704f4`) | **Merged** (full gate green, PostgreSQL included). **Not yet on the server**: deploy `main` to the Linode staging host with A2. |
+| A2 | **Event descriptions**: `events.description` (text, 2,000 max), accepted by POST/PUT `/admin/events`, returned by admin and public `GET /events`. | esperanza-backend `main`, `05ccc12` | **Merged.** On the server: deploy, then `php artisan migrate` (`2026_09_28_000100_add_description_to_events`). Needs server access, which the cloud session does not have. |
+| A3 | **Description box in the Web Admin** (Communications > Events > New Event), shown in Review Event and on the citizen Events page. | Esperanza-Web-Platform-frontend- branch `claude/youthful-ritchie-qvxwry`, `ef4bb60` (fast-forwards onto `main` `950eb0f`) | **Not merged**: the push to web `main` is the Netlify deploy and was held for the owner's explicit go-ahead. Safe to ship before A2 reaches the server (the old API ignores the field, the page hides an empty one), but descriptions typed before then are dropped, so ideally after A2. |
 
 Mobile already reads everything above; nothing more is needed on mobile for A1–A3.
 
