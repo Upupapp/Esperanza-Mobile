@@ -11,7 +11,7 @@ import '../theme/app_typography.dart';
 /// fell back to the platform font (not Inter) and a long title ran off the
 /// bar. A missing image showed an empty black screen, a screen reader heard
 /// nothing, and nothing said the picture could be zoomed.
-class ImageViewerScaffold extends StatelessWidget {
+class ImageViewerScaffold extends StatefulWidget {
   const ImageViewerScaffold({super.key, required this.title, required this.image, required this.semanticLabel});
 
   final String title;
@@ -26,16 +26,26 @@ class ImageViewerScaffold extends StatelessWidget {
   static const zoomHint = 'Pinch to zoom';
 
   @override
+  State<ImageViewerScaffold> createState() => _ImageViewerScaffoldState();
+}
+
+class _ImageViewerScaffoldState extends State<ImageViewerScaffold> {
+  /// Set when the image fails to decode, so "Pinch to zoom" is not offered
+  /// under "Preview not available."
+  bool _failed = false;
+
+  @override
   Widget build(BuildContext context) {
+    final image = _failed ? null : widget.image;
     final muted = AppColors.surface.withValues(alpha: 0.72);
-    final unavailable = Text(unavailableText, style: AppTypography.helper.copyWith(color: muted));
+    final unavailable = Text(ImageViewerScaffold.unavailableText, style: AppTypography.helper.copyWith(color: muted));
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: AppBar(
         backgroundColor: Colors.black,
         foregroundColor: AppColors.surface,
         titleTextStyle: AppTypography.h3.copyWith(color: AppColors.surface),
-        title: Text(title, maxLines: 1, overflow: TextOverflow.ellipsis),
+        title: Text(widget.title, maxLines: 1, overflow: TextOverflow.ellipsis),
       ),
       body: SafeArea(
         child: Column(
@@ -48,10 +58,15 @@ class ImageViewerScaffold extends StatelessWidget {
                         minScale: 1,
                         maxScale: 4,
                         child: Image(
-                          image: image!,
+                          image: image,
                           fit: BoxFit.contain,
-                          semanticLabel: semanticLabel,
-                          errorBuilder: (_, _, _) => unavailable,
+                          semanticLabel: widget.semanticLabel,
+                          errorBuilder: (_, _, _) {
+                            WidgetsBinding.instance.addPostFrameCallback((_) {
+                              if (mounted && !_failed) setState(() => _failed = true);
+                            });
+                            return unavailable;
+                          },
                         ),
                       ),
               ),
@@ -64,7 +79,7 @@ class ImageViewerScaffold extends StatelessWidget {
                   children: [
                     Icon(Icons.pinch_outlined, size: AppSizes.iconSm, color: muted),
                     const SizedBox(width: AppSpacing.xs),
-                    Text(zoomHint, style: AppTypography.fine.copyWith(color: muted)),
+                    Text(ImageViewerScaffold.zoomHint, style: AppTypography.fine.copyWith(color: muted)),
                   ],
                 ),
               ),

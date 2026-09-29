@@ -76,6 +76,8 @@ void main() {
       await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 100)));
       await tester.pumpAndSettle();
       expect(find.text(ImageViewerScaffold.unavailableText), findsOneWidget);
+      // Nothing to zoom, so no zoom hint.
+      expect(find.text(ImageViewerScaffold.zoomHint), findsNothing);
     });
   });
 
@@ -172,6 +174,17 @@ void main() {
       expect(find.text('ESP-2026-9002'), findsWidgets);
     });
 
+    testWidgets('every card face is decoded before it is shown, so a flip never shows a blank card', (tester) async {
+      await pump(tester, fails: () => true);
+      // 390 wide less the 16pt gutters: the card is 358pt.
+      for (final c in MockCatalog.verifiedDemoDigitalCredentials) {
+        final key = await tester.runAsync(
+          () => ResizeImage(AssetImage(c.backAsset), width: 358).obtainKey(ImageConfiguration.empty),
+        );
+        expect(PaintingBinding.instance.imageCache.statusForKey(key!).tracked, isTrue, reason: c.backAsset);
+      }
+    });
+
     testWidgets('a screen reader can move to the next ID without swiping', (tester) async {
       final semantics = tester.ensureSemantics();
       await pump(tester, fails: () => true);
@@ -199,6 +212,36 @@ void main() {
     await tester.pumpAndSettle();
     final paragraph = tester.renderObject<RenderParagraph>(find.text(onboardingBrandName));
     expect(paragraph.didExceedMaxLines, isFalse);
+  });
+
+  group('onboarding, second pass', () {
+    testWidgets('Android back on page 2 goes to page 1 instead of closing the app', (tester) async {
+      _size(tester, const Size(390, 844));
+      await tester.pumpWidget(const MaterialApp(home: OnboardingScreen()));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('onboarding_next')));
+      await tester.pumpAndSettle();
+      expect(find.text(onboardingScenes[1].headline), findsOneWidget);
+
+      final handled = await tester.binding.handlePopRoute();
+      await tester.pumpAndSettle();
+      expect(handled, isTrue);
+      expect(find.byType(OnboardingScreen), findsOneWidget);
+      expect(find.text(onboardingScenes[0].headline), findsOneWidget);
+    });
+
+    testWidgets('at double text size the headline and wordmark stop growing before words break', (tester) async {
+      _size(tester, const Size(320, 568));
+      tester.platformDispatcher.textScaleFactorTestValue = 2.0;
+      addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+      await tester.pumpWidget(const MaterialApp(home: OnboardingScreen()));
+      await tester.pumpAndSettle();
+      double scaleOf(Finder f) => MediaQuery.textScalerOf(tester.element(f)).scale(10) / 10;
+      expect(scaleOf(find.text(onboardingScenes[0].headline)), headlineMaxTextScale);
+      expect(scaleOf(find.text(onboardingBrandName)), wordmarkMaxTextScale);
+      // The supporting line still follows the system size in full.
+      expect(scaleOf(find.text(onboardingScenes[0].subtext)), 2.0);
+    });
   });
 }
 

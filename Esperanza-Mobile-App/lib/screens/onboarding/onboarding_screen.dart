@@ -36,6 +36,10 @@ import 'widgets/onboarding_progress.dart';
 /// The invariants around it are unchanged and deliberately so: splash runs
 /// every launch, onboarding runs once, Skip and Get Started both complete it,
 /// and completion is persisted before `AuthGate` replaces this route.
+/// How far the onboarding headline and wordmark follow the system text size.
+const headlineMaxTextScale = 1.4;
+const wordmarkMaxTextScale = 1.5;
+
 class OnboardingScreen extends StatefulWidget {
   const OnboardingScreen({super.key});
 
@@ -136,6 +140,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   @override
   Widget build(BuildContext context) {
     final reduceMotion = MediaQuery.disableAnimationsOf(context);
+    final screen = MediaQuery.sizeOf(context);
+    final landscape = screen.width > screen.height;
     final isLast = _page == onboardingScenes.length - 1;
     final scene = onboardingScenes[_page];
     final cacheWidth =
@@ -143,222 +149,242 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 MediaQuery.devicePixelRatioOf(context))
             .round();
 
-    return Scaffold(
-      // Navy, not white: this is only ever visible for a stray frame, and
-      // against these dark plates a white flash is the jarring one.
-      backgroundColor: AppColors.navy950,
-      body: Stack(
-        fit: StackFit.expand,
-        children: [
-          // ── Background photographs ────────────────────────────────────
-          PageView.builder(
-            controller: _pageController,
-            itemCount: onboardingScenes.length,
-            onPageChanged: (i) => setState(() => _page = i),
-            itemBuilder: (context, i) => OnboardingParallaxLayer(
-              transformKey: Key('onboarding_background_$i'),
+    // Android's back button on page 2 or 3 used to close the app; it now
+    // steps back a page, and leaves onboarding only from the first.
+    return PopScope(
+      canPop: _page == 0,
+      onPopInvokedWithResult: (didPop, _) {
+        if (didPop || _page == 0) return;
+        if (reduceMotion) {
+          _pageController.jumpToPage(_page - 1);
+        } else {
+          _pageController.previousPage(
+            duration: const Duration(milliseconds: 340),
+            curve: Curves.easeOutCubic,
+          );
+        }
+      },
+      child: Scaffold(
+        // Navy, not white: this is only ever visible for a stray frame, and
+        // against these dark plates a white flash is the jarring one.
+        backgroundColor: AppColors.navy950,
+        body: Stack(
+          fit: StackFit.expand,
+          children: [
+            // ── Background photographs ────────────────────────────────────
+            PageView.builder(
               controller: _pageController,
-              pageIndex: i,
-              factor: OnboardingParallax.background,
-              verticalFactor: OnboardingParallax.backgroundVertical,
-              enabled: !reduceMotion,
-              child: Semantics(
-                label: onboardingScenes[i].semanticDescription,
-                image: true,
-                child: SizedBox.expand(
-                  child: Image(
-                    image: backgroundProvider(
-                      onboardingScenes[i].backgroundAsset,
-                      cacheWidth,
+              itemCount: onboardingScenes.length,
+              onPageChanged: (i) => setState(() => _page = i),
+              itemBuilder: (context, i) => OnboardingParallaxLayer(
+                transformKey: Key('onboarding_background_$i'),
+                controller: _pageController,
+                pageIndex: i,
+                factor: OnboardingParallax.background,
+                verticalFactor: OnboardingParallax.backgroundVertical,
+                enabled: !reduceMotion,
+                child: Semantics(
+                  label: onboardingScenes[i].semanticDescription,
+                  image: true,
+                  child: SizedBox.expand(
+                    child: Image(
+                      image: backgroundProvider(
+                        onboardingScenes[i].backgroundAsset,
+                        cacheWidth,
+                      ),
+                      fit: BoxFit.cover,
+                      // Top-anchored in portrait; in landscape the top of
+                      // each plate is sky, so centre it.
+                      alignment: landscape
+                          ? Alignment.center
+                          : Alignment.topCenter,
+                      filterQuality: FilterQuality.medium,
+                      excludeFromSemantics: true,
+                      // A missing plate must not show a white void behind white
+                      // text. The palette's darkest ink is the safe fallback.
+                      errorBuilder: (_, _, _) =>
+                          const ColoredBox(color: AppColors.navy950),
                     ),
-                    fit: BoxFit.cover,
-                    alignment: Alignment.topCenter,
-                    filterQuality: FilterQuality.medium,
-                    excludeFromSemantics: true,
-                    // A missing plate must not show a white void behind white
-                    // text. The palette's darkest ink is the safe fallback.
-                    errorBuilder: (_, _, _) =>
-                        const ColoredBox(color: AppColors.navy950),
                   ),
                 ),
               ),
             ),
-          ),
 
-          // ── Scrim ─────────────────────────────────────────────────────
-          Positioned.fill(
-            child: IgnorePointer(
-              child: AnimatedBuilder(
-                animation: _pageController,
-                builder: (context, _) => DecoratedBox(
+            // ── Scrim ─────────────────────────────────────────────────────
+            Positioned.fill(
+              child: IgnorePointer(
+                child: AnimatedBuilder(
+                  animation: _pageController,
+                  builder: (context, _) => DecoratedBox(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [
+                          AppColors.navy950.withValues(alpha: 0.05),
+                          AppColors.navy900.withValues(alpha: 0.55),
+                          AppColors.navy950.withValues(alpha: 0.94),
+                        ],
+                        stops: reduceMotion
+                            ? onboardingScenes[_page].gradientStops
+                            : _stops(),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+
+            // ── Top scrim ─────────────────────────────────────────────────
+            //
+            // The main scrim is deliberately near-transparent at the top so the
+            // photograph opens the frame. That leaves the seal and wordmark
+            // sitting on whatever the picture happens to be — a bright ambulance
+            // on page three — so white text has no guaranteed contrast. This
+            // short gradient gives the identity bar its own ground without
+            // darkening the picture.
+            Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              height: 160,
+              child: IgnorePointer(
+                child: DecoratedBox(
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
                       begin: Alignment.topCenter,
                       end: Alignment.bottomCenter,
                       colors: [
-                        AppColors.navy950.withValues(alpha: 0.05),
-                        AppColors.navy900.withValues(alpha: 0.55),
-                        AppColors.navy950.withValues(alpha: 0.94),
+                        AppColors.navy950.withValues(alpha: 0.60),
+                        AppColors.navy950.withValues(alpha: 0),
                       ],
-                      stops: reduceMotion
-                          ? onboardingScenes[_page].gradientStops
-                          : _stops(),
                     ),
                   ),
                 ),
               ),
             ),
-          ),
 
-          // ── Top scrim ─────────────────────────────────────────────────
-          //
-          // The main scrim is deliberately near-transparent at the top so the
-          // photograph opens the frame. That leaves the seal and wordmark
-          // sitting on whatever the picture happens to be — a bright ambulance
-          // on page three — so white text has no guaranteed contrast. This
-          // short gradient gives the identity bar its own ground without
-          // darkening the picture.
-          Positioned(
-            top: 0,
-            left: 0,
-            right: 0,
-            height: 160,
-            child: IgnorePointer(
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [
-                      AppColors.navy950.withValues(alpha: 0.60),
-                      AppColors.navy950.withValues(alpha: 0),
+            // ── Interface ─────────────────────────────────────────────────
+            //
+            // A Column, NOT a full-screen scroll view.
+            //
+            // The first version wrapped this whole layer in a
+            // SingleChildScrollView so it could never overflow. A `Scrollable`
+            // hit-tests opaquely across its entire box, so it sat over the
+            // PageView and swallowed every pointer before the pager could see
+            // one — swiping between pages did nothing at all, on a device as
+            // much as in a test, and only the Next button worked. Measured:
+            // `position.pixels` stayed at exactly 0.0 through a 240px drag.
+            //
+            // The middle of the screen now belongs to an `Align` that
+            // shrink-wraps the copy to the bottom. An Align hit-tests only its
+            // child, so pointers in the empty space above it fall straight
+            // through to the photograph behind, and the swipe works.
+            //
+            // The bottom block is still not a swipe surface, and that is
+            // accepted rather than overlooked: a `Scrollable` hit-tests opaquely
+            // whatever its physics say — `NeverScrollableScrollPhysics` was
+            // tried and changes nothing — and it has to stay a scroll view so
+            // the copy survives text scale 2.0 on a short handset. So the
+            // photograph is the swipe surface, which is how every onboarding of
+            // this shape behaves, and `Next` works everywhere.
+            // `onboarding_redesign_test.dart` pins the photograph area as
+            // swipeable so a future full-screen scroll view cannot quietly take
+            // it away again.
+            SafeArea(
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 520),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      _IdentityBar(onSkip: isLast || _finishing ? null : _skip),
+                      // Only the copy scrolls; the button never does.
+                      //
+                      // A first attempt put the CTA inside the scroll view
+                      // too, and at 320x568 with text scale 2.0 it landed at
+                      // y=1437 on a 568-tall screen — reachable only by
+                      // scrolling, which is not what "keep the primary action
+                      // reachable" means.
+                      //
+                      // `Align` rather than a `Spacer`: when the copy is
+                      // shorter than the space, the scroll view shrink-wraps
+                      // and sits at the bottom, and the empty region above it
+                      // belongs to the Align — which hit-tests only its child,
+                      // so pointers there fall through to the photograph and
+                      // the swipe survives.
+                      Expanded(
+                        child: Align(
+                          alignment: Alignment.bottomCenter,
+                          child: SingleChildScrollView(
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                _FeatureChips(
+                                  scene: scene,
+                                  controller: _pageController,
+                                  pageIndex: _page,
+                                  reduceMotion: reduceMotion,
+                                ),
+                                const SizedBox(height: AppSpacing.lg),
+                                _CopyBlock(
+                                  key: ValueKey('copy_${scene.id}'),
+                                  scene: scene,
+                                  reduceMotion: reduceMotion,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: AppSpacing.xxl),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: AppSpacing.xxl,
+                        ),
+                        child: AnimatedSwitcher(
+                          duration: reduceMotion
+                              ? Duration.zero
+                              : const Duration(milliseconds: 220),
+                          child: isLast
+                              ? AppButton(
+                                  key: const Key('onboarding_get_started'),
+                                  label: 'Get Started',
+                                  fullWidth: true,
+                                  size: AppButtonSize.lg,
+                                  loading: _finishing,
+                                  onPressed: _finishing ? null : _next,
+                                )
+                              : AppButton(
+                                  key: const Key('onboarding_next'),
+                                  label: 'Next',
+                                  icon: Icons.arrow_forward_rounded,
+                                  iconTrailing: true,
+                                  fullWidth: true,
+                                  size: AppButtonSize.lg,
+                                  onPressed: _finishing ? null : _next,
+                                ),
+                        ),
+                      ),
+                      const SizedBox(height: AppSpacing.xl),
+                      Center(
+                        child: OnboardingProgress(
+                          key: const Key('onboarding_progress'),
+                          controller: _pageController,
+                          page: _page,
+                          count: onboardingScenes.length,
+                          reduceMotion: reduceMotion,
+                        ),
+                      ),
+                      const SizedBox(height: AppSpacing.xl),
                     ],
                   ),
                 ),
               ),
             ),
-          ),
-
-          // ── Interface ─────────────────────────────────────────────────
-          //
-          // A Column, NOT a full-screen scroll view.
-          //
-          // The first version wrapped this whole layer in a
-          // SingleChildScrollView so it could never overflow. A `Scrollable`
-          // hit-tests opaquely across its entire box, so it sat over the
-          // PageView and swallowed every pointer before the pager could see
-          // one — swiping between pages did nothing at all, on a device as
-          // much as in a test, and only the Next button worked. Measured:
-          // `position.pixels` stayed at exactly 0.0 through a 240px drag.
-          //
-          // The middle of the screen now belongs to an `Align` that
-          // shrink-wraps the copy to the bottom. An Align hit-tests only its
-          // child, so pointers in the empty space above it fall straight
-          // through to the photograph behind, and the swipe works.
-          //
-          // The bottom block is still not a swipe surface, and that is
-          // accepted rather than overlooked: a `Scrollable` hit-tests opaquely
-          // whatever its physics say — `NeverScrollableScrollPhysics` was
-          // tried and changes nothing — and it has to stay a scroll view so
-          // the copy survives text scale 2.0 on a short handset. So the
-          // photograph is the swipe surface, which is how every onboarding of
-          // this shape behaves, and `Next` works everywhere.
-          // `onboarding_redesign_test.dart` pins the photograph area as
-          // swipeable so a future full-screen scroll view cannot quietly take
-          // it away again.
-          SafeArea(
-            child: Center(
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 520),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    _IdentityBar(onSkip: isLast || _finishing ? null : _skip),
-                    // Only the copy scrolls; the button never does.
-                    //
-                    // A first attempt put the CTA inside the scroll view
-                    // too, and at 320x568 with text scale 2.0 it landed at
-                    // y=1437 on a 568-tall screen — reachable only by
-                    // scrolling, which is not what "keep the primary action
-                    // reachable" means.
-                    //
-                    // `Align` rather than a `Spacer`: when the copy is
-                    // shorter than the space, the scroll view shrink-wraps
-                    // and sits at the bottom, and the empty region above it
-                    // belongs to the Align — which hit-tests only its child,
-                    // so pointers there fall through to the photograph and
-                    // the swipe survives.
-                    Expanded(
-                      child: Align(
-                        alignment: Alignment.bottomCenter,
-                        child: SingleChildScrollView(
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              _FeatureChips(
-                                scene: scene,
-                                controller: _pageController,
-                                pageIndex: _page,
-                                reduceMotion: reduceMotion,
-                              ),
-                              const SizedBox(height: AppSpacing.lg),
-                              _CopyBlock(
-                                key: ValueKey('copy_${scene.id}'),
-                                scene: scene,
-                                reduceMotion: reduceMotion,
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: AppSpacing.xxl),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: AppSpacing.xxl,
-                      ),
-                      child: AnimatedSwitcher(
-                        duration: reduceMotion
-                            ? Duration.zero
-                            : const Duration(milliseconds: 220),
-                        child: isLast
-                            ? AppButton(
-                                key: const Key('onboarding_get_started'),
-                                label: 'Get Started',
-                                fullWidth: true,
-                                size: AppButtonSize.lg,
-                                loading: _finishing,
-                                onPressed: _finishing ? null : _next,
-                              )
-                            : AppButton(
-                                key: const Key('onboarding_next'),
-                                label: 'Next',
-                                icon: Icons.arrow_forward_rounded,
-                                iconTrailing: true,
-                                fullWidth: true,
-                                size: AppButtonSize.lg,
-                                onPressed: _finishing ? null : _next,
-                              ),
-                      ),
-                    ),
-                    const SizedBox(height: AppSpacing.xl),
-                    Center(
-                      child: OnboardingProgress(
-                        key: const Key('onboarding_progress'),
-                        controller: _pageController,
-                        page: _page,
-                        count: onboardingScenes.length,
-                        reduceMotion: reduceMotion,
-                      ),
-                    ),
-                    const SizedBox(height: AppSpacing.xl),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -413,12 +439,17 @@ class _IdentityBar extends StatelessWidget {
           Flexible(
             child: Semantics(
               header: true,
-              child: Text(
-                onboardingBrandName,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: AppTypography.wordmark.copyWith(
-                  color: AppColors.surface,
+              // Capped at 1.5x for the same reason as the headline: at 2x
+              // it read "Municipalid / ad ng Espe…".
+              child: MediaQuery.withClampedTextScaling(
+                maxScaleFactor: wordmarkMaxTextScale,
+                child: Text(
+                  onboardingBrandName,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppTypography.wordmark.copyWith(
+                    color: AppColors.surface,
+                  ),
                 ),
               ),
             ),
@@ -476,9 +507,15 @@ class _CopyBlock extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
-          Text(
-            scene.headline,
-            style: AppTypography.hero.copyWith(color: AppColors.surface),
+          // Capped at 1.4x: already the largest type in the app, and at 2x
+          // a 32pt headline on a 320pt phone broke words in half
+          // ("Ang Esp / eranza,"). The body copy below still scales fully.
+          MediaQuery.withClampedTextScaling(
+            maxScaleFactor: headlineMaxTextScale,
+            child: Text(
+              scene.headline,
+              style: AppTypography.hero.copyWith(color: AppColors.surface),
+            ),
           ),
           const SizedBox(height: AppSpacing.md),
           Text(

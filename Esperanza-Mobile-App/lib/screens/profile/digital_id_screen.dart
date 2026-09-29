@@ -186,6 +186,25 @@ class _DigitalIdWalletState extends State<_DigitalIdWallet> with TickerProviderS
     });
   }
 
+  double? _precachedWidth;
+
+  /// Decodes every face at the card's size up front. Without it the first
+  /// flip turned the card blank white until the back had decoded, and the
+  /// first swipe did the same to the next card.
+  void _precacheFaces(double cardWidth) {
+    if (_precachedWidth == cardWidth) return;
+    _precachedWidth = cardWidth;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final px = (cardWidth * MediaQuery.devicePixelRatioOf(context)).round().clamp(1, 4000);
+      for (final c in widget.credentials) {
+        for (final asset in [c.frontAsset, c.backAsset]) {
+          precacheImage(ResizeImage(AssetImage(asset), width: px), context, onError: (_, _) {});
+        }
+      }
+    });
+  }
+
   void _jumpTo(int index) {
     if (_dragging || _swipeController.isAnimating) return;
     setState(() {
@@ -234,6 +253,7 @@ class _DigitalIdWalletState extends State<_DigitalIdWallet> with TickerProviderS
             final cardHeight = cardWidth / _aspectRatio;
             final step = cardHeight - _peekVisible;
             final stackHeight = cardHeight + _peekVisible;
+            _precacheFaces(cardWidth);
 
             return Center(
               child: SizedBox(
@@ -258,7 +278,7 @@ class _DigitalIdWalletState extends State<_DigitalIdWallet> with TickerProviderS
           },
         ),
         const SizedBox(height: AppSpacing.lg),
-        const _GestureHint(),
+        _GestureHint(canSwipe: widget.credentials.length > 1),
         const SizedBox(height: AppSpacing.xl),
         _InformationPanel(credential: _active),
         const SizedBox(height: AppSpacing.lg),
@@ -470,21 +490,23 @@ class _PositionIndicator extends StatelessWidget {
 }
 
 class _GestureHint extends StatelessWidget {
-  const _GestureHint();
+  const _GestureHint({required this.canSwipe});
+
+  /// False with a single credential: there is nothing to swipe to.
+  final bool canSwipe;
 
   @override
   Widget build(BuildContext context) {
     // Wrap, not Row — on a narrow viewport both hints no longer fit on one
     // line side by side, so this drops to two lines instead of overflowing.
-    return const Wrap(
+    return Wrap(
       alignment: WrapAlignment.center,
       crossAxisAlignment: WrapCrossAlignment.center,
-      spacing: 4,
-      runSpacing: 4,
+      spacing: AppSpacing.md,
+      runSpacing: AppSpacing.xs,
       children: [
-        _HintChip(icon: Icons.touch_app_outlined, label: 'Tap to flip'),
-        SizedBox(width: AppSpacing.sm),
-        _HintChip(icon: Icons.swap_vert_rounded, label: 'Swipe for other IDs'),
+        const _HintChip(icon: Icons.touch_app_outlined, label: 'Tap to flip'),
+        if (canSwipe) const _HintChip(icon: Icons.swap_vert_rounded, label: 'Swipe for other IDs'),
       ],
     );
   }
