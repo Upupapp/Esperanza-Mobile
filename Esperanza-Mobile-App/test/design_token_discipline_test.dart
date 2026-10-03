@@ -51,7 +51,8 @@ const _fontSizeCeiling = 0;
 /// keep overlay text legible against three unknown photographs. The redesign
 /// draws its own surfaces, so it can use palette tokens instead. 103 on
 /// 2026-09-28: the five full-screen image viewers now share one scaffold.
-const _materialColorCeiling = 103;
+/// 102 on 2026-10-04: request detail cards use the `surface` token.
+const _materialColorCeiling = 102;
 
 final _fontSizeLiteral = RegExp(r'fontSize:\s*[0-9]');
 

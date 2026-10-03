@@ -57,6 +57,12 @@ class RequestDetailScreen extends StatefulWidget {
 
 class _RequestDetailScreenState extends State<RequestDetailScreen> {
   bool _busy = false;
+
+  /// The server's answer to the latest replace, attach or resubmit. The
+  /// screen showed the detail as first loaded, so after a resident replaced a
+  /// flagged document its Resubmit stayed disabled (that copy's can_resubmit
+  /// was still false) until the screen was closed and opened again.
+  ServiceRequest? _latest;
   final _flaggedCardKeys = <String, GlobalKey>{};
 
   GlobalKey _keyFor(String flaggedId) => _flaggedCardKeys.putIfAbsent(flaggedId, () => GlobalKey());
@@ -88,8 +94,34 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
     setState(() => _busy = true);
     AppHaptics.success();
     try {
-      await service.replaceRequirement(widget.requestId, requirementKey: flaggedId, filePath: path);
-      if (mounted) AppDialogs.toast(context, 'Document replaced.');
+      final updated = await service.replaceRequirement(widget.requestId, requirementKey: flaggedId, filePath: path);
+      if (mounted) {
+        setState(() => _latest = updated);
+        AppDialogs.toast(context, 'Document replaced.');
+      }
+    } on ApiException catch (e) {
+      if (mounted) AppDialogs.toast(context, e.message(), success: false);
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  /// The document for a requirement the office has not decided yet
+  /// ([PendingRequirement]); attaching again replaces the file on record.
+  Future<void> _attach(RequestsService service, String requirementKey, Attachment newAttachment) async {
+    final path = newAttachment.localPath;
+    if (path == null) {
+      AppDialogs.toast(context, 'Could not read the selected file. Please pick it again.', success: false);
+      return;
+    }
+    setState(() => _busy = true);
+    AppHaptics.success();
+    try {
+      final updated = await service.attachRequirement(widget.requestId, requirementKey: requirementKey, filePath: path);
+      if (mounted) {
+        setState(() => _latest = updated);
+        AppDialogs.toast(context, 'Document attached.');
+      }
     } on ApiException catch (e) {
       if (mounted) AppDialogs.toast(context, e.message(), success: false);
     } finally {
@@ -101,8 +133,11 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
     setState(() => _busy = true);
     AppHaptics.success();
     try {
-      await service.resubmit(widget.requestId);
-      if (mounted) AppDialogs.toast(context, 'Application resubmitted.');
+      final updated = await service.resubmit(widget.requestId);
+      if (mounted) {
+        setState(() => _latest = updated);
+        AppDialogs.toast(context, 'Application resubmitted.');
+      }
     } on ApiException catch (e) {
       if (mounted) AppDialogs.toast(context, e.message(), success: false);
     } finally {
@@ -170,7 +205,7 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
       body: SafeArea(
         child: AsyncStateView<ServiceRequest>(
           loader: () => service.loadDetail(widget.requestId),
-          builder: (context, request, reload) => _buildBody(context, service, request),
+          builder: (context, request, reload) => _buildBody(context, service, _latest ?? request),
         ),
       ),
     );
@@ -239,6 +274,15 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
         // requirement at all means the server's own "needs manual
         // verification" flavor — nothing for the citizen to upload, just
         // the explanation from decision_remarks.
+        if (request.attachableRequirements.isNotEmpty) ...[
+          const SizedBox(height: AppSpacing.xl),
+          _AttachSection(
+            request: request,
+            accent: accent,
+            busy: _busy,
+            onAttach: (key, a) => _attach(service, key, a),
+          ),
+        ],
         if (request.status == RequestMilestones.underReview) ...[
           const SizedBox(height: AppSpacing.xl),
           if (request.flaggedRequirements.isNotEmpty)
@@ -474,15 +518,10 @@ class _FlaggedRequirementCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final requirement = RequirementInfo(
-      label: flagged.requirementLabel,
-      documentType: documentTypeFor(flagged.requirementLabel),
-      isRequired: true,
-    );
     return Container(
       padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.surface,
         borderRadius: BorderRadius.circular(AppRadius.md),
         border: Border.all(color: AppColors.orange500.withValues(alpha: 0.25)),
       ),
@@ -499,46 +538,159 @@ class _FlaggedRequirementCard extends StatelessWidget {
             style: const TextStyle(fontSize: AppTextSize.label, color: AppColors.slate600, height: 1.4),
           ),
           const SizedBox(height: AppSpacing.sm),
-          Opacity(
-            opacity: busy ? 0.6 : 1,
-            child: IgnorePointer(
-              ignoring: busy,
-              child: Consumer<MasterFileService>(
-                builder: (context, masterFile, _) {
-                  final accountId = context.read<CitizenSessionService>().account?.id;
-                  // Reuse needs the file on this device: the replace endpoint
-                  // uploads bytes, and a server-only Papeles copy has none here.
-                  final found = accountId != null ? masterFile.findByType(accountId, requirement.documentType) : null;
-                  final existing = (found?.attachment.localPath?.isNotEmpty ?? false) ? found : null;
-                  return RequirementUploader(
-                    requirement: requirement,
-                    attachment: currentAttachment,
-                    accent: accent,
-                    existingMasterDoc: existing,
-                    onAttachNew: (a) {
-                      onReplace(a);
-                      if (accountId != null) {
-                        masterFile.saveOrUpdate(
-                          accountId: accountId,
-                          documentType: requirement.documentType,
-                          label: requirement.label,
-                          attachment: a,
-                          origin: category == ServiceCategory.dokyu ? 'Dokyu' : 'Tulong',
-                          serviceName: serviceName,
-                        );
-                      }
-                    },
-                    onUseExisting: () {
-                      if (existing != null) {
-                        onReplace(attachmentForReuse(existing.attachment, requirementLabel: requirement.label));
-                      }
-                    },
-                    onRemove: () {},
+          _ServerRequirementUploader(
+            label: flagged.requirementLabel,
+            current: currentAttachment,
+            accent: accent,
+            busy: busy,
+            serviceName: serviceName,
+            category: category,
+            onPicked: onReplace,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// The uploader for a requirement whose document the server keeps: a flagged
+/// one being replaced, or a pending one being attached. Wired to
+/// [MasterFileService] the same way the submission-time uploaders are, so
+/// "Use Existing Document" works here too. There is no Remove: the server
+/// keeps a requirement's file, which can only be replaced.
+class _ServerRequirementUploader extends StatelessWidget {
+  final String label;
+  final Attachment? current;
+  final Color accent;
+  final bool busy;
+  final String serviceName;
+  final ServiceCategory category;
+  final ValueChanged<Attachment> onPicked;
+
+  const _ServerRequirementUploader({
+    required this.label,
+    required this.current,
+    required this.accent,
+    required this.busy,
+    required this.serviceName,
+    required this.category,
+    required this.onPicked,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final requirement = RequirementInfo(label: label, documentType: documentTypeFor(label), isRequired: true);
+    return Opacity(
+      opacity: busy ? 0.6 : 1,
+      child: IgnorePointer(
+        ignoring: busy,
+        child: Consumer<MasterFileService>(
+          builder: (context, masterFile, _) {
+            final accountId = context.read<CitizenSessionService>().account?.id;
+            // Reuse needs the file on this device: the endpoint uploads bytes,
+            // and a server-only Papeles copy has none here.
+            final found = accountId != null ? masterFile.findByType(accountId, requirement.documentType) : null;
+            final existing = (found?.attachment.localPath?.isNotEmpty ?? false) ? found : null;
+            return RequirementUploader(
+              requirement: requirement,
+              attachment: current,
+              accent: accent,
+              existingMasterDoc: existing,
+              onAttachNew: (a) {
+                onPicked(a);
+                if (accountId != null) {
+                  masterFile.saveOrUpdate(
+                    accountId: accountId,
+                    documentType: requirement.documentType,
+                    label: requirement.label,
+                    attachment: a,
+                    origin: category == ServiceCategory.dokyu ? 'Dokyu' : 'Tulong',
+                    serviceName: serviceName,
                   );
-                },
+                }
+              },
+              onUseExisting: () {
+                if (existing != null) {
+                  onPicked(attachmentForReuse(existing.attachment, requirementLabel: requirement.label));
+                }
+              },
+            );
+          },
+        ),
+      ),
+    );
+  }
+}
+
+/// Requirements the office has not decided yet ([PendingRequirement]): the
+/// resident attaches each document here, or changes it, while the request is
+/// being verified. Nothing is resubmitted; the office reviews what is on file.
+class _AttachSection extends StatelessWidget {
+  final ServiceRequest request;
+  final Color accent;
+  final bool busy;
+  final void Function(String requirementKey, Attachment newAttachment) onAttach;
+
+  const _AttachSection({required this.request, required this.accent, required this.busy, required this.onAttach});
+
+  @override
+  Widget build(BuildContext context) {
+    final pending = request.attachableRequirements;
+    final missing = pending.where((p) => _attachmentFor(request, p.label) == null).length;
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.upload_file_rounded, size: 18, color: accent),
+              const SizedBox(width: AppSpacing.sm),
+              const Expanded(
+                child: Text(
+                  'Documents for this request',
+                  style: TextStyle(fontSize: AppTextSize.body, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.xs),
+          Text(
+            missing == 0
+                ? 'Every document is attached. You can change one until the office reviews it.'
+                : missing == 1
+                    ? '1 document still needs to be attached.'
+                    : '$missing documents still need to be attached.',
+            style: AppTypography.captionSmallRegular.copyWith(color: AppColors.slate500, height: 1.4),
+          ),
+          for (final p in pending)
+            Padding(
+              padding: const EdgeInsets.only(top: AppSpacing.md),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    p.label,
+                    style: const TextStyle(fontSize: AppTextSize.helper, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
+                  ),
+                  const SizedBox(height: AppSpacing.sm),
+                  _ServerRequirementUploader(
+                    label: p.label,
+                    current: _attachmentFor(request, p.label),
+                    accent: accent,
+                    busy: busy,
+                    serviceName: request.typeName,
+                    category: request.category,
+                    onPicked: (a) => onAttach(p.key, a),
+                  ),
+                ],
               ),
             ),
-          ),
         ],
       ),
     );

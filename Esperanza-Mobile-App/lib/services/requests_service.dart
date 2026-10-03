@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 
 import 'api_client.dart';
 import 'json_read.dart';
+import '../models/attachment.dart';
 import '../models/catalog_item.dart';
 import '../models/service_request.dart';
 import 'service_form_specs.dart';
@@ -254,6 +255,27 @@ class RequestsService extends ChangeNotifier {
         flaggedAt: history.isNotEmpty ? history.last.at : DateTime.now(),
       );
     });
+    // Each requirement's file as the server holds it, so the detail shows what
+    // was actually attached (it showed nothing: attachments was always empty).
+    final files = JsonRead.rows(json['requirements'], (q) {
+      final file = JsonRead.map(q['file']);
+      final name = file == null ? null : JsonRead.nonEmpty(file['name']);
+      if (file == null || name == null) return null;
+      return Attachment(
+        id: JsonRead.nonEmpty(q['key']) ?? name,
+        fileName: name,
+        category: AttachmentCategoryX.fromExtension(name.contains('.') ? name.split('.').last : ''),
+        sizeBytes: JsonRead.integer(file['bytes']) ?? 0,
+        remoteUrl: JsonRead.nonEmpty(file['url']),
+        addedAt: JsonRead.date(file['uploaded_at']) ?? DateTime.now(),
+        documentTypeLabel: JsonRead.string(q['label']) ?? name,
+      );
+    });
+    final attachable = JsonRead.rows(json['requirements'], (q) {
+      final key = JsonRead.nonEmpty(q['key']);
+      if (key == null || JsonRead.boolean(q['attachable']) != true) return null;
+      return PendingRequirement(key: key, label: JsonRead.string(q['label']) ?? key);
+    });
     return ServiceRequest(
       id: ref,
       referenceNumber: ref,
@@ -266,11 +288,13 @@ class RequestsService extends ChangeNotifier {
       submittedAt: JsonRead.date(json['submitted']) ?? DateTime.now(),
       status: JsonRead.nonEmpty(json['status']) ?? 'Submitted',
       statusHistory: history,
-      attachments: const [],
+      attachments: files,
       adminRemarks: JsonRead.nonEmpty(json['decision_remarks']),
       flaggedRequirements: needsCorrection,
       expectedDays: '',
-    )..canResubmit = JsonRead.boolean(json['can_resubmit']) ?? false;
+    )
+      ..canResubmit = JsonRead.boolean(json['can_resubmit']) ?? false
+      ..attachableRequirements = attachable;
   }
 
   ServiceCategory _categoryFromType(String? type) => switch (type) {
@@ -315,9 +339,21 @@ class RequestsService extends ChangeNotifier {
   /// requirement's own `key`, see [_requestFromDetail]). Calling this
   /// before a requirement is flagged fails with the server's own
   /// NOT_FLAGGED error, surfaced as an ordinary ApiException.
-  Future<ServiceRequest> replaceRequirement(String ref, {required String requirementKey, required String filePath}) async {
+  Future<ServiceRequest> replaceRequirement(String ref, {required String requirementKey, required String filePath}) =>
+      _uploadRequirement(ref, requirementKey, filePath, 'replace');
+
+  /// POST /citizen/requests/{ref}/requirements/{key}/attach (multipart) --
+  /// the document for a requirement the office has not decided yet, while the
+  /// request is Submitted, Under Verification, Under Review or Resubmitted
+  /// ([PendingRequirement]). Attaching again keeps the earlier file in that
+  /// requirement's history; a decided requirement is refused (409), and is
+  /// corrected through [replaceRequirement] once flagged.
+  Future<ServiceRequest> attachRequirement(String ref, {required String requirementKey, required String filePath}) =>
+      _uploadRequirement(ref, requirementKey, filePath, 'attach');
+
+  Future<ServiceRequest> _uploadRequirement(String ref, String requirementKey, String filePath, String action) async {
     final res = await api.postMultipart(
-      '/citizen/requests/${ApiClient.segment(ref)}/requirements/${ApiClient.segment(requirementKey)}/replace',
+      '/citizen/requests/${ApiClient.segment(ref)}/requirements/${ApiClient.segment(requirementKey)}/$action',
       filePath: filePath,
       fileField: 'file',
     );

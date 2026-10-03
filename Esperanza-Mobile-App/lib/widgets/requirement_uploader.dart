@@ -47,7 +47,9 @@ class RequirementUploader extends StatelessWidget {
   /// is never re-written for a reuse.
   final VoidCallback onUseExisting;
 
-  final VoidCallback onRemove;
+  /// Null hides Remove: a document already on the server (the request detail
+  /// screen) can only be replaced, and a Remove that did nothing was shown.
+  final VoidCallback? onRemove;
 
   const RequirementUploader({
     super.key,
@@ -57,7 +59,7 @@ class RequirementUploader extends StatelessWidget {
     required this.existingMasterDoc,
     required this.onAttachNew,
     required this.onUseExisting,
-    required this.onRemove,
+    this.onRemove,
   });
 
   Future<void> _pickNew(BuildContext context) async {
@@ -360,14 +362,14 @@ class _AttachedTile extends StatelessWidget {
   final Color accent;
   final VoidCallback onView;
   final VoidCallback onReplace;
-  final VoidCallback onRemove;
+  final VoidCallback? onRemove;
 
   const _AttachedTile({
     required this.attachment,
     required this.accent,
     required this.onView,
     required this.onReplace,
-    required this.onRemove,
+    this.onRemove,
   });
 
   ({Color bg, Color fg, IconData icon}) get _style => switch (attachment.category) {
@@ -429,8 +431,10 @@ class _AttachedTile extends StatelessWidget {
               if (isImage) _actionButton('View', onView, color: accent),
               if (isImage) const SizedBox(width: AppSpacing.md),
               _actionButton('Replace', onReplace, color: accent),
-              const SizedBox(width: AppSpacing.md),
-              _actionButton('Remove', onRemove, color: AppColors.rose600),
+              if (onRemove != null) ...[
+                const SizedBox(width: AppSpacing.md),
+                _actionButton('Remove', onRemove!, color: AppColors.rose600),
+              ],
             ],
           ),
         ],

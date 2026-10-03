@@ -120,6 +120,16 @@ class StatusHistoryEntry {
 /// submittedAt, status, statusHistory, attachments, remarks, adminRemarks)
 /// so swapping the mock DataService for real HTTP calls later only touches
 /// the service layer, never these models or the screens that use them.
+/// A requirement the office has not decided yet, which the citizen can still
+/// attach a document to (POST /citizen/requests/{ref}/requirements/{key}/attach):
+/// the detail's per-requirement `attachable`, true while the request is being
+/// verified and that requirement is still Pending Review.
+class PendingRequirement {
+  final String key;
+  final String label;
+  const PendingRequirement({required this.key, required this.label});
+}
+
 class ServiceRequest {
   final String id;
   final String referenceNumber;
@@ -164,6 +174,10 @@ class ServiceRequest {
   /// re-fetched with the rest of a request's detail, since it can change
   /// server-side between one detail fetch and the next.
   bool canResubmit = false;
+
+  /// Requirements still open for a document (see [PendingRequirement]).
+  /// Re-fetched with every detail, like [canResubmit]; empty on a list row.
+  List<PendingRequirement> attachableRequirements = const [];
 
   final String expectedDays;
   final Map<String, dynamic> formFields;
