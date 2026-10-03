@@ -19,6 +19,7 @@ class DigitalIdCard {
     this.sex,
     this.civilStatus,
     this.issuedAt,
+    this.photoUrl,
   });
 
   final String accountNo;
@@ -37,6 +38,10 @@ class DigitalIdCard {
   final DateTime? issuedAt;
   final String qr;
 
+  /// The LGU-approved profile photo (a signed, short-lived link); a photo
+  /// still waiting for an officer is not on the card.
+  final String? photoUrl;
+
   static DigitalIdCard? fromApi(Map<String, dynamic> json) {
     final accountNo = JsonRead.nonEmpty(json['account_no']);
     final qr = JsonRead.nonEmpty(json['qr']);
@@ -54,6 +59,7 @@ class DigitalIdCard {
       valid: JsonRead.boolean(json['valid']) ?? false,
       issuedAt: JsonRead.date(json['issued_at']),
       qr: qr,
+      photoUrl: JsonRead.mediaUrl(json['photo_url']),
     );
   }
 }

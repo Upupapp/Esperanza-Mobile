@@ -197,8 +197,13 @@ class _PersonalInformationScreenState extends State<PersonalInformationScreen> {
   /// leaves the existing photo and the cooldown untouched.
   Future<void> _onCameraIconTap() async {
     final profile = context.read<ResidentProfileService>().profileFor(_account);
-    if (profile.isProfilePhotoOnCooldown) {
-      final next = profile.nextProfilePhotoChangeAllowedAt;
+    // The server owns the six-month rule (counted from the officer's
+    // approval); the phone's own record is only the fallback before the
+    // profile has loaded.
+    final serverPhoto = context.read<CitizenSessionService>().photo;
+    final onCooldown = serverPhoto != null ? !serverPhoto.canChange : profile.isProfilePhotoOnCooldown;
+    if (onCooldown) {
+      final next = serverPhoto != null ? serverPhoto.nextChangeAt : profile.nextProfilePhotoChangeAllowedAt;
       await AppDialogs.centeredInfo(
         context,
         title: 'Profile Photo Change Unavailable',
@@ -241,7 +246,7 @@ class _PersonalInformationScreenState extends State<PersonalInformationScreen> {
       if (!mounted) return;
 
       if (saved == true) {
-        AppDialogs.toast(context, 'Profile photo updated successfully.');
+        AppDialogs.toast(context, 'Photo sent. It appears on your Digital ID once the LGU approves it.');
         return;
       }
       if (saved == false) {

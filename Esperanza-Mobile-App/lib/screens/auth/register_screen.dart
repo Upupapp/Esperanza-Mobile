@@ -1,4 +1,7 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import '../../services/api_client.dart';
 import '../../services/citizen_session_service.dart';
@@ -19,11 +22,11 @@ import '../../theme/app_typography.dart';
 
 /// Citizen registration, restructured (Section 9) from one long form into
 /// a step-by-step wizard: Personal Information -> Terms & Conditions ->
-/// Valid ID Upload -> Face Verification -> Review -> Verification Status.
-/// Every step is frontend simulation — "Verification" is instantly
-/// simulated the same way it always was in this app (status set to
-/// 'Pending Review', reviewable via the demo panel), just now with a
-/// proper guided flow instead of one screen with every field on it.
+/// Valid ID Upload -> Selfie -> Review -> Verification Status.
+/// The account is created on the server (Pending Review) and, once it signs
+/// in, the ID and the selfie go to POST /citizen/verification/id, where the
+/// officer who verifies the account sees them (backlog B1, 2026-10-04). The
+/// face step used to be a timer that "scanned" nothing.
 ///
 /// If a citizen already has an account (Section 7 — don't force them
 /// through registration again just because they aren't verified yet),
@@ -41,7 +44,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     'Personal Information',
     'Terms & Conditions',
     'Valid ID Upload',
-    'Face Verification',
+    'Selfie',
     'Review',
     'Verification Status',
   ];
@@ -77,13 +80,20 @@ class _RegisterScreenState extends State<RegisterScreen> {
   // Step 1 — Terms & Conditions
   bool _termsAccepted = false;
 
-  // Step 2 — Valid ID Upload
+  // Step 2 — Valid ID Upload. The types are the LGU's list (GET /id-types).
+  List<String> _idTypes = const [];
+  String? _idType;
   String? _idFileName;
   String? _idFilePath;
 
-  // Step 3 — Face Verification (simulated — no real camera/ML)
-  bool _faceScanCompleted = false;
-  bool _faceScanning = false;
+  // Step 3 — Selfie, for the officer to compare with the ID.
+  String? _selfiePath;
+  Uint8List? _selfieBytes;
+
+  // After sign-in: whether the ID and selfie reached the LGU.
+  bool _identitySent = false;
+  String? _identityError;
+  bool _sendingIdentity = false;
 
   bool _submitting = false;
   String? _error;
@@ -94,6 +104,16 @@ class _RegisterScreenState extends State<RegisterScreen> {
     final account = context.read<CitizenSessionService>().account;
     _alreadyHasAccount = account != null;
     _step = _alreadyHasAccount ? 5 : 0;
+    if (!_alreadyHasAccount) _loadIdTypes();
+  }
+
+  Future<void> _loadIdTypes() async {
+    try {
+      final types = await context.read<CitizenSessionService>().idTypes();
+      if (mounted) setState(() => _idTypes = types);
+    } on ApiException {
+      // Offline: the step says it could not load the list and offers a retry.
+    }
   }
 
   @override
@@ -143,10 +163,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
         if (!_termsAccepted) return 'Please accept the Terms & Conditions to continue.';
         return null;
       case 2:
+        if (_idType == null) return 'Please choose the type of ID.';
         if (_idFilePath == null) return 'Please upload a valid ID to continue.';
         return null;
       case 3:
-        if (!_faceScanCompleted) return 'Please complete the face verification step to continue.';
+        if (_selfiePath == null) return 'Please take a selfie to continue.';
         return null;
       default:
         return null;
@@ -244,15 +265,41 @@ class _RegisterScreenState extends State<RegisterScreen> {
     });
   }
 
-  Future<void> _runFaceScan() async {
-    setState(() => _faceScanning = true);
-    await Future.delayed(const Duration(milliseconds: 1200)); // simulated scan
+  Future<void> _takeSelfie() async {
+    final file = await pickImageProtected(context, source: ImageSource.camera, maxDimension: 1280);
+    if (file == null || !mounted) return;
+    final bytes = await file.readAsBytes();
     if (!mounted) return;
     setState(() {
-      _faceScanning = false;
-      _faceScanCompleted = true;
+      _selfiePath = file.path;
+      _selfieBytes = bytes;
       _error = null;
     });
+  }
+
+  /// The ID and the selfie, sent with the session the new account just got.
+  /// A failure here does not undo the account: the status step says so and
+  /// offers to send them again.
+  Future<void> _sendIdentity() async {
+    if (_idType == null || _idFilePath == null || _identitySent) return;
+    setState(() => _sendingIdentity = true);
+    try {
+      await context.read<CitizenSessionService>().submitVerificationId(
+        idType: _idType!,
+        frontPath: _idFilePath!,
+        selfiePath: _selfiePath,
+      );
+      if (!mounted) return;
+      setState(() {
+        _identitySent = true;
+        _identityError = null;
+      });
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      setState(() => _identityError = e.message());
+    } finally {
+      if (mounted) setState(() => _sendingIdentity = false);
+    }
   }
 
   /// The account exists on the server but is unusable (still Pending
@@ -288,6 +335,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
         // straight in and show the Pending Review status.
         await session.loginWithCredentials(_signInIdentifier(), _password.text);
         if (!mounted) return;
+        await _sendIdentity();
+        if (!mounted) return;
         setState(() {
           _submitting = false;
           _step = 5;
@@ -322,6 +371,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
       final session = context.read<CitizenSessionService>();
       await session.verify(accountNo: _accountNo!, code: _otpCode.text.trim());
       await session.loginWithCredentials(_signInIdentifier(), _password.text);
+      if (!mounted) return;
+      await _sendIdentity();
       if (!mounted) return;
       setState(() => _submitting = false);
     } on ApiException catch (e) {
@@ -393,7 +444,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       case 2:
         return _idUploadStep();
       case 3:
-        return _faceScanStep();
+        return _selfieStep();
       case 4:
         return _reviewStep();
       default:
@@ -617,6 +668,28 @@ class _RegisterScreenState extends State<RegisterScreen> {
           style: TextStyle(fontSize: AppTextSize.helper, color: AppColors.textMuted, height: 1.4),
         ),
         const SizedBox(height: AppSpacing.xl),
+        DropdownButtonFormField<String>(
+          initialValue: _idType,
+          isExpanded: true,
+          decoration: const InputDecoration(labelText: 'Type of ID'),
+          items: [for (final t in _idTypes) DropdownMenuItem(value: t, child: Text(t, overflow: TextOverflow.ellipsis))],
+          onChanged: (v) => setState(() {
+            _idType = v;
+            _error = null;
+          }),
+        ),
+        if (_idTypes.isEmpty) ...[
+          const SizedBox(height: AppSpacing.xs),
+          Row(
+            children: [
+              const Expanded(
+                child: Text('The list of IDs could not be loaded.', style: TextStyle(fontSize: AppTextSize.fine, color: AppColors.textMuted)),
+              ),
+              TextButton(onPressed: _loadIdTypes, child: const Text('Try again')),
+            ],
+          ),
+        ],
+        const SizedBox(height: AppSpacing.lg),
         if (_idFilePath != null)
           Container(
             padding: const EdgeInsets.all(AppSpacing.md),
@@ -674,10 +747,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
             ),
           ),
         const SizedBox(height: AppSpacing.sm),
-        // PENDING.md item 21: the backend has no endpoint for an ID at
-        // sign-up yet, so say so rather than imply the LGU receives it.
         const Text(
-          'Your ID stays on this phone for now — sending it at sign-up is not connected yet.',
+          'Your ID and selfie are sent to the LGU when your account is created. Staff check them before verifying your account.',
           textAlign: TextAlign.center,
           style: TextStyle(fontSize: AppTextSize.fine, color: AppColors.textMuted),
         ),
@@ -689,53 +760,39 @@ class _RegisterScreenState extends State<RegisterScreen> {
     );
   }
 
-  Widget _faceScanStep() {
+  Widget _selfieStep() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         const Text(
-          'Face Verification',
+          'Selfie',
           style: TextStyle(fontSize: AppTextSize.card, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
         ),
         const SizedBox(height: AppSpacing.xs),
         const Text(
-          'We\'ll match a quick face scan against your uploaded ID to help confirm it\'s really you.',
+          'Take a clear photo of your face. The LGU staff who verify your account compare it with your ID.',
           style: TextStyle(fontSize: AppTextSize.helper, color: AppColors.textMuted, height: 1.4),
         ),
         const SizedBox(height: AppSpacing.xxl),
         Center(
-          child: Container(
-            width: 140,
-            height: 140,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: _faceScanCompleted ? AppColors.emerald50 : AppColors.slate100,
-              border: Border.all(color: _faceScanCompleted ? AppColors.emerald500 : AppColors.slate300, width: 2),
+          child: ClipOval(
+            child: Container(
+              width: 140,
+              height: 140,
+              color: _selfieBytes != null ? AppColors.emerald50 : AppColors.slate100,
+              child: _selfieBytes != null
+                  ? Image.memory(_selfieBytes!, fit: BoxFit.cover, semanticLabel: 'Your selfie')
+                  : const Icon(Icons.face_retouching_natural_rounded, size: 56, color: AppColors.slate400),
             ),
-            child: _faceScanning
-                ? const CircularProgressIndicator(color: AppColors.brand500)
-                : Icon(
-                    _faceScanCompleted ? Icons.check_circle_rounded : Icons.face_retouching_natural_rounded,
-                    size: 56,
-                    color: _faceScanCompleted ? AppColors.emerald700 : AppColors.slate400,
-                  ),
           ),
         ),
         const SizedBox(height: AppSpacing.xxl),
         AppButton(
-          label: _faceScanCompleted ? 'Face Scan Completed' : 'Start Face Scan',
-          icon: _faceScanCompleted ? Icons.check_rounded : Icons.camera_alt_outlined,
-          variant: _faceScanCompleted ? AppButtonVariant.secondary : AppButtonVariant.primary,
+          label: _selfieBytes != null ? 'Retake Selfie' : 'Take Selfie',
+          icon: Icons.camera_alt_outlined,
+          variant: _selfieBytes != null ? AppButtonVariant.secondary : AppButtonVariant.primary,
           fullWidth: true,
-          loading: _faceScanning,
-          onPressed: _faceScanCompleted ? null : _runFaceScan,
-        ),
-        const SizedBox(height: AppSpacing.sm),
-        const Text(
-          'Frontend simulation — no camera access or facial data is actually captured in this demo build.',
-          textAlign: TextAlign.center,
-          style: TextStyle(fontSize: AppTextSize.fine, color: AppColors.textMuted),
+          onPressed: _takeSelfie,
         ),
         if (_error != null) ...[
           const SizedBox(height: AppSpacing.md),
@@ -780,12 +837,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
           _termsAccepted ? 'Accepted' : 'Not accepted',
           onEdit: () => setState(() => _step = 1),
         ),
+        _reviewRow('Type of ID', _idType ?? '—', onEdit: () => setState(() => _step = 2)),
         _reviewRow('Valid ID', _idFileName ?? '—', onEdit: () => setState(() => _step = 2)),
-        _reviewRow(
-          'Face Verification',
-          _faceScanCompleted ? 'Completed' : 'Not completed',
-          onEdit: () => setState(() => _step = 3),
-        ),
+        _reviewRow('Selfie', _selfiePath != null ? 'Taken' : 'Not taken', onEdit: () => setState(() => _step = 3)),
         if (_error != null) ...[
           const SizedBox(height: AppSpacing.md),
           Text(_error!, style: const TextStyle(fontSize: AppTextSize.helper, color: AppColors.rose600)),
@@ -863,6 +917,22 @@ class _RegisterScreenState extends State<RegisterScreen> {
             textAlign: TextAlign.center,
             style: const TextStyle(fontSize: AppTextSize.helper, color: AppColors.textMuted, height: 1.4),
           ),
+        if (_identityError != null && !_identitySent && !_alreadyHasAccount && account != null) ...[
+          const SizedBox(height: AppSpacing.lg),
+          Text(
+            'Your account was created, but your ID did not reach the LGU: $_identityError',
+            textAlign: TextAlign.center,
+            style: const TextStyle(fontSize: AppTextSize.helper, color: AppColors.rose600, height: 1.4),
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          AppButton(
+            label: 'Send my ID again',
+            icon: Icons.upload_rounded,
+            fullWidth: true,
+            loading: _sendingIdentity,
+            onPressed: _sendingIdentity ? null : _sendIdentity,
+          ),
+        ],
         if (_accountNo != null) ...[
           const SizedBox(height: AppSpacing.lg),
           AppTextField(

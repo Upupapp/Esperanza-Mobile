@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/access_level.dart';
 import '../models/citizen_account.dart';
+import '../models/profile_photo.dart';
 import '../theme/app_status.dart';
 import 'api_client.dart';
 import 'json_read.dart';
@@ -33,6 +34,11 @@ class CitizenSessionService extends ChangeNotifier {
   CitizenAccount? _account;
   bool _loading = true;
   bool _isGuest = false;
+
+  /// The profile photo as the LGU holds it; refreshed with every profile read
+  /// (the app re-reads it on start), never persisted on the phone.
+  ProfilePhotoView? _photo;
+  ProfilePhotoView? get photo => _photo;
 
   CitizenAccount? get account => _account;
   bool get isSignedIn => _account != null;
@@ -228,6 +234,46 @@ class CitizenSessionService extends ChangeNotifier {
     return result.map;
   }
 
+  /// GET /id-types: the valid IDs the LGU accepts for account verification.
+  /// Public, because sign-up asks before an account exists.
+  Future<List<String>> idTypes() async {
+    final result = await api.get('/id-types');
+    return JsonRead.strings(result.data);
+  }
+
+  /// POST /citizen/verification/id: the valid ID (front, optional back) and a
+  /// selfie the officer compares with it. The officer verifies the account on
+  /// these (backlog B1); until 2026-10-04 they stayed on the phone.
+  Future<void> submitVerificationId({
+    required String idType,
+    required String frontPath,
+    String? backPath,
+    String? selfiePath,
+  }) async {
+    await api.postMultipart(
+      '/citizen/verification/id',
+      fields: {'id_type': idType},
+      files: {
+        'front': frontPath,
+        'back': ?backPath,
+        'selfie': ?selfiePath,
+      },
+    );
+  }
+
+  /// POST /citizen/profile/photo. Waits for an officer; the Digital ID keeps
+  /// the approved photo until then. A change too soon is refused by the
+  /// server (PHOTO_CHANGE_TOO_SOON), surfaced as an ordinary ApiException.
+  Future<ProfilePhotoView?> uploadProfilePhoto(List<int> bytes) async {
+    final result = await api.postMultipart(
+      '/citizen/profile/photo',
+      bytesFiles: {'photo': (bytes: bytes, filename: 'profile-photo.jpg')},
+    );
+    _photo = ProfilePhotoView.fromApi(result.data) ?? _photo;
+    notifyListeners();
+    return _photo;
+  }
+
   /// POST /auth/citizen/verify. The account is unusable (Pending Review,
   /// not yet Verified) until this succeeds — matching what the web
   /// registration flow now does.
@@ -285,6 +331,7 @@ class CitizenSessionService extends ChangeNotifier {
       );
     }
     String str(String key) => JsonRead.string(p[key]) ?? '';
+    _photo = ProfilePhotoView.fromApi(p['photo']);
     await login(
       CitizenAccount(
         id: accountNo,
@@ -334,6 +381,7 @@ class CitizenSessionService extends ChangeNotifier {
     }
     await api.setToken(null);
     _account = null;
+    _photo = null;
     _isGuest = false;
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_key);

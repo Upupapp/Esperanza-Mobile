@@ -168,18 +168,32 @@ class ApiClient {
   /// `image_picker`/`file_picker` results), matching the backend's
   /// `App\Domain\Storage\UploadService`. `filePath` is a local path from
   /// either picker plugin.
+  ///
+  /// [files] adds more file fields by local path (an ID's front and a selfie
+  /// in one request); [bytesFiles] sends in-memory bytes, which is what the
+  /// photo preview holds (on Flutter Web a picked file's path is a blob: URL).
   Future<ApiResult> postMultipart(
     String path, {
-    required String filePath,
-    required String fileField,
+    String? filePath,
+    String? fileField,
     Map<String, String>? fields,
+    Map<String, String> files = const {},
+    Map<String, ({List<int> bytes, String filename})> bytesFiles = const {},
   }) async {
     final uri = Uri.parse('$baseUrl$path');
     final request = http.MultipartRequest('POST', uri);
     request.headers.addAll(await _headers(json: false));
     if (fields != null) request.fields.addAll(fields);
     try {
-      request.files.add(await http.MultipartFile.fromPath(fileField, filePath));
+      if (filePath != null && fileField != null) {
+        request.files.add(await http.MultipartFile.fromPath(fileField, filePath));
+      }
+      for (final f in files.entries) {
+        request.files.add(await http.MultipartFile.fromPath(f.key, f.value));
+      }
+      for (final f in bytesFiles.entries) {
+        request.files.add(http.MultipartFile.fromBytes(f.key, f.value.bytes, filename: f.value.filename));
+      }
     } on FileSystemException {
       // The picked file was moved or cleaned up before upload. Reported like
       // any other failed request, so callers that only catch ApiException

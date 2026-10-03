@@ -112,9 +112,9 @@ void main() {
       await tester.pumpAndSettle(const Duration(seconds: 5));
     });
 
-    testWidgets('it says the photo stays on the phone', (tester) async {
+    testWidgets('it says the photo goes to the LGU for approval', (tester) async {
       await pump(tester, ResidentProfileService());
-      expect(find.textContaining(ProfilePhotoPreviewScreen.deviceOnlyText), findsOneWidget);
+      expect(find.textContaining(ProfilePhotoPreviewScreen.sentText), findsOneWidget);
     });
 
     testWidgets('on a short phone with large text it scrolls rather than overflowing', (tester) async {

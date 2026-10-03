@@ -820,6 +820,38 @@ class _OfflineNotice extends StatelessWidget {
   }
 }
 
+/// The LGU-approved photo on the card, or a plain placeholder until there is
+/// one (a link that fails to load shows the placeholder too).
+class _CardPhoto extends StatelessWidget {
+  const _CardPhoto({required this.url});
+
+  final String? url;
+
+  @override
+  Widget build(BuildContext context) {
+    const size = 72.0;
+    final placeholder = Container(
+      width: size,
+      height: size,
+      color: AppColors.slate100,
+      child: const Icon(Icons.person_rounded, color: AppColors.slate400, size: 36),
+    );
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(AppRadius.md),
+      child: url == null
+          ? placeholder
+          : Image.network(
+              url!,
+              width: size,
+              height: size,
+              fit: BoxFit.cover,
+              semanticLabel: 'Resident photo',
+              errorBuilder: (_, _, _) => placeholder,
+            ),
+    );
+  }
+}
+
 class _LiveIdCard extends StatelessWidget {
   const _LiveIdCard({required this.card});
 
@@ -877,7 +909,13 @@ class _LiveIdCard extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(card.name, style: AppTypography.sectionTitle),
+                      Row(
+                        children: [
+                          _CardPhoto(url: card.photoUrl),
+                          const SizedBox(width: AppSpacing.md),
+                          Expanded(child: Text(card.name, style: AppTypography.sectionTitle)),
+                        ],
+                      ),
                       const SizedBox(height: AppSpacing.sm),
                       _ValidityChip(valid: card.valid),
                       const SizedBox(height: AppSpacing.lg),
