@@ -129,9 +129,10 @@ class Announcement {
       imageUrl: JsonRead.mediaUrl(json['image_url']),
       at: JsonRead.date(json['published_at']) ?? JsonRead.date(json['created_at']),
       likes: JsonRead.integer(json['likes']) ?? 0,
-      // GET /announcements is public and carries no per-citizen like state
-      // (PublicContentController::announcementRow()), so this is false on
-      // every load; read if the backend ever adds it.
+      // GET /announcements is public, but given the citizen's bearer token
+      // (ApiClient sends it on every request) it says which announcements
+      // they liked (esperanza-backend, backlog B2). It is null for an
+      // anonymous read, which shows as not liked.
       likedByMe: JsonRead.boolean(json['liked_by_me']) ?? false,
       commentsCount: JsonRead.integer(json['comments_count']) ?? 0,
       shares: JsonRead.integer(json['shares']) ?? 0,

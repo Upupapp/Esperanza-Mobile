@@ -30,8 +30,6 @@ Mobile already reads everything above; nothing more is needed on mobile for A1�
 | # | What goes wrong | Where | Proposed fix |
 |---|---|---|---|
 | B1 | **Registration collects an ID that nothing can receive.** Mobile asks for a valid ID at sign-up, but no endpoint takes it and no reviewer would see it; the web's own "Verify Valid ID" is a `setTimeout` simulation. Mobile now tells the citizen the ID stays on the phone. | `POST /auth/citizen/register` (no file), `CitizenVerificationController::show` (no documents) | An upload on the verification path that the admin verification queue shows. Then mobile sends it. (PENDING 21) |
-| B2 | **Liked announcements show un-liked after a refresh**, and the next tap un-likes them. | `GET /announcements` is public; `announcementRow()` has no `liked_by_me` | An authenticated variant or a `liked_by_me` field for a signed-in caller (community posts already have it). (PENDING 23) |
-| B3 | **The in-app notification switch is stored but ignored.** The sender always delivers in-app (`NotificationService::queueDeliveries`), so a stored `in_app: false` does nothing. Mobile offers no in-app switch for this reason; the web's toggle sets all three channels together. | `NotificationPreference`, `NotificationService` | Either honour `in_app` or stop accepting it; document which. |
 | B4 | **Evacuation centres have no coordinates.** "Nearest centre" and real directions are impossible; mobile searches maps by name and address instead. | `sakuna_centers` has no lat/lng | Add `lat`/`lng` (Web Admin sets them); mobile can then sort by distance and link exact directions. |
 | B5 | **Incidents have no detail endpoint.** A citizen's report shows only what the list row carries; there is no timeline of what the MDRRMO did with it. | `GET /citizen/incidents` only; `SakunaIncidentEvent` exists but is staff-only | `GET /citizen/incidents/{ref}` with the citizen-safe part of its events. |
 | B6 | **Event registration does not exist** (tickets, QR, capacity, check-in, as in the PAAIPE app). Mobile's event page stops at the details for this reason. | `events` | Owner decision first: it is a large feature (backend, Web Admin, mobile). |
@@ -47,15 +45,6 @@ Mobile already reads everything above; nothing more is needed on mobile for A1�
 |---|---|---|---|
 | C1 | **Two status badges fail WCAG AA**: Cancelled 4.34:1, Archived 2.34:1. Mobile mirrors the web component, so both change together. | `resources/views/components/ui/badge.blade.php` | Exact classes in [the web handoff §1](HANDOFF_TO_WEB_LANE_2026-09-28.md). Mobile lands the matching change once web `main` has it. **Owner deferred: after the next 10 tasks.** (PENDING 26) |
 | C2 | **Secondary text is `text-slate-400` (2.56:1)**, used 1,054 times, mostly for text residents need to read. | `resources/views`, `resources/js` | Replace bare `text-slate-400` with `text-slate-500` (regex in handoff §2). **Owner deferred, as C1.** |
-| C3 | **Citizen Balita calls the wrong path**: `/community-posts` instead of `/citizen/community-posts`, so the whole feed errors; likes, comments and reports too. | `citizen/announcements.blade.php:19`, lines 62–104 | Add the `/citizen` prefix. (PENDING 25, handoff §3) |
-| C4 | **Admin Sakuna calls lack `/admin`** (all 45); the unprefixed `/sakuna/centers` silently hits the public endpoint. | `admin/sakuna.blade.php` | Add the `/admin` prefix. (PENDING 25) |
-| C5 | **Internal Forms lack `/admin`.** | `admin/internal-forms.blade.php:26,27,116` | Add the prefix. (PENDING 25) |
-| C6 | **User archive always 404s**: sends `u.id` where the route keys on `employee_id`. | `admin/users.blade.php:149` | Send `employee_id`. (PENDING 25) |
-| C7 | **Citizen Dokyu and Tulong are still simulations** (`setTimeout`/localStorage), on both citizen and admin sides, though the routes exist. | citizen and admin request views | Wire them to the backend, as mobile is. (PENDING 25) |
-| C8 | **Residents never see a published emergency alert on the website.** The backend serves them publicly; no citizen view asks. | `GET /alerts` (`SakunaController::publicAlerts`); nothing under `resources/views/citizen` | Show them on the citizen dashboard/Sakuna page, Filipino first, as mobile's Emergency tab does. (handoff §5) |
-| C9 | **Web Settings' notification toggle sets all three channels at once** off `in_app`, so a citizen cannot choose texts without email, and the switch reads the ignored `in_app` flag (B3). | `citizen/settings.blade.php` (`togglePref`) | Separate SMS and email switches per category, as mobile has. |
-| C10 | **Two-factor setup is a simulation**: "a frontend preview — no data is saved". | `citizen/settings.blade.php` (`enable2fa`) | Wire it to a backend feature, or remove the control until one exists. |
-| C11 | **Data requests offer only "portability"**, with fixed text. The backend takes access, correction, erasure and portability with the citizen's own details. | `citizen/settings.blade.php` (`requestData`) | A small form like mobile's My Data Requests (kind + details + history). |
 
 ---
 
@@ -73,4 +62,17 @@ Mobile already reads everything above; nothing more is needed on mobile for A1�
 
 ## Done
 
-*(nothing yet — move items here with the commit that closed them)*
+Closed 2026-10-04 (backend `main` `9d94cac`, web `main` `d1283b5`). The backend half is **not on the
+staging server yet**: it still runs `67a5c5b-linkresident2`, and the web and mobile changes below that
+call new endpoints degrade until it is deployed (`php artisan migrate` too, for A2).
+
+| # | What | Closed by |
+|---|---|---|
+| B2 | Liked announcements show un-liked after a refresh. | backend `bb3a5b9`: a citizen token fills `liked_by_me` on `GET /announcements`; anonymous reads stay public (`null`). Mobile and web read it. |
+| B3 | The in-app switch was stored but ignored. | backend `6dce6d7`: in-app is always on; `in_app` is optional on PUT, ignored when false, reported `true`. |
+| C3 | Citizen Balita called the wrong paths. | web `44d1439` |
+| C4, C5 | Admin Sakuna and Internal Forms lacked `/admin`. | web `ea958e6`. The Sakuna page had also never started at all: a stray double quote ended its Alpine component, fixed in `e6467aa` with a test and a gate step so it cannot recur. |
+| C6 | "User archive sends `u.id`". | **Not a bug**: the page maps `id: u.employee_id`, so `u.id` is the employee ID (checked 2026-10-04). |
+| C7 | Citizen and admin Dokyu and Tulong were simulations. | web `22a7cc9` (Dokyu), `7c9fa55` (Tulong), `a863ff4`, `ff7ba44`, `a6148ae`; backend `d20d8a0` adds the requirement attach endpoint the wizards need, and `27be104` the full request summary. Clicked through end to end against a local backend. |
+| C8 | Residents never saw a published emergency alert. | web `44d1439`: the citizen dashboard shows them. |
+| C9, C10, C11 | One notification switch for three channels; simulated 2FA; data requests offered "portability" only. | web `44d1439`: SMS and email switches per category; the 2FA control removed until a backend feature exists; the four request kinds with details and history. |

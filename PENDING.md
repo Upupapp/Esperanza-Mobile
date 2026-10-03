@@ -37,13 +37,11 @@ item, move it to **Done** with its commit — do not delete it, so the arc stays
 | 17 | **Backend Master Command** | Offered, not started. Spec Section 5 already enumerates the missing Web-Admin APIs; the front-end contract from FE 13 would feed it. |
 
 | 21 | **Registration collects an ID that nothing can receive** — backend/owner decision | Checked against esperanza-backend `9f4555c` (2026-09-28). `POST /auth/citizen/register` takes no file, the admin verification queue (`CitizenVerificationController::show`) shows no documents, and the web app's own "Verify Valid ID" (`citizen/profile.blade.php:23`) is a `setTimeout` simulation. `POST /citizen/papeles` stores a file, but no reviewer reads papeles when verifying, so sending the ID there would be a false promise. Needs a backend endpoint on the verification path first; until then mobile's ID step (and simulated face scan) are UI only. |
-| 23 | **Backend: announcement likes carry no per-citizen state** | `GET /announcements` is public and `announcementRow()` has no `liked_by_me`, so a liked announcement shows un-liked after refresh and the next tap un-likes it. Community posts do carry it. Fix is backend-side (an authenticated variant or field). |
 | 26 | **Two web-owned fixes, handed to the web lane** — *deferred by the owner (2026-09-28): do after the next 10 tasks* | Cancelled/Archived badge contrast and the web's 1,054 `text-slate-400` uses. Exact changes in `Esperanza-Mobile-App/docs/HANDOFF_TO_WEB_LANE_2026-09-28.md`. Mobile lands its matching badge change only once web `main` carries it (parity rule). Not pushed from here: mobile doesn't commit to the web repo, and a web `main` push runs a Netlify build. |
-| 25 | **Web frontend ↔ backend drift (web repo, read-only from this lane)** | Audited 2026-09-28 (web `950eb0f`, backend `9f4555c`): the web's citizen Balita calls omit `/citizen` (whole feed errors, `announcements.blade.php:19`); all 45 admin Sakuna calls omit `/admin` (`admin/sakuna.blade.php`); Internal Forms omits `/admin`; user archive sends `u.id` where the route keys on `employee_id` (`admin/users.blade.php:149`); Dokyu/Tulong on both citizen and admin sides are still `setTimeout`/localStorage simulations though the routes exist. For the web lane to fix. |
 
 | 27 | **Catalogue names the Civil Registrar three ways** (upstream data) | "Office of the Municipal Civil Registrar" (19 services), "Civil Registrar" (4), "Civil Registrar / appropriate local office" (1), in esperanza-backend's catalogue, vendored from the web config. Mobile groups them in the Dokyu office step (`lib/utils/office_name.dart`, 2026-09-28), so residents see one office; the data itself should be normalised at the source. In the web handoff §4. |
 | 30 | **Profile photo is an identification record** (owner, 2026-09-29) — backend first | The photo is kept on the phone only; no endpoint takes it. Owner ruled it an identification record, so it must reach the LGU: backend upload + Digital ID/verification queue, then Web Admin, then mobile. Full plan: `docs/WEB_AND_BACKEND_BACKLOG.md` B9. |
-| 28 | **Backend merged; server deploy and web merge left** (2026-09-29) | esperanza-backend `main` is at `05ccc12` (B-050 + event descriptions), gate green. Left: (1) deploy backend `main` to the Linode staging host and run `php artisan migrate`, which needs server access; (2) fast-forward web `main` to `ef4bb60` (that push is the Netlify deploy, one deploy). Mobile `main` = `4d548a1`. Mobile's own web build is published by `netlify deploy` from a lane holding the Netlify login. Details: backlog section A. |
+| 28 | **Backend and web committed; server deploy and the web event-description merge left** (updated 2026-10-04) | esperanza-backend `main` is at `9d94cac` (everything through `05ccc12`, plus likes, in-app, requirement attach, issuance permission, request summary), certified on SQLite and PostgreSQL. The staging server still runs `67a5c5b-linkresident2`. Left: (1) deploy backend `main` to the Linode staging host and run `php artisan migrate`, which needs server access; until then the web wizard's attachments are refused (it says so, and the request still files) and mobile shows no attach section, since the old server sends no `attachable`; (2) web `main` is at `d1283b5`, pushing it is the Netlify deploy; the event-description branch `ef4bb60` is still unmerged. Details: backlog section A and Done. |
 
 ## Deferred by decision
 
@@ -71,6 +69,18 @@ item, move it to **Done** with its commit — do not delete it, so the arc stays
   `Package.resolved` is the only thing making an iOS build reproducible.
 
 ## Done this programme
+
+**Requirement documents and the real catalogue (2026-10-04):** a request's detail screen lists the
+requirements the office has not decided yet and attaches each document (`POST
+/citizen/requests/{ref}/requirements/{key}/attach`, backend `d20d8a0`), from a new file or the
+Master File, and shows the file the server holds for each requirement. The screen now shows the
+server's answer after a replace, attach or resubmit: it kept the first-loaded copy, so after a
+flagged document was replaced Resubmit stayed disabled until the screen was reopened. A
+document the server keeps offers Replace, no longer an inert Remove. The audited forms reach the
+real catalogue's services by key: `brgy_clearance`, `osca_senior_citizen`, `mcro_marriage` and
+thirteen others had fallen back to the generic wizard because their forms sit under the app's
+older keys. Closed PENDING 23 (backend `bb3a5b9`) and 25 (web, see the backlog's Done). Pinned by
+`test/requirement_attach_test.dart` and `test/service_form_specs_server_keys_test.dart`.
 
 **Account and privacy (2026-09-28):** the Privacy Policy is now the one the Municipality publishes
 for web and mobile (`GET /site-content/privacy`, Web Admin > Settings > Site Content), with its
