@@ -47,15 +47,11 @@ const _aaNormalText = 4.5;
 /// Each records the measured ratio so a change in either direction is visible.
 /// Do not add to this map to make a new failure go away — a newly introduced
 /// colour that fails is a mobile-side mistake, not a shared-palette problem.
-const _knownSharedPaletteFailures = <AppStatus, String>{
-  // 4.34:1 — marginal, and slate-500 on slate-100 comes straight from the Web
-  // Admin's own `Cancelled` badge. Raised 2026-08-29 (FE 05).
-  AppStatus.cancelled: '4.34:1 — shared palette, raised with the web platform',
-  // 2.34:1 — roughly half the requirement. slate-400 on slate-100 is grey on
-  // grey. Both surfaces deliberately de-emphasise Archived, but WCAG grants no
-  // exemption for text that is *meant* to recede. Raised 2026-08-29 (FE 05).
-  AppStatus.archived: '2.34:1 — shared palette, raised with the web platform',
-};
+///
+/// Empty since 2026-10-04: Cancelled (4.34:1) and Archived (2.34:1), raised
+/// 2026-08-29 (FE 05), were fixed on both platforms together (web 55617a9):
+/// now 4.55:1 and 6.15:1.
+const _knownSharedPaletteFailures = <AppStatus, String>{};
 
 void main() {
   test('every status chip meets WCAG AA for normal text, or is a recorded escalation', () {
