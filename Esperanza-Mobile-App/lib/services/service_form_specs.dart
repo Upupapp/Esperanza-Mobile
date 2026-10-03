@@ -23,14 +23,42 @@ class ServiceFormSpecs {
     for (final item in [...MockCatalog.documentTypes, ...MockCatalog.assistanceTypes]) item.key: item,
   };
 
-  static ServiceFormSpec? formSpecFor(String key) => _byKey[key]?.formSpec;
+  /// The real catalog's key -> the mock item that holds that service's audited
+  /// form, where the two keys differ. Without this, a lookup by the server's
+  /// key found nothing for these services and they fell back to the generic
+  /// wizard, even though their forms were authored here: every common barangay
+  /// certificate among them. Names checked one by one against GET /services;
+  /// mcro_delayed_registration is left out on purpose, as the server has one
+  /// service where this file has a birth form and a death form.
+  static const Map<String, String> _serverKeyAliases = {
+    'brgy_clearance': 'dokyu_barangay_clearance',
+    'brgy_residency': 'dokyu_residency',
+    'brgy_indigency': 'dokyu_indigency',
+    'brgy_business_clearance': 'dokyu_barangay_business_clearance',
+    'brgy_cert_general': 'dokyu_barangay_certification',
+    'brgy_first_time_jobseeker': 'dokyu_first_time_jobseeker',
+    'brgy_cert_late_registration': 'dokyu_barangay_cert_late_birth',
+    'brgy_cert_death_registration': 'dokyu_barangay_cert_death',
+    'osca_senior_citizen': 'dokyu_senior_citizen_id',
+    'mcro_marriage_license': 'dokyu_marriage_license',
+    'mcro_marriage': 'dokyu_marriage_certificate_copy',
+    'municipal_pet_registration': 'dokyu_pet_registration',
+    'locational_clearance': 'dokyu_locational_clearance',
+    'msw_pwd_id': 'tulong_pwd_registration',
+    'tulong_tesda': 'tulong_tesda_registration',
+    'tulong_erpat': 'tulong_erpat_registration',
+  };
 
-  static Map<String, dynamic> demoDefaultsFor(String key) => _byKey[key]?.demoDefaults ?? const {};
+  static CatalogItem? _itemFor(String key) => _byKey[key] ?? _byKey[_serverKeyAliases[key]];
 
-  static String? demoPurposeFor(String key) => _byKey[key]?.demoPurpose;
+  static ServiceFormSpec? formSpecFor(String key) => _itemFor(key)?.formSpec;
+
+  static Map<String, dynamic> demoDefaultsFor(String key) => _itemFor(key)?.demoDefaults ?? const {};
+
+  static String? demoPurposeFor(String key) => _itemFor(key)?.demoPurpose;
 
   /// A lucide-style icon name for services this app doesn't otherwise have
   /// an icon source for -- CatalogItem.icon was always mobile-only UI, no
   /// server field, same reasoning as [formSpecFor].
-  static String? iconFor(String key) => _byKey[key]?.icon;
+  static String? iconFor(String key) => _itemFor(key)?.icon;
 }
