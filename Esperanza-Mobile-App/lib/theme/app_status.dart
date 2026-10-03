@@ -118,8 +118,10 @@ extension AppStatusX on AppStatus {
     AppStatus.readyForRelease => const StatusStyle(AppColors.teal50, AppColors.teal700, AppColors.teal500),
     AppStatus.released => const StatusStyle(AppColors.cyan50, AppColors.cyan700, AppColors.cyan500),
     AppStatus.completed => const StatusStyle(AppColors.green50, AppColors.green700, AppColors.green500),
-    AppStatus.cancelled => const StatusStyle(AppColors.slate100, AppColors.slate500, AppColors.slate400),
-    AppStatus.archived => const StatusStyle(AppColors.slate100, AppColors.slate400, AppColors.slate300),
+    // Web badge.blade.php, 2026-10-04: both failed AA (4.34:1 and 2.34:1);
+    // now 4.55:1 and 6.15:1, still told apart from Draft by background shade.
+    AppStatus.cancelled => const StatusStyle(AppColors.slate50, AppColors.slate500, AppColors.slate400),
+    AppStatus.archived => const StatusStyle(AppColors.slate200, AppColors.slate600, AppColors.slate400),
     // Same meaning/coloring as waitingRequirements — "needs attention, not
     // rejected, not done" — just the Mobile-specific label above it.
     AppStatus.underReview => const StatusStyle(AppColors.orange50, AppColors.orange700, AppColors.orange500),

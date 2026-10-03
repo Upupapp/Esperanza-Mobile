@@ -55,13 +55,12 @@ void main() {
       }
     });
 
-    test('status badges are readable, with two known web-owned exceptions', () {
-      // Cancelled (slate-500 on slate-100, 4.34) and Archived (slate-400 on
-      // slate-100, 2.34) fail AA on both platforms. Their colours are the
-      // web's badge.blade.php and must stay identical, so the fix belongs
-      // to both lanes together (PENDING.md). Pinned here so no other status
-      // joins them, and so this fails -- and gets updated -- once fixed.
-      const knownFailing = {AppStatus.cancelled, AppStatus.archived};
+    test('every status badge is readable', () {
+      // Cancelled (4.34:1) and Archived (2.34:1) failed AA on both platforms
+      // until 2026-10-04, when web badge.blade.php and app_status.dart moved
+      // together (Cancelled slate-500 on slate-50, Archived slate-600 on
+      // slate-200). No exceptions remain.
+      const knownFailing = <AppStatus>{};
       final failing = <AppStatus>{};
       for (final s in AppStatus.values) {
         final style = s.style;
