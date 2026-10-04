@@ -6,7 +6,10 @@ import 'dart:convert';
 import 'package:esperanza_mobile/services/api_client.dart';
 import 'package:esperanza_mobile/services/requests_service.dart';
 import 'package:esperanza_mobile/utils/banner_memory.dart';
+import 'package:esperanza_mobile/models/attachment.dart';
+import 'package:esperanza_mobile/utils/requirement_document_type.dart';
 import 'package:esperanza_mobile/widgets/app_button.dart';
+import 'package:esperanza_mobile/widgets/requirement_uploader.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
@@ -111,6 +114,42 @@ void main() {
 
     await BannerMemory.showOnce('assets/images/Tulong Tab.png', () => shown++);
     expect(shown, 2, reason: 'another poster still shows');
+  });
+
+  testWidgets('a screen reader reaches Replace on its own inside a correction card', (tester) async {
+    final handle = tester.ensureSemantics();
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Column(
+            children: [
+              const Text('Application Needs Correction'),
+              const Text('Reason: the ID is cut off'),
+              RequirementUploader(
+                requirement: const RequirementInfo(label: 'Valid ID', documentType: 'Valid ID', isRequired: true),
+                attachment: Attachment(
+                  id: 'a1',
+                  fileName: 'valid-id-sample.pdf',
+                  category: AttachmentCategory.pdf,
+                  sizeBytes: 41000,
+                  addedAt: DateTime(2026, 10, 4),
+                  documentTypeLabel: 'Valid ID',
+                ),
+                accent: Colors.purple,
+                existingMasterDoc: null,
+                showTitle: false,
+                onAttachNew: (_) {},
+                onUseExisting: () {},
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+    final node = tester.getSemantics(find.text('Replace'));
+    expect(node.label, 'Replace', reason: 'its own node, not merged into the card');
+    expect(node.getSemanticsData().flagsCollection.isButton, isTrue);
+    handle.dispose();
   });
 
   testWidgets('a disabled button looks disabled', (tester) async {

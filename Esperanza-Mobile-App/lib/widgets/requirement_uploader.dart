@@ -449,12 +449,19 @@ class _AttachedTile extends StatelessWidget {
   }
 
   Widget _actionButton(String label, VoidCallback onTap, {required Color color}) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(AppRadius.sm),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs, horizontal: AppSpacing.xs),
-        child: Text(label, style: TextStyle(fontSize: AppTextSize.label, fontWeight: FontWeight.w600, color: color)),
+    // Its own button for a screen reader. Inside the correction card the tap
+    // merged into the whole card, so TalkBack could not reach "Replace" on
+    // its own (re-test of the QA fixes, 2026-10-04).
+    return Semantics(
+      container: true,
+      button: true,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(AppRadius.sm),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs, horizontal: AppSpacing.xs),
+          child: Text(label, style: TextStyle(fontSize: AppTextSize.label, fontWeight: FontWeight.w600, color: color)),
+        ),
       ),
     );
   }
