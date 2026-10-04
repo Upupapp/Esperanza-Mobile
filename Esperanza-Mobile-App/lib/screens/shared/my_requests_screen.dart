@@ -4,7 +4,6 @@ import '../../models/service_request.dart';
 import '../../services/requests_service.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_spacing.dart';
-import '../../theme/app_status.dart';
 import '../../widgets/app_card.dart';
 import '../../widgets/empty_state.dart';
 import '../../widgets/segmented_tabs.dart';
@@ -123,7 +122,7 @@ class _MyRequestCard extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: AppSpacing.sm),
-                StatusChip(status: AppStatusX.fromLabel(request.status), small: true),
+                StatusChip.request(request.status, small: true),
               ],
             ),
             const SizedBox(height: AppSpacing.xs),

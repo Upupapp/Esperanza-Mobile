@@ -7,7 +7,7 @@ import '../../models/service_request.dart';
 import '../../services/requests_service.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_spacing.dart';
-import '../../theme/app_status.dart';
+import '../../theme/tulong_status.dart';
 import '../../widgets/active_filter_chip.dart';
 import '../../widgets/app_card.dart';
 import '../../widgets/empty_state.dart';
@@ -106,8 +106,8 @@ class _RequestListScreenState extends State<RequestListScreen> {
   Widget build(BuildContext context) {
     final requests = context.watch<RequestsService>();
     final categoryRequests = requests.byCategory(widget.category);
-    final activeAll = categoryRequests.where((r) => !AppStatusX.fromLabel(r.status).isDone).toList();
-    final doneAll = categoryRequests.where((r) => AppStatusX.fromLabel(r.status).isDone).toList();
+    final activeAll = categoryRequests.where((r) => !RequestStatusView(r.status).isDone).toList();
+    final doneAll = categoryRequests.where((r) => RequestStatusView(r.status).isDone).toList();
     final tabSource = _tab == 0 ? activeAll : doneAll;
     final visible = _filters.apply(tabSource);
 
@@ -370,7 +370,7 @@ class _RequestTile extends StatelessWidget {
                 // name from overflowing a narrow card.
                 ConstrainedBox(
                   constraints: BoxConstraints(maxWidth: MediaQuery.sizeOf(context).width * 0.4),
-                  child: StatusChip(status: AppStatusX.fromLabel(request.status), small: true),
+                  child: StatusChip.request(request.status, small: true),
                 ),
               ],
             ),

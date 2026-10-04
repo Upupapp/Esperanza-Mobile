@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../models/app_notification.dart';
 import '../models/notification_kind.dart';
 import '../models/request_milestones.dart';
+import '../theme/tulong_status.dart';
 import '../models/service_request.dart';
 import '../screens/notifications/duplicate_account_details_screen.dart';
 import '../screens/notifications/unverified_duplicate_resolution_screen.dart';
@@ -170,7 +171,7 @@ List<AppNotification> _correctionNotifications(BuildContext context, List<Servic
     if (r.flaggedRequirements.isEmpty) continue;
     final unresolved = r.flaggedRequirements.where((f) => !f.isResolved).toList();
     final resolved = r.flaggedRequirements.where((f) => f.isResolved).toList();
-    final isActive = r.status == RequestMilestones.underReview && unresolved.isNotEmpty;
+    final isActive = (r.status == RequestMilestones.underReview || r.status == TulongStatus.needsRequirements) && unresolved.isNotEmpty;
 
     if (isActive && unresolved.length > 1) {
       final sortedIds = unresolved.map((f) => f.id).toList()..sort();
@@ -389,21 +390,23 @@ AppNotification _duplicateAlertFor(
 
 NotificationKind _kindFor(String status) => switch (status) {
   'Approved' || 'Mark to Release' || 'Released' || 'Completed' => NotificationKind.success,
+  // A Tulong case's approval and its release (TulongStatus).
+  TulongStatus.assistanceProcessing || TulongStatus.readyForRelease => NotificationKind.success,
   'Rejected' => NotificationKind.warning,
-  // The backend's "your application needs correction" transition.
-  'Under Review' || 'Waiting Requirements' => NotificationKind.actionRequired,
+  // The backend's "your application needs correction" transition, and
+  // Tulong's own.
+  'Under Review' || 'Waiting Requirements' || TulongStatus.needsRequirements => NotificationKind.actionRequired,
   _ => NotificationKind.info,
 };
 
 IconData _iconFor(String status) => switch (status) {
-  'Approved' => Icons.check_circle_outline_rounded,
+  'Approved' || TulongStatus.assistanceProcessing => Icons.check_circle_outline_rounded,
   'Rejected' => Icons.cancel_outlined,
   'Released' || 'Completed' => Icons.task_alt_rounded,
-  'Under Review' || 'Waiting Requirements' => Icons.warning_amber_rounded,
-  // 'Ready for Release' is the retired label this replaced (see the
-  // status-terminology correction pass) — kept so anything still
-  // showing it briefly (pre-migration) gets the same icon.
-  'Mark to Release' || 'Ready for Release' => Icons.inventory_2_outlined,
+  'Under Review' || 'Waiting Requirements' || TulongStatus.needsRequirements => Icons.warning_amber_rounded,
+  // Ready for Release is a Tulong case's own stage (TulongStatus); Dokyu's
+  // is Mark to Release.
+  'Mark to Release' || TulongStatus.readyForRelease => Icons.inventory_2_outlined,
   _ => Icons.info_outline_rounded,
 };
 

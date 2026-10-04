@@ -10,7 +10,7 @@ import '../../services/requests_service.dart';
 import '../../services/resident_profile_service.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_spacing.dart';
-import '../../theme/app_status.dart';
+import '../../theme/tulong_status.dart';
 import '../../theme/app_typography.dart';
 import '../../utils/demo_resident_photo.dart';
 import '../../widgets/app_button.dart';
@@ -106,7 +106,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final session = context.watch<CitizenSessionService>();
     final account = session.account;
     final requests = context.watch<RequestsService>();
-    final activeRequests = requests.all.where((r) => !AppStatusX.fromLabel(r.status).isDone).toList()
+    final activeRequests = requests.all.where((r) => !RequestStatusView(r.status).isDone).toList()
       ..sort((a, b) => b.submittedAt.compareTo(a.submittedAt));
     final residentProfile = account != null ? context.watch<ResidentProfileService>().profileFor(account) : null;
 
@@ -532,7 +532,7 @@ class _RequestPreviewTile extends StatelessWidget {
                 ],
               ),
             ),
-            StatusChip(status: AppStatusX.fromLabel(request.status), small: true),
+            StatusChip.request(request.status, small: true),
           ],
         ),
       ),

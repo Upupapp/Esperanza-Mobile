@@ -294,7 +294,20 @@ class RequestsService extends ChangeNotifier {
       expectedDays: '',
     )
       ..canResubmit = JsonRead.boolean(json['can_resubmit']) ?? false
-      ..attachableRequirements = attachable;
+      ..attachableRequirements = attachable
+      ..assistance = _assistanceFrom(JsonRead.map(json['assistance']), JsonRead.nonEmpty(json['office']));
+  }
+
+  /// A Tulong detail's `assistance` (CitizenRequestController::detail()).
+  TulongAssistance? _assistanceFrom(Map<String, dynamic>? json, String? office) {
+    if (json == null) return null;
+    return TulongAssistance(
+      approvedAmount: JsonRead.nonEmpty(json['approved_amount']),
+      releasedAmount: JsonRead.nonEmpty(json['released_amount']),
+      releaseReference: JsonRead.nonEmpty(json['release_reference']),
+      releasedAt: JsonRead.date(json['released_at']),
+      office: office,
+    );
   }
 
   ServiceCategory _categoryFromType(String? type) => switch (type) {

@@ -11,8 +11,8 @@ import '../../services/requests_service.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_haptics.dart';
 import '../../theme/app_spacing.dart';
-import '../../theme/app_status.dart';
 import '../../theme/app_typography.dart';
+import '../../theme/tulong_status.dart';
 import '../../utils/tulong_eligibility.dart';
 import '../../widgets/app_button.dart';
 import '../../widgets/app_card.dart';
@@ -25,6 +25,7 @@ import '../../utils/requirement_document_type.dart';
 import 'new_request_screen.dart';
 import 'service_request_wizard_screen.dart';
 import '../../utils/date_text.dart';
+import '../../utils/peso_text.dart';
 
 /// Full request detail + real status history, against
 /// GET /citizen/requests/{ref} (production-readiness programme,
@@ -212,7 +213,6 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
   }
 
   Widget _buildBody(BuildContext context, RequestsService service, ServiceRequest request) {
-    final status = AppStatusX.fromLabel(request.status);
     final accent = switch (request.category) {
       ServiceCategory.dokyu => AppColors.brand600,
       ServiceCategory.tulong => AppColors.purple700,
@@ -246,7 +246,7 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
                   // service name from overflowing a narrow phone.
                   ConstrainedBox(
                     constraints: BoxConstraints(maxWidth: MediaQuery.sizeOf(context).width * 0.4),
-                    child: StatusChip(status: status),
+                    child: StatusChip.request(request.status),
                   ),
                 ],
               ),
@@ -283,7 +283,9 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
             onAttach: (key, a) => _attach(service, key, a),
           ),
         ],
-        if (request.status == RequestMilestones.underReview) ...[
+        // Tulong's correction state is Needs Requirements; resubmitting
+        // returns the case to Initial Screening.
+        if (request.status == RequestMilestones.underReview || request.status == TulongStatus.needsRequirements) ...[
           const SizedBox(height: AppSpacing.xl),
           if (request.flaggedRequirements.isNotEmpty)
             _CorrectionsSection(
@@ -298,6 +300,12 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
             _ManualVerificationCard(
               reason: request.adminRemarks ?? 'The request requires additional verification.',
             ),
+        ],
+        // A Tulong case once approved: what was approved, then what was
+        // received. The office's assessment stays on the staff side.
+        if (request.assistance != null && TulongStatus.approved.contains(request.status)) ...[
+          const SizedBox(height: AppSpacing.xl),
+          _AssistanceCard(status: request.status, assistance: request.assistance!),
         ],
         const SizedBox(height: AppSpacing.xl),
         Text(
@@ -703,6 +711,68 @@ class _AttachSection extends StatelessWidget {
 /// correct, so unlike the corrections section this never embeds a
 /// [RequirementUploader] — just the plain-language explanation. Never
 /// styled or worded like a rejection.
+class _AssistanceCard extends StatelessWidget {
+  final String status;
+  final TulongAssistance assistance;
+  const _AssistanceCard({required this.status, required this.assistance});
+
+  @override
+  Widget build(BuildContext context) {
+    final received = status == TulongStatus.completed;
+    final title = switch (status) {
+      TulongStatus.readyForRelease => 'Ready to claim',
+      TulongStatus.completed => 'Assistance received',
+      _ => 'Approved — being prepared',
+    };
+    final amount = pesoText(received ? (assistance.releasedAmount ?? assistance.approvedAmount) : assistance.approvedAmount);
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      decoration: BoxDecoration(
+        color: AppColors.emerald50,
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+        border: Border.all(color: AppColors.emerald500.withValues(alpha: 0.35), width: 1.2),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(received ? Icons.task_alt_rounded : Icons.verified_outlined, size: 18, color: AppColors.emerald700),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(
+                child: Text(
+                  title,
+                  style: const TextStyle(fontSize: AppTextSize.body, fontWeight: FontWeight.w700, color: AppColors.emerald700),
+                ),
+              ),
+            ],
+          ),
+          if (amount != null) ...[
+            const SizedBox(height: AppSpacing.md),
+            Text(received ? 'Amount received' : 'Approved amount', style: AppTypography.captionSmallRegular.copyWith(color: AppColors.slate600)),
+            Text(amount, style: const TextStyle(fontSize: AppTextSize.card, fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
+          ],
+          if (received && assistance.releaseReference != null) ...[
+            const SizedBox(height: AppSpacing.sm),
+            Text('Reference: ${assistance.releaseReference}', style: AppTypography.bodySmallRegular.copyWith(color: AppColors.slate700)),
+          ],
+          if (received && assistance.releasedAt != null) ...[
+            const SizedBox(height: AppSpacing.xs),
+            Text(dateAndTime(assistance.releasedAt!), style: AppTypography.captionSmallRegular.copyWith(color: AppColors.slate600)),
+          ],
+          if (status == TulongStatus.readyForRelease) ...[
+            const SizedBox(height: AppSpacing.sm),
+            Text(
+              'Bring a valid ID to ${assistance.office ?? 'the office'} to claim it.',
+              style: AppTypography.bodySmallRegular.copyWith(color: AppColors.slate700, height: 1.4),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
 class _ManualVerificationCard extends StatelessWidget {
   final String reason;
   const _ManualVerificationCard({required this.reason});

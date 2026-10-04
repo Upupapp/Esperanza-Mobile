@@ -130,6 +130,21 @@ class PendingRequirement {
   const PendingRequirement({required this.key, required this.label});
 }
 
+/// What was approved for a Tulong case and what the resident received (the
+/// detail's `assistance`). The office's assessment and recommendation stay on
+/// the staff side and never reach the app.
+class TulongAssistance {
+  final String? approvedAmount;
+  final String? releasedAmount;
+  final String? releaseReference;
+  final DateTime? releasedAt;
+
+  /// Where to claim it: the request's own office, copied in by the parser.
+  final String? office;
+
+  const TulongAssistance({this.approvedAmount, this.releasedAmount, this.releaseReference, this.releasedAt, this.office});
+}
+
 class ServiceRequest {
   final String id;
   final String referenceNumber;
@@ -178,6 +193,9 @@ class ServiceRequest {
   /// Requirements still open for a document (see [PendingRequirement]).
   /// Re-fetched with every detail, like [canResubmit]; empty on a list row.
   List<PendingRequirement> attachableRequirements = const [];
+
+  /// Tulong only; re-fetched with every detail, like [canResubmit].
+  TulongAssistance? assistance;
 
   final String expectedDays;
   final Map<String, dynamic> formFields;

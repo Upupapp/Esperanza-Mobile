@@ -91,15 +91,14 @@ void main() {
       expect(result.blockingRequest, isNull);
     });
 
+    // Tulong's own case statuses (TulongStatus), still being decided.
     for (final activeStatus in [
       'Submitted',
-      'Pending Review',
-      'Under Verification',
-      'Assigned',
-      'Processing',
-      'Under Review',
-      'Resubmitted',
-      'Approved',
+      'Initial Screening',
+      'Needs Requirements',
+      'Assessment',
+      'For Approval',
+      'Returned for Reassessment',
     ]) {
       test('Case B/C — a "$activeStatus" application for this assistance blocks a new one', () async {
         final requests = await _loadedWith([
@@ -111,8 +110,8 @@ void main() {
       });
     }
 
-    test('Case C — Mark to Release/Released also block a new application', () async {
-      for (final status in ['Mark to Release', 'Released']) {
+    test('Case C — an approved case (Assistance Processing, Ready for Release, Completed) also blocks', () async {
+      for (final status in ['Assistance Processing', 'Ready for Release', 'Completed']) {
         final requests = await _loadedWith([
           _summary(ref: 'AR-2026-0001', type: 'tulong', service: 'Medical Assistance (AICS)', status: status),
         ]);
@@ -364,7 +363,7 @@ void main() {
       tester,
     ) async {
       final requests = await _loadedWith([
-        _summary(ref: 'AR-2026-0001', type: 'tulong', service: 'Medical Assistance (AICS)', status: 'Approved'),
+        _summary(ref: 'AR-2026-0001', type: 'tulong', service: 'Medical Assistance (AICS)', status: 'Completed'),
       ]);
       final session = await _signedInAsVerifiedDemo(tester);
 
@@ -387,6 +386,21 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('Assistance Already Received'), findsNothing);
       expect(find.byType(RequestDetailScreen), findsNothing);
+    });
+
+    testWidgets('an approved, unclaimed assistance says "Already Approved", never "Received"', (tester) async {
+      final requests = await _loadedWith([
+        _summary(ref: 'AR-2026-0001', type: 'tulong', service: 'Medical Assistance (AICS)', status: 'Ready for Release'),
+      ]);
+      final session = await _signedInAsVerifiedDemo(tester);
+
+      await pumpGate(tester, requests, session, typeName: 'Medical Assistance (AICS)');
+      await tester.tap(find.text('Attempt Submit'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Assistance Already Approved'), findsOneWidget);
+      expect(find.text('Assistance Already Received'), findsNothing);
+      expect(find.text('View Previous Request'), findsOneWidget);
     });
 
     testWidgets('does not gate a rejected-only history — Attempt Submit proceeds with no dialog', (tester) async {

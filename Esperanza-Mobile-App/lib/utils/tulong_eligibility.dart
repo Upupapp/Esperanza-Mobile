@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import '../models/request_milestones.dart';
 import '../models/service_request.dart';
 import '../services/requests_service.dart';
+import '../theme/tulong_status.dart';
 import '../widgets/app_dialogs.dart';
 
 /// Per assistance type, per resident — Dokyu has no such restriction (a
@@ -19,16 +19,14 @@ import '../widgets/app_dialogs.dart';
 enum TulongEligibility {
   eligible,
 
-  /// A previous application for this assistance is still in progress
-  /// (Submitted, Pending Review, Under Verification, Assigned, Processing,
-  /// Waiting Requirements, or Approved — Approved sits in this project's
-  /// "Active" tab, not "Done", since the benefit itself hasn't finished
-  /// being released/completed yet).
+  /// A previous application for this assistance is still being decided
+  /// (Submitted, Initial Screening, Needs Requirements, Assessment, For
+  /// Approval or Returned for Reassessment — Tulong's own case statuses,
+  /// see [TulongStatus]).
   blockedActive,
 
-  /// This assistance was already fully received — Mark to Release or
-  /// Released (see the status-terminology correction pass — Mobile now uses
-  /// the Web Admin's own exact wording for these two stages).
+  /// This assistance was already approved for the resident — Assistance
+  /// Processing, Ready for Release or Completed ([TulongStatus.approved]).
   blockedReceived,
 }
 
@@ -44,7 +42,7 @@ class TulongEligibilityResult {
   bool get isEligible => status == TulongEligibility.eligible;
 }
 
-const _successfulTulongStatuses = {'Approved', RequestMilestones.markToRelease, RequestMilestones.released};
+const _successfulTulongStatuses = {...TulongStatus.approved};
 const _reapplicableTulongStatuses = {'Rejected', 'Cancelled'};
 
 /// Whether the signed-in citizen may currently apply for the Tulong
@@ -79,16 +77,28 @@ TulongEligibilityResult tulongEligibilityFor(RequestsService requests, {required
 /// be eligible) and returns true if the citizen chose to view the blocking
 /// request — the caller is responsible for the actual navigation, since
 /// this file has no screen dependency of its own.
+///
+/// An approved case the resident has not claimed yet (Assistance Processing,
+/// Ready for Release) is "approved", not "received": telling them they
+/// already received it would be untrue until it is Completed.
 Future<bool> showTulongBlockedDialog(BuildContext context, TulongEligibilityResult result) {
-  final isReceived = result.status == TulongEligibility.blockedReceived;
+  final isApproved = result.status == TulongEligibility.blockedReceived;
+  final isReceived = isApproved && result.blockingRequest?.status == TulongStatus.completed;
   return AppDialogs.confirm(
     context,
-    title: isReceived ? 'Assistance Already Received' : 'Active Application Exists',
+    title: isReceived
+        ? 'Assistance Already Received'
+        : isApproved
+        ? 'Assistance Already Approved'
+        : 'Active Application Exists',
     message: isReceived
         ? 'You have already received this assistance and cannot submit another application for the same '
-            'assistance at this time.'
+              'assistance at this time.'
+        : isApproved
+        ? 'This assistance has already been approved for you and is being prepared or is ready to claim. '
+              'You cannot submit another application for it at this time.'
         : 'You already have an active application for this assistance.',
-    confirmLabel: isReceived ? 'View Previous Request' : 'View Existing Request',
+    confirmLabel: isApproved ? 'View Previous Request' : 'View Existing Request',
     cancelLabel: 'Close',
   );
 }

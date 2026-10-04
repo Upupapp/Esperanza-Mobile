@@ -5,6 +5,7 @@ import '../theme/app_colors.dart';
 import '../theme/app_motion.dart';
 import '../theme/app_spacing.dart';
 import '../theme/app_typography.dart';
+import '../theme/tulong_status.dart';
 import '../utils/date_text.dart';
 
 /// The richer Dokyu/Tulong milestone timeline (Phase 5, rewritten for the
@@ -21,6 +22,11 @@ import '../utils/date_text.dart';
 /// the sequence — Under Review is the only one of the two that's
 /// resumable: once resolved the request re-enters the sequence at Under
 /// Verification and this branch stops applying on the next rebuild.
+///
+/// A Tulong case shows its own seven-step main line instead
+/// ([TulongStatus.mainSequence]): Needs Requirements is its correction branch
+/// (resubmitting returns it to Initial Screening), Returned for Reassessment
+/// a note on the current step, and a cancelled case closes like a rejected one.
 class RequestMilestoneTimeline extends StatelessWidget {
   final ServiceRequest request;
   final Color accent;
@@ -31,8 +37,12 @@ class RequestMilestoneTimeline extends StatelessWidget {
   Widget build(BuildContext context) {
     // No recorded history is not a rejection — `.last` on an empty list threw
     // here, which would have moved the decode crash into the timeline.
-    final isRejected = request.statusHistory.lastOrNull?.status == RequestMilestones.rejected;
-    final isUnderReview = request.status == RequestMilestones.underReview;
+    final isTulong = request.category == ServiceCategory.tulong;
+    final isCancelledCase = isTulong && request.status == TulongStatus.cancelled;
+    final isRejected = request.statusHistory.lastOrNull?.status == RequestMilestones.rejected || isCancelledCase;
+    bool needsAction(String status) =>
+        status == RequestMilestones.underReview || (isTulong && status == TulongStatus.needsRequirements);
+    final isUnderReview = needsAction(request.status);
 
     if (isUnderReview) {
       final entries = request.statusHistory;
@@ -42,9 +52,9 @@ class RequestMilestoneTimeline extends StatelessWidget {
           for (int i = 0; i < entries.length; i++)
             _MilestoneRow(
               label: entries[i].status,
-              state: entries[i].status == RequestMilestones.underReview ? _MilestoneState.needsAction : _MilestoneState.done,
+              state: needsAction(entries[i].status) ? _MilestoneState.needsAction : _MilestoneState.done,
               timestamp: entries[i].at,
-              remarks: entries[i].status == RequestMilestones.underReview ? null : entries[i].remarks,
+              remarks: needsAction(entries[i].status) ? null : entries[i].remarks,
               isLast: i == entries.length - 1,
               accent: accent,
             ),
@@ -64,23 +74,26 @@ class RequestMilestoneTimeline extends StatelessWidget {
           for (int i = 0; i < entries.length; i++)
             _MilestoneRow(
               label: entries[i].status,
-              state: entries[i].status == RequestMilestones.rejected ? _MilestoneState.rejected : _MilestoneState.done,
+              state: _closes(entries[i].status, isCancelledCase) ? _MilestoneState.rejected : _MilestoneState.done,
               timestamp: entries[i].at,
               // The Rejected entry's own remarks duplicate what
               // _RejectionReasonCard already shows prominently below.
-              remarks: entries[i].status == RequestMilestones.rejected ? null : entries[i].remarks,
+              remarks: _closes(entries[i].status, isCancelledCase) ? null : entries[i].remarks,
               isLast: i == entries.length - 1,
               accent: accent,
             ),
           if (request.adminRemarks != null) ...[
             const SizedBox(height: AppSpacing.md),
-            _RejectionReasonCard(reason: request.adminRemarks!),
+            _RejectionReasonCard(
+              reason: request.adminRemarks!,
+              title: isCancelledCase ? 'Reason for Cancellation' : 'Reason for Rejection',
+            ),
           ],
         ],
       );
     }
 
-    final sequence = RequestMilestones.sequence;
+    final sequence = isTulong ? TulongStatus.mainSequence : RequestMilestones.sequence;
     final reachedAt = <String, DateTime>{
       for (final e in request.statusHistory)
         if (sequence.contains(e.status)) e.status: e.at,
@@ -98,6 +111,14 @@ class RequestMilestoneTimeline extends StatelessWidget {
     for (var i = 0; i < sequence.length; i++) {
       if (reachedAt.containsKey(sequence[i])) currentIndex = i;
     }
+    // A Tulong case can step back (Returned for Reassessment resumes at
+    // Assessment), so where it stands is its current status, not the
+    // furthest step it ever reached.
+    if (isTulong) {
+      final at = sequence.indexOf(TulongStatus.stepFor(request.status));
+      if (at >= 0) currentIndex = at;
+    }
+    final returned = isTulong && request.status == TulongStatus.returnedForReassessment;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -110,8 +131,10 @@ class RequestMilestoneTimeline extends StatelessWidget {
                 : i == currentIndex
                 ? _MilestoneState.current
                 : _MilestoneState.future,
-            timestamp: reachedAt[sequence[i]],
-            remarks: remarksFor[sequence[i]],
+            timestamp: i <= currentIndex ? reachedAt[sequence[i]] : null,
+            remarks: returned && i == currentIndex
+                ? 'Returned for reassessment: the office is re-checking your case. Nothing is needed from you.'
+                : remarksFor[sequence[i]],
             isLast: i == sequence.length - 1,
             accent: accent,
           ),
@@ -119,6 +142,10 @@ class RequestMilestoneTimeline extends StatelessWidget {
     );
   }
 }
+
+/// The entry that closed the case: Rejected, or a Tulong case's Cancelled.
+bool _closes(String status, bool cancelledCase) =>
+    status == RequestMilestones.rejected || (cancelledCase && status == TulongStatus.cancelled);
 
 enum _MilestoneState { done, current, future, rejected, needsAction }
 
@@ -229,7 +256,8 @@ class _MilestoneRow extends StatelessWidget {
 
 class _RejectionReasonCard extends StatelessWidget {
   final String reason;
-  const _RejectionReasonCard({required this.reason});
+  final String title;
+  const _RejectionReasonCard({required this.reason, required this.title});
 
   @override
   Widget build(BuildContext context) {
@@ -247,9 +275,9 @@ class _RejectionReasonCard extends StatelessWidget {
             children: [
               const Icon(Icons.error_outline_rounded, color: AppColors.rose600, size: 18),
               const SizedBox(width: AppSpacing.sm),
-              const Text(
-                'Reason for Rejection',
-                style: TextStyle(fontSize: AppTextSize.helper, fontWeight: FontWeight.w700, color: AppColors.rose700),
+              Text(
+                title,
+                style: const TextStyle(fontSize: AppTextSize.helper, fontWeight: FontWeight.w700, color: AppColors.rose700),
               ),
             ],
           ),
