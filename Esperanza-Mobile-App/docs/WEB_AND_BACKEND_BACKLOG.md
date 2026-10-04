@@ -29,22 +29,16 @@ Mobile already reads everything above; nothing more is needed on mobile for A1โ€
 
 | # | What goes wrong | Where | Proposed fix |
 |---|---|---|---|
-| B1 | **Registration collects an ID that nothing can receive.** Mobile asks for a valid ID at sign-up, but no endpoint takes it and no reviewer would see it; the web's own "Verify Valid ID" is a `setTimeout` simulation. Mobile now tells the citizen the ID stays on the phone. | `POST /auth/citizen/register` (no file), `CitizenVerificationController::show` (no documents) | An upload on the verification path that the admin verification queue shows. Then mobile sends it. (PENDING 21) |
 | B4 | **Evacuation centres have no coordinates.** "Nearest centre" and real directions are impossible; mobile searches maps by name and address instead. | `sakuna_centers` has no lat/lng | Add `lat`/`lng` (Web Admin sets them); mobile can then sort by distance and link exact directions. |
 | B5 | **Incidents have no detail endpoint.** A citizen's report shows only what the list row carries; there is no timeline of what the MDRRMO did with it. | `GET /citizen/incidents` only; `SakunaIncidentEvent` exists but is staff-only | `GET /citizen/incidents/{ref}` with the citizen-safe part of its events. |
 | B6 | **Event registration does not exist** (tickets, QR, capacity, check-in, as in the PAAIPE app). Mobile's event page stops at the details for this reason. | `events` | Owner decision first: it is a large feature (backend, Web Admin, mobile). |
 | B7 | **Events have no image.** Every card shows a placeholder panel. | `events` has no image column; Web Admin says "Posters aren't part of this pass" | An image upload (signed, scanned, like other uploads), then web and mobile show it. |
-| B8 | **One office, three names** in the service catalogue: "Office of the Municipal Civil Registrar" (19), "Civil Registrar" (4), "Civil Registrar / appropriate local office" (1). Mobile groups them for display only. | catalogue data (vendored from the web config) | Normalise at the source; mobile's alias map (`lib/utils/office_name.dart`) then becomes a no-op. (PENDING 27, web handoff ยง4) |
-| B9 | **The profile photo never leaves the phone.** A citizen's chosen photo (and its once-in-6-months rule) is stored on the device only; the LGU, the Digital ID and the web never see it. Mobile's preview says so for now. **Owner decision (2026-09-29): the profile photo IS an identification record.** | no profile-photo route in `routes/api.php`; `/citizen/digital-id` has no photo | 1) Backend: a signed, scanned upload on the citizen profile (`PUT /citizen/profile/photo`, image only, size-capped), stored like other uploads, returned by `GET /citizen/profile` and `GET /citizen/digital-id`; the 6-month cooldown enforced on the server; changes audited. 2) Web Admin: the photo in the verification queue and the resident record; the web Digital ID shows it. 3) Mobile: upload from the preview's Save, read it back on sign-in, show it on the live Digital ID, drop the "kept on this phone" note. Being an ID record, a photo change should probably send the account back through verification: confirm with the owner when the backend lands. |
 
 ---
 
 ## C. Web work (Esperanza-Web-Platform-frontend-)
 
-| # | What goes wrong | Where | Proposed fix |
-|---|---|---|---|
-| C1 | **Two status badges fail WCAG AA**: Cancelled 4.34:1, Archived 2.34:1. Mobile mirrors the web component, so both change together. | `resources/views/components/ui/badge.blade.php` | Exact classes in [the web handoff ยง1](HANDOFF_TO_WEB_LANE_2026-09-28.md). Mobile lands the matching change once web `main` has it. **Owner deferred: after the next 10 tasks.** (PENDING 26) |
-| C2 | **Secondary text is `text-slate-400` (2.56:1)**, used 1,054 times, mostly for text residents need to read. | `resources/views`, `resources/js` | Replace bare `text-slate-400` with `text-slate-500` (regex in handoff ยง2). **Owner deferred, as C1.** |
+Nothing open (C1 and C2 closed 2026-10-04, see Done).
 
 ---
 
@@ -61,6 +55,21 @@ Mobile already reads everything above; nothing more is needed on mobile for A1โ€
 ---
 
 ## Done
+
+Closed 2026-10-04, second pass, on the owner's rulings. Committed on backend `61ecf22`, web
+`749955f` and mobile `c8247d5`; **none pushed or deployed yet**. The owner pushes; a web push is
+the Netlify deploy; the backend needs deploying to the staging host with `php artisan migrate` for
+two new migrations (`2026_10_04_000100_create_citizen_identity_records`,
+`2026_10_04_000200_tulong_case_lifecycle`). Until then the old server sends none of it, and web and
+mobile fall back as before.
+
+| # | What | Closed by |
+|---|---|---|
+| B1 | Registration's ID now reaches the LGU. | backend `b37ab74`: `GET/POST /citizen/verification/id` (ID type from the public `GET /id-types`, front, back and selfie), shown in the admin verification queue. IDs are kept with access audited and deleted when the account is archived (owner ruling). Web `a246300`; mobile `a5acd30`: sign-up sends the ID and a real camera selfie once signed in, with a "Send my ID again" retry. |
+| B9 | The profile photo is an identification record. | backend `b37ab74`: `POST /citizen/profile/photo`, approved or rejected by staff (`/admin/citizens/{accountNo}/photo/approve`, `/reject`). Owner ruling: the account stays verified and the Digital ID keeps the old photo until the new one is approved. The 6-month cooldown is enforced on the server. Web `a246300`; mobile `a5acd30`. |
+| B8 | One office, three names. | web `03bec80`: one name and one short name (MCRO) at the source. The backend re-vendors it after the web push; mobile's alias map then does nothing. |
+| C1, C2 | Badge and secondary-text contrast (WCAG AA). | web `55617a9` (Cancelled and Archived badges; `text-slate-400` to `500` in 1,015 uses); mobile `68d4440`, `c7687aa`. |
+| B-044 | Tulong ran Dokyu's document lifecycle. | Owner ruling: build the case flow. backend `3be7104`, `e42edf0`, `61ecf22`: Tulong's own eleven statuses (Submitted, Initial Screening, Assessment, For Approval, Assistance Processing, Ready for Release, Completed; Needs Requirements and Returned for Reassessment beside the line; Rejected and Cancelled), the case actions, the recommended and approved amounts, and proof of release. Web `749955f`: the staff case screen and the resident tracker. Mobile `c8247d5`: `lib/theme/tulong_status.dart`, the seven-step timeline and the approved amount. |
 
 Closed 2026-10-04 (backend `main` `9d94cac`, web `main` `d1283b5`). The backend half is **not on the
 staging server yet**: it still runs `67a5c5b-linkresident2`, and the web and mobile changes below that

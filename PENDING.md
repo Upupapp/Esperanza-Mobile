@@ -36,12 +36,8 @@ item, move it to **Done** with its commit — do not delete it, so the arc stays
 | 16 | **Remaining wizard breadth** | 62 destinations are walked. Registration, the resident-profile sub-screens (family, household, review, submission confirmation), report-a-problem and the Sakuna incident flow are reached shallowly or not at all. |
 | 17 | **Backend Master Command** | Offered, not started. Spec Section 5 already enumerates the missing Web-Admin APIs; the front-end contract from FE 13 would feed it. |
 
-| 21 | **Registration collects an ID that nothing can receive** — backend/owner decision | Checked against esperanza-backend `9f4555c` (2026-09-28). `POST /auth/citizen/register` takes no file, the admin verification queue (`CitizenVerificationController::show`) shows no documents, and the web app's own "Verify Valid ID" (`citizen/profile.blade.php:23`) is a `setTimeout` simulation. `POST /citizen/papeles` stores a file, but no reviewer reads papeles when verifying, so sending the ID there would be a false promise. Needs a backend endpoint on the verification path first; until then mobile's ID step (and simulated face scan) are UI only. |
-| 26 | **Two web-owned fixes, handed to the web lane** — *deferred by the owner (2026-09-28): do after the next 10 tasks* | Cancelled/Archived badge contrast and the web's 1,054 `text-slate-400` uses. Exact changes in `Esperanza-Mobile-App/docs/HANDOFF_TO_WEB_LANE_2026-09-28.md`. Mobile lands its matching badge change only once web `main` carries it (parity rule). Not pushed from here: mobile doesn't commit to the web repo, and a web `main` push runs a Netlify build. |
 
-| 27 | **Catalogue names the Civil Registrar three ways** (upstream data) | "Office of the Municipal Civil Registrar" (19 services), "Civil Registrar" (4), "Civil Registrar / appropriate local office" (1), in esperanza-backend's catalogue, vendored from the web config. Mobile groups them in the Dokyu office step (`lib/utils/office_name.dart`, 2026-09-28), so residents see one office; the data itself should be normalised at the source. In the web handoff §4. |
-| 30 | **Profile photo is an identification record** (owner, 2026-09-29) — backend first | The photo is kept on the phone only; no endpoint takes it. Owner ruled it an identification record, so it must reach the LGU: backend upload + Digital ID/verification queue, then Web Admin, then mobile. Full plan: `docs/WEB_AND_BACKEND_BACKLOG.md` B9. |
-| 28 | **Backend and web committed; server deploy and the web event-description merge left** (updated 2026-10-04) | esperanza-backend `main` is at `9d94cac` (everything through `05ccc12`, plus likes, in-app, requirement attach, issuance permission, request summary), certified on SQLite and PostgreSQL. The staging server still runs `67a5c5b-linkresident2`. Left: (1) deploy backend `main` to the Linode staging host and run `php artisan migrate`, which needs server access; until then the web wizard's attachments are refused (it says so, and the request still files) and mobile shows no attach section, since the old server sends no `attachable`; (2) web `main` is at `d1283b5`, pushing it is the Netlify deploy; the event-description branch `ef4bb60` is still unmerged. Details: backlog section A and Done. |
+| 28 | **Backend and web committed; server deploy and the web event-description merge left** (updated 2026-10-04, second pass) | esperanza-backend `main` is committed through `61ecf22` (the identity records and Tulong's case lifecycle on top of `9d94cac`), certified on SQLite and PostgreSQL, **not pushed yet**. The staging server still runs `67a5c5b-linkresident2`. Left: (1) push, then deploy backend `main` to the Linode staging host and run `php artisan migrate` (A2's migration and the two added 2026-10-04 are among those pending), which needs server access; until then the web wizard's attachments are refused (it says so, and the request still files), mobile shows no attach section, the ID and photo uploads fail with a retry offered, and Tulong cases keep the old statuses; (2) web is committed through `749955f`, pushing it is the Netlify deploy; the event-description branch `ef4bb60` is still unmerged. Details: backlog section A and Done. |
 
 ## Deferred by decision
 
@@ -69,6 +65,18 @@ item, move it to **Done** with its commit — do not delete it, so the arc stays
   `Package.resolved` is the only thing making an iOS build reproducible.
 
 ## Done this programme
+
+**ID, photo, contrast, office names and Tulong (2026-10-04, owner rulings):** closed PENDING 21, 26,
+27 and 30, and the backend's Tulong finding B-044, on all three sides. Sign-up sends the valid ID and
+a real camera selfie to the verification queue (`a5acd30`), with a retry if it fails; the profile photo
+goes to the LGU and waits for staff approval while the account stays verified (`a5acd30`); badges
+and secondary text pass WCAG AA in step with the web (`68d4440`, `c7687aa`); the Civil Registrar has
+one name at the source (web `03bec80`). A Tulong case now runs its own case statuses (`c8247d5`):
+`lib/theme/tulong_status.dart` stands beside `AppStatus`, which stays the web badge's seventeen, so a
+case in Initial Screening no longer trips `fromLabel`'s assertion or reads as Draft; the timeline is
+the seven-step case line; an approved case shows the approved amount, then what was received; and
+reapplying is blocked by the case statuses. Pinned by `test/tulong_status_test.dart`. Backend
+`61ecf22` and web `749955f` are committed, not pushed; details in the backlog's Done.
 
 **Requirement documents and the real catalogue (2026-10-04):** a request's detail screen lists the
 requirements the office has not decided yet and attaches each document (`POST
