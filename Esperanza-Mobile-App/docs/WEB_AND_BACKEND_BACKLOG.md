@@ -56,9 +56,9 @@ Nothing open (C1 and C2 closed 2026-10-04, see Done).
 
 ## Done
 
-Closed 2026-10-04, second pass, on the owner's rulings. Committed on backend `61ecf22`, web
-`749955f` and mobile `c8247d5`; **none pushed or deployed yet**. The owner pushes; a web push is
-the Netlify deploy; the backend needs deploying to the staging host with `php artisan migrate` for
+Closed 2026-10-04, second pass, on the owner's rulings. Committed on backend `e67f24c`, web
+`749955f` and mobile `c8247d5`. **Web is pushed** (14:08, so live on Netlify); backend and mobile are
+not. The owner pushes; the backend needs deploying to the staging host with `php artisan migrate` for
 two new migrations (`2026_10_04_000100_create_citizen_identity_records`,
 `2026_10_04_000200_tulong_case_lifecycle`). Until then the old server sends none of it, and web and
 mobile fall back as before.
@@ -67,7 +67,7 @@ mobile fall back as before.
 |---|---|---|
 | B1 | Registration's ID now reaches the LGU. | backend `b37ab74`: `GET/POST /citizen/verification/id` (ID type from the public `GET /id-types`, front, back and selfie), shown in the admin verification queue. IDs are kept with access audited and deleted when the account is archived (owner ruling). Web `a246300`; mobile `a5acd30`: sign-up sends the ID and a real camera selfie once signed in, with a "Send my ID again" retry. |
 | B9 | The profile photo is an identification record. | backend `b37ab74`: `POST /citizen/profile/photo`, approved or rejected by staff (`/admin/citizens/{accountNo}/photo/approve`, `/reject`). Owner ruling: the account stays verified and the Digital ID keeps the old photo until the new one is approved. The 6-month cooldown is enforced on the server. Web `a246300`; mobile `a5acd30`. |
-| B8 | One office, three names. | web `03bec80`: one name and one short name (MCRO) at the source. The backend re-vendors it after the web push; mobile's alias map then does nothing. |
+| B8 | One office, three names. | web `03bec80`: one name and one short name (MCRO) at the source; backend `e67f24c` vendors it (web `749955f`), so the catalogue's services carry the one name and mobile's alias map does nothing. |
 | C1, C2 | Badge and secondary-text contrast (WCAG AA). | web `55617a9` (Cancelled and Archived badges; `text-slate-400` to `500` in 1,015 uses); mobile `68d4440`, `c7687aa`. |
 | B-044 | Tulong ran Dokyu's document lifecycle. | Owner ruling: build the case flow. backend `3be7104`, `e42edf0`, `61ecf22`: Tulong's own eleven statuses (Submitted, Initial Screening, Assessment, For Approval, Assistance Processing, Ready for Release, Completed; Needs Requirements and Returned for Reassessment beside the line; Rejected and Cancelled), the case actions, the recommended and approved amounts, and proof of release. Web `749955f`: the staff case screen and the resident tracker. Mobile `c8247d5`: `lib/theme/tulong_status.dart`, the seven-step timeline and the approved amount. |
 

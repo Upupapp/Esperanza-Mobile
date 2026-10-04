@@ -37,7 +37,7 @@ item, move it to **Done** with its commit — do not delete it, so the arc stays
 | 17 | **Backend Master Command** | Offered, not started. Spec Section 5 already enumerates the missing Web-Admin APIs; the front-end contract from FE 13 would feed it. |
 
 
-| 28 | **Backend and web committed; server deploy and the web event-description merge left** (updated 2026-10-04, second pass) | esperanza-backend `main` is committed through `61ecf22` (the identity records and Tulong's case lifecycle on top of `9d94cac`), certified on SQLite and PostgreSQL, **not pushed yet**. The staging server still runs `67a5c5b-linkresident2`. Left: (1) push, then deploy backend `main` to the Linode staging host and run `php artisan migrate` (A2's migration and the two added 2026-10-04 are among those pending), which needs server access; until then the web wizard's attachments are refused (it says so, and the request still files), mobile shows no attach section, the ID and photo uploads fail with a retry offered, and Tulong cases keep the old statuses; (2) web is committed through `749955f`, pushing it is the Netlify deploy; the event-description branch `ef4bb60` is still unmerged. Details: backlog section A and Done. |
+| 28 | **Backend and web committed; server deploy and the web event-description merge left** (updated 2026-10-04, second pass) | esperanza-backend `main` is committed through `e67f24c` (the identity records, Tulong's case lifecycle and the web contract at `749955f`, on top of `9d94cac`), certified on SQLite and PostgreSQL, **not pushed yet**. **Web `749955f` is pushed and live**, so until the backend is deployed the live Tulong pages expect case statuses the old server does not send, and the ID and photo uploads fail. The staging server still runs `67a5c5b-linkresident2`. Left: (1) push, then deploy backend `main` to the Linode staging host and run `php artisan migrate` (A2's migration and the two added 2026-10-04 are among those pending), which needs server access; until then the web wizard's attachments are refused (it says so, and the request still files), mobile shows no attach section, the ID and photo uploads fail with a retry offered, and Tulong cases keep the old statuses; (2) web `749955f` is pushed (2026-10-04 14:08); the event-description branch `ef4bb60` is still unmerged. Details: backlog section A and Done. |
 
 ## Deferred by decision
 
@@ -71,7 +71,7 @@ item, move it to **Done** with its commit — do not delete it, so the arc stays
 a real camera selfie to the verification queue (`a5acd30`), with a retry if it fails; the profile photo
 goes to the LGU and waits for staff approval while the account stays verified (`a5acd30`); badges
 and secondary text pass WCAG AA in step with the web (`68d4440`, `c7687aa`); the Civil Registrar has
-one name at the source (web `03bec80`). A Tulong case now runs its own case statuses (`c8247d5`):
+one name at the source (web `03bec80`, vendored by backend `e67f24c`). A Tulong case now runs its own case statuses (`c8247d5`):
 `lib/theme/tulong_status.dart` stands beside `AppStatus`, which stays the web badge's seventeen, so a
 case in Initial Screening no longer trips `fromLabel`'s assertion or reads as Draft; the timeline is
 the seven-step case line; an approved case shows the approved amount, then what was received; and
