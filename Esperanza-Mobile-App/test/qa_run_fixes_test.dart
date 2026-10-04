@@ -104,6 +104,39 @@ void main() {
     expect(r.statusHistory.first.at, DateTime.utc(2026, 10, 4, 6, 16));
   });
 
+  test('a request with a fee carries its amount, status and receipt; a free one has none', () async {
+    var paid = true;
+    api = ApiClient(
+      httpClient: MockClient(
+        (_) async => http.Response(
+          jsonEncode({
+            'data': {
+              'ref': 'DOK-2026-00009',
+              'type': 'dokyu',
+              'status': 'Under Verification',
+              'submitted': '2026-10-05T01:00:00Z',
+              'payment': paid ? {'ref': 'PAY-2026-00009', 'amount': 30, 'status': 'Approved', 'receipt_no': 'OR-2026-0000009'} : null,
+            },
+          }),
+          200,
+          headers: {'content-type': 'application/json'},
+        ),
+      ),
+      baseUrl: 'https://test.invalid',
+    );
+    final service = RequestsService();
+    addTearDown(service.dispose);
+
+    final r = await service.loadDetail('DOK-2026-00009');
+    expect(r.payment?.amount, 30);
+    expect(r.payment?.isPaid, isTrue);
+    expect(r.payment?.receiptNo, 'OR-2026-0000009');
+
+    paid = false;
+    final free = await service.loadDetail('DOK-2026-00009');
+    expect(free.payment, isNull);
+  });
+
   test('each promotional poster is shown once on a phone, not on every app start', () async {
     SharedPreferences.setMockInitialValues({});
     var shown = 0;

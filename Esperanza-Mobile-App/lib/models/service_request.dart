@@ -145,6 +145,20 @@ class TulongAssistance {
   const TulongAssistance({this.approvedAmount, this.releasedAmount, this.releaseReference, this.releasedAt, this.office});
 }
 
+/// A request's fee (the detail's `payment`). It is paid at the office, which
+/// issues the official receipt; the server's status "Approved" means paid.
+/// A free request has none.
+class RequestPayment {
+  final double amount;
+  final String status;
+  final String? receiptNo;
+
+  const RequestPayment({required this.amount, required this.status, this.receiptNo});
+
+  bool get isPaid => status == 'Approved';
+  bool get isRejected => status == 'Rejected';
+}
+
 class ServiceRequest {
   final String id;
   final String referenceNumber;
@@ -196,6 +210,10 @@ class ServiceRequest {
 
   /// Tulong only; re-fetched with every detail, like [canResubmit].
   TulongAssistance? assistance;
+
+  /// The fee, if the service has one; re-fetched with every detail, like
+  /// [canResubmit]. The resident saw neither the fee nor the receipt before.
+  RequestPayment? payment;
 
   final String expectedDays;
   final Map<String, dynamic> formFields;

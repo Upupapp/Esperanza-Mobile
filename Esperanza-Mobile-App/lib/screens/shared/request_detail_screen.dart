@@ -308,6 +308,10 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
           const SizedBox(height: AppSpacing.xl),
           _AssistanceCard(status: request.status, assistance: request.assistance!),
         ],
+        if (request.payment != null && request.payment!.amount > 0) ...[
+          const SizedBox(height: AppSpacing.xl),
+          _FeeCard(payment: request.payment!),
+        ],
         const SizedBox(height: AppSpacing.xl),
         Text(
           usesMilestones ? 'Request Timeline' : 'Status Timeline',
@@ -739,6 +743,50 @@ class _AttachSection extends StatelessWidget {
 /// correct, so unlike the corrections section this never embeds a
 /// [RequirementUploader] — just the plain-language explanation. Never
 /// styled or worded like a rejection.
+/// The request's fee and where it stands: pay at the office (which issues the
+/// official receipt), paid with the receipt number, or not accepted.
+class _FeeCard extends StatelessWidget {
+  final RequestPayment payment;
+  const _FeeCard({required this.payment});
+
+  @override
+  Widget build(BuildContext context) {
+    final (bg, fg, icon, line) = payment.isPaid
+        ? (AppColors.emerald50, AppColors.emerald700, Icons.receipt_long_rounded, 'Paid. Official receipt ${payment.receiptNo ?? '—'}.')
+        : payment.isRejected
+        ? (AppColors.rose50, AppColors.rose600, Icons.error_outline_rounded, 'The payment was not accepted. Please contact the office.')
+        : (AppColors.orange50, AppColors.orange700, Icons.payments_outlined, 'Pay at the office and bring your reference number. The office issues the official receipt.');
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+        border: Border.all(color: fg.withValues(alpha: 0.35), width: 1.2),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(icon, size: 18, color: fg),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(
+                child: Text('Fee', style: TextStyle(fontSize: AppTextSize.body, fontWeight: FontWeight.w700, color: fg)),
+              ),
+              Text(
+                pesoText(payment.amount.toStringAsFixed(2)) ?? '',
+                style: const TextStyle(fontSize: AppTextSize.body, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          Text(line, style: AppTypography.bodySmallRegular.copyWith(color: AppColors.slate700, height: 1.4)),
+        ],
+      ),
+    );
+  }
+}
+
 class _AssistanceCard extends StatelessWidget {
   final String status;
   final TulongAssistance assistance;

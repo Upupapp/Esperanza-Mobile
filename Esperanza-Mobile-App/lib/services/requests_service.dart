@@ -310,7 +310,19 @@ class RequestsService extends ChangeNotifier {
     )
       ..canResubmit = JsonRead.boolean(json['can_resubmit']) ?? false
       ..attachableRequirements = attachable
-      ..assistance = _assistanceFrom(JsonRead.map(json['assistance']), JsonRead.nonEmpty(json['office']));
+      ..assistance = _assistanceFrom(JsonRead.map(json['assistance']), JsonRead.nonEmpty(json['office']))
+      ..payment = _paymentFrom(JsonRead.map(json['payment']));
+  }
+
+  /// A detail's `payment` (DescribesPayment): amount, status, receipt_no.
+  RequestPayment? _paymentFrom(Map<String, dynamic>? json) {
+    if (json == null) return null;
+    final amount = num.tryParse('${json['amount']}')?.toDouble() ?? 0;
+    return RequestPayment(
+      amount: amount,
+      status: JsonRead.nonEmpty(json['status']) ?? 'Pending Review',
+      receiptNo: JsonRead.nonEmpty(json['receipt_no']),
+    );
   }
 
   /// A Tulong detail's `assistance` (CitizenRequestController::detail()).
