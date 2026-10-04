@@ -70,6 +70,37 @@ void main() {
     expect(r.flaggedRequirements.last.isResolved, isFalse);
   });
 
+  test('the history of a request starts with when it was filed', () async {
+    api = ApiClient(
+      httpClient: MockClient(
+        (_) async => http.Response(
+          jsonEncode({
+            'data': {
+              'ref': 'TUL-2026-00009',
+              'type': 'tulong',
+              'status': 'Needs Requirements',
+              'submitted': '2026-10-04T06:16:00Z',
+              'history': [
+                {'from': 'Submitted', 'to': 'Initial Screening', 'at': '2026-10-04T06:21:00Z'},
+                {'from': 'Initial Screening', 'to': 'Needs Requirements', 'at': '2026-10-04T06:21:30Z'},
+              ],
+            },
+          }),
+          200,
+          headers: {'content-type': 'application/json'},
+        ),
+      ),
+      baseUrl: 'https://test.invalid',
+    );
+    final service = RequestsService();
+    addTearDown(service.dispose);
+
+    final r = await service.loadDetail('TUL-2026-00009');
+
+    expect(r.statusHistory.map((h) => h.status), ['Submitted', 'Initial Screening', 'Needs Requirements']);
+    expect(r.statusHistory.first.at, DateTime.utc(2026, 10, 4, 6, 16));
+  });
+
   test('each promotional poster is shown once on a phone, not on every app start', () async {
     SharedPreferences.setMockInitialValues({});
     var shown = 0;

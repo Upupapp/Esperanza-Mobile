@@ -230,7 +230,7 @@ class RequestsService extends ChangeNotifier {
 
   ServiceRequest _requestFromDetail(Map<String, dynamic> json) {
     final ref = JsonRead.nonEmpty(json['ref']) ?? '';
-    final history = JsonRead.rows(json['history'], (t) {
+    final recorded = JsonRead.rows(json['history'], (t) {
       final to = JsonRead.nonEmpty(t['to']);
       if (to == null) return null;
       return StatusHistoryEntry(
@@ -243,6 +243,16 @@ class RequestsService extends ChangeNotifier {
         remarks: null,
       );
     });
+    // Filing is not a transition on the server (a request is created
+    // Submitted), so the history starts at the first change: a new request
+    // read "No history recorded yet", and the correction and rejection views
+    // began at Initial Screening. The filing step comes from the request.
+    final filedAt = JsonRead.date(json['submitted']);
+    final history = [
+      if (filedAt != null && !recorded.any((h) => h.status == 'Submitted'))
+        StatusHistoryEntry(status: 'Submitted', at: filedAt, actor: 'Citizen'),
+      ...recorded,
+    ];
     final needsCorrection = JsonRead.rows(json['needs_correction'], (q) {
       final key = JsonRead.nonEmpty(q['key']);
       // The key addresses the replace endpoint; without it there is nothing
