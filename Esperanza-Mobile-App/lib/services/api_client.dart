@@ -58,6 +58,23 @@ class ApiException implements Exception {
     return primary ?? messageEn ?? messageFil ?? 'Something went wrong. Please try again.';
   }
 
+  /// The first field's own message. A sign-in failure says what is wrong
+  /// only here ("Invalid identifier or password", "not verified yet",
+  /// "locked"); the envelope is the generic "some fields need correcting".
+  /// The server writes some of these as "Filipino / English".
+  String? fieldMessage({bool filipino = true}) {
+    for (final messages in fields.values) {
+      if (messages.isEmpty) continue;
+      final parts = messages.first.split(' / ');
+      if (parts.length == 2) return filipino ? parts[0] : parts[1];
+      return messages.first;
+    }
+    return null;
+  }
+
+  /// The field's own reason when there is one, otherwise [message].
+  String explain({bool filipino = true}) => fieldMessage(filipino: filipino) ?? message(filipino: filipino);
+
   @override
   String toString() => 'ApiException($status, $code, ${message()})';
 }

@@ -50,7 +50,11 @@ class _ComposePostScreenState extends State<ComposePostScreen> {
   }
 
   Future<void> _pickImage() async {
-    final file = await pickImageProtected(context, source: ImageSource.gallery);
+    final file = await pickImageProtected(
+      context,
+      source: ImageSource.gallery,
+      explanation: 'Esperanza needs access to your photos so you can add one to your post.',
+    );
     if (file == null || !mounted) return;
     final bytes = await file.readAsBytes();
     if (!mounted) return;

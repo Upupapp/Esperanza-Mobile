@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../widgets/app_dialogs.dart';
 
 /// The kind of protected device resource an action needs — drives which
@@ -42,28 +43,54 @@ const _copy = <ProtectedResource, _ResourceCopy>{
 /// Explanation dialogs are only ever shown in direct response to the
 /// citizen tapping a specific protected action (Take a photo / Choose from
 /// gallery / Choose a document) — never at startup, splash, onboarding, or
-/// merely opening a tab/form. Acknowledged once per resource *for this
-/// app session* (plain in-memory Set, not persisted) so re-attaching a
-/// second photo to the same or a different form doesn't re-explain
-/// something the citizen already said yes to a moment ago — resets
-/// naturally on a full relaunch, same "session-only" pattern already used
-/// elsewhere in this app (see SectionBanner/PromotionalBannerDialog).
+/// merely opening a tab/form. Acknowledged once per resource on this phone:
+/// a Continue is remembered (shared_preferences), so the same explanation is
+/// not shown again on every app start (QA run 2026-10-04: Document Access
+/// came up on every pick). The in-memory Set answers without a disk read.
 final Set<ProtectedResource> _acknowledgedThisSession = {};
 
-/// Shows the Esperanza-styled explanation dialog (Not Now / Continue) for
-/// [resource], skipping it if already acknowledged this session. Returns
-/// true only if the citizen tapped Continue.
-Future<bool> _confirmExplanation(BuildContext context, ProtectedResource resource) async {
+const _ackPrefix = 'protected_action_ack.';
+
+Future<bool> _acknowledged(ProtectedResource resource) async {
   if (_acknowledgedThisSession.contains(resource)) return true;
+  try {
+    final prefs = await SharedPreferences.getInstance();
+    if (prefs.getBool('$_ackPrefix${resource.name}') ?? false) {
+      _acknowledgedThisSession.add(resource);
+      return true;
+    }
+  } catch (_) {
+    // No storage (a test without a mock): ask, as before.
+  }
+  return false;
+}
+
+Future<void> _remember(ProtectedResource resource) async {
+  _acknowledgedThisSession.add(resource);
+  try {
+    await (await SharedPreferences.getInstance()).setBool('$_ackPrefix${resource.name}', true);
+  } catch (_) {
+    // Remembered for this session only.
+  }
+}
+
+/// Shows the Esperanza-styled explanation dialog (Not Now / Continue) for
+/// [resource], skipping it if already acknowledged. [explanation] replaces
+/// the generic "attach it to your request" copy where the purpose differs
+/// (a selfie to verify the account, a profile photo). Returns true only if
+/// the citizen tapped Continue.
+Future<bool> _confirmExplanation(BuildContext context, ProtectedResource resource, {String? explanation}) async {
+  if (await _acknowledged(resource)) return true;
+  if (!context.mounted) return false;
   final copy = _copy[resource]!;
   final proceed = await AppDialogs.confirm(
     context,
     title: copy.title,
-    message: copy.explanation,
+    message: explanation ?? copy.explanation,
     cancelLabel: 'Not Now',
     confirmLabel: 'Continue',
   );
-  if (proceed) _acknowledgedThisSession.add(resource);
+  if (proceed) await _remember(resource);
   return proceed;
 }
 
@@ -103,9 +130,14 @@ Future<void> _showDeniedDialog(BuildContext context, ProtectedResource resource)
 /// [maxDimension] caps the longer side in pixels. The profile photo passes
 /// 1024: it is shown at 192pt at most and is kept on the phone, where a
 /// full-size camera shot (several MB) could exceed what the store holds.
-Future<XFile?> pickImageProtected(BuildContext context, {required ImageSource source, double? maxDimension}) async {
+Future<XFile?> pickImageProtected(
+  BuildContext context, {
+  required ImageSource source,
+  double? maxDimension,
+  String? explanation,
+}) async {
   final resource = source == ImageSource.camera ? ProtectedResource.camera : ProtectedResource.photos;
-  if (!await _confirmExplanation(context, resource)) return null;
+  if (!await _confirmExplanation(context, resource, explanation: explanation)) return null;
   if (!context.mounted) return null;
 
   // Flutter Web has no native runtime permission model to query — the
@@ -157,8 +189,9 @@ Future<FilePickerResult?> pickDocumentProtected(
   BuildContext context, {
   required List<String> allowedExtensions,
   bool withData = true,
+  String? explanation,
 }) async {
-  if (!await _confirmExplanation(context, ProtectedResource.document)) return null;
+  if (!await _confirmExplanation(context, ProtectedResource.document, explanation: explanation)) return null;
   if (!context.mounted) return null;
   return FilePicker.pickFiles(type: FileType.custom, allowedExtensions: allowedExtensions, withData: withData);
 }

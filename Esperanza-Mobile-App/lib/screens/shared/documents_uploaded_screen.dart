@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../../models/attachment.dart';
 import '../../models/master_file_document.dart';
+import '../../models/uploaded_document.dart';
 import '../../services/citizen_session_service.dart';
 import '../../services/master_file_service.dart';
 import '../../theme/app_colors.dart';
@@ -14,12 +15,19 @@ import '../../widgets/segmented_tabs.dart';
 import '../../theme/app_typography.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../services/api_client.dart';
+import '../../services/json_read.dart';
 import '../../widgets/app_dialogs.dart';
 import '../../widgets/image_viewer_scaffold.dart';
 
 /// Resident-facing history/library of every document uploaded through a
 /// Dokyu or Tulong requirement uploader (see widgets/requirement_uploader.dart)
-/// — read-only, no delete. Synced with the resident's Papeles wallet on the
+/// — read-only, no delete.
+///
+/// Since 2026-10-04 the list is the server's (GET /citizen/uploads): every
+/// file attached to the resident's requests, from this phone or the website,
+/// each once, with replaced files marked. The phone's own records listed one
+/// replacement twice and nothing attached on the website. They remain the
+/// fallback when the server cannot be reached. Synced with the resident's Papeles wallet on the
 /// server (MasterFileService.syncFromServer). Distinct from the Master File (see
 /// MasterFileDocument's own doc comment): the Master File is the reusable
 /// "offer this again" canonical copy per document type, one entry per type;
@@ -37,10 +45,32 @@ class DocumentsUploadedScreen extends StatefulWidget {
 class _DocumentsUploadedScreenState extends State<DocumentsUploadedScreen> {
   int _tab = 0; // 0 = All, 1 = Dokyu, 2 = Tulong
 
+  /// Null until the server answers; then the list this screen shows.
+  List<UploadedDocument>? _uploads;
+  bool _uploadsFailed = false;
+
   @override
   void initState() {
     super.initState();
-    _sync();
+    _refresh();
+  }
+
+  Future<void> _refresh({bool report = false}) => Future.wait([_loadUploads(report: report), _sync(report: report)]);
+
+  Future<void> _loadUploads({bool report = false}) async {
+    try {
+      final res = await api.get('/citizen/uploads');
+      final rows = JsonRead.rows(res.list, UploadedDocument.fromJson);
+      if (!mounted) return;
+      setState(() {
+        _uploads = rows;
+        _uploadsFailed = false;
+      });
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      setState(() => _uploadsFailed = true);
+      if (report) AppDialogs.toast(context, e.message(), success: false);
+    }
   }
 
   /// Pulls the resident's Papeles wallet from the server (GET
@@ -70,6 +100,17 @@ class _DocumentsUploadedScreenState extends State<DocumentsUploadedScreen> {
       _ => documents.toList(),
     }..sort((a, b) => b.uploadedAt.compareTo(a.uploadedAt));
 
+    // The server's list, newest first, when it has answered.
+    final uploads = _uploads;
+    final serverRows = uploads == null
+        ? null
+        : switch (_tab) {
+            1 => uploads.where((d) => d.isDokyu).toList(),
+            2 => uploads.where((d) => !d.isDokyu).toList(),
+            _ => uploads,
+          };
+    final isEmpty = serverRows == null ? filtered.isEmpty : serverRows.isEmpty;
+
     return Scaffold(
       appBar: AppBar(title: const Text('Documents Uploaded')),
       body: SafeArea(
@@ -88,11 +129,19 @@ class _DocumentsUploadedScreenState extends State<DocumentsUploadedScreen> {
                 selectedIndex: _tab,
                 onChanged: (i) => setState(() => _tab = i),
               ),
+              if (serverRows == null && _uploadsFailed) ...[
+                const SizedBox(height: AppSpacing.md),
+                const Text(
+                  'Showing the documents saved on this phone. Pull down to load everything you uploaded, from the '
+                  'app or the website.',
+                  style: TextStyle(fontSize: AppTextSize.label, color: AppColors.textMuted, height: 1.4),
+                ),
+              ],
               const SizedBox(height: AppSpacing.lg),
               Expanded(
                 child: RefreshIndicator(
-                  onRefresh: () => _sync(report: true),
-                  child: filtered.isEmpty
+                  onRefresh: () => _refresh(report: true),
+                  child: isEmpty
                       ? ListView(
                           physics: const AlwaysScrollableScrollPhysics(),
                           children: const [
@@ -104,6 +153,13 @@ class _DocumentsUploadedScreenState extends State<DocumentsUploadedScreen> {
                                   'appear here.',
                             ),
                           ],
+                        )
+                      : serverRows != null
+                      ? ListView.builder(
+                          physics: const AlwaysScrollableScrollPhysics(),
+                          padding: const EdgeInsets.only(bottom: AppSpacing.xxl),
+                          itemCount: serverRows.length,
+                          itemBuilder: (context, i) => _UploadCard(document: serverRows[i]),
                         )
                       : ListView.builder(
                           physics: const AlwaysScrollableScrollPhysics(),
@@ -121,11 +177,7 @@ class _DocumentsUploadedScreenState extends State<DocumentsUploadedScreen> {
   }
 }
 
-class _DocumentCard extends StatelessWidget {
-  final MasterFileDocument document;
-  const _DocumentCard({required this.document});
-
-  ({Color bg, Color fg, IconData icon}) get _style => switch (document.attachment.category) {
+({Color bg, Color fg, IconData icon}) _styleFor(AttachmentCategory category) => switch (category) {
     AttachmentCategory.image => (bg: AppColors.brand50, fg: AppColors.brand500, icon: Icons.image_outlined),
     AttachmentCategory.pdf => (bg: AppColors.rose50, fg: AppColors.rose600, icon: Icons.picture_as_pdf_outlined),
     AttachmentCategory.docx => (bg: AppColors.blue50, fg: AppColors.blue700, icon: Icons.description_outlined),
@@ -136,6 +188,114 @@ class _DocumentCard extends StatelessWidget {
       icon: Icons.insert_drive_file_outlined,
     ),
   };
+
+Widget _tag(String label, Color color) {
+  return Container(
+    padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xs, vertical: AppSpacing.xs),
+    decoration: BoxDecoration(
+      color: color.withValues(alpha: 0.1),
+      borderRadius: BorderRadius.circular(AppRadius.full),
+    ),
+    child: Text(
+      label,
+      style: TextStyle(fontSize: AppTextSize.fine, fontWeight: FontWeight.w700, color: color),
+    ),
+  );
+}
+
+/// One file from the server's list. Opens through its signed link; a file
+/// the scan has not cleared says why it cannot be opened.
+class _UploadCard extends StatelessWidget {
+  final UploadedDocument document;
+  const _UploadCard({required this.document});
+
+  Future<void> _open(BuildContext context) async {
+    final reason = document.unavailableReason;
+    if (reason != null) {
+      AppDialogs.toast(context, reason, success: false);
+      return;
+    }
+    final uri = Uri.tryParse(document.url!);
+    if (uri == null || !await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+      if (context.mounted) AppDialogs.toast(context, 'This document could not be opened.', success: false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final category = AttachmentCategoryX.fromExtension(document.extension);
+    final s = _styleFor(category);
+    final when = document.uploadedAt;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppSpacing.md),
+      child: AppCard(
+        onTap: () => _open(context),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              width: 44,
+              height: 44,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(color: s.bg, borderRadius: BorderRadius.circular(AppRadius.sm)),
+              child: Icon(s.icon, size: 20, color: s.fg),
+            ),
+            const SizedBox(width: AppSpacing.md),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    document.requirement,
+                    style: const TextStyle(
+                      fontSize: AppTextSize.body,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.xs),
+                  Text(
+                    document.fileName,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontSize: AppTextSize.label, color: AppColors.textMuted),
+                  ),
+                  const SizedBox(height: AppSpacing.xs),
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 4,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: [
+                      _tag(document.isDokyu ? 'Dokyu' : 'Tulong', document.isDokyu ? AppColors.brand600 : AppColors.purple700),
+                      if (document.service != null) _tag(document.service!, AppColors.slate600),
+                      _tag(document.ref, AppColors.slate600),
+                      if (!document.current) _tag('Replaced', AppColors.slate500),
+                      Text(
+                        when == null
+                            ? category.shortLabel
+                            : '${category.shortLabel} · ${DateFormat('MMM d, y').format(when)}',
+                        style: const TextStyle(fontSize: AppTextSize.fine, color: AppColors.textMuted),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            Icon(
+              document.url != null ? Icons.open_in_new_rounded : Icons.hourglass_empty_rounded,
+              size: 18,
+              color: AppColors.slate400,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _DocumentCard extends StatelessWidget {
+  final MasterFileDocument document;
+  const _DocumentCard({required this.document});
 
   bool get _isDokyu => document.origin == 'Dokyu';
 
@@ -163,7 +323,7 @@ class _DocumentCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final s = _style;
+    final s = _styleFor(document.attachment.category);
     final isImage = document.attachment.category == AttachmentCategory.image;
     final canPreview =
         isImage &&
@@ -230,20 +390,6 @@ class _DocumentCard extends StatelessWidget {
             if (canPreview) const Icon(Icons.chevron_right_rounded, size: 18, color: AppColors.slate400),
           ],
         ),
-      ),
-    );
-  }
-
-  Widget _tag(String label, Color color) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xs, vertical: AppSpacing.xs),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(AppRadius.full),
-      ),
-      child: Text(
-        label,
-        style: TextStyle(fontSize: AppTextSize.fine, fontWeight: FontWeight.w700, color: color),
       ),
     );
   }

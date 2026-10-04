@@ -105,6 +105,16 @@ class _RegisterScreenState extends State<RegisterScreen> {
     _alreadyHasAccount = account != null;
     _step = _alreadyHasAccount ? 5 : 0;
     if (!_alreadyHasAccount) _loadIdTypes();
+    // What a failed Continue said goes once the form is edited: "Please enter
+    // your first and last name" stayed on screen after both were filled in.
+    for (final c in [_firstName, _lastName, _email, _mobile, _purok, _password]) {
+      c.addListener(_clearStaleError);
+    }
+  }
+
+  void _clearStaleError() {
+    if (_error == null && !_attempted) return;
+    setState(() => _error = null);
   }
 
   Future<void> _loadIdTypes() async {
@@ -124,14 +134,30 @@ class _RegisterScreenState extends State<RegisterScreen> {
     super.dispose();
   }
 
+  /// Set by a Continue that found a problem, so empty fields are marked.
+  bool _attempted = false;
+  final _errorKey = GlobalKey();
+
   void _next() {
     final err = _validateStep(_step);
     if (err != null) {
-      setState(() => _error = err);
+      setState(() {
+        _error = err;
+        _attempted = true;
+      });
+      // The message sits under the form, below the fold on a phone, so
+      // Continue seemed to do nothing. Bring it into view.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        final target = _errorKey.currentContext;
+        if (target != null && target.mounted) {
+          Scrollable.ensureVisible(target, duration: const Duration(milliseconds: 250), alignment: 0.5);
+        }
+      });
       return;
     }
     setState(() {
       _error = null;
+      _attempted = false;
       if (_step < _stepLabels.length - 1) _step++;
     });
   }
@@ -174,9 +200,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
     }
   }
 
-  /// What the server signs a citizen in with. It matches an email address or a
-  /// mobile number - not the ESP-RES account number - so use the contact the
-  /// citizen just registered with.
+  /// What the citizen signs in with right after registering: the contact they
+  /// just registered (the server also takes the ESP-RES account number).
   String _signInIdentifier() => _email.text.trim().isNotEmpty ? _email.text.trim() : _mobile.text.trim();
 
   static final _emailShape = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$');
@@ -244,7 +269,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       if (!mounted) return;
       setState(() {
         _emailConfirming = false;
-        _emailError = e.message();
+        _emailError = e.explain();
       });
     }
   }
@@ -254,6 +279,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       context,
       allowedExtensions: ['jpg', 'jpeg', 'png', 'pdf'],
       withData: false,
+      explanation: 'Esperanza needs to let you choose a photo or scan of your valid ID. The LGU uses it to verify your account.',
     );
     if (result == null || result.files.isEmpty) return;
     final f = result.files.single;
@@ -266,7 +292,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
   }
 
   Future<void> _takeSelfie() async {
-    final file = await pickImageProtected(context, source: ImageSource.camera, maxDimension: 1280);
+    final file = await pickImageProtected(
+      context,
+      source: ImageSource.camera,
+      maxDimension: 1280,
+      explanation: 'Esperanza needs your camera to take a selfie. The LGU compares it with your valid ID to verify your account.',
+    );
     if (file == null || !mounted) return;
     final bytes = await file.readAsBytes();
     if (!mounted) return;
@@ -296,7 +327,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       });
     } on ApiException catch (e) {
       if (!mounted) return;
-      setState(() => _identityError = e.message());
+      setState(() => _identityError = e.explain());
     } finally {
       if (mounted) setState(() => _sendingIdentity = false);
     }
@@ -379,7 +410,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       if (!mounted) return;
       setState(() {
         _submitting = false;
-        _error = e.message();
+        _error = e.explain();
       });
     }
   }
@@ -476,11 +507,19 @@ class _RegisterScreenState extends State<RegisterScreen> {
         Row(
           children: [
             Expanded(
-              child: AppTextField(label: 'First name', controller: _firstName),
+              child: AppTextField(
+                label: 'First name',
+                controller: _firstName,
+                error: _attempted && _firstName.text.trim().isEmpty ? 'Required' : null,
+              ),
             ),
             const SizedBox(width: AppSpacing.md),
             Expanded(
-              child: AppTextField(label: 'Last name', controller: _lastName),
+              child: AppTextField(
+                label: 'Last name',
+                controller: _lastName,
+                error: _attempted && _lastName.text.trim().isEmpty ? 'Required' : null,
+              ),
             ),
           ],
         ),
@@ -588,7 +627,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         PasswordRequirements(password: _password.text),
         if (_error != null) ...[
           const SizedBox(height: AppSpacing.md),
-          Text(_error!, style: const TextStyle(fontSize: AppTextSize.helper, color: AppColors.rose600)),
+          Text(_error!, key: _errorKey, style: const TextStyle(fontSize: AppTextSize.helper, color: AppColors.rose600)),
         ],
       ],
     );
@@ -648,7 +687,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         ),
         if (_error != null) ...[
           const SizedBox(height: AppSpacing.sm),
-          Text(_error!, style: const TextStyle(fontSize: AppTextSize.helper, color: AppColors.rose600)),
+          Text(_error!, key: _errorKey, style: const TextStyle(fontSize: AppTextSize.helper, color: AppColors.rose600)),
         ],
       ],
     );
@@ -754,7 +793,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         ),
         if (_error != null) ...[
           const SizedBox(height: AppSpacing.md),
-          Text(_error!, style: const TextStyle(fontSize: AppTextSize.helper, color: AppColors.rose600)),
+          Text(_error!, key: _errorKey, style: const TextStyle(fontSize: AppTextSize.helper, color: AppColors.rose600)),
         ],
       ],
     );
@@ -842,7 +881,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         _reviewRow('Selfie', _selfiePath != null ? 'Taken' : 'Not taken', onEdit: () => setState(() => _step = 3)),
         if (_error != null) ...[
           const SizedBox(height: AppSpacing.md),
-          Text(_error!, style: const TextStyle(fontSize: AppTextSize.helper, color: AppColors.rose600)),
+          Text(_error!, key: _errorKey, style: const TextStyle(fontSize: AppTextSize.helper, color: AppColors.rose600)),
         ],
       ],
     );
@@ -943,7 +982,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
           ),
           if (_error != null) ...[
             const SizedBox(height: AppSpacing.sm),
-            Text(_error!, style: const TextStyle(fontSize: AppTextSize.helper, color: AppColors.rose600)),
+            Text(_error!, key: _errorKey, style: const TextStyle(fontSize: AppTextSize.helper, color: AppColors.rose600)),
           ],
           const SizedBox(height: AppSpacing.md),
           AppButton(

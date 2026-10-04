@@ -61,7 +61,7 @@ class _LoginScreenState extends State<LoginScreen> {
       await context.read<CitizenSessionService>().loginWithCredentials(identifier, _passwordController.text);
     } on ApiException catch (e) {
       if (!mounted) return;
-      setState(() => _error = e.message());
+      setState(() => _error = e.explain());
     } finally {
       if (mounted) setState(() => _loading = false);
     }

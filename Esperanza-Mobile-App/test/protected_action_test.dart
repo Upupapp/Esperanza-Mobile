@@ -17,6 +17,7 @@
 // render. `AttachmentPicker` was deleted with FE 08.
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:esperanza_mobile/theme/app_colors.dart';
 import 'package:esperanza_mobile/utils/requirement_document_type.dart';
@@ -53,6 +54,10 @@ Future<void> _openPickerSheet(WidgetTester tester, {void Function()? onAttach}) 
 }
 
 void main() {
+  // A Continue is remembered on the phone (shared_preferences), so each test
+  // starts from a phone that has never answered the explanation.
+  setUp(() => SharedPreferences.setMockInitialValues({}));
+
   testWidgets('Take Photo shows the Camera Access Required explanation before anything else', (tester) async {
     await _openPickerSheet(tester);
 

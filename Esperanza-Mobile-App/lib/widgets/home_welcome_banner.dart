@@ -17,7 +17,7 @@ import 'promotional_banner_dialog.dart';
 class HomeWelcomeBanner extends StatelessWidget {
   const HomeWelcomeBanner({super.key});
 
-  static const _assetPath = 'assets/images/Home_Banner.png';
+  static const assetPath = 'assets/images/Home_Banner.png';
 
   /// Shows the banner once. Callers are responsible for only invoking
   /// this once per session (see HomeScreen's `_bannerOffered` flag) — this
@@ -34,5 +34,5 @@ class HomeWelcomeBanner extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) => const PromotionalBannerDialog(assetPath: _assetPath, label: 'Home');
+  Widget build(BuildContext context) => const PromotionalBannerDialog(assetPath: assetPath, label: 'Home');
 }

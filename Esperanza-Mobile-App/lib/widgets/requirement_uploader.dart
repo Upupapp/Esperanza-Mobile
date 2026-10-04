@@ -51,6 +51,10 @@ class RequirementUploader extends StatelessWidget {
   /// screen) can only be replaced, and a Remove that did nothing was shown.
   final VoidCallback? onRemove;
 
+  /// False where the requirement's name is already printed just above (the
+  /// request detail's lists), so it is not shown twice.
+  final bool showTitle;
+
   const RequirementUploader({
     super.key,
     required this.requirement,
@@ -60,6 +64,7 @@ class RequirementUploader extends StatelessWidget {
     required this.onAttachNew,
     required this.onUseExisting,
     this.onRemove,
+    this.showTitle = true,
   });
 
   Future<void> _pickNew(BuildContext context) async {
@@ -124,6 +129,7 @@ class RequirementUploader extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          if (showTitle)
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -145,7 +151,7 @@ class RequirementUploader extends StatelessWidget {
                 ),
             ],
           ),
-          const SizedBox(height: AppSpacing.sm),
+          if (showTitle) const SizedBox(height: AppSpacing.sm),
           if (!requirement.requiresUpload)
             const _StaffProcessNote()
           else if (attachment != null)

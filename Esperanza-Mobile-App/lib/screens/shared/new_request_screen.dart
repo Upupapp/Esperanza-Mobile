@@ -7,6 +7,7 @@ import '../../services/citizen_session_service.dart';
 import '../../services/requests_service.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_spacing.dart';
+import '../../theme/tulong_status.dart';
 import '../../utils/requirement_document_type.dart';
 import '../../utils/tulong_eligibility.dart';
 import '../../widgets/app_button.dart';
@@ -138,6 +139,11 @@ class _NewRequestScreenState extends State<NewRequestScreen> {
     );
   }
 
+  /// A Tulong case runs the office's case steps, the same ones its timeline
+  /// shows after filing; the catalogue's four-step copy predates that flow.
+  List<String> get _processSteps =>
+      widget.category == ServiceCategory.tulong ? TulongStatus.mainSequence : widget.item.process;
+
   Widget _formPhase() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -158,8 +164,8 @@ class _NewRequestScreenState extends State<NewRequestScreen> {
                 spacing: 6,
                 runSpacing: 6,
                 children: [
-                  for (int i = 0; i < widget.item.process.length; i++) ...[
-                    _stepChip(i + 1, widget.item.process[i]),
+                  for (int i = 0; i < _processSteps.length; i++) ...[
+                    _stepChip(i + 1, _processSteps[i]),
                   ],
                 ],
               ),

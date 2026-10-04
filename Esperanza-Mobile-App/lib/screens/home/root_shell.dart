@@ -11,6 +11,7 @@ import '../../widgets/access_guard.dart';
 import '../../widgets/app_dialogs.dart';
 import '../../widgets/esperanza_curved_navbar.dart';
 import '../../widgets/nav_item_data.dart';
+import '../../utils/banner_memory.dart';
 import '../../widgets/promotional_banner_dialog.dart';
 import '../../widgets/service_launcher_menu.dart';
 import '../balita/balita_screen.dart';
@@ -152,7 +153,9 @@ class _RootShellState extends State<RootShell> {
     if (context.read<CitizenSessionService>().accessLevel.index < required.index) return;
     _bannerOffered.add(bodyIndex);
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) PromotionalBannerDialog.show(context, assetPath: asset, label: label);
+      BannerMemory.showOnce(asset, () {
+        if (mounted) PromotionalBannerDialog.show(context, assetPath: asset, label: label);
+      });
     });
   }
 

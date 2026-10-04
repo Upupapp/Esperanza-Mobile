@@ -229,7 +229,12 @@ class _PersonalInformationScreenState extends State<PersonalInformationScreen> {
     if (source == null || !mounted) return;
 
     while (true) {
-      final file = await pickImageProtected(context, source: source!, maxDimension: 1024);
+      final file = await pickImageProtected(
+        context,
+        source: source!,
+        maxDimension: 1024,
+        explanation: 'Esperanza needs your camera or photos to set your profile photo. The LGU checks it before it appears on your Digital ID.',
+      );
       if (file == null || !mounted) return;
       // Read bytes up front — on Flutter Web, `file.path` is a blob: URL
       // that `dart:io`'s `File()` cannot open, and bytes are what actually

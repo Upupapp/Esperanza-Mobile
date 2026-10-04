@@ -46,7 +46,11 @@ class _ReportProblemScreenState extends State<ReportProblemScreen> {
   }
 
   Future<void> _pickScreenshot() async {
-    final file = await pickImageProtected(context, source: ImageSource.gallery);
+    final file = await pickImageProtected(
+      context,
+      source: ImageSource.gallery,
+      explanation: 'Esperanza needs access to your photos so you can attach a screenshot to your report.',
+    );
     if (file == null || !mounted) return;
     final bytes = await file.readAsBytes();
     if (!mounted) return;

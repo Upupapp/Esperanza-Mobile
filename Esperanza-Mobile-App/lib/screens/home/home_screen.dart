@@ -18,6 +18,7 @@ import '../../widgets/app_card.dart';
 import '../../widgets/empty_state.dart';
 import '../../widgets/esperanza_drawer.dart';
 import '../../widgets/event_card.dart';
+import '../../utils/banner_memory.dart';
 import '../../widgets/home_welcome_banner.dart';
 import '../../widgets/parallax_header.dart';
 import '../../widgets/resident_profile_status_card.dart';
@@ -90,7 +91,9 @@ class _HomeScreenState extends State<HomeScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!_bannerOffered && mounted) {
         _bannerOffered = true;
-        HomeWelcomeBanner.show(context);
+        BannerMemory.showOnce(HomeWelcomeBanner.assetPath, () {
+          if (mounted) HomeWelcomeBanner.show(context);
+        });
       }
     });
   }

@@ -16,6 +16,8 @@ import 'package:esperanza_mobile/services/mock_catalog.dart';
 import 'package:esperanza_mobile/services/resident_profile_service.dart';
 import 'package:esperanza_mobile/widgets/esperanza_drawer.dart';
 
+import 'support/fake_api.dart';
+
 const _verifiedDemoId = 'ESP-RES-2024-9002';
 
 Attachment _fakeAttachment(String fileName) => Attachment(
@@ -178,6 +180,58 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.byType(DocumentsUploadedScreen), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+
+    // QA run 2026-10-04 (M12h): the list showed one replacement twice and
+    // none of the documents attached on the website. It now reads the
+    // server's GET /citizen/uploads.
+    testWidgets('lists every file attached to requests, from the app or the website, each once', (tester) async {
+      SharedPreferences.setMockInitialValues({});
+      FakeApi.install((path, query) {
+        if (path == '/citizen/uploads') {
+          return [
+            {
+              'ref': 'TUL-2026-00001', 'type': 'tulong', 'service': 'Educational Assistance',
+              'requirement': 'Certificate of Enrollment', 'current': true,
+              'file': {'name': 'second.pdf', 'mime': 'application/pdf', 'bytes': 10, 'scan_status': 'clean', 'url': 'https://test.invalid/f/2', 'uploaded_at': '2026-10-04T03:00:00Z'},
+            },
+            {
+              'ref': 'TUL-2026-00001', 'type': 'tulong', 'service': 'Educational Assistance',
+              'requirement': 'Certificate of Enrollment', 'current': false,
+              'file': {'name': 'first.pdf', 'mime': 'application/pdf', 'bytes': 10, 'scan_status': 'error', 'url': null, 'uploaded_at': '2026-10-04T02:00:00Z'},
+            },
+            {
+              'ref': 'DOK-2026-00001', 'type': 'dokyu', 'service': 'Barangay Indigency',
+              'requirement': 'Valid ID', 'current': true,
+              'file': {'name': 'sent-from-the-website.pdf', 'mime': 'application/pdf', 'bytes': 10, 'scan_status': 'clean', 'url': 'https://test.invalid/f/3', 'uploaded_at': '2026-10-04T01:00:00Z'},
+            },
+          ];
+        }
+        if (path == '/citizen/papeles') return [];
+        throw const FakeApiError();
+      });
+      addTearDown(FakeApi.restore);
+      final mf = await _readyMasterFile(tester);
+      await _pumpScreen(tester, masterFile: mf);
+
+      expect(find.text('second.pdf'), findsOneWidget);
+      expect(find.text('first.pdf'), findsOneWidget);
+      expect(find.text('sent-from-the-website.pdf'), findsOneWidget);
+      expect(find.text('Replaced'), findsOneWidget, reason: 'the file a later upload replaced');
+      expect(find.text('No documents uploaded yet'), findsNothing);
+
+      await tester.tap(find.text('Dokyu').first);
+      await tester.pumpAndSettle();
+      expect(find.text('sent-from-the-website.pdf'), findsOneWidget);
+      expect(find.text('second.pdf'), findsNothing);
+
+      // A file the scan has not cleared says why instead of opening.
+      await tester.tap(find.text('Tulong').first);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('first.pdf'));
+      await tester.pumpAndSettle();
+      expect(find.textContaining('virus check could not run'), findsOneWidget);
       expect(tester.takeException(), isNull);
     });
   });

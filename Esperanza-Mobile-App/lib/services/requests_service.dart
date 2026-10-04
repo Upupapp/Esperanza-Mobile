@@ -248,11 +248,16 @@ class RequestsService extends ChangeNotifier {
       // The key addresses the replace endpoint; without it there is nothing
       // the citizen could upload against.
       if (key == null) return null;
+      final at = history.isNotEmpty ? history.last.at : DateTime.now();
       return FlaggedRequirement(
         id: key,
         requirementLabel: JsonRead.string(q['label']) ?? key,
         reason: JsonRead.nonEmpty(q['remarks']) ?? JsonRead.nonEmpty(q['reason']) ?? '',
-        flaggedAt: history.isNotEmpty ? history.last.at : DateTime.now(),
+        flaggedAt: at,
+        // Already replaced while the request still waits on the resident: it
+        // stays on the list (with Resubmit) and reads as done. Before the
+        // server said so, the list emptied and the app lost its Resubmit.
+        resolvedAt: JsonRead.boolean(q['resolved']) == true ? at : null,
       );
     });
     // Each requirement's file as the server holds it, so the detail shows what

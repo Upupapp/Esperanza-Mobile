@@ -298,6 +298,7 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
             )
           else
             _ManualVerificationCard(
+              needsRequirements: request.status == TulongStatus.needsRequirements,
               reason: request.adminRemarks ?? 'The request requires additional verification.',
             ),
         ],
@@ -479,6 +480,23 @@ class _CorrectionsSection extends StatelessWidget {
                 onReplace: (a) => onReplace(flagged.id, a),
               ),
             ),
+          for (final done in request.flaggedRequirements.where((f) => f.isResolved))
+            Padding(
+              padding: const EdgeInsets.only(top: AppSpacing.md),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Icon(Icons.check_circle_rounded, size: 16, color: AppColors.emerald700),
+                  const SizedBox(width: AppSpacing.sm),
+                  Expanded(
+                    child: Text(
+                      '${done.requirementLabel}: replaced. The office checks it after you resubmit.',
+                      style: AppTypography.captionSmallRegular.copyWith(color: AppColors.slate700, height: 1.4),
+                    ),
+                  ),
+                ],
+              ),
+            ),
           const SizedBox(height: AppSpacing.lg),
           AppButton(
             label: 'Resubmit Application',
@@ -487,6 +505,17 @@ class _CorrectionsSection extends StatelessWidget {
             loading: busy,
             onPressed: allResolved && !busy ? onResubmit : null,
           ),
+          if (!allResolved || onResubmit == null) ...[
+            const SizedBox(height: AppSpacing.sm),
+            Text(
+              !allResolved
+                  ? (unresolved.length > 1
+                        ? 'Replace the flagged documents above first, then resubmit.'
+                        : 'Replace the flagged document above first, then resubmit.')
+                  : 'This request cannot be resubmitted right now. Pull down to refresh.',
+              style: AppTypography.captionSmallRegular.copyWith(color: AppColors.slate500, height: 1.4),
+            ),
+          ],
         ],
       ),
     );
@@ -548,6 +577,7 @@ class _FlaggedRequirementCard extends StatelessWidget {
           const SizedBox(height: AppSpacing.sm),
           _ServerRequirementUploader(
             label: flagged.requirementLabel,
+            showTitle: false,
             current: currentAttachment,
             accent: accent,
             busy: busy,
@@ -574,9 +604,11 @@ class _ServerRequirementUploader extends StatelessWidget {
   final String serviceName;
   final ServiceCategory category;
   final ValueChanged<Attachment> onPicked;
+  final bool showTitle;
 
   const _ServerRequirementUploader({
     required this.label,
+    this.showTitle = true,
     required this.current,
     required this.accent,
     required this.busy,
@@ -601,6 +633,7 @@ class _ServerRequirementUploader extends StatelessWidget {
             final existing = (found?.attachment.localPath?.isNotEmpty ?? false) ? found : null;
             return RequirementUploader(
               requirement: requirement,
+              showTitle: showTitle,
               attachment: current,
               accent: accent,
               existingMasterDoc: existing,
@@ -682,11 +715,6 @@ class _AttachSection extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    p.label,
-                    style: const TextStyle(fontSize: AppTextSize.helper, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
-                  ),
-                  const SizedBox(height: AppSpacing.sm),
                   _ServerRequirementUploader(
                     label: p.label,
                     current: _attachmentFor(request, p.label),
@@ -774,8 +802,11 @@ class _AssistanceCard extends StatelessWidget {
 }
 
 class _ManualVerificationCard extends StatelessWidget {
+  /// Tulong's correction state: a Tulong case never reads as Under Review,
+  /// which is Dokyu's.
+  final bool needsRequirements;
   final String reason;
-  const _ManualVerificationCard({required this.reason});
+  const _ManualVerificationCard({required this.needsRequirements, required this.reason});
 
   @override
   Widget build(BuildContext context) {
@@ -793,10 +824,10 @@ class _ManualVerificationCard extends StatelessWidget {
             children: [
               const Icon(Icons.fact_check_outlined, size: 18, color: AppColors.orange700),
               const SizedBox(width: AppSpacing.sm),
-              const Expanded(
+              Expanded(
                 child: Text(
-                  'Under Review',
-                  style: TextStyle(fontSize: AppTextSize.body, fontWeight: FontWeight.w700, color: AppColors.orange700),
+                  needsRequirements ? 'Needs Requirements' : 'Under Review',
+                  style: const TextStyle(fontSize: AppTextSize.body, fontWeight: FontWeight.w700, color: AppColors.orange700),
                 ),
               ),
             ],
@@ -805,8 +836,11 @@ class _ManualVerificationCard extends StatelessWidget {
           Text(reason, style: AppTypography.bodySmallRegular.copyWith(color: AppColors.slate700, height: 1.45)),
           const SizedBox(height: AppSpacing.sm),
           Text(
-            'The request requires additional verification. This is still an active request, not a rejection — no '
-            'action is needed from you at this time.',
+            needsRequirements
+                ? 'The office needs more for this case. Read the remarks above, or contact the MSWDO. This is still an '
+                      'active request, not a rejection.'
+                : 'The request requires additional verification. This is still an active request, not a rejection — no '
+                      'action is needed from you at this time.',
             style: AppTypography.captionSmallRegular.copyWith(color: AppColors.slate500, height: 1.4),
           ),
         ],

@@ -2380,7 +2380,7 @@ class MockCatalog {
   ];
 
   static final directoryOffices = [
-    ('Office of the Municipal Mayor', 'Hon. Ricardo M. Espallardo', '(056) 333-1021'),
+    ('Office of the Municipal Mayor', 'Hon. Jeffrey Justin T. Talisic', '(056) 333-1021'),
     ('Municipal Social Welfare & Development Office', 'Ms. Lourdes P. Villareal', '(056) 333-1044'),
     ("Municipal Treasurer's Office", 'Mr. Bienvenido T. Salazar', '(056) 333-1032'),
     ('Municipal Health Office', 'Dr. Leilani F. Domingo', '(056) 333-1056'),

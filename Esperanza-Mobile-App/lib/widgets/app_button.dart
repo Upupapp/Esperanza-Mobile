@@ -121,7 +121,12 @@ class AppButton extends StatelessWidget {
       child: Semantics(
         button: true,
         enabled: !loading && onPressed != null,
-        child: SizedBox(
+        // A disabled button looked exactly like an active one, so Resubmit
+        // seemed to do nothing when tapped (QA run 2026-10-04). Loading keeps
+        // full strength: its spinner already says why.
+        child: Opacity(
+          opacity: onPressed == null && !loading ? 0.45 : 1,
+          child: SizedBox(
           width: fullWidth ? double.infinity : null,
           child: Material(
             color: c.background,
@@ -144,6 +149,7 @@ class AppButton extends StatelessWidget {
               ),
             ),
           ),
+        ),
         ),
       ),
     );

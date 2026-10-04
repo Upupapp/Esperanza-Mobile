@@ -95,6 +95,9 @@ class RequestMilestoneTimeline extends StatelessWidget {
 
     final sequence = isTulong ? TulongStatus.mainSequence : RequestMilestones.sequence;
     final reachedAt = <String, DateTime>{
+      // Filing is not a transition on the server (a request is created
+      // Submitted), so the first step's time is the request's own.
+      if (sequence.isNotEmpty && sequence.first == 'Submitted') 'Submitted': request.submittedAt,
       for (final e in request.statusHistory)
         if (sequence.contains(e.status)) e.status: e.at,
     };
