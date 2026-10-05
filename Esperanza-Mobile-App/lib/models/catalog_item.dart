@@ -21,11 +21,13 @@ class CatalogItem {
 
   /// Human-readable amount/rule, e.g. "Free", "₱50.00", "₱500.00 and up
   /// (based on capital)" -- flattened from the server's `fee.display`.
-  /// `fee.kind`/`fee.required_inputs` (needed to actually assess a
-  /// `per_bracket`/`schedule` fee) aren't surfaced here; the wizard doesn't
-  /// collect fee inputs today (see the payment/receipt gap this pass left
-  /// alone -- no citizen payment endpoint exists to spend them on).
   final String fee;
+
+  /// The server's `fee.required_inputs`: the declared amounts this fee is
+  /// assessed on (`declared_capital`, `income`, ...). Both request screens
+  /// ask for each one; the server refuses a filing without them. See
+  /// utils/fee_inputs.dart.
+  final List<String> feeInputs;
 
   final String days;
   final List<String> requirements;
@@ -91,6 +93,7 @@ class CatalogItem {
     required this.requirements,
     required this.process,
     this.type = '',
+    this.feeInputs = const [],
     this.policyBlocked = false,
     this.policyGapNote,
     this.amount,
@@ -119,6 +122,7 @@ class CatalogItem {
           .toList(),
       process: JsonRead.strings(json['process']),
       type: str('type') ?? '',
+      feeInputs: fee is Map ? JsonRead.strings(fee['required_inputs']) : const [],
       policyBlocked: JsonRead.boolean(json['policy_blocked']) ?? false,
       policyGapNote: JsonRead.nonEmpty(json['policy_gap_note']),
       formSpec: formSpec,

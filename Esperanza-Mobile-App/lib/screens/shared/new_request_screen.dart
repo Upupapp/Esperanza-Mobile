@@ -8,11 +8,13 @@ import '../../services/requests_service.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_spacing.dart';
 import '../../theme/tulong_status.dart';
+import '../../utils/fee_inputs.dart';
 import '../../utils/requirement_document_type.dart';
 import '../../utils/tulong_eligibility.dart';
 import '../../widgets/app_button.dart';
 import '../../widgets/app_card.dart';
 import '../../widgets/app_text_field.dart';
+import '../../widgets/fee_input_fields.dart';
 import 'request_detail_screen.dart';
 import 'request_submitted_screen.dart';
 import '../../theme/app_typography.dart';
@@ -43,6 +45,12 @@ class NewRequestScreen extends StatefulWidget {
 class _NewRequestScreenState extends State<NewRequestScreen> {
   final _purposeController = TextEditingController();
 
+  /// One per [CatalogItem.feeInputs] — the amounts this service's fee is
+  /// computed from.
+  late final Map<String, TextEditingController> _feeControllers = {
+    for (final name in widget.item.feeInputs) name: TextEditingController(),
+  };
+
   /// Informational only now — see the class doc comment. Still resolved
   /// from [widget.item.requirements] so the citizen sees what staff may
   /// ask for while reviewing, same as [ServiceRequestWizardScreen]'s own
@@ -69,12 +77,20 @@ class _NewRequestScreenState extends State<NewRequestScreen> {
   @override
   void dispose() {
     _purposeController.dispose();
+    for (final c in _feeControllers.values) {
+      c.dispose();
+    }
     super.dispose();
   }
 
   Future<void> _submit() async {
     if (_purposeController.text.trim().isEmpty) {
       setState(() => _error = 'Please describe the purpose of this request.');
+      return;
+    }
+    final feeError = FeeInputs.validate(widget.item.feeInputs, _feeControllers);
+    if (feeError != null) {
+      setState(() => _error = feeError);
       return;
     }
 
@@ -102,6 +118,7 @@ class _NewRequestScreenState extends State<NewRequestScreen> {
       final request = await requestsService.submit(
         serviceKey: widget.item.key,
         formData: {'purpose': _purposeController.text.trim()},
+        feeInputs: FeeInputs.collect(widget.item.feeInputs, _feeControllers),
       );
 
       if (!mounted) return;
@@ -121,7 +138,7 @@ class _NewRequestScreenState extends State<NewRequestScreen> {
       if (!mounted) return;
       setState(() {
         _submitting = false;
-        _error = e.message();
+        _error = e.explain();
       });
     }
   }
@@ -179,6 +196,10 @@ class _NewRequestScreenState extends State<NewRequestScreen> {
           controller: _purposeController,
           maxLines: 3,
         ),
+        if (widget.item.feeInputs.isNotEmpty) ...[
+          const SizedBox(height: AppSpacing.xl),
+          FeeInputFields(names: widget.item.feeInputs, controllers: _feeControllers),
+        ],
         if (_requirementInfos.isNotEmpty) ...[
           const SizedBox(height: AppSpacing.xl),
           const Text(
