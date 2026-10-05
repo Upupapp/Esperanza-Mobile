@@ -9,6 +9,7 @@ import 'package:esperanza_mobile/utils/banner_memory.dart';
 import 'package:esperanza_mobile/models/attachment.dart';
 import 'package:esperanza_mobile/utils/requirement_document_type.dart';
 import 'package:esperanza_mobile/widgets/app_button.dart';
+import 'package:esperanza_mobile/widgets/live_banners.dart';
 import 'package:esperanza_mobile/widgets/requirement_uploader.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -135,6 +136,53 @@ void main() {
     paid = false;
     final free = await service.loadDetail('DOK-2026-00009');
     expect(free.payment, isNull);
+  });
+
+  test('the banners staff publish are read from the live list', () async {
+    api = ApiClient(
+      httpClient: MockClient((req) async {
+        expect(req.url.path, endsWith('/banners'));
+        return http.Response(
+          jsonEncode({
+            'data': [
+              {'id': 4, 'title': 'Sample Fiesta', 'subtitle': 'Sample line', 'cta_label': 'View', 'cta_route': 'citizen.events', 'theme': 'from-purple-600 to-navy-900', 'image_url': null},
+              {'id': 5, 'title': '', 'theme': null},
+            ],
+          }),
+          200,
+          headers: {'content-type': 'application/json'},
+        );
+      }),
+      baseUrl: 'https://test.invalid',
+    );
+
+    final banners = await LiveBanner.load();
+    expect(banners, hasLength(1), reason: 'a banner without a title is skipped');
+    expect(banners.single.title, 'Sample Fiesta');
+    expect(banners.single.action, isNotNull, reason: 'the events button opens the Events tab');
+    expect(LiveBanner.fromApi(const {'title': 'x', 'cta_route': 'citizen.dashboard'}).action, isNull, reason: 'Home itself is the dashboard');
+  });
+
+  testWidgets('a live banner shows its title, subtitle and button', (tester) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: LiveBannersStrip(
+            banners: [
+              LiveBanner(title: 'Sample Fiesta', subtitle: 'Sample line', ctaLabel: 'View', ctaRoute: 'citizen.events'),
+              LiveBanner(title: 'Second sample', ctaLabel: 'Hidden', ctaRoute: 'citizen.dashboard'),
+            ],
+          ),
+        ),
+      ),
+    );
+    expect(find.text('Sample Fiesta'), findsOneWidget);
+    expect(find.text('Sample line'), findsOneWidget);
+    expect(find.text('View'), findsOneWidget);
+    await tester.drag(find.byType(PageView), const Offset(-500, 0));
+    await tester.pumpAndSettle();
+    expect(find.text('Second sample'), findsOneWidget);
+    expect(find.text('Hidden'), findsNothing, reason: 'no button where it would lead to this same screen');
   });
 
   test('each promotional poster is shown once on a phone, not on every app start', () async {

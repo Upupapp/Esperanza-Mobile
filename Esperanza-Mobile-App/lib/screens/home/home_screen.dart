@@ -20,6 +20,7 @@ import '../../widgets/esperanza_drawer.dart';
 import '../../widgets/event_card.dart';
 import '../../utils/banner_memory.dart';
 import '../../widgets/home_welcome_banner.dart';
+import '../../widgets/live_banners.dart';
 import '../../widgets/parallax_header.dart';
 import '../../widgets/resident_profile_status_card.dart';
 import '../../widgets/section_header.dart';
@@ -56,6 +57,10 @@ class _HomeScreenState extends State<HomeScreen> {
   // Home (see sakuna_screen.dart's own doc comment on this exact class of
   // mistake).
   late final Future<List<EventItem>> _eventsFuture = _loadEvents();
+
+  /// The banners staff publish to the dashboard; nothing shows when none
+  /// are live or the list cannot be read.
+  late final Future<List<LiveBanner>> _bannersFuture = LiveBanner.load();
 
   Future<List<EventItem>> _loadEvents() async {
     try {
@@ -142,6 +147,17 @@ class _HomeScreenState extends State<HomeScreen> {
             children: [
               _Hero(account: account, scrollController: _scrollController),
               const SizedBox(height: AppSpacing.lg),
+              FutureBuilder<List<LiveBanner>>(
+                future: _bannersFuture,
+                builder: (context, snapshot) {
+                  final banners = snapshot.data ?? const <LiveBanner>[];
+                  if (banners.isEmpty) return const SizedBox.shrink();
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: AppSpacing.xl),
+                    child: LiveBannersStrip(banners: banners),
+                  );
+                },
+              ),
               if (account != null) ...[
                 ResidentProfileStatusCard(
                   profile: residentProfile!,
