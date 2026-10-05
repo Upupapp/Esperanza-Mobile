@@ -13,11 +13,14 @@ import '../../services/resident_profile_service.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_spacing.dart';
 import '../../utils/age_calculator.dart';
+import '../../utils/fee_inputs.dart';
+import '../../utils/peso_text.dart';
 import '../../utils/requirement_document_type.dart';
 import '../../utils/tulong_eligibility.dart';
 import '../../widgets/app_button.dart';
 import '../../widgets/app_date_field.dart';
 import '../../widgets/app_text_field.dart';
+import '../../widgets/fee_input_fields.dart';
 import '../../widgets/form_section.dart';
 import '../../widgets/onboarding_step_indicator.dart';
 import '../profile/resident_profile/personal_information_screen.dart';
@@ -117,6 +120,12 @@ class _ServiceRequestWizardScreenState extends State<ServiceRequestWizardScreen>
   // field is still real -- it flows into form_data.
   final _notesController = TextEditingController();
   late final List<RequirementInfo> _requirementInfos = resolveRequirements(widget.item.requirements);
+
+  /// The amounts this service's fee is computed from ([CatalogItem.feeInputs]),
+  /// asked on the Requirements step and sent as `fee_inputs`.
+  late final Map<String, TextEditingController> _feeControllers = {
+    for (final name in widget.item.feeInputs) name: TextEditingController(),
+  };
 
   bool get _hasPurposeField => _serviceSteps.any((s) => s.fields.any((f) => f.key == 'purpose'));
 
@@ -354,7 +363,7 @@ class _ServiceRequestWizardScreenState extends State<ServiceRequestWizardScreen>
     _email.dispose();
     _purok.dispose();
     _notesController.dispose();
-    for (final c in _controllers.values) {
+    for (final c in [..._controllers.values, ..._feeControllers.values]) {
       c.dispose();
     }
     super.dispose();
@@ -403,7 +412,7 @@ class _ServiceRequestWizardScreenState extends State<ServiceRequestWizardScreen>
       if (!_hasPurposeField && _notesController.text.trim().isEmpty) {
         return 'Please describe the purpose of this request.';
       }
-      return null;
+      return FeeInputs.validate(widget.item.feeInputs, _feeControllers);
     }
     return null; // review step
   }
@@ -558,7 +567,11 @@ class _ServiceRequestWizardScreenState extends State<ServiceRequestWizardScreen>
     formData['purpose'] = _resolvePurpose();
 
     try {
-      final request = await requestsService.submit(serviceKey: widget.item.key, formData: formData);
+      final request = await requestsService.submit(
+        serviceKey: widget.item.key,
+        formData: formData,
+        feeInputs: FeeInputs.collect(widget.item.feeInputs, _feeControllers),
+      );
 
       if (!mounted) return;
       setState(() => _submitting = false);
@@ -577,7 +590,7 @@ class _ServiceRequestWizardScreenState extends State<ServiceRequestWizardScreen>
       if (!mounted) return;
       setState(() {
         _submitting = false;
-        _error = e.message();
+        _error = e.explain();
       });
     }
   }
@@ -805,6 +818,10 @@ class _ServiceRequestWizardScreenState extends State<ServiceRequestWizardScreen>
           controller: _notesController,
           maxLines: 3,
         ),
+        if (widget.item.feeInputs.isNotEmpty) ...[
+          const SizedBox(height: AppSpacing.xl),
+          FeeInputFields(names: widget.item.feeInputs, controllers: _feeControllers),
+        ],
         if (_requirementInfos.isNotEmpty) ...[
           const SizedBox(height: AppSpacing.xl),
           const Text(
@@ -904,6 +921,12 @@ class _ServiceRequestWizardScreenState extends State<ServiceRequestWizardScreen>
           _notesController.text.trim().isEmpty ? '—' : _notesController.text.trim(),
           onEdit: () => setState(() => _step = _requirementsStep),
         ),
+        for (final name in widget.item.feeInputs)
+          _reviewRow(
+            FeeInputs.label(name),
+            pesoText(FeeInputs.parse(_feeControllers[name]!.text)) ?? '—',
+            onEdit: () => setState(() => _step = _requirementsStep),
+          ),
         if (widget.item.fee != 'Free') _reviewRow('Fee', widget.item.fee, onEdit: null),
         if (_error != null) ...[
           const SizedBox(height: AppSpacing.md),

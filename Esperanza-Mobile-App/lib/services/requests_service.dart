@@ -407,12 +407,19 @@ class RequestsService extends ChangeNotifier {
   };
 
   /// POST /citizen/requests (CitizenRequestController::store()) --
-  /// service_key + form_data only. No attachments (no submission-time
-  /// upload endpoint exists) and no fee_inputs (the wizard doesn't collect
-  /// per_bracket/schedule fee inputs today, see catalog_item.dart's own fee
-  /// doc comment) are sent.
-  Future<ServiceRequest> submit({required String serviceKey, required Map<String, dynamic> formData}) async {
-    final res = await api.post('/citizen/requests', body: {'service_key': serviceKey, 'form_data': formData});
+  /// service_key + form_data, plus `fee_inputs` when the service's fee is
+  /// assessed on a declared amount ([CatalogItem.feeInputs]; the server
+  /// refuses the filing without them). No attachments: no submission-time
+  /// upload endpoint exists.
+  Future<ServiceRequest> submit({
+    required String serviceKey,
+    required Map<String, dynamic> formData,
+    Map<String, num> feeInputs = const {},
+  }) async {
+    final res = await api.post(
+      '/citizen/requests',
+      body: {'service_key': serviceKey, 'form_data': formData, if (feeInputs.isNotEmpty) 'fee_inputs': feeInputs},
+    );
     _requireRef(res);
     final request = _requestFromDetail(res.map);
     _requests.insert(0, request);
