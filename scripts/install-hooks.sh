@@ -9,4 +9,5 @@ set -e
 cd "$(git rev-parse --show-toplevel)"
 git config core.hooksPath scripts/hooks
 echo "core.hooksPath = $(git config --get core.hooksPath)"
-echo "Installed. 'git push' now runs analyze + the full test suite first."
+echo "Installed. 'git push' now runs analyze + the full test suite first (scripts/check.sh),"
+echo "unless that exact code already passed it."

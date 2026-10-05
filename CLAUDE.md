@@ -208,9 +208,17 @@ sh scripts/install-hooks.sh
 ```
 
 It points `core.hooksPath` at `scripts/hooks`, so `git push` runs `flutter analyze` and the
-full suite first and refuses the push if either fails. Measured warm on the macOS lane:
-analyze ~4s, tests ~30-70s. Verified by planting a type error and watching the push be
-refused — not assumed.
+full suite first (`scripts/check.sh`) and refuses the push if either fails. Measured warm on
+the macOS lane: analyze ~4s, tests ~30-70s. Verified by planting a type error and watching
+the push be refused — not assumed.
+
+On an 8 GB Windows laptop the same gate takes 15-20 minutes, so it remembers what passed:
+when `scripts/check.sh` passes and no file changed during the run, it records the exact
+code's fingerprint (a git tree hash, in `.git/esperanza-mobile-verified-trees`, never
+committed), and the hook skips the gate for a push whose every commit holds exactly that
+code. Run `sh scripts/check.sh` ahead of a push and the push goes straight through. A merge
+of someone else's work is new code and runs the gate. `ESPERANZA_FORCE_GATE=1 git push`
+always runs it.
 
 **Git does not version `.git/hooks`, so this step cannot be automatic.** That is the weak
 link and it is stated here rather than buried: a gate you have to install by hand is a gate

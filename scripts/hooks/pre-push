@@ -5,28 +5,43 @@
 # /Users/user/CLAUDE.md's deploy protocol requires it before every push. This
 # makes that mechanical instead of remembered.
 #
-# Runs the FULL suite, not the fast tier. tool/fast_test.dart says so itself:
-# it is a per-save subset and explicitly not the gate. Cost measured on the
-# macOS lane, warm: analyze ~4s, flutter test ~30-70s.
+# Runs the FULL suite, not the fast tier (scripts/check.sh). tool/fast_test.dart
+# says so itself: it is a per-save subset and explicitly not the gate.
+#
+# Skipped only for code that already passed it: scripts/check.sh records the
+# fingerprint (a git tree hash) of the exact files it checked when it passes.
+# A push whose every commit holds exactly such code runs nothing new; any other
+# push (a merge of someone else's work included) runs the full gate.
+# ESPERANZA_FORCE_GATE=1 git push always runs it. This is not a bypass: the
+# same content already passed this same gate.
+#
+# Plain sh on purpose: GitHub Desktop pushes with its own git, which ships sh
+# but not bash.
 #
 # To bypass: git push --no-verify. That is a protocol violation, not a
 # shortcut — if you need it, say so in the push report.
-set -e
 
-APP_DIR="$(git rev-parse --show-toplevel)/Esperanza-Mobile-App"
-[ -d "$APP_DIR" ] || { echo "pre-push: $APP_DIR not found — is this the right repo?"; exit 1; }
-cd "$APP_DIR"
+# git passes the refs being pushed on stdin; nothing below may read it again,
+# or the push deadlocks.
+pushed=$(cat)
+exec < /dev/null
 
-command -v flutter >/dev/null 2>&1 || {
-  echo "pre-push: flutter is not on PATH. Refusing to pass a gate that did not run."
-  echo "          (A gate that cannot run must fail, not succeed quietly.)"
-  exit 1
-}
+record="$(git rev-parse --git-path esperanza-mobile-verified-trees 2>/dev/null)"
+if [ -z "${ESPERANZA_FORCE_GATE:-}" ] && [ -n "$pushed" ] && [ -f "$record" ]; then
+  skip=1
+  when=""
+  for sha in $(printf '%s\n' "$pushed" | awk '{print $2}'); do
+    case "$sha" in *[!0]*) ;; *) continue ;; esac   # all zeros: a deleted branch
+    tree=$(git rev-parse --verify --quiet "$sha^{tree}") || { skip=0; break; }
+    hit=$(grep "^$tree " "$record" | tail -1) || { skip=0; break; }
+    [ -n "$hit" ] || { skip=0; break; }
+    when=${hit#* }
+  done
+  if [ "$skip" = 1 ] && [ -n "$when" ]; then
+    echo "pre-push: this exact code passed the full gate at $when; not running it again."
+    echo "          (ESPERANZA_FORCE_GATE=1 git push runs it anyway.)"
+    exit 0
+  fi
+fi
 
-echo "pre-push: flutter analyze"
-flutter analyze || { echo "pre-push: BLOCKED — analyze failed."; exit 1; }
-
-echo "pre-push: flutter test"
-flutter test || { echo "pre-push: BLOCKED — tests failed."; exit 1; }
-
-echo "pre-push: OK"
+exec sh "$(git rev-parse --show-toplevel)/scripts/check.sh"
