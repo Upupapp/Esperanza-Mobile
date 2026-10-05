@@ -252,6 +252,13 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
               ),
               const SizedBox(height: AppSpacing.xs),
               Text(request.office, style: AppTypography.bodySmallRegular.copyWith(color: AppColors.textMuted)),
+              // The incident's severity and the citizen's own description
+              // (B-052) -- the one free-text block this category has, where
+              // Dokyu/Tulong instead show admin remarks and form fields.
+              if (request.category == ServiceCategory.sakunaIncident && request.purpose.isNotEmpty) ...[
+                const SizedBox(height: AppSpacing.md),
+                Text(request.purpose, style: AppTypography.bodySmallRegular.copyWith(color: AppColors.textPrimary)),
+              ],
               const Divider(height: AppSpacing.xxl),
               _infoRow('Submitted', dateAndTime(request.submittedAt)),
               if (!usesMilestones && request.adminRemarks != null) _infoRow('Admin remarks', request.adminRemarks!),
