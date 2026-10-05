@@ -83,6 +83,9 @@ void main() {
       if (r.path == '/citizen/incidents') {
         return [_row('INC-2026-00002', status: 'Processing'), _row('INC-2026-00001', status: 'Completed')];
       }
+      if (r.path == '/citizen/incidents/INC-2026-00002') {
+        return {..._row('INC-2026-00002', status: 'Processing'), 'timeline': <dynamic>[]};
+      }
       throw const FakeApiError();
     });
     final service = RequestsService();
@@ -94,7 +97,55 @@ void main() {
 
     final detail = await service.loadDetail('INC-2026-00002');
     expect(detail.status, 'Processing');
-    expect(paths, ['/citizen/incidents']);
+    // B-052: an incident's detail now has its own route, never the
+    // Dokyu/Tulong one an INC- ref could never have resolved against.
+    expect(paths, ['/citizen/incidents', '/citizen/incidents/INC-2026-00002']);
+  });
+
+  test('B-052: an incident\'s detail carries description, severity and a real timeline', () async {
+    FakeApi.installFull((r) {
+      if (r.path == '/citizen/incidents/INC-2026-00002') {
+        return {
+          ..._row('INC-2026-00002', status: 'Under Verification'),
+          'sitio': 'Purok 3',
+          'description': 'Water rising fast near the covered court.',
+          'timeline': [
+            {'verb': 'validate', 'status': 'Under Verification', 'at': '2026-09-28T02:00:00+08:00'},
+          ],
+        };
+      }
+      return <dynamic>[];
+    });
+    final service = RequestsService();
+    addTearDown(service.dispose);
+
+    final detail = await service.loadDetail('INC-2026-00002');
+
+    expect(detail.office, 'Poblacion · Sitio Purok 3');
+    expect(detail.purpose, contains('Severity: High'));
+    expect(detail.purpose, contains('Water rising fast near the covered court.'));
+    expect(detail.statusHistory, hasLength(1));
+    expect(detail.statusHistory.single.status, 'Under Verification');
+    expect(detail.statusHistory.single.actor, isNotEmpty);
+
+    // The server's own citizen-safe shape has no staff note or responder
+    // identity to begin with; this just confirms nothing here invents one.
+    expect(detail.statusHistory.single.remarks, isNull);
+
+    // Replaces the matching list-row entry rather than duplicating it.
+    expect(service.byCategory(ServiceCategory.sakunaIncident), hasLength(1));
+  });
+
+  test('B-052: an incident with no description or sitio still renders cleanly', () async {
+    FakeApi.installFull((r) => {..._row('INC-2026-00004'), 'timeline': <dynamic>[]});
+    final service = RequestsService();
+    addTearDown(service.dispose);
+
+    final detail = await service.loadDetail('INC-2026-00004');
+
+    expect(detail.office, 'Poblacion'); // no sitio on the row -> no trailing separator
+    expect(detail.purpose, 'Severity: High'); // no description -> just the severity line
+    expect(detail.statusHistory, isEmpty);
   });
 
   test('Dokyu/Tulong reloads do not drop incidents', () async {

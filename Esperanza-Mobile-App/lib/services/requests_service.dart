@@ -109,10 +109,21 @@ class RequestsService extends ChangeNotifier {
   /// in [_requests] in place, so a detail screen already open on this
   /// request via [all]/[byCategory] sees the fuller record immediately.
   Future<ServiceRequest> loadDetail(String ref) async {
-    // An incident has no detail endpoint; GET /citizen/requests/{ref} would
-    // 404 on an INC- ref. The list row is everything the backend exposes.
-    for (final incident in _incidents) {
-      if (incident.referenceNumber == ref) return incident;
+    // B-052: GET /citizen/incidents/{ref} now exists -- description, sitio
+    // and a real timeline, not just the list row. Still routed off the ref
+    // prefix rather than a server round-trip: an INC- ref was never going
+    // to resolve against /citizen/requests/{ref} anyway.
+    if (ref.startsWith('INC-')) {
+      final res = await api.get('/citizen/incidents/${ApiClient.segment(ref)}');
+      final full = _incidentDetailFrom(res.map);
+      final idx = _incidents.indexWhere((i) => i.referenceNumber == ref);
+      if (idx != -1) {
+        _incidents[idx] = full;
+      } else {
+        _incidents.add(full);
+      }
+      notifyListeners();
+      return full;
     }
     final res = await api.get('/citizen/requests/${ApiClient.segment(ref)}');
     _requireRef(res);
@@ -167,6 +178,51 @@ class RequestsService extends ChangeNotifier {
     _incidents = [incident, ..._incidents.where((i) => i.referenceNumber != incident.referenceNumber)];
     notifyListeners();
     return incident;
+  }
+
+  /// B-052: GET /citizen/incidents/{ref}'s fuller shape -- adds description,
+  /// sitio and a real timeline on top of what [_incidentFrom] reads from the
+  /// list row. The timeline is already citizen-safe server-side (verb and
+  /// when, never the staff note or who acted), so no field here needs
+  /// hiding; 'actor' is a fixed label because the server does not send one.
+  ServiceRequest _incidentDetailFrom(Map<String, dynamic> json) {
+    final base = _incidentFrom(json);
+    final severity = JsonRead.nonEmpty(json['severity']);
+    final description = JsonRead.nonEmpty(json['description']);
+    final sitio = JsonRead.nonEmpty(json['sitio']);
+    final timeline = JsonRead.list(json['timeline']);
+    return ServiceRequest(
+      id: base.id,
+      referenceNumber: base.referenceNumber,
+      applicantId: base.applicantId,
+      applicantName: base.applicantName,
+      typeName: base.typeName,
+      category: base.category,
+      // Reuses the slot the type name's own subtitle already renders
+      // (RequestDetailScreen shows `request.office` right under the title),
+      // rather than adding a new one just for this category.
+      office: [
+        JsonRead.nonEmpty(json['barangay']),
+        if (sitio != null) 'Sitio $sitio',
+      ].whereType<String>().join(' · '),
+      // RequestDetailScreen renders this as the incident's one free-text
+      // block (see its `usesMilestones` branch) -- severity stays visible
+      // here too, not only in the list row's own copy, which this replaces.
+      purpose: [
+        if (severity != null) 'Severity: $severity',
+        description,
+      ].whereType<String>().join('\n\n'),
+      submittedAt: base.submittedAt,
+      status: base.status,
+      statusHistory: JsonRead.rows(timeline, (row) {
+        final status = JsonRead.nonEmpty(row['status']);
+        final at = JsonRead.date(row['at']);
+        if (status == null || at == null) return null;
+        return StatusHistoryEntry(status: status, at: at, actor: 'Esperanza LGU');
+      }),
+      attachments: const [],
+      expectedDays: base.expectedDays,
+    );
   }
 
   /// incident(): ref/title/type/severity/barangay/status/source/reported.
