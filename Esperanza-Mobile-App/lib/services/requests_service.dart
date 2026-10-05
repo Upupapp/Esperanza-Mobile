@@ -347,6 +347,11 @@ class RequestsService extends ChangeNotifier {
       if (key == null || JsonRead.boolean(q['attachable']) != true) return null;
       return PendingRequirement(key: key, label: JsonRead.string(q['label']) ?? key);
     });
+    final missingRequired = JsonRead.rows(json['missing_required'], (q) {
+      final key = JsonRead.nonEmpty(q['key']);
+      if (key == null) return null;
+      return PendingRequirement(key: key, label: JsonRead.string(q['label']) ?? key);
+    });
     return ServiceRequest(
       id: ref,
       referenceNumber: ref,
@@ -366,6 +371,7 @@ class RequestsService extends ChangeNotifier {
     )
       ..canResubmit = JsonRead.boolean(json['can_resubmit']) ?? false
       ..attachableRequirements = attachable
+      ..missingRequired = missingRequired
       ..assistance = _assistanceFrom(JsonRead.map(json['assistance']), JsonRead.nonEmpty(json['office']))
       ..payment = _paymentFrom(JsonRead.map(json['payment']));
   }

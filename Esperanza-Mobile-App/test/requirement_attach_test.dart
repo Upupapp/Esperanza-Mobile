@@ -11,6 +11,7 @@ import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:esperanza_mobile/screens/shared/request_detail_screen.dart';
+import 'package:esperanza_mobile/widgets/app_button.dart';
 import 'package:esperanza_mobile/services/citizen_session_service.dart';
 import 'package:esperanza_mobile/services/master_file_service.dart';
 import 'package:esperanza_mobile/services/requests_service.dart';
@@ -116,4 +117,56 @@ void main() {
     expect(find.text('Remove'), findsNothing);
     expect(find.text('Replace'), findsOneWidget);
   });
+
+  // QA run 2026-10-05: once the flagged document was replaced, the card that
+  // offered the still-missing ID was out of sight and the resident resubmitted
+  // without it. The missing document now sits in the correction card, beside
+  // Resubmit, which stays off until it is attached.
+  testWidgets('a missing required document is offered beside Resubmit during a correction', (tester) async {
+    SharedPreferences.setMockInitialValues({});
+    FakeApi.installFull((req) => {
+      ..._detail(idAttached: false),
+      'status': 'Under Review',
+      'needs_correction': [
+        {'key': 'req_2', 'label': 'Cedula', 'reason': 'Unreadable', 'remarks': 'Clearer copy', 'resolved': true},
+      ],
+      'missing_required': [
+        {'key': 'req_1', 'label': 'Valid ID'},
+      ],
+      'can_resubmit': false,
+    });
+    final requests = RequestsService();
+    final session = CitizenSessionService();
+    var attempts = 0;
+    while (session.loading) {
+      if (++attempts > 100) throw StateError('CitizenSessionService never finished loading.');
+      await tester.pump(const Duration(milliseconds: 1));
+    }
+    tester.view.physicalSize = const Size(390, 2400);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(
+      MultiProvider(
+        providers: [
+          ChangeNotifierProvider<RequestsService>.value(value: requests),
+          ChangeNotifierProvider<CitizenSessionService>.value(value: session),
+          ChangeNotifierProvider(create: (_) => ResidentProfileService()),
+          ChangeNotifierProvider(create: (_) => MasterFileService()),
+        ],
+        child: const MaterialApp(home: RequestDetailScreen(requestId: _ref)),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Application Needs Correction'), findsOneWidget);
+    expect(find.text('1 required document still needs to be attached.'), findsOneWidget);
+    expect(find.text('Attach the required document above first, then resubmit.'), findsOneWidget);
+    // The ID is offered inside the correction card, not twice.
+    expect(find.text('Valid ID'), findsOneWidget);
+    final resubmit = tester.widget<AppButton>(find.widgetWithText(AppButton, 'Resubmit Application'));
+    expect(resubmit.onPressed, isNull, reason: 'Resubmit stays off until the ID is attached');
+  });
 }
+

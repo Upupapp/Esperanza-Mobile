@@ -208,6 +208,11 @@ class ServiceRequest {
   /// Re-fetched with every detail, like [canResubmit]; empty on a list row.
   List<PendingRequirement> attachableRequirements = const [];
 
+  /// Required documents not uploaded yet (the detail's `missing_required`).
+  /// A correction is not resubmittable until they are attached: the app let a
+  /// resident resubmit without the ID (QA run 2026-10-05).
+  List<PendingRequirement> missingRequired = const [];
+
   /// Tulong only; re-fetched with every detail, like [canResubmit].
   TulongAssistance? assistance;
 

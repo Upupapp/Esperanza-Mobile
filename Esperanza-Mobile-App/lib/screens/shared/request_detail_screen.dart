@@ -281,10 +281,11 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
         // requirement at all means the server's own "needs manual
         // verification" flavor — nothing for the citizen to upload, just
         // the explanation from decision_remarks.
-        if (request.attachableRequirements.isNotEmpty) ...[
+        if (_attachableOutsideCorrection(request).isNotEmpty) ...[
           const SizedBox(height: AppSpacing.xl),
           _AttachSection(
             request: request,
+            pending: _attachableOutsideCorrection(request),
             accent: accent,
             busy: _busy,
             onAttach: (key, a) => _attach(service, key, a),
@@ -301,6 +302,7 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
               busy: _busy,
               keyFor: _keyFor,
               onReplace: (flaggedId, a) => _replaceFlagged(service, flaggedId, a),
+              onAttach: (key, a) => _attach(service, key, a),
               onResubmit: request.canResubmit ? () => _resubmit(service) : null,
             )
           else
@@ -431,6 +433,7 @@ class _CorrectionsSection extends StatelessWidget {
   final bool busy;
   final GlobalKey Function(String flaggedId) keyFor;
   final void Function(String flaggedId, Attachment newAttachment) onReplace;
+  final void Function(String requirementKey, Attachment newAttachment) onAttach;
   final VoidCallback? onResubmit;
 
   const _CorrectionsSection({
@@ -439,13 +442,18 @@ class _CorrectionsSection extends StatelessWidget {
     required this.busy,
     required this.keyFor,
     required this.onReplace,
+    required this.onAttach,
     required this.onResubmit,
   });
 
   @override
   Widget build(BuildContext context) {
     final unresolved = request.flaggedRequirements.where((f) => !f.isResolved).toList();
-    final allResolved = unresolved.isEmpty;
+    // Required documents never uploaded sit here too, beside Resubmit: in a
+    // separate card above, they were easy to miss, and the resident
+    // resubmitted without the ID (QA run 2026-10-05).
+    final missing = request.missingRequired;
+    final allResolved = unresolved.isEmpty && missing.isEmpty;
     return Container(
       padding: const EdgeInsets.all(AppSpacing.lg),
       decoration: BoxDecoration(
@@ -470,11 +478,13 @@ class _CorrectionsSection extends StatelessWidget {
           ),
           const SizedBox(height: AppSpacing.xs),
           Text(
-            unresolved.length > 1
-                ? '${unresolved.length} documents require correction.'
-                : allResolved
-                    ? 'All flagged documents have been replaced — you may now resubmit.'
-                    : '1 document requires correction.',
+            allResolved
+                ? 'All flagged documents have been replaced — you may now resubmit.'
+                : unresolved.length + missing.length > 1
+                    ? '${unresolved.length + missing.length} documents need your attention.'
+                    : unresolved.isNotEmpty
+                        ? '1 document requires correction.'
+                        : '1 required document still needs to be attached.',
             style: AppTypography.captionSmallRegular.copyWith(color: AppColors.slate500, height: 1.4),
           ),
           for (final flagged in unresolved)
@@ -489,6 +499,19 @@ class _CorrectionsSection extends StatelessWidget {
                 serviceName: request.typeName,
                 category: request.category,
                 onReplace: (a) => onReplace(flagged.id, a),
+              ),
+            ),
+          for (final m in missing)
+            Padding(
+              padding: const EdgeInsets.only(top: AppSpacing.md),
+              child: _ServerRequirementUploader(
+                label: m.label,
+                current: null,
+                accent: accent,
+                busy: busy,
+                serviceName: request.typeName,
+                category: request.category,
+                onPicked: (a) => onAttach(m.key, a),
               ),
             ),
           for (final done in request.flaggedRequirements.where((f) => f.isResolved))
@@ -519,11 +542,13 @@ class _CorrectionsSection extends StatelessWidget {
           if (!allResolved || onResubmit == null) ...[
             const SizedBox(height: AppSpacing.sm),
             Text(
-              !allResolved
+              unresolved.isNotEmpty
                   ? (unresolved.length > 1
                         ? 'Replace the flagged documents above first, then resubmit.'
                         : 'Replace the flagged document above first, then resubmit.')
-                  : 'This request cannot be resubmitted right now. Pull down to refresh.',
+                  : missing.isNotEmpty
+                      ? 'Attach the required document${missing.length > 1 ? 's' : ''} above first, then resubmit.'
+                      : 'This request cannot be resubmitted right now. Pull down to refresh.',
               style: AppTypography.captionSmallRegular.copyWith(color: AppColors.slate500, height: 1.4),
             ),
           ],
@@ -531,6 +556,15 @@ class _CorrectionsSection extends StatelessWidget {
       ),
     );
   }
+}
+
+/// The documents the top card offers: during a correction, the missing
+/// required ones are offered in the correction card instead, beside Resubmit.
+List<PendingRequirement> _attachableOutsideCorrection(ServiceRequest request) {
+  final inCorrection = request.status == RequestMilestones.underReview || request.status == TulongStatus.needsRequirements;
+  if (!inCorrection || request.flaggedRequirements.isEmpty) return request.attachableRequirements;
+  final inCard = request.missingRequired.map((m) => m.key).toSet();
+  return request.attachableRequirements.where((p) => !inCard.contains(p.key)).toList();
 }
 
 Attachment? _attachmentFor(ServiceRequest request, String requirementLabel) {
@@ -679,15 +713,15 @@ class _ServerRequirementUploader extends StatelessWidget {
 /// being verified. Nothing is resubmitted; the office reviews what is on file.
 class _AttachSection extends StatelessWidget {
   final ServiceRequest request;
+  final List<PendingRequirement> pending;
   final Color accent;
   final bool busy;
   final void Function(String requirementKey, Attachment newAttachment) onAttach;
 
-  const _AttachSection({required this.request, required this.accent, required this.busy, required this.onAttach});
+  const _AttachSection({required this.request, required this.pending, required this.accent, required this.busy, required this.onAttach});
 
   @override
   Widget build(BuildContext context) {
-    final pending = request.attachableRequirements;
     final missing = pending.where((p) => _attachmentFor(request, p.label) == null).length;
     return Container(
       padding: const EdgeInsets.all(AppSpacing.lg),
