@@ -10,6 +10,7 @@ import 'package:esperanza_mobile/models/attachment.dart';
 import 'package:esperanza_mobile/utils/requirement_document_type.dart';
 import 'package:esperanza_mobile/widgets/app_button.dart';
 import 'package:esperanza_mobile/widgets/live_banners.dart';
+import 'package:esperanza_mobile/services/notifications_service.dart';
 import 'package:esperanza_mobile/widgets/requirement_uploader.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -183,6 +184,36 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Second sample'), findsOneWidget);
     expect(find.text('Hidden'), findsNothing, reason: 'no button where it would lead to this same screen');
+  });
+
+  test('a Sakuna alert in the feed is offered as a pop-up once', () async {
+    SharedPreferences.setMockInitialValues({});
+    api = ApiClient(
+      httpClient: MockClient((req) async {
+        if (req.method == 'POST') return http.Response('{"data":{}}', 200, headers: {'content-type': 'application/json'});
+        return http.Response(
+          jsonEncode({
+            'data': [
+              {'id': 7, 'category': 'sakuna', 'title': {'fil': 'Pagsasanay', 'en': 'Drill'}, 'body': {'fil': 'Pagsubok', 'en': 'Test'}, 'pill': 'Information', 'unread': true, 'popup': true, 'time': '2026-10-05T02:00:00Z'},
+              {'id': 6, 'category': 'dokyu', 'title': {'en': 'Approved'}, 'body': {'en': 'x'}, 'unread': true, 'popup': false, 'time': '2026-10-05T01:00:00Z'},
+            ],
+            'meta': {'page': 1, 'last_page': 1},
+          }),
+          200,
+          headers: {'content-type': 'application/json'},
+        );
+      }),
+      baseUrl: 'https://test.invalid',
+    );
+    final service = NotificationsService();
+    addTearDown(service.dispose);
+    await service.loadServer();
+
+    final alert = service.pendingAlert;
+    expect(alert?.id, 7);
+    expect(alert?.title, 'Pagsasanay', reason: 'Filipino first, like every server message');
+    await service.alertShown(alert!);
+    expect(service.pendingAlert, isNull, reason: 'shown once, then read');
   });
 
   test('each promotional poster is shown once on a phone, not on every app start', () async {

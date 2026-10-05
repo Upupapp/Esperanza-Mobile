@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../models/access_level.dart';
@@ -13,6 +15,7 @@ import '../../widgets/esperanza_curved_navbar.dart';
 import '../../widgets/nav_item_data.dart';
 import '../../utils/banner_memory.dart';
 import '../../widgets/promotional_banner_dialog.dart';
+import '../../widgets/sakuna_alerts_ui.dart';
 import '../../widgets/service_launcher_menu.dart';
 import '../balita/balita_screen.dart';
 import '../dokyu/dokyu_screen.dart';
@@ -76,17 +79,65 @@ class RootShell extends StatefulWidget {
   static RootShell withKey() => RootShell(key: _key);
 }
 
-class _RootShellState extends State<RootShell> {
+class _RootShellState extends State<RootShell> with WidgetsBindingObserver {
   int? _navIndex = 0;
   ServiceLauncherTarget? _activeLauncherTarget;
   int _bodyIndex = 0;
+  Timer? _poll;
+  NotificationsService? _notifications;
+  bool _alertOpen = false;
 
   @override
   void initState() {
     super.initState();
     // The bell's unread dot needs the server feed as soon as the shell
-    // appears, not only once the Notifications screen is opened.
+    // appears, not only once the Notifications screen is opened. After that
+    // it refreshes every minute while the app is open and on every return to
+    // it: notifications used to arrive only when the app was started.
+    WidgetsBinding.instance.addObserver(this);
     _loadNotifications();
+    _startPolling();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _notifications = context.read<NotificationsService>()..addListener(_maybeShowAlert);
+    });
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _poll?.cancel();
+    _notifications?.removeListener(_maybeShowAlert);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _loadNotifications();
+      _startPolling();
+    } else if (state == AppLifecycleState.paused) {
+      _poll?.cancel();
+      _poll = null;
+    }
+  }
+
+  void _startPolling() {
+    _poll ??= Timer.periodic(const Duration(seconds: 60), (_) => _loadNotifications());
+  }
+
+  /// A new Sakuna alert opens as a dialog once, on whatever tab is showing.
+  Future<void> _maybeShowAlert() async {
+    final service = _notifications;
+    if (_alertOpen || !mounted || service == null) return;
+    final alert = service.pendingAlert;
+    if (alert == null) return;
+    _alertOpen = true;
+    final openEmergency = await SakunaAlertDialog.show(context, alert);
+    await service.alertShown(alert);
+    _alertOpen = false;
+    if (openEmergency && mounted) setTab(3);
+    if (mounted) unawaited(_maybeShowAlert());
   }
 
   Future<void> _loadNotifications() async {

@@ -21,6 +21,7 @@ import '../../widgets/event_card.dart';
 import '../../utils/banner_memory.dart';
 import '../../widgets/home_welcome_banner.dart';
 import '../../widgets/live_banners.dart';
+import '../../widgets/sakuna_alerts_ui.dart';
 import '../../widgets/parallax_header.dart';
 import '../../widgets/resident_profile_status_card.dart';
 import '../../widgets/section_header.dart';
@@ -147,6 +148,9 @@ class _HomeScreenState extends State<HomeScreen> {
             children: [
               _Hero(account: account, scrollController: _scrollController),
               const SizedBox(height: AppSpacing.lg),
+              // Alerts in force for the resident's barangay, like the website's
+              // dashboard; they were only on the Emergency tab.
+              ActiveAlertsCard(onOpen: () => RootShell.jumpTo(context, 3)),
               FutureBuilder<List<LiveBanner>>(
                 future: _bannersFuture,
                 builder: (context, snapshot) {

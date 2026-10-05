@@ -25,10 +25,12 @@ class NotificationsService extends ChangeNotifier {
   static const _readKey = 'esperanza_read_notification_ids';
   static const _duplicateKey = 'esperanza_duplicate_alert_resolutions';
   static const _unverifiedDuplicateKey = 'esperanza_unverified_duplicate_kept_account';
+  static const _shownAlertsKey = 'esperanza_shown_alert_ids';
 
   Set<String> _readIds = {};
   Map<String, String> _duplicateResolutions = {};
   String? _unverifiedDuplicateKeptAccountId;
+  Set<int> _shownAlerts = {};
   bool _loaded = false;
 
   bool get loaded => _loaded;
@@ -50,6 +52,10 @@ class NotificationsService extends ChangeNotifier {
         _duplicateResolutions = Map<String, String>.from(jsonDecode(rawDuplicate) as Map);
       }
       _unverifiedDuplicateKeptAccountId = prefs.getString(_unverifiedDuplicateKey);
+      final rawShown = prefs.getString(_shownAlertsKey);
+      if (rawShown != null) {
+        _shownAlerts = (jsonDecode(rawShown) as List).cast<int>().toSet();
+      }
     } catch (error) {
       // A payload persisted by an earlier build can fail to decode after a
       // model or enum changes shape. Before this guard that throw escaped an
@@ -65,7 +71,7 @@ class NotificationsService extends ChangeNotifier {
       // a deliberate follow-up, not an oversight.
       await PersistenceRecovery.discardUnreadable(
         service: 'NotificationsService',
-        keys: const [_readKey, _duplicateKey, _unverifiedDuplicateKey],
+        keys: const [_readKey, _duplicateKey, _unverifiedDuplicateKey, _shownAlertsKey],
         error: error,
       );
     } finally {
@@ -85,7 +91,9 @@ class NotificationsService extends ChangeNotifier {
     _readIds = {};
     _duplicateResolutions = {};
     _unverifiedDuplicateKeptAccountId = null;
+    _shownAlerts = {};
     final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_shownAlertsKey);
     await prefs.remove(_readKey);
     await prefs.remove(_duplicateKey);
     await prefs.remove(_unverifiedDuplicateKey);
@@ -116,6 +124,23 @@ class NotificationsService extends ChangeNotifier {
     final rows = await api.getAllPages('/citizen/notifications', query: {'per_page': 100}, maxPages: 3);
     _server = JsonRead.rows(rows, ServerNotification.fromApi);
     notifyListeners();
+  }
+
+  /// A Sakuna alert that arrived since the resident last looked and has not
+  /// been shown as a pop-up on this phone yet.
+  ServerNotification? get pendingAlert {
+    for (final n in _server) {
+      if (n.category == 'sakuna' && n.popup && n.unread && !_shownAlerts.contains(n.id) && !isRead(n.feedId)) return n;
+    }
+    return null;
+  }
+
+  /// The pop-up was shown: never again on this phone, and the notification is read.
+  Future<void> alertShown(ServerNotification alert) async {
+    _shownAlerts = {..._shownAlerts, alert.id};
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_shownAlertsKey, jsonEncode(_shownAlerts.toList()));
+    await markRead(alert.feedId);
   }
 
   void _clearServer() {
@@ -198,6 +223,7 @@ class ServerNotification {
     required this.unread,
     required this.pinned,
     required this.at,
+    this.popup = false,
   });
 
   final int id;
@@ -220,6 +246,9 @@ class ServerNotification {
   bool unread;
   final bool pinned;
   final DateTime at;
+
+  /// A Sakuna alert: shown as a pop-up once (see [NotificationsService.pendingAlert]).
+  final bool popup;
 
   String get feedId => 'srv-$id';
 
@@ -246,6 +275,7 @@ class ServerNotification {
       unread: JsonRead.boolean(json['unread']) ?? true,
       pinned: JsonRead.boolean(json['pinned']) ?? false,
       at: JsonRead.date(json['time'])?.toLocal() ?? DateTime.now(),
+      popup: JsonRead.boolean(json['popup']) ?? false,
     );
   }
 }
