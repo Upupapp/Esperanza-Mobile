@@ -49,7 +49,9 @@ List<RequirementInfo> resolveRequirements(List<String> requirements) => requirem
     )
     .toList();
 
-final _optionalPhrasing = RegExp(r'if applicable|if available|if any', caseSensitive: false);
+// Also "required if ..." and "... for new registration only" (the marriage
+// and civil-registry forms): conditional, the same rule as the server.
+final _optionalPhrasing = RegExp(r'if applicable|if available|if any|required if|\bonly\s*$', caseSensitive: false);
 
 bool _isOptionalPhrasing(String label) => _optionalPhrasing.hasMatch(label);
 
@@ -71,7 +73,8 @@ bool _isOptionalPhrasing(String label) => _optionalPhrasing.hasMatch(label);
 ///    of prose would be nonsensical; the free-text Purpose field is where
 ///    this belongs when no formSpec captures it.
 final _notResidentUploadedPhrasing = RegExp(
-  r'brief interview|case study|case assessment|details of the record being requested',
+  // Also thumbmarks taken at the hall and "None — ...": the server's rule.
+  r'interview|case study|case assessment|details of the record being requested|thumbmark|to be taken at|^\s*none\b',
   caseSensitive: false,
 );
 
