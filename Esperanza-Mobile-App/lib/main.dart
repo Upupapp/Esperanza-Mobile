@@ -11,6 +11,7 @@ import 'services/requests_service.dart';
 import 'services/resident_profile_service.dart';
 import 'theme/app_colors.dart';
 import 'theme/app_theme.dart';
+import 'widgets/session_refresh_on_resume.dart';
 
 void main() {
   runApp(const EsperanzaMobileApp());
@@ -33,18 +34,22 @@ class EsperanzaMobileApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => MasterFileService()),
         ChangeNotifierProvider(create: (_) => NotificationsService()),
       ],
-      child: MaterialApp(
-        title: 'Esperanza Mobile',
-        debugShowCheckedModeBanner: false,
-        theme: AppTheme.light,
-        // SplashScreen (every launch) hands off to either the first-run
-        // welcome flow or straight to AuthGate — see splash_screen.dart's
-        // doc comment for why every handoff uses pushReplacement rather
-        // than push, which matters a great deal here: AuthGate must stay
-        // the *root* route (index 0) for RootShell/RestrictedFeatureNotice's
-        // `popUntil((route) => route.isFirst)` calls to keep working — see
-        // AuthGate's own doc comment for the history behind that.
-        home: const SplashScreen(),
+      // Re-reads the account each time the app returns to the foreground, so
+      // an LGU approval reaches the resident without a restart.
+      child: SessionRefreshOnResume(
+        child: MaterialApp(
+          title: 'Esperanza Mobile',
+          debugShowCheckedModeBanner: false,
+          theme: AppTheme.light,
+          // SplashScreen (every launch) hands off to either the first-run
+          // welcome flow or straight to AuthGate — see splash_screen.dart's
+          // doc comment for why every handoff uses pushReplacement rather
+          // than push, which matters a great deal here: AuthGate must stay
+          // the *root* route (index 0) for RootShell/RestrictedFeatureNotice's
+          // `popUntil((route) => route.isFirst)` calls to keep working — see
+          // AuthGate's own doc comment for the history behind that.
+          home: const SplashScreen(),
+        ),
       ),
     );
   }

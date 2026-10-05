@@ -101,13 +101,25 @@ class CitizenSessionService extends ChangeNotifier {
     if (!_disposed) notifyListeners();
   }
 
-  /// Re-reads the profile in the background after a warm start from the
-  /// cache. The doc comment on [refresh] always promised this; nothing
-  /// called it, so a citizen the LGU verified stayed locked out of Dokyu
-  /// until they signed out and in again. A network failure keeps the cached
-  /// copy (offline start still works); a 401 clears it via
-  /// [_onSessionExpired].
-  Future<void> _revalidate() async {
+  Future<void>? _revalidating;
+
+  /// Re-reads the profile in the background. The doc comment on [refresh]
+  /// always promised this; nothing called it, so a citizen the LGU verified
+  /// stayed locked out of Dokyu until they signed out and in again.
+  ///
+  /// Called after a warm start from the cache, and -- since 2026-10-05 --
+  /// whenever the app returns to the foreground (SessionRefreshOnResume) and
+  /// when the Digital ID screen opens. Before that, an account the LGU
+  /// approved while the app sat in the background still read "Pending
+  /// Review" until a full restart.
+  ///
+  /// A network failure keeps the cached copy (offline still works); a 401
+  /// clears it via [_onSessionExpired]. Calls that overlap share one request,
+  /// so a resume and a screen opening together hit the server once.
+  Future<void> revalidate() => _revalidating ??= _revalidateOnce().whenComplete(() => _revalidating = null);
+
+  Future<void> _revalidateOnce() async {
+    if (_account == null) return; // a guest or signed-out session has nothing to re-read
     if (await api.getToken() == null) return;
     try {
       await refresh();
@@ -149,7 +161,7 @@ class CitizenSessionService extends ChangeNotifier {
       _loading = false;
       notifyListeners();
     }
-    if (_account != null) unawaited(_revalidate());
+    if (_account != null) unawaited(revalidate());
   }
 
 

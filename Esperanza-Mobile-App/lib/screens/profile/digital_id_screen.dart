@@ -37,13 +37,32 @@ import '../../widgets/image_viewer_scaffold.dart';
 /// verified account's wallet is shown; an unverified account (including a
 /// duplicate registration still Pending Review) sees an explanatory state
 /// instead.
-class DigitalIdScreen extends StatelessWidget {
+class DigitalIdScreen extends StatefulWidget {
   const DigitalIdScreen({super.key});
+
+  @override
+  State<DigitalIdScreen> createState() => _DigitalIdScreenState();
+}
+
+class _DigitalIdScreenState extends State<DigitalIdScreen> {
+  @override
+  void initState() {
+    super.initState();
+    // The screen decides verified/not from the session's cached status, so
+    // re-read it on open: an account the LGU approved since sign-in shows
+    // its card as soon as the answer arrives (the watch below rebuilds),
+    // instead of "Pending Review" until the app is restarted.
+    context.read<CitizenSessionService>().revalidate();
+  }
 
   @override
   Widget build(BuildContext context) {
     final session = context.watch<CitizenSessionService>();
-    final account = session.account!;
+    // A re-read that gets a 401 clears the session while this screen is
+    // still on top; AuthGate takes over underneath, so render nothing here
+    // rather than dereference an account that no longer exists.
+    final account = session.account;
+    if (account == null) return const Scaffold();
     final isVerified = session.accessLevel == AccessLevel.verified;
 
     return Scaffold(
