@@ -83,6 +83,22 @@ class BalitaService extends ChangeNotifier {
     }
   }
 
+  /// One announcement, for a "New in Balita" notification that opens it
+  /// (Esperanza QA, 2026-10-07): the loaded feed's copy when it has one,
+  /// otherwise GET /announcements/{id}, which is how an older post that is
+  /// not in the first pages is still found. Added to the feed so a like or a
+  /// comment on it updates the same object everywhere.
+  Future<Announcement> loadAnnouncement(int id) async {
+    for (final p in _posts) {
+      if (p.kind == PostKind.announcement && p.remoteId == id) return p;
+    }
+    final res = await api.get('/announcements/$id');
+    final post = Announcement.fromAnnouncementApi(res.map);
+    _posts = [post, ..._posts];
+    notifyListeners();
+    return post;
+  }
+
   // Every engagement route lives under the backend's `citizen` group
   // (esperanza-backend routes/api.php, `prefix('citizen')`); only the
   // announcements *read* is public. These used to omit the prefix, so every

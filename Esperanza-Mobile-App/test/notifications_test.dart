@@ -9,9 +9,11 @@ import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:esperanza_mobile/models/citizen_account.dart';
+import 'package:esperanza_mobile/screens/balita/balita_post_screen.dart';
 import 'package:esperanza_mobile/screens/notifications/notifications_screen.dart';
 import 'package:esperanza_mobile/screens/profile/resident_profile/resident_profile_overview_screen.dart';
 import 'package:esperanza_mobile/screens/shared/request_detail_screen.dart';
+import 'package:esperanza_mobile/services/balita_service.dart';
 import 'package:esperanza_mobile/services/citizen_session_service.dart';
 import 'package:esperanza_mobile/services/notification_feed.dart';
 import 'package:esperanza_mobile/services/notifications_service.dart';
@@ -59,6 +61,7 @@ Future<void> _pump(
         ChangeNotifierProvider(create: (_) => RequestsService()),
         ChangeNotifierProvider<ResidentProfileService>.value(value: residentProfileService ?? ResidentProfileService()),
         ChangeNotifierProvider<NotificationsService>.value(value: notifications ?? NotificationsService()),
+        ChangeNotifierProvider(create: (_) => BalitaService()),
       ],
       child: const MaterialApp(home: NotificationsScreen()),
     ),
@@ -175,6 +178,59 @@ void main() {
     expect(posts, ['/citizen/notifications/41/read']);
     expect(notifications.isRead('srv-41'), isTrue);
     expect(find.byType(RequestDetailScreen), findsOneWidget);
+  });
+
+  // Esperanza QA, 2026-10-07: a new Balita post notifies residents, and the
+  // notification opens the post -- even one older than the loaded feed.
+  testWidgets('a New in Balita notification opens that post', (tester) async {
+    final gets = <String>[];
+    FakeApi.installFull((r) {
+      gets.add('${r.method} ${r.path}');
+      if (r.path == '/citizen/notifications') {
+        return [
+          {
+            'id': 77,
+            'category': 'community',
+            'title': {'fil': 'Bagong Balita: Libreng bakuna', 'en': 'New in Balita: Libreng bakuna'},
+            'body': {'fil': 'Bukas ang health center.', 'en': 'Bukas ang health center.'},
+            'pill': 'Balita',
+            'link': '/citizen/announcements?post=7',
+            'unread': true,
+            'pinned': false,
+            'time': '2026-10-07T01:00:00Z',
+          },
+        ];
+      }
+      if (r.path == '/announcements/7') {
+        return {
+          'id': 7,
+          'title': 'Libreng bakuna sa Sabado',
+          'body': 'Bukas ang health center mula 8 AM.',
+          'author': 'MHO',
+          'category': 'Health',
+          'published_at': '2026-10-07T01:00:00Z',
+          'likes': 0,
+          'comments_count': 0,
+        };
+      }
+      if (r.method == 'POST') return {'unread': false};
+      return <dynamic>[];
+    });
+    addTearDown(FakeApi.restore);
+
+    final notifications = NotificationsService();
+    await _pump(tester, account: _incompleteAccount, notifications: notifications);
+    await tester.runAsync(notifications.loadServer);
+    await tester.pumpAndSettle();
+
+    await tester.ensureVisible(find.text('Bagong Balita: Libreng bakuna'));
+    await tester.tap(find.text('Bagong Balita: Libreng bakuna'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(BalitaPostScreen), findsOneWidget);
+    expect(gets, contains('GET /announcements/7'), reason: 'an older post is fetched by its id');
+    expect(find.textContaining('Libreng bakuna sa Sabado'), findsWidgets);
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('a server notification wears its own status badge and says when it arrived', (tester) async {
