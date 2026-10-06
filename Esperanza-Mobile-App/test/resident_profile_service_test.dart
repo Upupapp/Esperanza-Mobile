@@ -212,6 +212,45 @@ void main() {
     expect(p.personalSaved && p.householdSaved && p.familySaved, isTrue);
   });
 
+  test('an email on file is not taken as the mobile number', () async {
+    // A resident with no mobile number: the server's record has the email as
+    // its contact. The retest of 2026-10-07 found it copied into Mobile
+    // number, which then stopped every request form ("11 digits").
+    final account = CitizenAccount(
+      id: 'ESP-RES-TEST-0002',
+      firstName: 'Email',
+      lastName: 'Only',
+      email: 'email.only@example.com',
+      mobile: '',
+      barangay: 'Agoho',
+      purok: 'Purok 1',
+      address: 'Purok 1, Barangay Agoho, Esperanza, Masbate',
+      birthdate: '—',
+      sex: '—',
+      civilStatus: '—',
+      occupation: '—',
+      profileCompleteness: 40,
+      status: 'Approved',
+    );
+    final service = ResidentProfileService();
+    await Future<void>.delayed(const Duration(milliseconds: 50));
+    FakeApi.installFull((r) => {
+          'individual': {'ref': 'RES-2026-0904', 'verification': 'Verified', 'contact': 'email.only@example.com'},
+          'family': {
+            'members': [
+              {'name': 'Member With Phone', 'contact': '0917 123 4567'},
+            ],
+          },
+          'submitted_at': '2026-10-06T01:00:00Z',
+        });
+    addTearDown(FakeApi.restore);
+
+    await service.sync(account);
+    final p = service.profileFor(account);
+    expect(p.personal.mobile, isEmpty);
+    expect(p.familyMembers.single.mobile, '09171234567');
+  });
+
   test('a profile never submitted stays as it is on the phone after a sync', () async {
     final account = _demoAccount();
     final service = ResidentProfileService();

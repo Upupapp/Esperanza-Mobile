@@ -7,6 +7,7 @@ import 'json_read.dart';
 import 'persistence_recovery.dart';
 import '../models/citizen_account.dart';
 import '../models/resident_profile.dart';
+import '../utils/ph_mobile.dart';
 
 /// Local, frontend-only "database" for Resident Profiling — same
 /// persistence shape as RequestsService/BalitaService: JSON to
@@ -517,7 +518,9 @@ class ResidentProfileService extends ChangeNotifier {
       person.birthdate ??= JsonRead.date(me['dob']);
       person.civilStatus = fill(person.civilStatus, me['civil_status'], ResidentProfileOptions.civilStatus);
       person.sitioPurok = fill(person.sitioPurok, me['sitio']);
-      person.mobile = fill(person.mobile, me['contact']);
+      // The record's contact is the email when the resident gave no mobile
+      // number; only a mobile number belongs in this field.
+      person.mobile = fill(person.mobile, _mobileOrNull(me['contact']));
       person.occupation = fill(person.occupation, me['occupation']);
       person.educationalAttainment =
           fill(person.educationalAttainment, me['education'], ResidentProfileOptions.educationalAttainment);
@@ -560,7 +563,7 @@ class ResidentProfileService extends ChangeNotifier {
             relationshipToHead: fill('', m['relation'], ResidentProfileOptions.relationshipToHead),
             occupation: fill('', m['occupation']),
             educationalAttainment: fill('', m['education'], ResidentProfileOptions.educationalAttainment),
-            mobile: fill('', m['contact']),
+            mobile: fill('', _mobileOrNull(m['contact'])),
             barangay: person.barangay,
             familyId: p.familyId,
             householdId: p.householdId,
@@ -569,6 +572,12 @@ class ResidentProfileService extends ChangeNotifier {
       }
       p.familySaved = true;
     }
+  }
+
+  /// A Philippine mobile number as 09XXXXXXXXX, or null for anything else.
+  static String? _mobileOrNull(Object? v) {
+    final n = PhMobile.normalise(JsonRead.nonEmpty(v) ?? '');
+    return PhMobile.isValid(n) ? n : null;
   }
 
   /// GET /citizen/resident-profile: adopts the verification status barangay
