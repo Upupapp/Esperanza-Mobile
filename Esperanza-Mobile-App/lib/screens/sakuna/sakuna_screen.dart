@@ -184,6 +184,7 @@ class _SakunaScreenState extends State<SakunaScreen> {
                         catalog: MockCatalog.incidentTypes,
                         accent: AppColors.rose600,
                         icon: Icons.report_outlined,
+                        pushed: true,
                       ),
                     ),
                   ),

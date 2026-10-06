@@ -423,11 +423,17 @@ Widget? serverNotificationDestination(ServerNotification n) {
   final link = n.link;
   if (link == null) {
     // Rows written before links existed: only a Dokyu/Tulong ref is a request.
+    // An incident's updates ("Papunta na ang tulong") carry its INC- ref and
+    // no link, so tapping one did nothing, read or not (Esperanza bugs QA,
+    // 2026-10-06); RequestDetailScreen loads an incident by that ref.
     final ref = n.ref;
+    if (ref != null && ref.startsWith('INC-')) return RequestDetailScreen(requestId: ref);
     return ref != null && (n.category == 'dokyu' || n.category == 'tulong')
         ? RequestDetailScreen(requestId: ref)
         : null;
   }
+  final incident = RegExp(r'^/citizen/incidents/([^/?#]+)$').firstMatch(link);
+  if (incident != null) return RequestDetailScreen(requestId: Uri.decodeComponent(incident.group(1)!));
   final request = RegExp(r'^/citizen/(?:document|assistance)-requests/([^/?#]+)$').firstMatch(link);
   if (request != null) return RequestDetailScreen(requestId: Uri.decodeComponent(request.group(1)!));
   return switch (link) {

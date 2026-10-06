@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../models/attachment.dart';
@@ -68,9 +70,32 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
 
   GlobalKey _keyFor(String flaggedId) => _flaggedCardKeys.putIfAbsent(flaggedId, () => GlobalKey());
 
+  /// The open request re-reads itself every 30 seconds: the office approved
+  /// and released one while it sat open here, and it still read Under Review
+  /// until the app was restarted (Esperanza bugs QA, 2026-10-06). Only this
+  /// screen's own request, only while it is open, never during an upload.
+  Timer? _poll;
+
+  Future<void> _refreshQuietly() async {
+    if (!mounted || _busy) return;
+    try {
+      final fresh = await context.read<RequestsService>().loadDetail(widget.requestId);
+      if (mounted && !_busy) setState(() => _latest = fresh);
+    } catch (_) {
+      // Offline or a hiccup: the next tick tries again; nothing to show.
+    }
+  }
+
+  @override
+  void dispose() {
+    _poll?.cancel();
+    super.dispose();
+  }
+
   @override
   void initState() {
     super.initState();
+    _poll = Timer.periodic(const Duration(seconds: 30), (_) => _refreshQuietly());
     final target = widget.focusFlaggedRequirementId;
     if (target == null) return;
     // One-shot, after the first frame this screen renders — by then the
@@ -281,7 +306,7 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
         // requirement at all means the server's own "needs manual
         // verification" flavor — nothing for the citizen to upload, just
         // the explanation from decision_remarks.
-        if (_attachableOutsideCorrection(request).isNotEmpty) ...[
+        if (_attachableOutsideCorrection(request).isNotEmpty || _rowsOutsideCorrection(request).isNotEmpty) ...[
           const SizedBox(height: AppSpacing.xl),
           _AttachSection(
             request: request,
@@ -558,6 +583,71 @@ class _CorrectionsSection extends StatelessWidget {
   }
 }
 
+/// The requirement rows the documents card shows: during a correction, the
+/// ones the correction card already handles (flagged, replaced, or missing and
+/// required) are left to it.
+List<RequirementRow> _rowsOutsideCorrection(ServiceRequest request) {
+  final inCorrection = request.status == RequestMilestones.underReview || request.status == TulongStatus.needsRequirements;
+  if (!inCorrection || request.flaggedRequirements.isEmpty) return request.requirementRows;
+  final inCard = {...request.flaggedRequirements.map((f) => f.id), ...request.missingRequired.map((m) => m.key)};
+  return request.requirementRows.where((r) => !inCard.contains(r.key)).toList();
+}
+
+/// Required, optional, or done at the office: the server's rule
+/// (RequestRequirement::needsFile), read from the line's own wording.
+class _RequirementKindChip extends StatelessWidget {
+  final String label;
+  const _RequirementKindChip({required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    final info = resolveRequirements([label]).single;
+    final (text, bg, fg) = !info.requiresUpload
+        ? ('Done at the office', AppColors.slate100, AppColors.slate600)
+        : info.isRequired
+        ? ('Required', AppColors.rose50, AppColors.rose600)
+        : ('If it applies', AppColors.slate100, AppColors.slate600);
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppSpacing.xs),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: 2),
+        decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(AppRadius.sm)),
+        child: Text(text, style: TextStyle(fontSize: AppTextSize.fine, fontWeight: FontWeight.w600, color: fg)),
+      ),
+    );
+  }
+}
+
+/// A requirement with no upload control: its name and where it stands.
+class _RequirementStateRow extends StatelessWidget {
+  final String label;
+  final String line;
+  final Color color;
+  final bool accepted;
+  const _RequirementStateRow({required this.label, required this.line, required this.color, this.accepted = false});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(accepted ? Icons.check_circle_rounded : Icons.description_outlined, size: 18, color: accepted ? AppColors.emerald700 : AppColors.slate500),
+        const SizedBox(width: AppSpacing.sm),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(label, style: const TextStyle(fontSize: AppTextSize.label, fontWeight: FontWeight.w600, color: AppColors.textPrimary)),
+              const SizedBox(height: 2),
+              Text(line, style: AppTypography.captionSmallRegular.copyWith(color: color, fontWeight: accepted ? FontWeight.w600 : FontWeight.w400, height: 1.4)),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 /// The documents the top card offers: during a correction, the missing
 /// required ones are offered in the correction card instead, beside Resubmit.
 List<PendingRequirement> _attachableOutsideCorrection(ServiceRequest request) {
@@ -722,7 +812,19 @@ class _AttachSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final missing = pending.where((p) => _attachmentFor(request, p.label) == null).length;
+    final pendingKeys = {for (final p in pending) p.key};
+    final rows = _rowsOutsideCorrection(request);
+    // What the resident still owes: a required document with no file yet.
+    final owed = pending.where((p) {
+      final info = resolveRequirements([p.label]).single;
+      return info.isRequired && info.requiresUpload && _attachmentFor(request, p.label) == null;
+    }).length;
+    final accepted = rows.where((r) => r.isAccepted).length;
+    final summary = [
+      if (owed > 0) owed == 1 ? '1 required document still needs to be attached.' : '$owed required documents still need to be attached.',
+      if (owed == 0 && pending.isNotEmpty) 'Every required document is attached. You can change one until the office reviews it.',
+      if (rows.isNotEmpty) '$accepted of ${rows.length} accepted by the office.',
+    ].join(' ');
     return Container(
       padding: const EdgeInsets.all(AppSpacing.lg),
       decoration: BoxDecoration(
@@ -747,29 +849,52 @@ class _AttachSection extends StatelessWidget {
           ),
           const SizedBox(height: AppSpacing.xs),
           Text(
-            missing == 0
-                ? 'Every document is attached. You can change one until the office reviews it.'
-                : missing == 1
-                    ? '1 document still needs to be attached.'
-                    : '$missing documents still need to be attached.',
-            style: AppTypography.captionSmallRegular.copyWith(color: AppColors.slate500, height: 1.4),
+            summary,
+            style: AppTypography.captionSmallRegular.copyWith(color: owed > 0 ? AppColors.orange700 : AppColors.slate500, height: 1.4),
           ),
           for (final p in pending)
+            if (!rows.any((r) => r.key == p.key) || !rows.firstWhere((r) => r.key == p.key).isAccepted)
+              Padding(
+                padding: const EdgeInsets.only(top: AppSpacing.md),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _RequirementKindChip(label: p.label),
+                    if (resolveRequirements([p.label]).single.requiresUpload)
+                      _ServerRequirementUploader(
+                        label: p.label,
+                        current: _attachmentFor(request, p.label),
+                        accent: accent,
+                        busy: busy,
+                        serviceName: request.typeName,
+                        category: request.category,
+                        onPicked: (a) => onAttach(p.key, a),
+                      )
+                    else
+                      _RequirementStateRow(label: p.label, line: 'Nothing to upload: the office does this with you.', color: AppColors.slate500),
+                  ],
+                ),
+              ),
+          // Everything not open for upload: accepted ones stay, in green.
+          for (final r in rows.where((r) => !pendingKeys.contains(r.key)))
             Padding(
               padding: const EdgeInsets.only(top: AppSpacing.md),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _ServerRequirementUploader(
-                    label: p.label,
-                    current: _attachmentFor(request, p.label),
-                    accent: accent,
-                    busy: busy,
-                    serviceName: request.typeName,
-                    category: request.category,
-                    onPicked: (a) => onAttach(p.key, a),
-                  ),
-                ],
+              child: _RequirementStateRow(
+                label: r.label,
+                line: switch (r.status) {
+                  'Approved' => 'Accepted by the office${r.fileName == null ? '' : ' · ${r.fileName}'}',
+                  'Rejected' => 'Not accepted by the office',
+                  'Flagged for Replacement' => 'The office asked for a replacement',
+                  'Resubmitted' => 'Replaced; the office checks it again',
+                  _ => r.fileName == null ? 'With the office' : 'With the office · ${r.fileName}',
+                },
+                color: switch (r.status) {
+                  'Approved' => AppColors.emerald700,
+                  'Rejected' => AppColors.rose600,
+                  'Flagged for Replacement' => AppColors.orange700,
+                  _ => AppColors.slate500,
+                },
+                accepted: r.isAccepted,
               ),
             ),
         ],

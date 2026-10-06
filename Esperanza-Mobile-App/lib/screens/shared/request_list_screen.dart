@@ -56,6 +56,11 @@ class RequestListScreen extends StatefulWidget {
   final Color accent;
   final IconData icon;
 
+  /// Opened on top of another screen (Incident Reports, from Sakuna) rather
+  /// than as a tab: it shows a back arrow, not the side menu. With the menu
+  /// there was no way back and no navbar (Esperanza bugs QA, 2026-10-06).
+  final bool pushed;
+
   const RequestListScreen({
     super.key,
     required this.category,
@@ -64,6 +69,7 @@ class RequestListScreen extends StatefulWidget {
     required this.catalog,
     required this.accent,
     required this.icon,
+    this.pushed = false,
   });
 
   @override
@@ -112,7 +118,8 @@ class _RequestListScreenState extends State<RequestListScreen> {
     final visible = _filters.apply(tabSource);
 
     return Scaffold(
-      drawer: const EsperanzaDrawer(),
+      // A Scaffold with a drawer shows the menu icon instead of a back arrow.
+      drawer: widget.pushed ? null : const EsperanzaDrawer(),
       appBar: AppBar(
         title: Text(widget.title),
         actions: const [AlertsAction()],

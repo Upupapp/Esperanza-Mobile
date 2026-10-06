@@ -130,6 +130,24 @@ class PendingRequirement {
   const PendingRequirement({required this.key, required this.label});
 }
 
+/// Every requirement on a request as the server holds it (the detail's
+/// `requirements`), so the documents card can show the ones the office has
+/// already accepted instead of dropping them (Esperanza bugs QA, 2026-10-06:
+/// a resident could not tell which of their documents were approved).
+class RequirementRow {
+  final String key;
+  final String label;
+
+  /// The server's own: Pending Review, Approved, Flagged for Replacement,
+  /// Rejected or Resubmitted.
+  final String status;
+  final bool attachable;
+  final String? fileName;
+  const RequirementRow({required this.key, required this.label, required this.status, required this.attachable, this.fileName});
+
+  bool get isAccepted => status == 'Approved';
+}
+
 /// What was approved for a Tulong case and what the resident received (the
 /// detail's `assistance`). The office's assessment and recommendation stay on
 /// the staff side and never reach the app.
@@ -212,6 +230,9 @@ class ServiceRequest {
   /// A correction is not resubmittable until they are attached: the app let a
   /// resident resubmit without the ID (QA run 2026-10-05).
   List<PendingRequirement> missingRequired = const [];
+
+  /// Every requirement with its status (see [RequirementRow]).
+  List<RequirementRow> requirementRows = const [];
 
   /// Tulong only; re-fetched with every detail, like [canResubmit].
   TulongAssistance? assistance;

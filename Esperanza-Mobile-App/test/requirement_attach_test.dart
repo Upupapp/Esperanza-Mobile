@@ -107,12 +107,14 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Documents for this request'), findsOneWidget);
-    expect(find.text('1 document still needs to be attached.'), findsOneWidget);
+    expect(find.textContaining('1 required document still needs to be attached.'), findsOneWidget);
     expect(find.text('Valid ID'), findsWidgets);
     expect(find.text('Cedula'), findsWidgets);
     expect(find.text('synthetic-id.pdf'), findsOneWidget);
-    // A decided requirement is not offered.
-    expect(find.text('Barangay ID'), findsNothing);
+    // A decided requirement is not offered for upload, but it stays on the
+    // list as accepted (Esperanza bugs QA, 2026-10-06: it used to vanish).
+    expect(find.text('Barangay ID'), findsOneWidget);
+    expect(find.text('Accepted by the office'), findsOneWidget);
     // The server keeps the file; it can be replaced, not removed.
     expect(find.text('Remove'), findsNothing);
     expect(find.text('Replace'), findsOneWidget);
