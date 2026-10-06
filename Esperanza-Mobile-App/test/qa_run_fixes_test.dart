@@ -12,6 +12,7 @@ import 'package:esperanza_mobile/widgets/app_button.dart';
 import 'package:esperanza_mobile/widgets/live_banners.dart';
 import 'package:esperanza_mobile/services/notifications_service.dart';
 import 'package:esperanza_mobile/widgets/requirement_uploader.dart';
+import 'package:esperanza_mobile/services/message_language.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
@@ -188,6 +189,10 @@ void main() {
   });
 
   test('a Sakuna alert in the feed is offered as a pop-up once', () async {
+    // These notices are checked in Filipino, the language chosen in Settings
+    // (English is the default since the live test of 2026-10-07, UX-15).
+    MessageLanguage.filipino.value = true;
+    addTearDown(() => MessageLanguage.filipino.value = false);
     SharedPreferences.setMockInitialValues({});
     api = ApiClient(
       httpClient: MockClient((req) async {

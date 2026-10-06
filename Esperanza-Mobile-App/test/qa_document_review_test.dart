@@ -17,6 +17,7 @@ import 'package:esperanza_mobile/services/notifications_service.dart';
 import 'package:esperanza_mobile/services/requests_service.dart';
 import 'package:esperanza_mobile/services/resident_profile_service.dart';
 import 'package:esperanza_mobile/utils/ph_mobile.dart';
+import 'package:esperanza_mobile/services/message_language.dart';
 
 import 'support/fake_api.dart';
 
@@ -148,6 +149,10 @@ void main() {
     });
 
     testWidgets('reading one lowers the number; Mark all as read clears it, on the server too', (tester) async {
+      // These notices are checked in Filipino, the language chosen in Settings
+      // (English is the default since the live test of 2026-10-07, UX-15).
+      MessageLanguage.filipino.value = true;
+      addTearDown(() => MessageLanguage.filipino.value = false);
       final (notifications, posts) = await _pumpBell(tester, [
         _notice(1, unread: true),
         _notice(2, unread: true),

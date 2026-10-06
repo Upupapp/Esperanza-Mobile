@@ -25,6 +25,7 @@ import 'package:esperanza_mobile/services/resident_profile_service.dart';
 import 'package:esperanza_mobile/theme/app_status.dart';
 import 'package:esperanza_mobile/utils/date_text.dart';
 import 'package:esperanza_mobile/widgets/status_chip.dart';
+import 'package:esperanza_mobile/services/message_language.dart';
 
 import 'support/fake_api.dart';
 
@@ -135,6 +136,10 @@ void main() {
   testWidgets('server notifications render in Filipino, mark read on the server, and open their request', (
     tester,
   ) async {
+    // These notices are checked in Filipino, the language chosen in Settings
+    // (English is the default since the live test of 2026-10-07, UX-15).
+    MessageLanguage.filipino.value = true;
+    addTearDown(() => MessageLanguage.filipino.value = false);
     final posts = <String>[];
     FakeApi.installFull((r) {
       if (r.path == '/citizen/notifications') {
@@ -183,6 +188,10 @@ void main() {
   // Esperanza QA, 2026-10-07: a new Balita post notifies residents, and the
   // notification opens the post -- even one older than the loaded feed.
   testWidgets('a New in Balita notification opens that post', (tester) async {
+    // These notices are checked in Filipino, the language chosen in Settings
+    // (English is the default since the live test of 2026-10-07, UX-15).
+    MessageLanguage.filipino.value = true;
+    addTearDown(() => MessageLanguage.filipino.value = false);
     final gets = <String>[];
     FakeApi.installFull((r) {
       gets.add('${r.method} ${r.path}');

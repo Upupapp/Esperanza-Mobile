@@ -65,8 +65,9 @@ void main() {
       expect(find.text('Document request updates'), findsOneWidget);
       expect(find.text('Emergency alerts'), findsOneWidget);
       // The old controls were widget state only; nothing may bring them back.
+      // (The Filipino | English choice below the preferences is real: it is
+      // kept on the device and picks the language of messages, UX-15.)
       expect(find.text('Push notifications'), findsNothing);
-      expect(find.text('Filipino'), findsNothing);
 
       await tester.tap(_chip('Document request updates', 'Text (SMS)'));
       await tester.pumpAndSettle();
