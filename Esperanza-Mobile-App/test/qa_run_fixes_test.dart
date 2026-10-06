@@ -33,7 +33,8 @@ void main() {
         'identifier': ['Maling identifier o password. / Invalid identifier or password.'],
       },
     );
-    expect(e.explain(), 'Maling identifier o password.');
+    expect(e.explain(), 'Invalid identifier or password.', reason: 'English by default, like the screens (UX-15)');
+    expect(e.explain(filipino: true), 'Maling identifier o password.');
     expect(e.explain(filipino: false), 'Invalid identifier or password.');
 
     const plain = ApiException(status: 500, messageEn: 'Server error', messageFil: 'May mali');

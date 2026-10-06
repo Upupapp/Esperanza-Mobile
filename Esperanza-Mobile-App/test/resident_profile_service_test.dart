@@ -171,6 +171,65 @@ void main() {
     expect(service.profileFor(account).correctionMessage, isNull);
   });
 
+  test('signed in again on a phone with no copy, Home shows what the barangay decided (BUG-9)', () async {
+    final account = _demoAccount();
+    final service = ResidentProfileService();
+    await Future<void>.delayed(const Duration(milliseconds: 50));
+
+    FakeApi.installFull((r) => {
+          'individual': {
+            'ref': 'RES-2026-0901',
+            'verification': 'Verified',
+            'sex': 'Female',
+            'dob': '1990-05-04',
+            'civil_status': 'Married',
+            'sitio': 'Purok 2',
+            'education': 'College',
+            'tags': ['Registered Voter'],
+          },
+          'household': {'sitio': 'Purok 2', 'address': 'Purok 2, Agoho', 'water': 'Deep Well', 'toilet': 'Somewhere else'},
+          'family': {
+            'surname': 'Resident',
+            'members': [
+              {'ref': 'RES-2026-0902', 'name': 'Child Resident', 'relation': 'Daughter', 'dob': '2015-01-02'},
+            ],
+          },
+          'submitted_at': '2026-10-06T01:00:00Z',
+          'review': {'outcome': 'verified', 'note': null, 'at': '2026-10-06T02:00:00Z'},
+        });
+    addTearDown(FakeApi.restore);
+
+    await service.sync(account);
+    final p = service.profileFor(account);
+    expect(p.status, VerificationStatus.verified);
+    expect(p.personal.sex, 'Female');
+    expect(p.personal.birthdate, DateTime(1990, 5, 4));
+    expect(p.personal.civilStatus, 'Married');
+    expect(p.personal.isVoter, isTrue);
+    expect(p.household.waterSource, 'Deep Well');
+    expect(p.household.toiletFacility, isEmpty, reason: 'a value that is not one of the choices is not taken');
+    expect(p.familyMembers.single.relationshipToHead, 'Daughter');
+    expect(p.personalSaved && p.householdSaved && p.familySaved, isTrue);
+  });
+
+  test('a profile never submitted stays as it is on the phone after a sync', () async {
+    final account = _demoAccount();
+    final service = ResidentProfileService();
+    await Future<void>.delayed(const Duration(milliseconds: 50));
+
+    FakeApi.installFull((r) => {
+          'individual': {'ref': 'RES-2026-0903', 'verification': 'Unverified', 'sex': 'Male'},
+          'submitted_at': '2026-10-06T01:00:00Z',
+          'review': null,
+        });
+    addTearDown(FakeApi.restore);
+
+    await service.sync(account);
+    final p = service.profileFor(account);
+    expect(p.status, isNot(VerificationStatus.verified));
+    expect(p.personalSaved, isFalse);
+  });
+
   test('a failed submit leaves the profile unsubmitted', () async {
     final account = _demoAccount();
     final service = ResidentProfileService();

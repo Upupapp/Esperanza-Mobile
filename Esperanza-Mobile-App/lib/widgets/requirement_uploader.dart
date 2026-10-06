@@ -251,32 +251,42 @@ class _UploadPrompt extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
+    // Its own button node, named for its document (live test 2026-10-07,
+    // A11Y-1): inside the correction card it merged into one paragraph with
+    // the card's text, so TalkBack had no "Upload ..." button to activate.
+    return Semantics(
+      container: true,
+      button: true,
+      label: 'Upload $label',
+      excludeSemantics: true,
       onTap: onTap,
-      borderRadius: BorderRadius.circular(AppRadius.md),
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.symmetric(vertical: AppSpacing.lg, horizontal: AppSpacing.sm),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(AppRadius.md),
-          border: Border.all(color: accent.withValues(alpha: 0.35)),
-          color: accent.withValues(alpha: 0.08),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.upload_file_outlined, color: accent, size: 20),
-            const SizedBox(height: AppSpacing.xs),
-            // Requirement-specific, not a generic "Upload Document" — see
-            // this widget's own doc comment. No maxLines/overflow set, so a
-            // long requirement name wraps onto a second line instead of
-            // being truncated or overflowing.
-            Text(
-              'Upload $label',
-              textAlign: TextAlign.center,
-              style: TextStyle(fontSize: AppTextSize.helper, fontWeight: FontWeight.w600, color: accent),
-            ),
-          ],
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(AppRadius.md),
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(vertical: AppSpacing.lg, horizontal: AppSpacing.sm),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(AppRadius.md),
+            border: Border.all(color: accent.withValues(alpha: 0.35)),
+            color: accent.withValues(alpha: 0.08),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.upload_file_outlined, color: accent, size: 20),
+              const SizedBox(height: AppSpacing.xs),
+              // Requirement-specific, not a generic "Upload Document" — see
+              // this widget's own doc comment. No maxLines/overflow set, so a
+              // long requirement name wraps onto a second line instead of
+              // being truncated or overflowing.
+              Text(
+                'Upload $label',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: AppTextSize.helper, fontWeight: FontWeight.w600, color: accent),
+              ),
+            ],
+          ),
         ),
       ),
     );

@@ -60,8 +60,15 @@ class NotificationPreferencesService {
 
   static const _path = '/citizen/notification-preferences';
 
-  static List<NotificationPreference> _parse(ApiResult res) =>
-      JsonRead.rows(res.map['preferences'], NotificationPreference.fromJson);
+  /// false while the LGU has no SMS gateway (`sms_available`): the SMS
+  /// choices are greyed out and the server sends email in their place (live
+  /// test 2026-10-07, PR-10). An older server that does not say is trusted.
+  static bool smsAvailable = true;
+
+  static List<NotificationPreference> _parse(ApiResult res) {
+    smsAvailable = JsonRead.boolean(res.map['sms_available']) ?? true;
+    return JsonRead.rows(res.map['preferences'], NotificationPreference.fromJson);
+  }
 
   static Future<List<NotificationPreference>> fetch() async => _parse(await api.get(_path));
 

@@ -4,6 +4,7 @@ import 'dart:io';
 
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'message_language.dart';
 
 /// The one HTTP client (production-readiness programme, 2026-09-25).
 ///
@@ -50,11 +51,12 @@ class ApiException implements Exception {
   bool get isAuth => status == 401;
   bool get isForbidden => status == 403;
 
-  /// English first — the app defaults to Filipino for citizen-facing copy
-  /// (see CLAUDE.md), but callers pick the locale; this is the fallback
-  /// chain when neither language came back.
-  String message({bool filipino = true}) {
-    final primary = filipino ? messageFil : messageEn;
+  /// In the language chosen in Settings ([MessageLanguage], English by
+  /// default, like the app's screens: live test 2026-10-07, UX-15), else
+  /// the other one.
+  String message({bool? filipino}) {
+    final fil = filipino ?? MessageLanguage.filipino.value;
+    final primary = fil ? messageFil : messageEn;
     return primary ?? messageEn ?? messageFil ?? 'Something went wrong. Please try again.';
   }
 
@@ -62,18 +64,19 @@ class ApiException implements Exception {
   /// only here ("Invalid identifier or password", "not verified yet",
   /// "locked"); the envelope is the generic "some fields need correcting".
   /// The server writes some of these as "Filipino / English".
-  String? fieldMessage({bool filipino = true}) {
+  String? fieldMessage({bool? filipino}) {
+    final fil = filipino ?? MessageLanguage.filipino.value;
     for (final messages in fields.values) {
       if (messages.isEmpty) continue;
       final parts = messages.first.split(' / ');
-      if (parts.length == 2) return filipino ? parts[0] : parts[1];
+      if (parts.length == 2) return fil ? parts[0] : parts[1];
       return messages.first;
     }
     return null;
   }
 
   /// The field's own reason when there is one, otherwise [message].
-  String explain({bool filipino = true}) => fieldMessage(filipino: filipino) ?? message(filipino: filipino);
+  String explain({bool? filipino}) => fieldMessage(filipino: filipino) ?? message(filipino: filipino);
 
   @override
   String toString() => 'ApiException($status, $code, ${message()})';

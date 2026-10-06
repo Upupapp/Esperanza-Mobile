@@ -8,11 +8,14 @@ import 'services/citizen_session_service.dart';
 import 'services/master_file_service.dart';
 import 'services/notifications_service.dart';
 import 'services/requests_service.dart';
+import 'services/message_language.dart';
 import 'services/resident_profile_service.dart';
 import 'theme/app_colors.dart';
 import 'theme/app_theme.dart';
 
-void main() {
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await MessageLanguage.load();
   runApp(const EsperanzaMobileApp());
 }
 

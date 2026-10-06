@@ -475,6 +475,102 @@ class ResidentProfileService extends ChangeNotifier {
     await _save(p);
   }
 
+  /// What Home shows after sign-in, on opening and on resume (live test
+  /// 2026-10-07, BUG-9): it showed a note from an older review, or "65%,
+  /// Continue" after signing in again, while the barangay had verified the
+  /// profile. The server's status is adopted; and a phone holding no
+  /// submitted copy (a new sign-in, another phone) takes what the server has
+  /// on file, so the resident is not asked to fill it all in again.
+  Future<void> sync(CitizenAccount account) async {
+    final p = profileFor(account);
+    final res = await api.get('/citizen/resident-profile');
+    if (res.data == null) return;
+    var changed = _applyServerStatus(p, res.map);
+    final onServer = p.status == VerificationStatus.verified ||
+        p.status == VerificationStatus.pendingVerification ||
+        p.status == VerificationStatus.needsCorrection;
+    if (onServer && !p.personalSaved) {
+      _adoptServerRecord(p, res.map);
+      changed = true;
+    }
+    if (changed) {
+      await _save(p);
+      notifyListeners();
+    }
+  }
+
+  /// Fills what this phone does not have from the server's record, never
+  /// overwriting an answer already here. A choice is taken only when it is
+  /// one of the form's own options (a dropdown with an unknown value fails).
+  void _adoptServerRecord(ResidentProfile p, Map<String, dynamic> view) {
+    String fill(String current, Object? server, [List<String>? options]) {
+      if (current.trim().isNotEmpty) return current;
+      final v = JsonRead.nonEmpty(server);
+      if (v == null || (options != null && !options.contains(v))) return current;
+      return v;
+    }
+
+    final me = JsonRead.map(view['individual']);
+    final person = p.personal;
+    if (me != null) {
+      person.sex = fill(person.sex, me['sex'], ResidentProfileOptions.sex);
+      person.birthdate ??= JsonRead.date(me['dob']);
+      person.civilStatus = fill(person.civilStatus, me['civil_status'], ResidentProfileOptions.civilStatus);
+      person.sitioPurok = fill(person.sitioPurok, me['sitio']);
+      person.mobile = fill(person.mobile, me['contact']);
+      person.occupation = fill(person.occupation, me['occupation']);
+      person.educationalAttainment =
+          fill(person.educationalAttainment, me['education'], ResidentProfileOptions.educationalAttainment);
+      final tags = JsonRead.strings(me['tags']).toSet();
+      person.isSeniorCitizen = person.isSeniorCitizen || tags.contains('Senior Citizen');
+      person.isPWD = person.isPWD || tags.contains('PWD');
+      person.isSoloParent = person.isSoloParent || tags.contains('Solo Parent');
+      person.isVoter = person.isVoter || tags.contains('Registered Voter');
+      person.isFourPsBeneficiary = person.isFourPsBeneficiary || tags.contains('4Ps');
+      p.household.monthlyIncome = fill(p.household.monthlyIncome, me['income_range']);
+      p.personalSaved = true;
+    }
+
+    final hh = JsonRead.map(view['household']);
+    if (hh != null) {
+      final h = p.household;
+      h.sitioPurok = fill(h.sitioPurok, hh['sitio']);
+      h.completeAddress = fill(h.completeAddress, hh['address']);
+      h.housingType = fill(h.housingType, hh['dwelling_type'], ResidentProfileOptions.housingType);
+      h.housingOwnership = fill(h.housingOwnership, hh['housing_tenure'], ResidentProfileOptions.housingOwnership);
+      h.electricitySource = fill(h.electricitySource, hh['electricity'], ResidentProfileOptions.electricitySource);
+      h.waterSource = fill(h.waterSource, hh['water'], ResidentProfileOptions.waterSource);
+      h.toiletFacility = fill(h.toiletFacility, hh['toilet'], ResidentProfileOptions.toiletFacility);
+      p.householdSaved = true;
+    }
+
+    final fam = JsonRead.map(view['family']);
+    if (fam != null) {
+      p.familyName = fill(p.familyName, fam['surname']);
+      if (p.familyMembers.isEmpty) {
+        for (final m in JsonRead.list(fam['members']).map(JsonRead.map).whereType<Map<String, dynamic>>()) {
+          final name = JsonRead.nonEmpty(m['name']);
+          if (name == null) continue;
+          p.familyMembers.add(Individual(
+            individualId: JsonRead.nonEmpty(m['ref']) ?? 'server-${p.familyMembers.length + 1}',
+            firstName: name,
+            sex: fill('', m['sex'], ResidentProfileOptions.sex),
+            birthdate: JsonRead.date(m['dob']),
+            civilStatus: fill('', m['civil_status'], ResidentProfileOptions.civilStatus),
+            relationshipToHead: fill('', m['relation'], ResidentProfileOptions.relationshipToHead),
+            occupation: fill('', m['occupation']),
+            educationalAttainment: fill('', m['education'], ResidentProfileOptions.educationalAttainment),
+            mobile: fill('', m['contact']),
+            barangay: person.barangay,
+            familyId: p.familyId,
+            householdId: p.householdId,
+          ));
+        }
+      }
+      p.familySaved = true;
+    }
+  }
+
   /// GET /citizen/resident-profile: adopts the verification status barangay
   /// staff have set. A record the server has never seen (null) changes
   /// nothing.

@@ -202,7 +202,7 @@ void main() {
     await tester.ensureVisible(submit);
     await tester.tap(submit);
     await tester.pumpAndSettle();
-    expect(find.text('Subukan muli'), findsOneWidget); // Filipino-first, see ApiException.message()
+    expect(find.text('Try again'), findsOneWidget); // English by default, see MessageLanguage
     await tester.ensureVisible(submit);
     await tester.tap(submit);
     await tester.pumpAndSettle();

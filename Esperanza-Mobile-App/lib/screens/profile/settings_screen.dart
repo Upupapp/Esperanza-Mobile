@@ -3,6 +3,7 @@ import '../../services/api_client.dart';
 import '../legal/privacy_policy_screen.dart';
 import 'change_password_screen.dart';
 import 'data_requests_screen.dart';
+import '../../services/message_language.dart';
 import '../../services/notification_preferences_service.dart';
 import '../../theme/app_colors.dart';
 import '../../utils/app_version.dart';
@@ -89,6 +90,35 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
           ),
           AppCard(padding: EdgeInsets.zero, child: _preferencesBody()),
+          if (_preferences != null && !NotificationPreferencesService.smsAvailable)
+            const Padding(
+              padding: EdgeInsets.only(left: AppSpacing.xs, right: AppSpacing.xs, top: AppSpacing.sm),
+              child: Text(
+                'Text messages are coming soon. Until then, updates you chose to get by text are sent by email.',
+                style: AppTypography.helper,
+              ),
+            ),
+          const SizedBox(height: AppSpacing.xl),
+          const _SectionLabel('Language of Messages'),
+          const Padding(
+            padding: EdgeInsets.only(left: AppSpacing.xs, right: AppSpacing.xs, bottom: AppSpacing.md),
+            child: Text(
+              'Notifications and messages from the LGU come in Filipino and English. Choose which one to show.',
+              style: AppTypography.helper,
+            ),
+          ),
+          AppCard(
+            child: ValueListenableBuilder<bool>(
+              valueListenable: MessageLanguage.filipino,
+              builder: (context, filipino, _) => Wrap(
+                spacing: AppSpacing.sm,
+                children: [
+                  _ChannelChip(label: 'English', selected: !filipino, onSelected: (_) => MessageLanguage.set(filipino: false)),
+                  _ChannelChip(label: 'Filipino', selected: filipino, onSelected: (_) => MessageLanguage.set(filipino: true)),
+                ],
+              ),
+            ),
+          ),
           const SizedBox(height: AppSpacing.xl),
           const _SectionLabel('Account & Privacy'),
           AppCard(
@@ -203,9 +233,11 @@ class _PreferenceRow extends StatelessWidget {
             spacing: AppSpacing.sm,
             children: [
               _ChannelChip(
-                label: 'Text (SMS)',
+                label: NotificationPreferencesService.smsAvailable ? 'Text (SMS)' : 'Text (SMS): coming soon',
                 selected: preference.sms,
-                onSelected: saving ? null : (v) => onChanged(preference.copyWith(sms: v)),
+                onSelected: saving || !NotificationPreferencesService.smsAvailable
+                    ? null
+                    : (v) => onChanged(preference.copyWith(sms: v)),
               ),
               _ChannelChip(
                 label: 'Email',

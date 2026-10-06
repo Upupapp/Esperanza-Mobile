@@ -28,12 +28,10 @@ import '../../theme/app_typography.dart';
 /// structured [ServiceRequestWizardScreen] instead). Just Process info,
 /// Purpose, and Submit.
 ///
-/// There is no requirement-file-upload or payment step here (production-
-/// readiness programme, 2026-09-25) for the same reason
-/// [ServiceRequestWizardScreen] dropped both: `POST /citizen/requests` is
-/// JSON-only (no attachments), and receipt issuance is admin-only. See that
-/// screen's own doc comment for the fuller explanation — both wizards
-/// dropped the same two steps for the same real backend gaps.
+/// There is no payment step here: receipt issuance is admin-only. The
+/// required documents are picked on this screen and uploaded to the new
+/// request right after it is filed (`POST .../requirements/{key}/attach`),
+/// as in [ServiceRequestWizardScreen] (live test 2026-10-07, UX-16).
 class NewRequestScreen extends StatefulWidget {
   final ServiceCategory category;
   final CatalogItem item;
@@ -54,15 +52,13 @@ class _NewRequestScreenState extends State<NewRequestScreen> {
     for (final name in widget.item.feeInputs) name: TextEditingController(),
   };
 
-  /// Informational only now — see the class doc comment. Still resolved
-  /// from [widget.item.requirements] so the citizen sees what staff may
-  /// ask for while reviewing, same as [ServiceRequestWizardScreen]'s own
-  /// requirements list.
+  /// What the office needs, resolved from [widget.item.requirements]; each
+  /// one is picked below and uploaded once the request is filed.
   late final List<RequirementInfo> _requirementInfos = resolveRequirements(widget.item.requirements);
 
-  /// A Tulong request takes its documents while it is filled in (Esperanza
-  /// QA, 2026-10-07); they are uploaded to it right after it is filed.
-  bool get _attachesDocuments => widget.category == ServiceCategory.tulong;
+  // Every request takes its documents while it is filled in, Dokyu as well
+  // as Tulong (live test 2026-10-07, UX-16): a Dokyu request said 'no need
+  // to attach anything now', and then waited for the office to ask.
 
   /// Files picked below, by requirement label.
   final Map<String, Attachment> _picked = {};
@@ -218,7 +214,7 @@ class _NewRequestScreenState extends State<NewRequestScreen> {
           const SizedBox(height: AppSpacing.xl),
           FeeInputFields(names: widget.item.feeInputs, controllers: _feeControllers),
         ],
-        if (_requirementInfos.isNotEmpty && _attachesDocuments) ...[
+        if (_requirementInfos.isNotEmpty) ...[
           const SizedBox(height: AppSpacing.xl),
           RequestDocumentsPicker(
             requirements: _requirementInfos,
@@ -227,40 +223,6 @@ class _NewRequestScreenState extends State<NewRequestScreen> {
             accent: widget.accent,
             serviceName: widget.item.name,
             category: widget.category,
-          ),
-        ],
-        if (_requirementInfos.isNotEmpty && !_attachesDocuments) ...[
-          const SizedBox(height: AppSpacing.xl),
-          const Text(
-            'Requirements',
-            style: TextStyle(fontSize: AppTextSize.body, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
-          ),
-          const SizedBox(height: AppSpacing.xs),
-          const Text(
-            "You'll be asked to submit these if staff need them while reviewing your request — no need to attach "
-            'anything now.',
-            style: TextStyle(fontSize: AppTextSize.label, color: AppColors.textMuted, height: 1.4),
-          ),
-          const SizedBox(height: AppSpacing.md),
-          Container(
-            padding: const EdgeInsets.all(AppSpacing.md),
-            decoration: BoxDecoration(color: AppColors.slate50, borderRadius: BorderRadius.circular(AppRadius.md)),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                for (final req in _requirementInfos)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: AppSpacing.xs),
-                    child: Row(
-                      children: [
-                        Icon(Icons.description_outlined, size: 15, color: widget.accent),
-                        const SizedBox(width: AppSpacing.sm),
-                        Expanded(child: Text(req.label, style: const TextStyle(fontSize: AppTextSize.helper, color: AppColors.slate700))),
-                      ],
-                    ),
-                  ),
-              ],
-            ),
           ),
         ],
         if (_error != null) ...[

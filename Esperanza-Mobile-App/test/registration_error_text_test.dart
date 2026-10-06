@@ -16,7 +16,7 @@ void main() {
       'email': ['The email has already been taken.'],
     }));
     expect(text, contains('Email'));
-    expect(text, contains('Naka-register na'));
+    expect(text, contains('already registered'));
     expect(text, isNot(contains('May mga field na kailangang itama')));
   });
 
@@ -34,7 +34,7 @@ void main() {
       'password': ['Dapat hindi bababa sa 8 characters ang password. / The password must be at least 8 characters.'],
     }));
     expect(text.split('\n'), hasLength(2));
-    expect(text, contains('requirements ng password'));
+    expect(text, contains('password requirement'));
   });
 
   test('with no field named it falls back to the server message', () {
@@ -50,7 +50,7 @@ void main() {
     final text = registrationErrorText(validation({
       'identifier': ['Maling identifier o password. / Invalid identifier or password.'],
     }));
-    expect(text, contains('Email o mobile number'));
+    expect(text, contains('Email or mobile number'));
     expect(text, isNot(contains('identifier')));
   });
 }

@@ -125,9 +125,9 @@ class _ServiceRequestWizardScreenState extends State<ServiceRequestWizardScreen>
   final _notesController = TextEditingController();
   late final List<RequirementInfo> _requirementInfos = resolveRequirements(widget.item.requirements);
 
-  /// A Tulong request takes its documents while it is filled in (Esperanza
-  /// QA, 2026-10-07); they are uploaded to it right after it is filed.
-  bool get _attachesDocuments => widget.category == ServiceCategory.tulong;
+  // Every request takes its documents while it is filled in, Dokyu as well
+  // as Tulong (live test 2026-10-07, UX-16): a Dokyu request said 'no need
+  // to attach anything now', and then waited for the office to ask.
 
   /// Files picked on the Requirements step, by requirement label.
   final Map<String, Attachment> _picked = {};
@@ -357,6 +357,37 @@ class _ServiceRequestWizardScreenState extends State<ServiceRequestWizardScreen>
     }
   }
 
+  /// A fee amount the details already ask for is not asked again: the
+  /// Business Permit took the capital twice, and the two answers could
+  /// disagree (live test 2026-10-07, UX-10).
+  static const _feeInputFromField = {
+    'declared_capital': ['capitalAmount', 'capital_investment'],
+  };
+
+  /// The detail field a fee amount comes from, or null when the Fee step asks.
+  String? _feeSource(String name) {
+    for (final key in _feeInputFromField[name] ?? const <String>[]) {
+      if (_fieldByKey(key) != null) return key;
+    }
+    return null;
+  }
+
+  /// The wizard step that asks [key], or null.
+  int? _stepOfField(String? key) {
+    if (key == null) return null;
+    for (var i = 0; i < _serviceSteps.length; i++) {
+      if (_serviceSteps[i].fields.any((f) => f.key == key)) return i + 1;
+    }
+    return null;
+  }
+
+  List<String> get _feeAsked => widget.item.feeInputs.where((n) => _feeSource(n) == null).toList();
+
+  num? _feeValue(String name) {
+    final source = _feeSource(name);
+    return FeeInputs.parse(source != null ? (_controllers[source]?.text ?? '') : (_feeControllers[name]?.text ?? ''));
+  }
+
   ServiceFormField? _fieldByKey(String key) {
     for (final s in _serviceSteps) {
       for (final f in s.fields) {
@@ -415,6 +446,13 @@ class _ServiceRequestWizardScreenState extends State<ServiceRequestWizardScreen>
       for (final f in s.fields) {
         if (!_isFieldVisible(f)) continue;
         if (f.required && _isFieldEmpty(f)) return 'Please complete "${f.label}".';
+        if (f.type == ServiceFieldType.number) {
+          final t = _controllers[f.key]?.text.trim() ?? '';
+          if (t.isNotEmpty && FeeInputs.parse(t) == null) return '${f.label}: numbers only.';
+          if (widget.item.feeInputs.any((n) => _feeSource(n) == f.key) && FeeInputs.parse(t) == null) {
+            return '${f.label}: enter the amount; the fee is computed from it.';
+          }
+        }
         if (f.type == ServiceFieldType.phone) {
           final err = PhMobile.validate(_controllers[f.key]?.text ?? '');
           if (err != null) return '${f.label}: $err';
@@ -426,7 +464,7 @@ class _ServiceRequestWizardScreenState extends State<ServiceRequestWizardScreen>
       if (!_hasPurposeField && _notesController.text.trim().isEmpty) {
         return 'Please describe the purpose of this request.';
       }
-      return FeeInputs.validate(widget.item.feeInputs, _feeControllers);
+      return FeeInputs.validate(_feeAsked, _feeControllers);
     }
     return null; // review step
   }
@@ -502,7 +540,7 @@ class _ServiceRequestWizardScreenState extends State<ServiceRequestWizardScreen>
           ServiceFieldType.textarea ||
           ServiceFieldType.number ||
           ServiceFieldType.phone => _controllers[f.key]?.text.trim(),
-          ServiceFieldType.date => (_values[f.key] as DateTime?)?.toIso8601String(),
+          ServiceFieldType.date => _dateOnly(_values[f.key] as DateTime?),
           ServiceFieldType.select => _values[f.key],
           ServiceFieldType.multiselect => (_values[f.key] as Set<String>?)?.toList(),
           ServiceFieldType.checkbox => _values[f.key] == true,
@@ -590,7 +628,9 @@ class _ServiceRequestWizardScreenState extends State<ServiceRequestWizardScreen>
       final request = await requestsService.submit(
         serviceKey: widget.item.key,
         formData: formData,
-        feeInputs: FeeInputs.collect(widget.item.feeInputs, _feeControllers),
+        feeInputs: {
+          for (final name in widget.item.feeInputs) name: ?_feeValue(name),
+        },
       );
       final notUploaded = await requestsService.attachPicked(request, _picked);
 
@@ -866,11 +906,11 @@ class _ServiceRequestWizardScreenState extends State<ServiceRequestWizardScreen>
           controller: _notesController,
           maxLines: 3,
         ),
-        if (widget.item.feeInputs.isNotEmpty) ...[
+        if (_feeAsked.isNotEmpty) ...[
           const SizedBox(height: AppSpacing.xl),
-          FeeInputFields(names: widget.item.feeInputs, controllers: _feeControllers),
+          FeeInputFields(names: _feeAsked, controllers: _feeControllers),
         ],
-        if (_requirementInfos.isNotEmpty && _attachesDocuments) ...[
+        if (_requirementInfos.isNotEmpty) ...[
           const SizedBox(height: AppSpacing.xl),
           RequestDocumentsPicker(
             requirements: _requirementInfos,
@@ -879,45 +919,6 @@ class _ServiceRequestWizardScreenState extends State<ServiceRequestWizardScreen>
             accent: widget.accent,
             serviceName: widget.item.name,
             category: widget.category,
-          ),
-        ],
-        if (_requirementInfos.isNotEmpty && !_attachesDocuments) ...[
-          const SizedBox(height: AppSpacing.xl),
-          const Text(
-            'Requirements',
-            style: TextStyle(fontSize: AppTextSize.body, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
-          ),
-          const SizedBox(height: AppSpacing.xs),
-          const Text(
-            "You'll be asked to submit these if staff need them while reviewing your request — no need to attach "
-            'anything now.',
-            style: TextStyle(fontSize: AppTextSize.label, color: AppColors.textMuted, height: 1.4),
-          ),
-          const SizedBox(height: AppSpacing.md),
-          Container(
-            padding: const EdgeInsets.all(AppSpacing.md),
-            decoration: BoxDecoration(color: AppColors.slate50, borderRadius: BorderRadius.circular(AppRadius.md)),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                for (final req in _requirementInfos)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: AppSpacing.xs),
-                    child: Row(
-                      children: [
-                        Icon(Icons.description_outlined, size: 15, color: widget.accent),
-                        const SizedBox(width: AppSpacing.sm),
-                        Expanded(
-                          child: Text(
-                            req.label,
-                            style: const TextStyle(fontSize: AppTextSize.helper, color: AppColors.slate700),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-              ],
-            ),
           ),
         ],
         if (_error != null) ...[
@@ -930,6 +931,10 @@ class _ServiceRequestWizardScreenState extends State<ServiceRequestWizardScreen>
       ],
     );
   }
+
+  /// A date answer as YYYY-MM-DD (live test 2026-10-07, BUG-1): the time
+  /// part of toIso8601String() made the staff site show 'Invalid Date'.
+  static String? _dateOnly(DateTime? d) => d == null ? null : DateFormat('yyyy-MM-dd').format(d);
 
   Widget _reviewStepWidget() {
     return Column(
@@ -983,16 +988,15 @@ class _ServiceRequestWizardScreenState extends State<ServiceRequestWizardScreen>
         for (final name in widget.item.feeInputs)
           _reviewRow(
             FeeInputs.label(name),
-            pesoText(FeeInputs.parse(_feeControllers[name]!.text)) ?? '—',
+            pesoText(_feeValue(name)) ?? '—',
+            onEdit: () => setState(() => _step = _stepOfField(_feeSource(name)) ?? _requirementsStep),
+          ),
+        for (final req in _requirementInfos.where((r) => r.requiresUpload))
+          _reviewRow(
+            req.label,
+            _picked[req.label]?.fileName ?? (req.isRequired ? 'Not attached yet — add it later from your request' : 'Not attached'),
             onEdit: () => setState(() => _step = _requirementsStep),
           ),
-        if (_attachesDocuments)
-          for (final req in _requirementInfos.where((r) => r.requiresUpload))
-            _reviewRow(
-              req.label,
-              _picked[req.label]?.fileName ?? (req.isRequired ? 'Not attached yet — add it later from your request' : 'Not attached'),
-              onEdit: () => setState(() => _step = _requirementsStep),
-            ),
         if (widget.item.fee != 'Free') _reviewRow('Fee', widget.item.fee, onEdit: null),
         if (_error != null) ...[
           const SizedBox(height: AppSpacing.md),

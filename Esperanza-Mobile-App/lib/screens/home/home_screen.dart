@@ -48,7 +48,7 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   final _scrollController = ScrollController();
   bool _bannerOffered = false;
 
@@ -89,6 +89,10 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    // The Resident Profile card shows what the barangay decided, not what
+    // this phone last knew (live test 2026-10-07, BUG-9).
+    WidgetsBinding.instance.addPostFrameCallback((_) => _syncResidentProfile());
     // RootShell mounts HomeScreen once via IndexedStack and keeps it alive
     // across tab switches, so `initState` running exactly once per
     // session-entry is what makes "show once, then stay closed for the
@@ -107,7 +111,25 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) _syncResidentProfile();
+  }
+
+  /// GET /citizen/resident-profile. Offline, the card keeps what it shows.
+  Future<void> _syncResidentProfile() async {
+    if (!mounted) return;
+    final account = context.read<CitizenSessionService>().account;
+    if (account == null) return;
+    try {
+      await context.read<ResidentProfileService>().sync(account);
+    } on ApiException {
+      // The status on file stands until the next try.
+    }
+  }
+
+  @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _scrollController.dispose();
     super.dispose();
   }

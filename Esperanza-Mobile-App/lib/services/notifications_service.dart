@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'api_client.dart';
 import 'json_read.dart';
 import 'persistence_recovery.dart';
+import 'message_language.dart';
 
 /// Tracks which notifications a citizen has already opened/viewed — the
 /// notification feed itself is entirely *derived* live from other services
@@ -276,11 +277,12 @@ class ServerNotification {
 
   String get feedId => 'srv-$id';
 
-  /// Bilingual on the wire (`{fil, en}`); Filipino first, like every other
-  /// server message the app shows (ApiException.message()).
+  /// Bilingual on the wire (`{fil, en}`); in the language chosen in
+  /// Settings, like every other server message the app shows
+  /// (ApiException.message(), [MessageLanguage]).
   static String _text(Object? v) {
     final m = JsonRead.map(v);
-    if (m != null) return JsonRead.nonEmpty(m['fil']) ?? JsonRead.nonEmpty(m['en']) ?? '';
+    if (m != null) return MessageLanguage.pick(fil: JsonRead.nonEmpty(m['fil']), en: JsonRead.nonEmpty(m['en'])) ?? '';
     return JsonRead.string(v) ?? '';
   }
 
