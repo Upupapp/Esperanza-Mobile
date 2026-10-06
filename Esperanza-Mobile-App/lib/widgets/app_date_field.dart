@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_typography.dart';
 import '../theme/app_spacing.dart';
+import 'app_text_field.dart';
 
 /// A labeled, tappable date field matching AppTextField/AppSelectField's
 /// visual language (it reuses the app-wide InputDecorationTheme via a
@@ -18,12 +19,16 @@ class AppDateField extends StatefulWidget {
   final DateTime? firstDate;
   final DateTime? lastDate;
 
+  /// Marks the label with a red asterisk (see [FieldLabel]).
+  final bool required;
+
   AppDateField({
     super.key,
     this.label,
     required this.value,
     required this.onChanged,
     this.hintText = 'Select date',
+    this.required = false,
     DateTime? firstDate,
     DateTime? lastDate,
   }) : firstDate = firstDate ?? DateTime(1900),
@@ -74,10 +79,7 @@ class _AppDateFieldState extends State<AppDateField> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         if (widget.label != null) ...[
-          Text(
-            widget.label!,
-            style: const TextStyle(fontSize: AppTextSize.helper, fontWeight: FontWeight.w500, color: AppColors.slate700),
-          ),
+          FieldLabel(widget.label!, required: widget.required),
           const SizedBox(height: AppSpacing.xs),
         ],
         TextFormField(

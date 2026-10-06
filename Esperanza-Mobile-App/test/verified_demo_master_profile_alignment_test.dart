@@ -25,6 +25,7 @@ import 'package:esperanza_mobile/services/resident_profile_service.dart';
 import 'package:esperanza_mobile/theme/app_colors.dart';
 import 'package:esperanza_mobile/utils/age_calculator.dart';
 import 'package:esperanza_mobile/widgets/app_button.dart';
+import 'package:esperanza_mobile/widgets/app_text_field.dart';
 
 const _verifiedDemoId = 'ESP-RES-2024-9002';
 final _verifiedDemoDob = DateTime(2001, 3, 15);
@@ -466,7 +467,68 @@ void main() {
       expect(find.text('Construction Worker'), findsOneWidget);
       expect(find.text('Lourdes Quiambao'), findsOneWidget);
       expect(find.text('Sari-Sari Store Vendor'), findsOneWidget);
-      expect(find.text('9718'), findsOneWidget); // plain digits, not "₱9,718"
+      // One income per parent (Esperanza QA, 2026-10-07). The household's
+      // total is not either parent's income, so neither is prefilled from it.
+      expect(find.text("Father's Monthly Income (₱)"), findsOneWidget);
+      expect(find.text("Mother's Monthly Income (₱)"), findsOneWidget);
+      expect(find.text('9718'), findsNothing);
+      expect(tester.takeException(), isNull);
+    });
+
+    // Esperanza QA, 2026-10-07: Year / Grade Level is a choice; the course is
+    // asked, and required, only for a college year; required fields say so.
+    testWidgets('the course follows the grade level: hidden for a grade, required for college', (tester) async {
+      SharedPreferences.setMockInitialValues({});
+      final mf = await _readyMasterFile(tester);
+      await pumpWizard(tester, masterFile: mf);
+      await tester.tap(find.widgetWithText(AppButton, 'Continue')); // -> Student Information
+      await tester.pumpAndSettle();
+
+      // Required fields carry the asterisk; optional ones do not.
+      final gradeLabel = tester.widget<FieldLabel>(find.widgetWithText(FieldLabel, 'Year / Grade Level'));
+      expect(gradeLabel.required, isTrue);
+      expect(tester.widget<FieldLabel>(find.widgetWithText(FieldLabel, 'Degree Program / Course')).required, isTrue);
+      expect(
+        tester.widget<FieldLabel>(find.widgetWithText(FieldLabel, 'Last School Year Average Grade')).required,
+        isFalse,
+      );
+
+      // Her profile's "2nd Year College" is one of the choices, so the course shows.
+      expect(find.text('BS Education'), findsOneWidget);
+
+      Future<void> chooseLevel(String current, String level) async {
+        await tester.ensureVisible(find.text(current));
+        await tester.tap(find.text(current));
+        await tester.pumpAndSettle();
+        await tester.scrollUntilVisible(find.text(level).last, 50, scrollable: find.byType(Scrollable).last);
+        await tester.tap(find.text(level).last);
+        await tester.pumpAndSettle();
+      }
+
+      // A grade: no course asked, and Continue goes on without one.
+      await chooseLevel('2nd Year College', 'Grade 11');
+      expect(find.text('Degree Program / Course'), findsNothing);
+      await tester.ensureVisible(find.widgetWithText(AppButton, 'Continue'));
+      await tester.tap(find.widgetWithText(AppButton, 'Continue'));
+      await tester.pumpAndSettle();
+      expect(find.text('Anselmo Quiambao'), findsOneWidget, reason: 'reached Family Background');
+
+      // Back, and a college year: the course is asked again and must be filled.
+      await tester.ensureVisible(find.widgetWithText(AppButton, 'Back'));
+      await tester.tap(find.widgetWithText(AppButton, 'Back'));
+      await tester.pumpAndSettle();
+      await chooseLevel('Grade 11', '1st Year College');
+      final course = find.descendant(
+        of: find.widgetWithText(AppTextField, 'Degree Program / Course'),
+        matching: find.byType(TextField),
+      );
+      expect(course, findsOneWidget);
+      await tester.enterText(course, '');
+      await tester.ensureVisible(find.widgetWithText(AppButton, 'Continue'));
+      await tester.tap(find.widgetWithText(AppButton, 'Continue'));
+      await tester.pumpAndSettle();
+      expect(find.text('Please complete "Degree Program / Course".'), findsOneWidget);
+      expect(find.text('Anselmo Quiambao'), findsNothing, reason: 'still on Student Information');
       expect(tester.takeException(), isNull);
     });
 

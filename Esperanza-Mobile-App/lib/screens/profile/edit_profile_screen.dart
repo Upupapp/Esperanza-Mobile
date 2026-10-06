@@ -6,6 +6,7 @@ import '../../services/citizen_session_service.dart';
 import '../../services/mock_catalog.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_spacing.dart';
+import '../../utils/ph_mobile.dart';
 import '../../widgets/app_button.dart';
 import '../../widgets/app_dialogs.dart';
 import '../../widgets/app_text_field.dart';
@@ -35,7 +36,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   void initState() {
     super.initState();
     _original = context.read<CitizenSessionService>().account!;
-    _mobile = TextEditingController(text: _original.mobile);
+    _mobile = TextEditingController(text: PhMobile.normalise(_original.mobile));
     _occupation = TextEditingController(text: _original.occupation == '—' ? '' : _original.occupation);
     _purok = TextEditingController(text: _original.purok == '—' ? '' : _original.purok);
     _barangay = _original.barangay;
@@ -71,7 +72,12 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       changes['address'] = [if (purok.isNotEmpty) purok, 'Barangay $_barangay', 'Esperanza, Masbate'].join(', ');
     }
     final newMobile = _mobile.text.trim();
-    final mobileChanged = newMobile.isNotEmpty && newMobile != _original.mobile.trim();
+    final mobileChanged = newMobile.isNotEmpty && newMobile != PhMobile.normalise(_original.mobile.trim());
+    final mobileError = mobileChanged ? PhMobile.validate(newMobile) : null;
+    if (mobileError != null) {
+      setState(() => _error = mobileError);
+      return;
+    }
 
     setState(() {
       _saving = true;
@@ -172,7 +178,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 label: 'Mobile number',
                 controller: _mobile,
                 keyboardType: TextInputType.phone,
+                inputFormatters: PhMobile.inputFormatters,
                 icon: Icons.phone_outlined,
+                hintText: PhMobile.hint,
               ),
               const SizedBox(height: AppSpacing.lg),
               if (context.watch<CitizenSessionService>().identityLocked)

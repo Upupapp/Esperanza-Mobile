@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
+import '../../models/attachment.dart';
 import '../../models/catalog_item.dart';
 import '../../models/resident_profile.dart';
 import '../../models/service_form_spec.dart';
@@ -15,12 +16,15 @@ import '../../theme/app_spacing.dart';
 import '../../utils/age_calculator.dart';
 import '../../utils/fee_inputs.dart';
 import '../../utils/peso_text.dart';
+import '../../utils/ph_mobile.dart';
 import '../../utils/requirement_document_type.dart';
 import '../../utils/tulong_eligibility.dart';
 import '../../widgets/app_button.dart';
+import '../../widgets/app_dialogs.dart';
 import '../../widgets/app_date_field.dart';
 import '../../widgets/app_text_field.dart';
 import '../../widgets/fee_input_fields.dart';
+import '../../widgets/request_documents_picker.dart';
 import '../../widgets/form_section.dart';
 import '../../widgets/onboarding_step_indicator.dart';
 import '../profile/resident_profile/personal_information_screen.dart';
@@ -121,6 +125,13 @@ class _ServiceRequestWizardScreenState extends State<ServiceRequestWizardScreen>
   final _notesController = TextEditingController();
   late final List<RequirementInfo> _requirementInfos = resolveRequirements(widget.item.requirements);
 
+  /// A Tulong request takes its documents while it is filled in (Esperanza
+  /// QA, 2026-10-07); they are uploaded to it right after it is filed.
+  bool get _attachesDocuments => widget.category == ServiceCategory.tulong;
+
+  /// Files picked on the Requirements step, by requirement label.
+  final Map<String, Attachment> _picked = {};
+
   /// The amounts this service's fee is computed from ([CatalogItem.feeInputs]),
   /// asked on the Requirements step and sent as `fee_inputs`.
   late final Map<String, TextEditingController> _feeControllers = {
@@ -155,7 +166,7 @@ class _ServiceRequestWizardScreenState extends State<ServiceRequestWizardScreen>
       _personal = personal;
 
       _fullName.text = personal.fullName;
-      _contact.text = personal.mobile;
+      _contact.text = PhMobile.normalise(personal.mobile);
       _email.text = personal.email;
       _purok.text = personal.sitioPurok;
       _barangay = personal.barangay.isEmpty ? null : personal.barangay;
@@ -235,8 +246,16 @@ class _ServiceRequestWizardScreenState extends State<ServiceRequestWizardScreen>
       };
       for (final entry in personalPrefills.entries) {
         if (entry.value.trim().isEmpty) continue;
-        if (_fieldByKey(entry.key) == null) continue;
-        _controllerFor(entry.key).text = entry.value;
+        final field = _fieldByKey(entry.key);
+        if (field == null) continue;
+        if (field.type == ServiceFieldType.select) {
+          // Year / Grade Level is a choice now; a value typed into the
+          // profile before that is used only when it is one of the choices
+          // (an unmatched value would crash the dropdown).
+          if (field.options?.contains(entry.value) ?? false) _values[entry.key] = entry.value;
+        } else {
+          _controllerFor(entry.key).text = entry.value;
+        }
       }
 
       // Father/Mother — sourced from Family Information (relationshipToHead
@@ -269,16 +288,6 @@ class _ServiceRequestWizardScreenState extends State<ServiceRequestWizardScreen>
         }
       }
 
-      // Household.monthlyIncome is stored pre-formatted (e.g. "₱9,718") for
-      // display elsewhere — this field is ServiceFieldType.number with its
-      // own "(₱)" already in the label, so only the plain digits belong in
-      // the input itself.
-      final income = profile.household.monthlyIncome;
-      if (income.trim().isNotEmpty && _fieldByKey('parentsMonthlyIncome') != null) {
-        final digitsOnly = income.replaceAll(RegExp(r'[^0-9]'), '');
-        if (digitsOnly.isNotEmpty) _controllerFor('parentsMonthlyIncome').text = digitsOnly;
-      }
-
       // Emergency Contact — sourced from Family Information's own Emergency
       // Contact fields (see ResidentProfile.emergencyContactName/Number and
       // the targeted Family Information Emergency Contact editing pass),
@@ -289,7 +298,7 @@ class _ServiceRequestWizardScreenState extends State<ServiceRequestWizardScreen>
       // service-specific demoDefault.
       final emergencyContactPrefills = <String, String>{
         'emergencyContactName': profile.emergencyContactName,
-        'emergencyContactNumber': profile.emergencyContactNumber,
+        'emergencyContactNumber': PhMobile.normalise(profile.emergencyContactNumber),
       };
       for (final entry in emergencyContactPrefills.entries) {
         if (entry.value.trim().isEmpty) continue;
@@ -314,6 +323,7 @@ class _ServiceRequestWizardScreenState extends State<ServiceRequestWizardScreen>
             case ServiceFieldType.text:
             case ServiceFieldType.textarea:
             case ServiceFieldType.number:
+            case ServiceFieldType.phone:
               if (_controllerFor(entry.key).text.isEmpty) {
                 _controllerFor(entry.key).text = entry.value as String;
               }
@@ -398,13 +408,17 @@ class _ServiceRequestWizardScreenState extends State<ServiceRequestWizardScreen>
     if (step == 0) {
       if (_fullName.text.trim().isEmpty) return 'Please enter your full name.';
       if (_barangay == null) return 'Please select your barangay.';
-      return null;
+      return PhMobile.validate(_contact.text);
     }
     if (step >= 1 && step <= _serviceSteps.length) {
       final s = _serviceSteps[step - 1];
       for (final f in s.fields) {
-        if (!f.required || !_isFieldVisible(f)) continue;
-        if (_isFieldEmpty(f)) return 'Please complete "${f.label}".';
+        if (!_isFieldVisible(f)) continue;
+        if (f.required && _isFieldEmpty(f)) return 'Please complete "${f.label}".';
+        if (f.type == ServiceFieldType.phone) {
+          final err = PhMobile.validate(_controllers[f.key]?.text ?? '');
+          if (err != null) return '${f.label}: $err';
+        }
       }
       return null;
     }
@@ -430,6 +444,7 @@ class _ServiceRequestWizardScreenState extends State<ServiceRequestWizardScreen>
       case ServiceFieldType.text:
       case ServiceFieldType.textarea:
       case ServiceFieldType.number:
+      case ServiceFieldType.phone:
         return _controllers[f.key]?.text.trim().isEmpty ?? true;
       case ServiceFieldType.date:
         return _values[f.key] == null;
@@ -450,6 +465,7 @@ class _ServiceRequestWizardScreenState extends State<ServiceRequestWizardScreen>
       case ServiceFieldType.text:
       case ServiceFieldType.textarea:
       case ServiceFieldType.number:
+      case ServiceFieldType.phone:
         final t = _controllers[f.key]?.text.trim() ?? '';
         return t.isEmpty ? '—' : t;
       case ServiceFieldType.date:
@@ -478,10 +494,14 @@ class _ServiceRequestWizardScreenState extends State<ServiceRequestWizardScreen>
     };
     for (final s in _serviceSteps) {
       for (final f in s.fields) {
+        // A field hidden by an earlier answer (the course, for a student
+        // who is not in college) is not part of this application.
+        if (!_isFieldVisible(f)) continue;
         final dynamic raw = switch (f.type) {
           ServiceFieldType.text ||
           ServiceFieldType.textarea ||
-          ServiceFieldType.number => _controllers[f.key]?.text.trim(),
+          ServiceFieldType.number ||
+          ServiceFieldType.phone => _controllers[f.key]?.text.trim(),
           ServiceFieldType.date => (_values[f.key] as DateTime?)?.toIso8601String(),
           ServiceFieldType.select => _values[f.key],
           ServiceFieldType.multiselect => (_values[f.key] as Set<String>?)?.toList(),
@@ -572,9 +592,17 @@ class _ServiceRequestWizardScreenState extends State<ServiceRequestWizardScreen>
         formData: formData,
         feeInputs: FeeInputs.collect(widget.item.feeInputs, _feeControllers),
       );
+      final notUploaded = await requestsService.attachPicked(request, _picked);
 
       if (!mounted) return;
       setState(() => _submitting = false);
+      if (notUploaded.isNotEmpty) {
+        AppDialogs.toast(
+          context,
+          'Your request was filed, but ${notUploaded.join(', ')} could not be uploaded. Add it from your request.',
+          success: false,
+        );
+      }
 
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(
@@ -690,10 +718,11 @@ class _ServiceRequestWizardScreenState extends State<ServiceRequestWizardScreen>
           ),
         ),
         const SizedBox(height: AppSpacing.xl),
-        AppTextField(label: 'Full name', controller: _fullName),
+        AppTextField(label: 'Full name', controller: _fullName, required: true),
         const SizedBox(height: AppSpacing.lg),
         AppSelectField<String>(
           label: 'Barangay',
+          required: true,
           value: _barangay,
           options: MockCatalog.barangays,
           labelBuilder: (b) => b,
@@ -707,8 +736,9 @@ class _ServiceRequestWizardScreenState extends State<ServiceRequestWizardScreen>
           label: 'Mobile number',
           controller: _contact,
           keyboardType: TextInputType.phone,
+          inputFormatters: PhMobile.inputFormatters,
           icon: Icons.phone_outlined,
-          hintText: '09XX XXX XXXX',
+          hintText: PhMobile.hint,
         ),
         const SizedBox(height: AppSpacing.lg),
         AppTextField(
@@ -762,22 +792,39 @@ class _ServiceRequestWizardScreenState extends State<ServiceRequestWizardScreen>
     }
     switch (f.type) {
       case ServiceFieldType.text:
-        return AppTextField(label: f.label, hintText: f.hint, controller: _controllerFor(f.key));
+        return AppTextField(label: f.label, hintText: f.hint, controller: _controllerFor(f.key), required: f.required);
       case ServiceFieldType.number:
         return AppTextField(
           label: f.label,
           hintText: f.hint,
           controller: _controllerFor(f.key),
           keyboardType: TextInputType.number,
+          required: f.required,
         );
       case ServiceFieldType.textarea:
-        return AppTextField(label: f.label, hintText: f.hint, controller: _controllerFor(f.key), maxLines: 4);
+        return AppTextField(
+          label: f.label,
+          hintText: f.hint,
+          controller: _controllerFor(f.key),
+          maxLines: 4,
+          required: f.required,
+        );
+      case ServiceFieldType.phone:
+        return AppTextField(
+          label: f.label,
+          hintText: f.hint ?? PhMobile.hint,
+          controller: _controllerFor(f.key),
+          keyboardType: TextInputType.phone,
+          inputFormatters: PhMobile.inputFormatters,
+          required: f.required,
+        );
       case ServiceFieldType.date:
         return AppDateField(
           label: f.label,
           value: _values[f.key] as DateTime?,
           onChanged: (d) => setState(() => _values[f.key] = d),
           lastDate: DateTime.now(),
+          required: f.required,
         );
       case ServiceFieldType.select:
         return AppSelectField<String>(
@@ -787,6 +834,7 @@ class _ServiceRequestWizardScreenState extends State<ServiceRequestWizardScreen>
           labelBuilder: (o) => o,
           onChanged: (v) => setState(() => _values[f.key] = v),
           hintText: f.hint ?? 'Select ${f.label}',
+          required: f.required,
         );
       case ServiceFieldType.multiselect:
         return _MultiSelectField(
@@ -822,7 +870,18 @@ class _ServiceRequestWizardScreenState extends State<ServiceRequestWizardScreen>
           const SizedBox(height: AppSpacing.xl),
           FeeInputFields(names: widget.item.feeInputs, controllers: _feeControllers),
         ],
-        if (_requirementInfos.isNotEmpty) ...[
+        if (_requirementInfos.isNotEmpty && _attachesDocuments) ...[
+          const SizedBox(height: AppSpacing.xl),
+          RequestDocumentsPicker(
+            requirements: _requirementInfos,
+            picked: _picked,
+            onPicked: (e) => setState(() => _picked[e.key] = e.value),
+            accent: widget.accent,
+            serviceName: widget.item.name,
+            category: widget.category,
+          ),
+        ],
+        if (_requirementInfos.isNotEmpty && !_attachesDocuments) ...[
           const SizedBox(height: AppSpacing.xl),
           const Text(
             'Requirements',
@@ -927,6 +986,13 @@ class _ServiceRequestWizardScreenState extends State<ServiceRequestWizardScreen>
             pesoText(FeeInputs.parse(_feeControllers[name]!.text)) ?? '—',
             onEdit: () => setState(() => _step = _requirementsStep),
           ),
+        if (_attachesDocuments)
+          for (final req in _requirementInfos.where((r) => r.requiresUpload))
+            _reviewRow(
+              req.label,
+              _picked[req.label]?.fileName ?? (req.isRequired ? 'Not attached yet — add it later from your request' : 'Not attached'),
+              onEdit: () => setState(() => _step = _requirementsStep),
+            ),
         if (widget.item.fee != 'Free') _reviewRow('Fee', widget.item.fee, onEdit: null),
         if (_error != null) ...[
           const SizedBox(height: AppSpacing.md),

@@ -116,7 +116,8 @@ void main() {
       // The current values are real editable text, not placeholder/hint.
       expect(tester.widget<TextField>(_fieldInput('Name')).controller!.text, 'Rogelio Escano');
       expect(tester.widget<TextField>(_fieldInput('Relationship')).controller!.text, 'Brother');
-      expect(tester.widget<TextField>(_fieldInput('Contact number')).controller!.text, '0919 000 9012');
+      // The stored "0919 000 9012" opens as the 11 digits the field takes.
+      expect(tester.widget<TextField>(_fieldInput('Contact number')).controller!.text, '09190009012');
       expect(find.widgetWithText(AppButton, 'Cancel'), findsOneWidget);
       expect(find.widgetWithText(AppButton, 'Save'), findsOneWidget);
       expect(tester.takeException(), isNull);
@@ -133,7 +134,7 @@ void main() {
 
       await tester.enterText(_fieldInput('Name'), 'Maria Escano');
       await tester.enterText(_fieldInput('Relationship'), 'Sister');
-      await tester.enterText(_fieldInput('Contact number'), '0917 111 2222');
+      await tester.enterText(_fieldInput('Contact number'), '09171112222');
       await tester.pumpAndSettle();
 
       await _scrollToBottom(tester);
@@ -142,13 +143,13 @@ void main() {
 
       expect(find.text('Maria Escano'), findsOneWidget);
       expect(find.text('Sister'), findsOneWidget);
-      expect(find.text('0917 111 2222'), findsOneWidget);
+      expect(find.text('09171112222'), findsOneWidget);
       expect(find.widgetWithText(AppButton, 'Save'), findsNothing); // back to read-only
 
       final saved = profiles.profileFor(session.account!);
       expect(saved.emergencyContactName, 'Maria Escano');
       expect(saved.emergencyContactRelationship, 'Sister');
-      expect(saved.emergencyContactNumber, '0917 111 2222');
+      expect(saved.emergencyContactNumber, '09171112222');
       expect(saved.emergencyContactEdited, isTrue);
       expect(tester.takeException(), isNull);
     });
@@ -241,11 +242,13 @@ void main() {
       await tester.tap(find.widgetWithText(AppButton, 'Save'));
       await tester.pumpAndSettle();
 
-      expect(find.textContaining('valid mobile number'), findsOneWidget);
+      expect(find.text('Contact number must contain 11 digits and numbers only.'), findsOneWidget);
       expect(find.widgetWithText(AppButton, 'Save'), findsOneWidget);
     });
 
-    testWidgets('a +63 formatted mobile number is accepted', (tester) async {
+    // Esperanza QA, 2026-10-07: numbers only, 11 digits. Letters and symbols
+    // cannot be typed at all, and nothing past the 11th digit is kept.
+    testWidgets('letters and symbols cannot be typed; the 11 digits are kept', (tester) async {
       SharedPreferences.setMockInitialValues({});
       final session = await _signedInAsVerifiedDemo(tester);
       final profiles = await _readyProfiles(tester);
@@ -253,14 +256,19 @@ void main() {
 
       await tester.tap(find.text('Edit'));
       await tester.pumpAndSettle();
-      await tester.enterText(_fieldInput('Contact number'), '+639171112222');
+      // Cleared first: a full field refuses longer text pasted over it.
+      await tester.enterText(_fieldInput('Contact number'), '');
+      await tester.enterText(_fieldInput('Contact number'), '0917-abc-111+2222 99');
       await tester.pumpAndSettle();
+      expect(tester.widget<TextField>(_fieldInput('Contact number')).controller!.text, '09171112222');
       await _scrollToBottom(tester);
+      await tester.ensureVisible(find.widgetWithText(AppButton, 'Save'));
+      await tester.pumpAndSettle();
       await tester.tap(find.widgetWithText(AppButton, 'Save'));
       await tester.pumpAndSettle();
 
       expect(find.widgetWithText(AppButton, 'Save'), findsNothing);
-      expect(profiles.profileFor(session.account!).emergencyContactNumber, '+639171112222');
+      expect(profiles.profileFor(session.account!).emergencyContactNumber, '09171112222');
     });
   });
 

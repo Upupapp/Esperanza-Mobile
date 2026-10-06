@@ -169,6 +169,30 @@ class NotificationsService extends ChangeNotifier {
   /// both key off of.
   bool hasUnread(Iterable<String> ids) => ids.any((id) => !isRead(id));
 
+  /// How many of [ids] are unread: the number on the bell.
+  int unreadCount(Iterable<String> ids) => ids.where((id) => !isRead(id)).length;
+
+  /// "Mark all as read": every item in [ids] (the feed on screen) is read
+  /// here at once, and the server's are cleared in one call
+  /// (POST /citizen/notifications/read-all) so it holds after a refresh.
+  Future<void> markAllRead(Iterable<String> ids) async {
+    final unread = ids.where((id) => !isRead(id)).toList();
+    if (unread.isEmpty) return;
+    final server = [for (final id in unread) ?_serverById(id)];
+    _readIds = {..._readIds, ...unread};
+    for (final n in server) {
+      n.unread = false;
+    }
+    notifyListeners();
+    await _persist();
+    if (server.isEmpty) return;
+    try {
+      await api.post('/citizen/notifications/read-all');
+    } on ApiException {
+      // Kept read locally; the next load re-syncs from the server.
+    }
+  }
+
   Future<void> markRead(String id) async {
     if (isRead(id)) return;
     _readIds = {..._readIds, id};

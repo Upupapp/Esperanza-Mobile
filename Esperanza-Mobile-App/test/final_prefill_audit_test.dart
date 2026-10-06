@@ -185,7 +185,7 @@ void main() {
       await _continue(tester); // -> Needs & Emergency Contact
 
       expect(find.text('Rogelio Escano'), findsOneWidget);
-      expect(find.text('0919 000 9012'), findsOneWidget);
+      expect(find.text('09190009012'), findsOneWidget); // the stored number, as the 11 digits the field takes
       expect(tester.takeException(), isNull);
     });
   });

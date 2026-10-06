@@ -143,9 +143,29 @@ class RequirementRow {
   final String status;
   final bool attachable;
   final String? fileName;
-  const RequirementRow({required this.key, required this.label, required this.status, required this.attachable, this.fileName});
+
+  /// Why the office flagged or rejected it (the server's `reason`, then its
+  /// longer `remarks` for the resident), when it says.
+  final String? reason;
+  final String? remarks;
+
+  /// The server's `replaceable`: flagged, or rejected while the office can
+  /// still review a replacement (Esperanza QA, 2026-10-07).
+  final bool replaceable;
+
+  const RequirementRow({
+    required this.key,
+    required this.label,
+    required this.status,
+    required this.attachable,
+    this.fileName,
+    this.reason,
+    this.remarks,
+    this.replaceable = false,
+  });
 
   bool get isAccepted => status == 'Approved';
+  bool get isRejected => status == 'Rejected';
 }
 
 /// What was approved for a Tulong case and what the resident received (the
@@ -236,6 +256,11 @@ class ServiceRequest {
 
   /// Tulong only; re-fetched with every detail, like [canResubmit].
   TulongAssistance? assistance;
+
+  /// The photo or scan the office took when it released the request (the
+  /// detail's `proof_of_release.file`), once released; null before that.
+  /// Re-fetched with every detail; its URL is signed and short-lived.
+  Attachment? releaseProof;
 
   /// The fee, if the service has one; re-fetched with every detail, like
   /// [canResubmit]. The resident saw neither the fee nor the receipt before.

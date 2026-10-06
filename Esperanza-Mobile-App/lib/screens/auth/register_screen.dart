@@ -10,6 +10,7 @@ import '../../services/mock_catalog.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_spacing.dart';
 import '../../theme/app_status.dart';
+import '../../utils/ph_mobile.dart';
 import '../../utils/password_standard.dart';
 import '../../utils/protected_action.dart';
 import '../../utils/registration_error_text.dart';
@@ -181,6 +182,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
         }
         if (_email.text.trim().isEmpty) return 'Please enter your email address.';
         if (!_emailVerified) return 'Paki-verify muna ang iyong email bago magpatuloy.';
+        final mobileError = PhMobile.validate(_mobile.text);
+        if (mobileError != null) return mobileError;
         if (_barangay == null) return 'Please select your barangay.';
         final unmet = PasswordStandard.unmetMessages(_password.text);
         if (unmet.isNotEmpty) return unmet.map((m) => '• $m').join('\n');
@@ -600,8 +603,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
           label: 'Mobile number',
           controller: _mobile,
           keyboardType: TextInputType.phone,
+          inputFormatters: PhMobile.inputFormatters,
           icon: Icons.phone_outlined,
-          hintText: '09XX XXX XXXX',
+          hintText: PhMobile.hint,
         ),
         const SizedBox(height: AppSpacing.lg),
         AppSelectField<String>(

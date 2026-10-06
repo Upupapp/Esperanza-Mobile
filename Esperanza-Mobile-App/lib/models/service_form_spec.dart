@@ -14,6 +14,9 @@ enum ServiceFieldType {
   text,
   textarea,
   number,
+
+  /// A Philippine mobile number: digits only, 11 of them (utils/ph_mobile.dart).
+  phone,
   date,
   select,
   multiselect,

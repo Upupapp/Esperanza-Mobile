@@ -41,9 +41,20 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   Widget build(BuildContext context) {
     final items = buildNotificationFeed(context);
     final notifService = context.watch<NotificationsService>();
+    final ids = items.map((n) => n.id);
+    final anyUnread = notifService.hasUnread(ids);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Notifications')),
+      appBar: AppBar(
+        title: const Text('Notifications'),
+        actions: [
+          if (anyUnread)
+            TextButton(
+              onPressed: () => notifService.markAllRead(ids),
+              child: const Text('Mark all as read'),
+            ),
+        ],
+      ),
       body: RefreshIndicator(
         onRefresh: () async {
           try {

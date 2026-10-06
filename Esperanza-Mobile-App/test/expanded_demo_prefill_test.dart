@@ -145,7 +145,7 @@ void main() {
       // fields now reuse the same real, editable contact shown on Family
       // Information instead of inventing a separate one.
       expect(find.text('Rogelio Escano'), findsOneWidget);
-      expect(find.text('0919 000 9012'), findsOneWidget);
+      expect(find.text('09190009012'), findsOneWidget); // the stored number, as the 11 digits the field takes
       expect(tester.takeException(), isNull);
     });
 

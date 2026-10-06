@@ -6,6 +6,7 @@ import '../../../services/mock_catalog.dart';
 import '../../../services/resident_profile_service.dart';
 import '../../../theme/app_colors.dart';
 import '../../../theme/app_spacing.dart';
+import '../../../utils/ph_mobile.dart';
 import '../../../widgets/app_button.dart';
 import '../../../widgets/app_card.dart';
 import '../../../widgets/app_dialogs.dart';
@@ -301,7 +302,7 @@ class _EmergencyContactSectionState extends State<_EmergencyContactSection> {
     super.initState();
     _name = TextEditingController(text: widget.profile.emergencyContactName);
     _relationship = TextEditingController(text: widget.profile.emergencyContactRelationship);
-    _number = TextEditingController(text: widget.profile.emergencyContactNumber);
+    _number = TextEditingController(text: PhMobile.normalise(widget.profile.emergencyContactNumber));
   }
 
   @override
@@ -318,7 +319,7 @@ class _EmergencyContactSectionState extends State<_EmergencyContactSection> {
       // stale in-progress edit from a previous Cancel.
       _name.text = widget.profile.emergencyContactName;
       _relationship.text = widget.profile.emergencyContactRelationship;
-      _number.text = widget.profile.emergencyContactNumber;
+      _number.text = PhMobile.normalise(widget.profile.emergencyContactNumber);
       _error = null;
       _editing = true;
     });
@@ -328,19 +329,10 @@ class _EmergencyContactSectionState extends State<_EmergencyContactSection> {
     setState(() {
       _name.text = widget.profile.emergencyContactName;
       _relationship.text = widget.profile.emergencyContactRelationship;
-      _number.text = widget.profile.emergencyContactNumber;
+      _number.text = PhMobile.normalise(widget.profile.emergencyContactNumber);
       _error = null;
       _editing = false;
     });
-  }
-
-  /// Accepts either local (09XXXXXXXXX) or +63 (+639XXXXXXXXX) mobile
-  /// format, same "09XX XXX XXXX" shape used as hint text everywhere else
-  /// in this app — spaces/dashes are stripped before matching so the
-  /// existing "0919 000 9012" formatting keeps working unchanged.
-  bool _isValidPhMobile(String value) {
-    final digits = value.replaceAll(RegExp(r'[\s-]'), '');
-    return RegExp(r'^(09\d{9}|\+639\d{9})$').hasMatch(digits);
   }
 
   Future<void> _save() async {
@@ -355,12 +347,10 @@ class _EmergencyContactSectionState extends State<_EmergencyContactSection> {
       setState(() => _error = 'Please enter their relationship to you.');
       return;
     }
-    if (number.isEmpty) {
-      setState(() => _error = 'Please enter a contact number.');
-      return;
-    }
-    if (!_isValidPhMobile(number)) {
-      setState(() => _error = 'Please enter a valid mobile number (e.g. 09XX XXX XXXX).');
+    // The app's one mobile-number rule (utils/ph_mobile.dart).
+    final numberError = PhMobile.validate(number, required: true);
+    if (numberError != null) {
+      setState(() => _error = numberError);
       return;
     }
     setState(() {
@@ -416,8 +406,9 @@ class _EmergencyContactSectionState extends State<_EmergencyContactSection> {
               label: 'Contact number',
               controller: _number,
               keyboardType: TextInputType.phone,
+              inputFormatters: PhMobile.inputFormatters,
               icon: Icons.phone_outlined,
-              hintText: '09XX XXX XXXX',
+              hintText: PhMobile.hint,
             ),
             if (_error != null) ...[
               const SizedBox(height: AppSpacing.md),

@@ -43,6 +43,30 @@ class MockCatalog {
   /// Reusable purpose options sourced from BRGY.CLEARANCE NEW.docx / BRGY.
   /// RESIDENCY.docx — both official Esperanza barangay forms use the same
   /// purpose checklist.
+  /// Educational Assistance's Year / Grade Level choices. Choosing a college
+  /// year asks for the Degree Program / Course; a grade does not.
+  static const schoolGradeLevels = [
+    'Grade 1',
+    'Grade 2',
+    'Grade 3',
+    'Grade 4',
+    'Grade 5',
+    'Grade 6',
+    'Grade 7',
+    'Grade 8',
+    'Grade 9',
+    'Grade 10',
+    'Grade 11',
+    'Grade 12',
+  ];
+  static const collegeYearLevels = [
+    '1st Year College',
+    '2nd Year College',
+    '3rd Year College',
+    '4th Year College',
+    '5th Year College',
+  ];
+
   static const _barangayPurposeOptions = [
     'Proof of Residency',
     'Local Employment',
@@ -1251,7 +1275,7 @@ class MockCatalog {
               ServiceFormField(
                 key: 'emergencyContactNumber',
                 label: 'Emergency Contact Number',
-                type: ServiceFieldType.text,
+                type: ServiceFieldType.phone,
               ),
               ServiceFormField(
                 key: 'additionalInfo',
@@ -1515,13 +1539,25 @@ class MockCatalog {
                 options: ['Single', 'Married'],
               ),
               ServiceFormField(key: 'schoolName', label: 'School Name', type: ServiceFieldType.text),
-              ServiceFormField(key: 'yearOrGradeLevel', label: 'Year / Grade Level', type: ServiceFieldType.text),
+              // A choice, not free text (Esperanza QA, 2026-10-07), so the
+              // course below can follow it: asked, and required, for a
+              // college student only.
+              ServiceFormField(
+                key: 'yearOrGradeLevel',
+                label: 'Year / Grade Level',
+                type: ServiceFieldType.select,
+                options: [...schoolGradeLevels, ...collegeYearLevels],
+              ),
               ServiceFormField(
                 key: 'degreeProgramOrCourse',
                 label: 'Degree Program / Course',
                 type: ServiceFieldType.text,
-                required: false,
+                visibleWhenKey: 'yearOrGradeLevel',
+                visibleWhenValueIn: collegeYearLevels,
               ),
+              // Optional: the source form asks for it but marks nothing
+              // required, and a first-year or transferring student may
+              // not have one yet.
               ServiceFormField(
                 key: 'lastSchoolAverageGrade',
                 label: 'Last School Year Average Grade',
@@ -1540,6 +1576,16 @@ class MockCatalog {
                 type: ServiceFieldType.text,
                 required: false,
               ),
+              // One income per parent (Esperanza QA, 2026-10-07), each beside
+              // that parent's name and occupation. A request filed before
+              // this carries a single parentsMonthlyIncome, which the staff
+              // site still shows.
+              ServiceFormField(
+                key: 'fatherMonthlyIncome',
+                label: "Father's Monthly Income (₱)",
+                type: ServiceFieldType.number,
+                required: false,
+              ),
               ServiceFormField(key: 'motherName', label: "Mother's Name", type: ServiceFieldType.text, required: false),
               ServiceFormField(
                 key: 'motherOccupation',
@@ -1548,8 +1594,8 @@ class MockCatalog {
                 required: false,
               ),
               ServiceFormField(
-                key: 'parentsMonthlyIncome',
-                label: "Parents' Monthly Income (₱)",
+                key: 'motherMonthlyIncome',
+                label: "Mother's Monthly Income (₱)",
                 type: ServiceFieldType.number,
                 required: false,
               ),
@@ -1769,7 +1815,7 @@ class MockCatalog {
               ServiceFormField(
                 key: 'emergencyContactNumber',
                 label: 'Emergency Contact Number',
-                type: ServiceFieldType.text,
+                type: ServiceFieldType.phone,
               ),
             ],
           ),

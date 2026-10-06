@@ -357,6 +357,9 @@ class RequestsService extends ChangeNotifier {
         status: JsonRead.nonEmpty(q['status']) ?? 'Pending Review',
         attachable: JsonRead.boolean(q['attachable']) == true,
         fileName: file == null ? null : JsonRead.nonEmpty(file['name']),
+        reason: JsonRead.nonEmpty(q['reason']),
+        remarks: JsonRead.nonEmpty(q['remarks']),
+        replaceable: JsonRead.boolean(q['replaceable']) == true,
       );
     });
     final missingRequired = JsonRead.rows(json['missing_required'], (q) {
@@ -385,6 +388,7 @@ class RequestsService extends ChangeNotifier {
       ..attachableRequirements = attachable
       ..missingRequired = missingRequired
       ..requirementRows = requirementRows
+      ..releaseProof = _releaseProofFrom(JsonRead.map(JsonRead.map(json['proof_of_release'])?['file']))
       ..assistance = _assistanceFrom(JsonRead.map(json['assistance']), JsonRead.nonEmpty(json['office']))
       ..payment = _paymentFrom(JsonRead.map(json['payment']));
   }
@@ -401,6 +405,23 @@ class RequestsService extends ChangeNotifier {
   }
 
   /// A Tulong detail's `assistance` (CitizenRequestController::detail()).
+  /// The proof of release the server shows the resident once a request is
+  /// released (`proof_of_release.file`); null when there is none.
+  Attachment? _releaseProofFrom(Map<String, dynamic>? file) {
+    final name = file == null ? null : JsonRead.nonEmpty(file['name']);
+    final url = file == null ? null : JsonRead.nonEmpty(file['url']);
+    if (name == null || url == null) return null;
+    return Attachment(
+      id: 'proof-of-release',
+      fileName: name,
+      category: AttachmentCategoryX.fromExtension(name.contains('.') ? name.split('.').last : ''),
+      sizeBytes: JsonRead.integer(file!['bytes']) ?? 0,
+      remoteUrl: url,
+      addedAt: JsonRead.date(file['uploaded_at']) ?? DateTime.now(),
+      documentTypeLabel: 'Proof of release',
+    );
+  }
+
   TulongAssistance? _assistanceFrom(Map<String, dynamic>? json, String? office) {
     if (json == null) return null;
     return TulongAssistance(
@@ -472,6 +493,32 @@ class RequestsService extends ChangeNotifier {
   /// corrected through [replaceRequirement] once flagged.
   Future<ServiceRequest> attachRequirement(String ref, {required String requirementKey, required String filePath}) =>
       _uploadRequirement(ref, requirementKey, filePath, 'attach');
+
+  /// The documents picked while filling in a request, uploaded to it right
+  /// after it is filed: each through [attachRequirement], matched to the
+  /// request's own requirement rows by label. Returns the labels that could
+  /// not be uploaded (no matching row, no readable file, or refused), which
+  /// the resident can still attach from the request.
+  Future<List<String>> attachPicked(ServiceRequest request, Map<String, Attachment> picked) async {
+    final failed = <String>[];
+    for (final entry in picked.entries) {
+      final path = entry.value.localPath;
+      RequirementRow? row;
+      for (final r in request.requirementRows) {
+        if (r.label == entry.key) row = r;
+      }
+      if (row == null || path == null) {
+        failed.add(entry.key);
+        continue;
+      }
+      try {
+        await attachRequirement(request.referenceNumber, requirementKey: row.key, filePath: path);
+      } on ApiException {
+        failed.add(entry.key);
+      }
+    }
+    return failed;
+  }
 
   Future<ServiceRequest> _uploadRequirement(String ref, String requirementKey, String filePath, String action) async {
     final res = await api.postMultipart(

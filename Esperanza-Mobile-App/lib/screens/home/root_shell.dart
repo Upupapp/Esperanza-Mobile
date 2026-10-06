@@ -25,6 +25,7 @@ import '../sakuna/sakuna_screen.dart';
 import '../tulong/tulong_screen.dart';
 import 'home_screen.dart';
 import '../../theme/app_spacing.dart';
+import '../../theme/app_typography.dart';
 import '../../services/api_client.dart';
 
 /// Mobile bottom-nav IA: Home / Balita / + / Events / Emergency, laid out
@@ -338,7 +339,7 @@ class AlertsAction extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final ids = buildNotificationFeed(context).map((n) => n.id);
-    final hasUnread = context.watch<NotificationsService>().hasUnread(ids);
+    final unread = context.watch<NotificationsService>().unreadCount(ids);
 
     return Padding(
       // AppBar's auto-generated leading hamburger sits inside a 56-wide
@@ -353,25 +354,35 @@ class AlertsAction extends StatelessWidget {
         children: [
           IconButton(
             icon: Icon(Icons.notifications_outlined, color: color),
-            tooltip: 'Alerts',
+            tooltip: unread == 0 ? 'Alerts' : 'Alerts, $unread unread',
             onPressed: () => Navigator.of(context).push(
               MaterialPageRoute(builder: (_) => const NotificationsScreen()),
             ),
           ),
-          // Small, subtle unread marker — never a numeric badge, this app
-          // has no unread-count system beyond "read or not".
-          if (hasUnread)
+          // How many are unread (Esperanza QA, 2026-10-07: a dot did not say
+          // how many); nothing at all when everything is read.
+          if (unread > 0)
             Positioned(
-              top: 8,
-              right: 8,
+              top: 4,
+              right: 2,
               child: IgnorePointer(
                 child: Container(
-                  width: 9,
-                  height: 9,
+                  constraints: const BoxConstraints(minWidth: 18, minHeight: 18),
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                  alignment: Alignment.center,
                   decoration: BoxDecoration(
                     color: AppColors.rose500,
-                    shape: BoxShape.circle,
+                    borderRadius: BorderRadius.circular(AppRadius.full),
                     border: Border.all(color: Colors.white, width: 1.5),
+                  ),
+                  child: Text(
+                    unread > 99 ? '99+' : '$unread',
+                    style: const TextStyle(
+                      color: AppColors.surface,
+                      fontSize: AppTextSize.fine,
+                      fontWeight: FontWeight.w700,
+                      height: 1.1,
+                    ),
                   ),
                 ),
               ),

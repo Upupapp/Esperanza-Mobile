@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../models/attachment.dart';
 import '../../models/catalog_item.dart';
 import '../../models/request_milestones.dart';
@@ -20,8 +21,10 @@ import '../../widgets/app_button.dart';
 import '../../widgets/app_card.dart';
 import '../../widgets/app_dialogs.dart';
 import '../../widgets/async_state_view.dart';
+import '../../widgets/image_viewer_scaffold.dart';
 import '../../widgets/request_milestone_timeline.dart';
 import '../../widgets/requirement_uploader.dart';
+import '../../widgets/server_requirement_uploader.dart';
 import '../../widgets/status_chip.dart';
 import '../../utils/requirement_document_type.dart';
 import 'new_request_screen.dart';
@@ -314,6 +317,7 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
             accent: accent,
             busy: _busy,
             onAttach: (key, a) => _attach(service, key, a),
+            onReplace: (key, a) => _replaceFlagged(service, key, a),
           ),
         ],
         // Tulong's correction state is Needs Requirements; resubmitting
@@ -345,6 +349,11 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
         if (request.payment != null && request.payment!.amount > 0) ...[
           const SizedBox(height: AppSpacing.xl),
           _FeeCard(payment: request.payment!),
+        ],
+        // Once released: the photo or scan the office took at release.
+        if (request.releaseProof != null) ...[
+          const SizedBox(height: AppSpacing.xl),
+          _ReleaseProofCard(proof: request.releaseProof!, accent: accent),
         ],
         const SizedBox(height: AppSpacing.xl),
         Text(
@@ -529,7 +538,7 @@ class _CorrectionsSection extends StatelessWidget {
           for (final m in missing)
             Padding(
               padding: const EdgeInsets.only(top: AppSpacing.md),
-              child: _ServerRequirementUploader(
+              child: ServerRequirementUploader(
                 label: m.label,
                 current: null,
                 accent: accent,
@@ -710,7 +719,7 @@ class _FlaggedRequirementCard extends StatelessWidget {
             style: const TextStyle(fontSize: AppTextSize.label, color: AppColors.slate600, height: 1.4),
           ),
           const SizedBox(height: AppSpacing.sm),
-          _ServerRequirementUploader(
+          ServerRequirementUploader(
             label: flagged.requirementLabel,
             showTitle: false,
             current: currentAttachment,
@@ -726,78 +735,6 @@ class _FlaggedRequirementCard extends StatelessWidget {
   }
 }
 
-/// The uploader for a requirement whose document the server keeps: a flagged
-/// one being replaced, or a pending one being attached. Wired to
-/// [MasterFileService] the same way the submission-time uploaders are, so
-/// "Use Existing Document" works here too. There is no Remove: the server
-/// keeps a requirement's file, which can only be replaced.
-class _ServerRequirementUploader extends StatelessWidget {
-  final String label;
-  final Attachment? current;
-  final Color accent;
-  final bool busy;
-  final String serviceName;
-  final ServiceCategory category;
-  final ValueChanged<Attachment> onPicked;
-  final bool showTitle;
-
-  const _ServerRequirementUploader({
-    required this.label,
-    this.showTitle = true,
-    required this.current,
-    required this.accent,
-    required this.busy,
-    required this.serviceName,
-    required this.category,
-    required this.onPicked,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final requirement = RequirementInfo(label: label, documentType: documentTypeFor(label), isRequired: true);
-    return Opacity(
-      opacity: busy ? 0.6 : 1,
-      child: IgnorePointer(
-        ignoring: busy,
-        child: Consumer<MasterFileService>(
-          builder: (context, masterFile, _) {
-            final accountId = context.read<CitizenSessionService>().account?.id;
-            // Reuse needs the file on this device: the endpoint uploads bytes,
-            // and a server-only Papeles copy has none here.
-            final found = accountId != null ? masterFile.findByType(accountId, requirement.documentType) : null;
-            final existing = (found?.attachment.localPath?.isNotEmpty ?? false) ? found : null;
-            return RequirementUploader(
-              requirement: requirement,
-              showTitle: showTitle,
-              attachment: current,
-              accent: accent,
-              existingMasterDoc: existing,
-              onAttachNew: (a) {
-                onPicked(a);
-                if (accountId != null) {
-                  masterFile.saveOrUpdate(
-                    accountId: accountId,
-                    documentType: requirement.documentType,
-                    label: requirement.label,
-                    attachment: a,
-                    origin: category == ServiceCategory.dokyu ? 'Dokyu' : 'Tulong',
-                    serviceName: serviceName,
-                  );
-                }
-              },
-              onUseExisting: () {
-                if (existing != null) {
-                  onPicked(attachmentForReuse(existing.attachment, requirementLabel: requirement.label));
-                }
-              },
-            );
-          },
-        ),
-      ),
-    );
-  }
-}
-
 /// Requirements the office has not decided yet ([PendingRequirement]): the
 /// resident attaches each document here, or changes it, while the request is
 /// being verified. Nothing is resubmitted; the office reviews what is on file.
@@ -808,7 +745,17 @@ class _AttachSection extends StatelessWidget {
   final bool busy;
   final void Function(String requirementKey, Attachment newAttachment) onAttach;
 
-  const _AttachSection({required this.request, required this.pending, required this.accent, required this.busy, required this.onAttach});
+  /// A rejected document's replacement (see [RequirementRow.replaceable]).
+  final void Function(String requirementKey, Attachment newAttachment) onReplace;
+
+  const _AttachSection({
+    required this.request,
+    required this.pending,
+    required this.accent,
+    required this.busy,
+    required this.onAttach,
+    required this.onReplace,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -820,7 +767,12 @@ class _AttachSection extends StatelessWidget {
       return info.isRequired && info.requiresUpload && _attachmentFor(request, p.label) == null;
     }).length;
     final accepted = rows.where((r) => r.isAccepted).length;
+    final rejected = rows.where((r) => r.isRejected).length;
     final summary = [
+      if (rejected > 0)
+        rejected == 1
+            ? '1 document was not accepted: replace it below so the office can review it again.'
+            : '$rejected documents were not accepted: replace them below so the office can review them again.',
       if (owed > 0) owed == 1 ? '1 required document still needs to be attached.' : '$owed required documents still need to be attached.',
       if (owed == 0 && pending.isNotEmpty) 'Every required document is attached. You can change one until the office reviews it.',
       if (rows.isNotEmpty) '$accepted of ${rows.length} accepted by the office.',
@@ -850,7 +802,10 @@ class _AttachSection extends StatelessWidget {
           const SizedBox(height: AppSpacing.xs),
           Text(
             summary,
-            style: AppTypography.captionSmallRegular.copyWith(color: owed > 0 ? AppColors.orange700 : AppColors.slate500, height: 1.4),
+            style: AppTypography.captionSmallRegular.copyWith(
+              color: rejected > 0 ? AppColors.rose600 : (owed > 0 ? AppColors.orange700 : AppColors.slate500),
+              height: 1.4,
+            ),
           ),
           for (final p in pending)
             if (!rows.any((r) => r.key == p.key) || !rows.firstWhere((r) => r.key == p.key).isAccepted)
@@ -861,7 +816,7 @@ class _AttachSection extends StatelessWidget {
                   children: [
                     _RequirementKindChip(label: p.label),
                     if (resolveRequirements([p.label]).single.requiresUpload)
-                      _ServerRequirementUploader(
+                      ServerRequirementUploader(
                         label: p.label,
                         current: _attachmentFor(request, p.label),
                         accent: accent,
@@ -875,11 +830,21 @@ class _AttachSection extends StatelessWidget {
                   ],
                 ),
               ),
-          // Everything not open for upload: accepted ones stay, in green.
+          // Everything not open for upload: accepted ones stay, in green; a
+          // rejected one says why and takes a replacement (Esperanza QA,
+          // 2026-10-07: the resident saw neither the reason nor a way to fix it).
           for (final r in rows.where((r) => !pendingKeys.contains(r.key)))
             Padding(
               padding: const EdgeInsets.only(top: AppSpacing.md),
-              child: _RequirementStateRow(
+              child: r.isRejected
+                  ? _RejectedRequirement(
+                      row: r,
+                      request: request,
+                      accent: accent,
+                      busy: busy,
+                      onReplace: (a) => onReplace(r.key, a),
+                    )
+                  : _RequirementStateRow(
                 label: r.label,
                 line: switch (r.status) {
                   'Approved' => 'Accepted by the office${r.fileName == null ? '' : ' · ${r.fileName}'}',
@@ -899,6 +864,62 @@ class _AttachSection extends StatelessWidget {
             ),
         ],
       ),
+    );
+  }
+}
+
+/// A document the office rejected: the reason, and - while the office can
+/// still review one - an upload for its replacement, which goes back to the
+/// office as Resubmitted. Once the request has moved on, it only says so.
+class _RejectedRequirement extends StatelessWidget {
+  final RequirementRow row;
+  final ServiceRequest request;
+  final Color accent;
+  final bool busy;
+  final ValueChanged<Attachment> onReplace;
+
+  const _RejectedRequirement({
+    required this.row,
+    required this.request,
+    required this.accent,
+    required this.busy,
+    required this.onReplace,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final why = [?row.reason, if (row.remarks != null && row.remarks != row.reason) row.remarks!].join(' — ');
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _RequirementStateRow(
+          label: row.label,
+          line: row.replaceable ? 'Not accepted by the office. Upload a replacement.' : 'Not accepted by the office',
+          color: AppColors.rose600,
+        ),
+        if (why.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.only(left: 26, top: AppSpacing.xs),
+            child: Text(
+              'Reason: $why',
+              style: AppTypography.captionSmallRegular.copyWith(color: AppColors.rose700, height: 1.4),
+            ),
+          ),
+        if (row.replaceable)
+          Padding(
+            padding: const EdgeInsets.only(top: AppSpacing.sm),
+            child: ServerRequirementUploader(
+              label: row.label,
+              showTitle: false,
+              current: null,
+              accent: accent,
+              busy: busy,
+              serviceName: request.typeName,
+              category: request.category,
+              onPicked: onReplace,
+            ),
+          ),
+      ],
     );
   }
 }
@@ -1117,4 +1138,62 @@ class _TimelineRow extends StatelessWidget {
     );
   }
 
+}
+
+/// The proof of release the office captured (Esperanza QA, 2026-10-07: a
+/// released Pet Registration showed the status but not the proof). An image
+/// opens in the app's viewer; any other file opens outside the app. The link
+/// is the server's signed, short-lived one, issued only on the resident's own
+/// request detail.
+class _ReleaseProofCard extends StatelessWidget {
+  final Attachment proof;
+  final Color accent;
+  const _ReleaseProofCard({required this.proof, required this.accent});
+
+  Future<void> _open(BuildContext context) async {
+    final url = proof.remoteUrl;
+    if (url == null) return;
+    if (proof.category == AttachmentCategory.image) {
+      await Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => ImageViewerScaffold(
+            title: 'Proof of release',
+            image: NetworkImage(url),
+            semanticLabel: 'Proof of release photo',
+          ),
+        ),
+      );
+      return;
+    }
+    final uri = Uri.tryParse(url);
+    if (uri == null || !await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+      if (context.mounted) AppDialogs.toast(context, 'Could not open the file. Pull down to refresh, then try again.', success: false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AppCard(
+      child: Row(
+        children: [
+          Icon(Icons.verified_outlined, size: 20, color: accent),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Proof of release',
+                  style: TextStyle(fontSize: AppTextSize.body, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
+                ),
+                const SizedBox(height: 2),
+                Text(proof.fileName, style: AppTypography.captionSmallRegular.copyWith(color: AppColors.slate500)),
+              ],
+            ),
+          ),
+          TextButton(onPressed: () => _open(context), child: const Text('View')),
+        ],
+      ),
+    );
+  }
 }

@@ -13,6 +13,7 @@ import '../../../theme/app_spacing.dart';
 import '../../../utils/age_calculator.dart';
 import '../../../utils/demo_resident_photo.dart';
 import '../../../utils/government_id.dart';
+import '../../../utils/ph_mobile.dart';
 import '../../../utils/protected_action.dart';
 import '../../../widgets/app_button.dart';
 import '../../../widgets/app_card.dart';
@@ -73,7 +74,7 @@ class _PersonalInformationScreenState extends State<PersonalInformationScreen> {
     _middleName = TextEditingController(text: _original.middleName);
     _lastName = TextEditingController(text: _original.lastName);
     _suffix = TextEditingController(text: _original.suffix);
-    _mobile = TextEditingController(text: _original.mobile);
+    _mobile = TextEditingController(text: PhMobile.normalise(_original.mobile));
     _email = TextEditingController(text: _original.email);
     _sitioPurok = TextEditingController(text: _original.sitioPurok);
     _completeAddress = TextEditingController(text: _original.completeAddress);
@@ -156,7 +157,8 @@ class _PersonalInformationScreenState extends State<PersonalInformationScreen> {
     if (_sex == null) return 'Please select your sex.';
     if (_birthdate == null) return 'Please select your birthdate.';
     if (_civilStatus == null) return 'Please select your civil status.';
-    if (_mobile.text.trim().isEmpty) return 'Please enter your mobile number.';
+    final mobileError = PhMobile.validate(_mobile.text, required: true, emptyMessage: 'Please enter your mobile number.');
+    if (mobileError != null) return mobileError;
     if (_barangay == null) return 'Please select your barangay.';
     if (_sitioPurok.text.trim().isEmpty) return 'Please enter your Sitio / Purok.';
     if (_completeAddress.text.trim().isEmpty) return 'Please enter your complete address.';
@@ -165,6 +167,12 @@ class _PersonalInformationScreenState extends State<PersonalInformationScreen> {
   }
 
   Future<void> _save({required bool markComplete}) async {
+    // A draft may leave the number blank, but never save one that is wrong.
+    final mobileError = PhMobile.validate(_mobile.text);
+    if (!markComplete && mobileError != null) {
+      setState(() => _error = mobileError);
+      return;
+    }
     if (markComplete) {
       final err = _missingFieldError();
       if (err != null) {
@@ -429,8 +437,10 @@ class _PersonalInformationScreenState extends State<PersonalInformationScreen> {
                     label: 'Mobile number',
                     controller: _mobile,
                     keyboardType: TextInputType.phone,
+                    inputFormatters: PhMobile.inputFormatters,
                     icon: Icons.phone_outlined,
-                    hintText: '09XX XXX XXXX',
+                    hintText: PhMobile.hint,
+                    required: true,
                   ),
                   AppTextField(
                     label: 'Email address',

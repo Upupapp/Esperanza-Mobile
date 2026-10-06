@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../../models/attachment.dart';
 import '../../models/catalog_item.dart';
 import '../../models/service_request.dart';
 import '../../services/api_client.dart';
@@ -15,6 +16,8 @@ import '../../widgets/app_button.dart';
 import '../../widgets/app_card.dart';
 import '../../widgets/app_text_field.dart';
 import '../../widgets/fee_input_fields.dart';
+import '../../widgets/app_dialogs.dart';
+import '../../widgets/request_documents_picker.dart';
 import 'request_detail_screen.dart';
 import 'request_submitted_screen.dart';
 import '../../theme/app_typography.dart';
@@ -56,6 +59,13 @@ class _NewRequestScreenState extends State<NewRequestScreen> {
   /// ask for while reviewing, same as [ServiceRequestWizardScreen]'s own
   /// requirements list.
   late final List<RequirementInfo> _requirementInfos = resolveRequirements(widget.item.requirements);
+
+  /// A Tulong request takes its documents while it is filled in (Esperanza
+  /// QA, 2026-10-07); they are uploaded to it right after it is filed.
+  bool get _attachesDocuments => widget.category == ServiceCategory.tulong;
+
+  /// Files picked below, by requirement label.
+  final Map<String, Attachment> _picked = {};
 
   bool _submitting = false;
   String? _error;
@@ -120,9 +130,17 @@ class _NewRequestScreenState extends State<NewRequestScreen> {
         formData: {'purpose': _purposeController.text.trim()},
         feeInputs: FeeInputs.collect(widget.item.feeInputs, _feeControllers),
       );
+      final notUploaded = await requestsService.attachPicked(request, _picked);
 
       if (!mounted) return;
       setState(() => _submitting = false);
+      if (notUploaded.isNotEmpty) {
+        AppDialogs.toast(
+          context,
+          'Your request was filed, but ${notUploaded.join(', ')} could not be uploaded. Add it from your request.',
+          success: false,
+        );
+      }
 
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(
@@ -200,7 +218,18 @@ class _NewRequestScreenState extends State<NewRequestScreen> {
           const SizedBox(height: AppSpacing.xl),
           FeeInputFields(names: widget.item.feeInputs, controllers: _feeControllers),
         ],
-        if (_requirementInfos.isNotEmpty) ...[
+        if (_requirementInfos.isNotEmpty && _attachesDocuments) ...[
+          const SizedBox(height: AppSpacing.xl),
+          RequestDocumentsPicker(
+            requirements: _requirementInfos,
+            picked: _picked,
+            onPicked: (e) => setState(() => _picked[e.key] = e.value),
+            accent: widget.accent,
+            serviceName: widget.item.name,
+            category: widget.category,
+          ),
+        ],
+        if (_requirementInfos.isNotEmpty && !_attachesDocuments) ...[
           const SizedBox(height: AppSpacing.xl),
           const Text(
             'Requirements',
