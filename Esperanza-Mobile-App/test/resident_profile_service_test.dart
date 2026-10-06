@@ -142,6 +142,35 @@ void main() {
     expect(service.profileFor(account).status, VerificationStatus.verified);
   });
 
+  test('a profile the barangay sends back is Needs Correction with its note, until submitted again', () async {
+    final account = _demoAccount();
+    final service = ResidentProfileService();
+    await Future<void>.delayed(const Duration(milliseconds: 50));
+    service.profileFor(account);
+
+    var view = <String, dynamic>{
+      'individual': {'ref': 'RES-2026-0901', 'verification': 'Unverified'},
+      'submitted_at': '2026-10-06T01:00:00Z',
+      'review': {'outcome': 'returned', 'note': 'Your birthdate does not match your ID.', 'at': '2026-10-06T02:00:00Z'},
+    };
+    FakeApi.installFull((r) => view);
+    addTearDown(FakeApi.restore);
+
+    await service.syncStatus(account.id);
+    expect(service.profileFor(account).status, VerificationStatus.needsCorrection);
+    expect(service.profileFor(account).correctionMessage, 'Your birthdate does not match your ID.');
+
+    // Fixed and submitted again: back with the barangay, the note gone.
+    view = {
+      'individual': {'ref': 'RES-2026-0901', 'verification': 'For Validation'},
+      'submitted_at': '2026-10-06T03:00:00Z',
+      'review': null,
+    };
+    await service.submit(account.id);
+    expect(service.profileFor(account).status, VerificationStatus.pendingVerification);
+    expect(service.profileFor(account).correctionMessage, isNull);
+  });
+
   test('a failed submit leaves the profile unsubmitted', () async {
     final account = _demoAccount();
     final service = ResidentProfileService();

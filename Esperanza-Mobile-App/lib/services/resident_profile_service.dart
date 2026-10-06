@@ -486,18 +486,28 @@ class ResidentProfileService extends ChangeNotifier {
     if (_applyServerStatus(p, res.map)) await _save(p);
   }
 
-  /// Individual.verification: Unverified / For Validation / Verified.
+  /// Individual.verification: Unverified / For Validation / Verified, and the
+  /// barangay's decision (`review`). A profile the barangay sent back is
+  /// Unverified with `review.outcome` 'returned' and a note saying what to
+  /// change: that is Needs Correction here, with the note as the message
+  /// (2026-10-06: nothing could leave Pending Verification before).
   bool _applyServerStatus(ResidentProfile p, Map<String, dynamic> view) {
     final individual = JsonRead.map(view['individual']);
     final verification = JsonRead.nonEmpty(individual?['verification']);
+    final review = JsonRead.map(view['review']);
+    final returned = verification == 'Unverified' && JsonRead.nonEmpty(review?['outcome']) == 'returned';
     final next = switch (verification) {
       'Verified' => VerificationStatus.verified,
       'For Validation' => VerificationStatus.pendingVerification,
+      _ when returned => VerificationStatus.needsCorrection,
       _ => null,
     };
+    final message = returned ? JsonRead.nonEmpty(review?['note']) : null;
+    final messageChanged = next != null && message != p.correctionMessage;
+    if (next != null) p.correctionMessage = message;
     final submitted = JsonRead.date(view['submitted_at'])?.toLocal();
     if (submitted != null) p.submittedAt = submitted;
-    if (next == null || next == p.status) return submitted != null;
+    if (next == null || (next == p.status && !messageChanged)) return submitted != null;
     p.status = next;
     notifyListeners();
     return true;

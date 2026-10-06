@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:esperanza_mobile/models/service_request.dart';
+import 'package:esperanza_mobile/screens/profile/resident_profile/resident_profile_overview_screen.dart';
 import 'package:esperanza_mobile/screens/shared/my_requests_screen.dart';
 import 'package:esperanza_mobile/screens/shared/request_detail_screen.dart';
 import 'package:esperanza_mobile/screens/shared/request_list_screen.dart';
@@ -171,6 +172,22 @@ void main() {
     await tester.pumpAndSettle();
     expect(calls, 1);
     expect(find.text('DOK-2026-00903'), findsOneWidget, reason: 'a request filed meanwhile shows after pulling down');
+  });
+
+  test('the barangay verifying or sending back the Resident Profile opens that profile', () {
+    final n = ServerNotification(
+      id: 2,
+      category: 'account',
+      title: 'Kailangang ayusin ang iyong Resident Profile',
+      body: 'b',
+      pill: 'Needs Correction',
+      ref: null,
+      link: '/citizen/profile#resident-profile',
+      unread: true,
+      pinned: false,
+      at: DateTime(2026, 10, 6),
+    );
+    expect(serverNotificationDestination(n), isA<ResidentProfileOverviewScreen>());
   });
 
   test('an incident update opens the incident, read or not', () {

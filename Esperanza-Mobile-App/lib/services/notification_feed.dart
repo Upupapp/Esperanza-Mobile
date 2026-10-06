@@ -439,6 +439,8 @@ Widget? serverNotificationDestination(ServerNotification n) {
   return switch (link) {
     '/citizen/document-requests' || '/citizen/assistance-requests' => const MyRequestsScreen(),
     '/citizen/profile' => const ProfileScreen(),
+    // The barangay verified the Resident Profile, or sent it back.
+    '/citizen/profile#resident-profile' => const ResidentProfileOverviewScreen(),
     _ when link.startsWith('/citizen/help') => const HelpSupportScreen(),
     _ => null,
   };
