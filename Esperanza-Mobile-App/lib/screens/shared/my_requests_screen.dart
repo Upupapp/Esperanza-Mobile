@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../models/service_request.dart';
+import '../../services/api_client.dart';
 import '../../services/requests_service.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_spacing.dart';
 import '../../widgets/app_card.dart';
+import '../../widgets/app_dialogs.dart';
 import '../../widgets/empty_state.dart';
 import '../../widgets/segmented_tabs.dart';
 import '../../widgets/status_chip.dart';
@@ -36,6 +38,24 @@ class MyRequestsScreen extends StatefulWidget {
 class _MyRequestsScreenState extends State<MyRequestsScreen> {
   int _tab = 0; // 0 = All, 1 = Dokyu, 2 = Tulong
 
+  // It showed whatever was loaded when the app started: a request filed on
+  // the website meanwhile was missing, and pulling down did nothing
+  // (Esperanza bugs QA item 10, seen on the emulator). Opening the screen
+  // re-reads the list, and pulling down reads it again.
+  @override
+  void initState() {
+    super.initState();
+    _reload(quiet: true);
+  }
+
+  Future<void> _reload({bool quiet = false}) async {
+    try {
+      await context.read<RequestsService>().loadRequests();
+    } on ApiException catch (e) {
+      if (!quiet && mounted) AppDialogs.toast(context, e.message(), success: false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final requests = context.watch<RequestsService>();
@@ -61,17 +81,26 @@ class _MyRequestsScreenState extends State<MyRequestsScreen> {
             ),
           ),
           Expanded(
-            child: mine.isEmpty
-                ? EmptyState(
-                    icon: Icons.folder_open_outlined,
-                    title: _tab == 0 ? 'No requests yet' : 'No ${_tab == 1 ? 'Dokyu' : 'Tulong'} requests yet',
-                    description: 'Your submitted Dokyu and Tulong requests will appear here.',
-                  )
-                : ListView.builder(
-                    padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.sm, AppSpacing.lg, AppSpacing.xxl),
-                    itemCount: mine.length,
-                    itemBuilder: (context, i) => _MyRequestCard(request: mine[i]),
-                  ),
+            child: RefreshIndicator(
+              onRefresh: _reload,
+              child: mine.isEmpty
+                  ? ListView(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      children: [
+                        EmptyState(
+                          icon: Icons.folder_open_outlined,
+                          title: _tab == 0 ? 'No requests yet' : 'No ${_tab == 1 ? 'Dokyu' : 'Tulong'} requests yet',
+                          description: 'Your submitted Dokyu and Tulong requests will appear here.',
+                        ),
+                      ],
+                    )
+                  : ListView.builder(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.sm, AppSpacing.lg, AppSpacing.xxl),
+                      itemCount: mine.length,
+                      itemBuilder: (context, i) => _MyRequestCard(request: mine[i]),
+                    ),
+            ),
           ),
         ],
       ),

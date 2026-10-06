@@ -5,6 +5,7 @@ import '../../models/citizen_account.dart';
 import '../../models/service_request.dart';
 import '../../services/api_client.dart';
 import '../../services/json_read.dart';
+import '../../services/notifications_service.dart';
 import '../../services/citizen_session_service.dart';
 import '../../services/requests_service.dart';
 import '../../services/resident_profile_service.dart';
@@ -15,6 +16,7 @@ import '../../theme/app_typography.dart';
 import '../../utils/demo_resident_photo.dart';
 import '../../widgets/app_button.dart';
 import '../../widgets/app_card.dart';
+import '../../widgets/app_dialogs.dart';
 import '../../widgets/empty_state.dart';
 import '../../widgets/esperanza_drawer.dart';
 import '../../widgets/event_card.dart';
@@ -136,7 +138,19 @@ class _HomeScreenState extends State<HomeScreen> {
       body: SafeArea(
         bottom: false,
         child: RefreshIndicator(
-          onRefresh: () async => Future.delayed(const Duration(milliseconds: 500)),
+          // It only waited half a second: the counts and Active Requests
+          // stayed as loaded at start-up (Esperanza bugs QA item 10, seen on
+          // the emulator). Pulling down now re-reads requests and the bell.
+          onRefresh: () async {
+            try {
+              await Future.wait([
+                context.read<RequestsService>().loadRequests(),
+                context.read<NotificationsService>().loadServer(),
+              ]);
+            } on ApiException catch (e) {
+              if (context.mounted) AppDialogs.toast(context, e.message(), success: false);
+            }
+          },
           child: ListView(
             controller: _scrollController,
             // 100 (rather than a plain 32) leaves real, transparent

@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:esperanza_mobile/models/service_request.dart';
+import 'package:esperanza_mobile/screens/shared/my_requests_screen.dart';
 import 'package:esperanza_mobile/screens/shared/request_detail_screen.dart';
 import 'package:esperanza_mobile/screens/shared/request_list_screen.dart';
 import 'package:esperanza_mobile/services/citizen_session_service.dart';
@@ -100,6 +101,35 @@ void main() {
     await tester.pumpAndSettle();
     expect(calls, greaterThan(1));
     expect(find.text('Approved'), findsWidgets);
+  });
+
+  testWidgets('My Requests reads the list when opened, and again when pulled down', (tester) async {
+    SharedPreferences.setMockInitialValues({});
+    var calls = 0;
+    Map<String, dynamic> row(String ref) =>
+        {'ref': ref, 'type': 'dokyu', 'service': 'Barangay Certification (Synthetic)', 'status': 'Submitted', 'submitted': '2026-10-06T00:00:00Z'};
+    FakeApi.installFull((r) {
+      if (r.path == '/citizen/requests') {
+        calls++;
+        return [row('DOK-2026-00901'), if (calls > 1) row('DOK-2026-00902')];
+      }
+      throw const FakeApiError(messageEn: 'not configured');
+    });
+    await tester.pumpWidget(
+      MultiProvider(
+        providers: [ChangeNotifierProvider(create: (_) => RequestsService())],
+        child: const MaterialApp(home: MyRequestsScreen()),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(calls, 1, reason: 'opening the screen reads the list, not the copy loaded at start-up');
+    expect(find.text('DOK-2026-00901'), findsOneWidget);
+    expect(find.text('DOK-2026-00902'), findsNothing);
+
+    await tester.fling(find.byType(ListView), const Offset(0, 400), 1000);
+    await tester.pumpAndSettle();
+    expect(calls, 2, reason: 'pulling down reads it again');
+    expect(find.text('DOK-2026-00902'), findsOneWidget, reason: 'a request filed on the website meanwhile shows up');
   });
 
   test('an incident update opens the incident, read or not', () {
