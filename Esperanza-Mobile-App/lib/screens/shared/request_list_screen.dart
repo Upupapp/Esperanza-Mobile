@@ -4,12 +4,14 @@ import 'package:share_plus/share_plus.dart';
 import '../../models/catalog_item.dart';
 import '../../models/request_filters.dart';
 import '../../models/service_request.dart';
+import '../../services/api_client.dart';
 import '../../services/requests_service.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_spacing.dart';
 import '../../theme/tulong_status.dart';
 import '../../widgets/active_filter_chip.dart';
 import '../../widgets/app_card.dart';
+import '../../widgets/app_dialogs.dart';
 import '../../widgets/empty_state.dart';
 import '../../widgets/esperanza_drawer.dart';
 import '../../widgets/filter_bottom_sheet.dart';
@@ -106,6 +108,18 @@ class _RequestListScreenState extends State<RequestListScreen> {
       if (visible.length > 20) '…and ${visible.length - 20} more',
     ];
     await SharePlus.instance.share(ShareParams(text: lines.join('\n'), subject: '${widget.title} — Esperanza'));
+  }
+
+  // Each list was read once, when its tab was first opened, and had no
+  // pull-to-refresh: a request filed on the website meanwhile never showed
+  // (Esperanza bugs QA item 10, seen on the emulator). Pulling down re-reads it.
+  Future<void> _reload() async {
+    final service = context.read<RequestsService>();
+    try {
+      await (widget.category == ServiceCategory.sakunaIncident ? service.loadIncidents() : service.loadRequests());
+    } on ApiException catch (e) {
+      if (mounted) AppDialogs.toast(context, e.message(), success: false);
+    }
   }
 
   @override
@@ -267,25 +281,29 @@ class _RequestListScreenState extends State<RequestListScreen> {
             ),
           ),
           Expanded(
-            child: visible.isEmpty
-                ? _EmptyStateArea(
-                    icon: widget.icon,
-                    title: _filters.isActive
-                        ? 'No requests match your current filters.'
-                        : (_tab == 0 ? 'No active requests' : 'No completed requests yet'),
-                    description: _filters.isActive ? null : (_tab == 0 ? 'Tap "New Request" to get started.' : null),
-                    action: _filters.isActive
-                        ? OutlinedButton(
-                            onPressed: () => setState(() => _filters = const RequestFilters()),
-                            child: const Text('Clear Filters'),
-                          )
-                        : null,
-                  )
-                : ListView.builder(
-                    padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.sm, AppSpacing.lg, AppSpacing.page),
-                    itemCount: visible.length,
-                    itemBuilder: (context, i) => _RequestTile(request: visible[i], accent: widget.accent),
-                  ),
+            child: RefreshIndicator(
+              onRefresh: _reload,
+              child: visible.isEmpty
+                  ? _EmptyStateArea(
+                      icon: widget.icon,
+                      title: _filters.isActive
+                          ? 'No requests match your current filters.'
+                          : (_tab == 0 ? 'No active requests' : 'No completed requests yet'),
+                      description: _filters.isActive ? null : (_tab == 0 ? 'Tap "New Request" to get started.' : null),
+                      action: _filters.isActive
+                          ? OutlinedButton(
+                              onPressed: () => setState(() => _filters = const RequestFilters()),
+                              child: const Text('Clear Filters'),
+                            )
+                          : null,
+                    )
+                  : ListView.builder(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.sm, AppSpacing.lg, AppSpacing.page),
+                      itemCount: visible.length,
+                      itemBuilder: (context, i) => _RequestTile(request: visible[i], accent: widget.accent),
+                    ),
+            ),
           ),
         ],
       ),
@@ -330,6 +348,8 @@ class _EmptyStateArea extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, constraints) {
         return SingleChildScrollView(
+          // Always scrollable, so pull-to-refresh works on an empty list too.
+          physics: const AlwaysScrollableScrollPhysics(),
           child: ConstrainedBox(
             constraints: BoxConstraints(minHeight: constraints.maxHeight),
             child: Column(

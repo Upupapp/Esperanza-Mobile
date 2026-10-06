@@ -132,6 +132,47 @@ void main() {
     expect(find.text('DOK-2026-00902'), findsOneWidget, reason: 'a request filed on the website meanwhile shows up');
   });
 
+  testWidgets('the Dokyu list re-reads itself when pulled down', (tester) async {
+    SharedPreferences.setMockInitialValues({});
+    var calls = 0;
+    FakeApi.installFull((r) {
+      if (r.path == '/citizen/requests') {
+        calls++;
+        return [
+          {'ref': 'DOK-2026-00903', 'type': 'dokyu', 'service': 'Barangay Certification (Synthetic)', 'status': 'Submitted', 'submitted': '2026-10-06T00:00:00Z'},
+        ];
+      }
+      throw const FakeApiError(messageEn: 'not configured');
+    });
+    await tester.pumpWidget(
+      MultiProvider(
+        providers: [
+          ChangeNotifierProvider(create: (_) => RequestsService()),
+          ChangeNotifierProvider(create: (_) => CitizenSessionService()),
+          ChangeNotifierProvider(create: (_) => NotificationsService()),
+        ],
+        child: const MaterialApp(
+          home: RequestListScreen(
+            category: ServiceCategory.dokyu,
+            title: 'Dokyu',
+            subtitle: 's',
+            catalog: [],
+            accent: AppColors.brand600,
+            icon: Icons.description_outlined,
+            pushed: true,
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('DOK-2026-00903'), findsNothing, reason: 'nothing loaded yet');
+
+    await tester.fling(find.byType(SingleChildScrollView).first, const Offset(0, 400), 1000);
+    await tester.pumpAndSettle();
+    expect(calls, 1);
+    expect(find.text('DOK-2026-00903'), findsOneWidget, reason: 'a request filed meanwhile shows after pulling down');
+  });
+
   test('an incident update opens the incident, read or not', () {
     final n = ServerNotification(
       id: 1,
