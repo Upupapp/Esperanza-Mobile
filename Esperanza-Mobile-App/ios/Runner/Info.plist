@@ -50,7 +50,7 @@
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
 	<key>NSCameraUsageDescription</key>
-	<string>Esperanza Mobile uses the camera so you can photograph requirements (IDs, receipts, certificates) when submitting a Dokyu or Tulong request.</string>
+	<string>Esperanza uses your camera to take your selfie and profile photo for account verification, and to photograph requirements such as IDs, receipts and certificates for your Dokyu and Tulong requests.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Esperanza Mobile needs access to your photo library so you can attach existing photos of requirements to a Dokyu or Tulong request.</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>

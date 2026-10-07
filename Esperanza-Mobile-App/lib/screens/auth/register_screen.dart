@@ -298,6 +298,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
     final file = await pickImageProtected(
       context,
       source: ImageSource.camera,
+      // A selfie: the front camera, so the resident need not flip it.
+      preferredCamera: CameraDevice.front,
       maxDimension: 1280,
       explanation: 'Esperanza needs your camera to take a selfie. The LGU compares it with your valid ID to verify your account.',
     );

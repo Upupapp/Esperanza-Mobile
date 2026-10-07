@@ -130,11 +130,17 @@ Future<void> _showDeniedDialog(BuildContext context, ProtectedResource resource)
 /// [maxDimension] caps the longer side in pixels. The profile photo passes
 /// 1024: it is shown at 192pt at most and is kept on the phone, where a
 /// full-size camera shot (several MB) could exceed what the store holds.
+///
+/// [preferredCamera] is the camera to open with [ImageSource.camera]: the
+/// rear one unless a caller asks otherwise, as the registration selfie does
+/// (Esperanza QA, 2026-10-07: residents had to flip the camera to take a
+/// selfie). The platform treats it as a request, not a guarantee.
 Future<XFile?> pickImageProtected(
   BuildContext context, {
   required ImageSource source,
   double? maxDimension,
   String? explanation,
+  CameraDevice preferredCamera = CameraDevice.rear,
 }) async {
   final resource = source == ImageSource.camera ? ProtectedResource.camera : ProtectedResource.photos;
   if (!await _confirmExplanation(context, resource, explanation: explanation)) return null;
@@ -149,6 +155,7 @@ Future<XFile?> pickImageProtected(
       imageQuality: 85,
       maxWidth: maxDimension,
       maxHeight: maxDimension,
+      preferredCameraDevice: preferredCamera,
     );
   }
 
@@ -164,6 +171,7 @@ Future<XFile?> pickImageProtected(
       imageQuality: 85,
       maxWidth: maxDimension,
       maxHeight: maxDimension,
+      preferredCameraDevice: preferredCamera,
     );
   if (file != null) return file;
   if (!context.mounted) return null;
