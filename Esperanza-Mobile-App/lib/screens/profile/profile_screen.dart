@@ -38,7 +38,7 @@ class ProfileScreen extends StatelessWidget {
     final session = context.watch<CitizenSessionService>();
     final account = session.account!;
     final residentProfile = context.watch<ResidentProfileService>().profileFor(account);
-    final photo = profileImageFor(account, residentProfile.personal);
+    final photo = profileImageFor(account, residentProfile.personal, approvedUrl: session.photo?.approvedUrl);
 
     return Scaffold(
       appBar: AppBar(title: const Text('Profile')),
@@ -53,6 +53,7 @@ class ProfileScreen extends StatelessWidget {
                   radius: 34,
                   backgroundColor: AppColors.brand50,
                   backgroundImage: photo,
+                  onBackgroundImageError: photo != null ? (error, stackTrace) {} : null,
                   child: photo == null
                       ? Text(
                           account.initials,

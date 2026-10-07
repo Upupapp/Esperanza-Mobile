@@ -112,6 +112,24 @@ void main() {
     test('null account resolves to null (initials fallback)', () {
       expect(profileImageFor(null, null), isNull);
     });
+
+    // Esperanza QA, 2026-10-07: the LGU-approved photo showed only on the
+    // Digital ID; every other avatar showed initials or a phone-only copy.
+    test('the LGU-approved photo comes first, over a photo kept on the phone and the demo portrait', () {
+      final perlita = MockCatalog.demoAccounts.last;
+      final profile = ResidentProfile.seedFrom(perlita)..personal.photoBytesBase64 = _tinyPngBase64;
+      const url = 'https://test.invalid/api/v1/files/abc?signature=1';
+      final image = _unwrapImage<NetworkImage>(profileImageFor(perlita, profile.personal, approvedUrl: url));
+      expect(image.url, url);
+    });
+
+    test('no approved photo falls back as before; an empty URL counts as none', () {
+      final perlita = MockCatalog.demoAccounts.last;
+      final profile = ResidentProfile.seedFrom(perlita);
+      final image = _unwrapImage<AssetImage>(profileImageFor(perlita, profile.personal, approvedUrl: ''));
+      expect(image.assetName, 'assets/images/Perlita Profile.png');
+      expect(profileImageFor(null, null, approvedUrl: 'https://test.invalid/x'), isNull, reason: 'no account, no photo');
+    });
   });
 
   group('ResidentProfile profile-photo cooldown', () {

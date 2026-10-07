@@ -388,7 +388,11 @@ class _Hero extends StatelessWidget {
 
   Widget _signedInContent(BuildContext context, CitizenAccount account) {
     final personal = context.watch<ResidentProfileService>().profileFor(account).personal;
-    final photo = profileImageFor(account, personal);
+    final photo = profileImageFor(
+      account,
+      personal,
+      approvedUrl: context.watch<CitizenSessionService>().photo?.approvedUrl,
+    );
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -401,6 +405,7 @@ class _Hero extends StatelessWidget {
                 radius: 22,
                 backgroundColor: Colors.white.withValues(alpha: 0.15),
                 backgroundImage: photo,
+                onBackgroundImageError: photo != null ? (error, stackTrace) {} : null,
                 child: photo == null
                     ? Text(
                         account.initials,

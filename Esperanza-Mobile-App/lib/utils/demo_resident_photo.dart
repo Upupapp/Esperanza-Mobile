@@ -45,14 +45,26 @@ ImageProvider? demoProfileImageFor(CitizenAccount? account) {
   return ResizeImage.resizeIfNeeded(_avatarDecodeWidth, null, AssetImage(asset));
 }
 
-/// Every avatar call site's actual entry point: a citizen's own saved
-/// profile photo (set via the camera-icon flow — see
-/// ResidentProfileService.updateProfilePhoto) takes priority over the
-/// seeded portrait, which itself takes priority over showing initials.
+/// Every avatar call site's actual entry point, in this order:
+///
+/// 1. [approvedUrl], the photo the LGU approved (`photo.url` in GET
+///    /citizen/profile, CitizenSessionService.photo): the same picture the
+///    Digital ID shows. Only the Digital ID used to show it, so a resident
+///    whose photo went through the LGU saw initials everywhere else
+///    (Esperanza QA, 2026-10-07).
+/// 2. A photo picked on this phone (the camera-icon flow, see
+///    ResidentProfileService.updateProfilePhoto), kept only on this device.
+/// 3. A demo resident's seeded portrait, then null (initials).
+///
 /// [personal] is that account's own `ResidentProfile.personal` (pass null
-/// only when no ResidentProfileService lookup applies, e.g. a guest).
-ImageProvider? profileImageFor(CitizenAccount? account, Individual? personal) {
+/// only when no ResidentProfileService lookup applies, e.g. a guest). The
+/// approved URL is signed and short-lived; call sites pass
+/// `onBackgroundImageError` so an expired one falls back quietly.
+ImageProvider? profileImageFor(CitizenAccount? account, Individual? personal, {String? approvedUrl}) {
   if (account == null) return null;
+  if (approvedUrl != null && approvedUrl.isNotEmpty) {
+    return ResizeImage.resizeIfNeeded(_avatarDecodeWidth, null, NetworkImage(approvedUrl));
+  }
   final b64 = personal?.photoBytesBase64;
   if (b64 != null && b64.isNotEmpty) {
     try {

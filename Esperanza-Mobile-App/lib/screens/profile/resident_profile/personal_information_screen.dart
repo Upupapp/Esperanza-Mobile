@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../../../models/citizen_account.dart';
 import '../../../models/government_id_record.dart';
 import '../../../models/resident_profile.dart';
+import '../../../models/profile_photo.dart';
 import '../../../services/citizen_session_service.dart';
 import '../../../services/mock_catalog.dart';
 import '../../../services/resident_profile_service.dart';
@@ -347,6 +348,7 @@ class _PersonalInformationScreenState extends State<PersonalInformationScreen> {
   Widget build(BuildContext context) {
     final governmentId = governmentIdFor(_account);
     final currentPersonal = context.watch<ResidentProfileService>().profileFor(_account).personal;
+    final serverPhoto = context.watch<CitizenSessionService>().photo;
     return Scaffold(
       appBar: AppBar(title: const Text('Personal Information')),
       body: SafeArea(
@@ -356,8 +358,11 @@ class _PersonalInformationScreenState extends State<PersonalInformationScreen> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               _PhotoPicker(
-                image: profileImageFor(_account, currentPersonal),
-                hasCustomPhoto: currentPersonal.photoBytesBase64 != null,
+                image: profileImageFor(_account, currentPersonal, approvedUrl: serverPhoto?.approvedUrl),
+                // The LGU's approved photo is an identification record: it is
+                // replaced through the camera button, never removed here.
+                hasCustomPhoto: currentPersonal.photoBytesBase64 != null && serverPhoto?.approvedUrl == null,
+                status: _photoStatus(serverPhoto),
                 onCameraTap: _onCameraIconTap,
                 onRemove: () => context.read<ResidentProfileService>().updateProfilePhoto(
                   _account.id,
@@ -582,16 +587,35 @@ class _PersonalInformationScreenState extends State<PersonalInformationScreen> {
 /// .onCameraTap), no redesign of this section itself. [image] is already
 /// fully resolved (real saved photo, else the seeded demo portrait, else
 /// null) — this widget has no picking/permission logic of its own.
+/// What the LGU holds for the photo, under the picture: a new one waiting
+/// for approval, one it did not approve and why, or the approved one and
+/// when it can next be changed. Null when there is nothing on record.
+String? _photoStatus(ProfilePhotoView? photo) {
+  if (photo == null) return null;
+  if (photo.isPending) return 'New photo sent. It shows here once the LGU approves it.';
+  if (photo.isRejected) {
+    final why = photo.latestRemarks;
+    return 'Your new photo was not approved${why == null || why.isEmpty ? '.' : ': $why'}';
+  }
+  if (photo.approvedUrl == null) return null;
+  final next = photo.nextChangeAt;
+  return next == null || photo.canChange
+      ? 'Approved by the LGU'
+      : 'Approved by the LGU · can be changed from ${DateFormat('MMM d, y').format(next.toLocal())}';
+}
+
 class _PhotoPicker extends StatelessWidget {
   final ImageProvider? image;
   final bool hasCustomPhoto;
   final VoidCallback onCameraTap;
   final VoidCallback onRemove;
+  final String? status;
   const _PhotoPicker({
     required this.image,
     required this.hasCustomPhoto,
     required this.onCameraTap,
     required this.onRemove,
+    this.status,
   });
 
   @override
@@ -633,6 +657,12 @@ class _PhotoPicker extends StatelessWidget {
             TextButton(
               onPressed: onRemove,
               child: const Text('Remove photo', style: TextStyle(fontSize: AppTextSize.label)),
+            )
+          else if (status != null)
+            Text(
+              status!,
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: AppTextSize.label, color: AppColors.textMuted),
             )
           else
             Text('Profile photo (optional)', style: const TextStyle(fontSize: AppTextSize.label, color: AppColors.textMuted)),

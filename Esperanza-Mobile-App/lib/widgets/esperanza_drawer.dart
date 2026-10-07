@@ -184,7 +184,7 @@ class _Header extends StatelessWidget {
   Widget build(BuildContext context) {
     final account = session.account;
     final personal = account != null ? context.watch<ResidentProfileService>().profileFor(account).personal : null;
-    final photo = profileImageFor(account, personal);
+    final photo = profileImageFor(account, personal, approvedUrl: context.watch<CitizenSessionService>().photo?.approvedUrl);
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.fromLTRB(AppSpacing.xl, AppSpacing.xxl, AppSpacing.xl, AppSpacing.xl),
@@ -202,6 +202,7 @@ class _Header extends StatelessWidget {
             radius: 26,
             backgroundColor: Colors.white.withValues(alpha: 0.15),
             backgroundImage: photo,
+            onBackgroundImageError: photo != null ? (error, stackTrace) {} : null,
             child: photo != null
                 ? null
                 : (account != null
