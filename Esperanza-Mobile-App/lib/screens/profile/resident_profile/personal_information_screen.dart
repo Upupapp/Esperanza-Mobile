@@ -195,15 +195,16 @@ class _PersonalInformationScreenState extends State<PersonalInformationScreen> {
     Navigator.of(context).pop();
   }
 
-  /// The camera icon's full entry point. Order matters and mirrors the
-  /// spec exactly: cooldown check first (blocks everything below without
-  /// ever touching the camera/gallery), then the "your photo can only
-  /// change every 6 months" confirmation, then source selection, then
-  /// capture/pick + preview — looping back to source selection on
-  /// "Retake"/"Choose Another" — with nothing persisted until the preview
-  /// screen's own "Save Profile Photo" succeeds (see
-  /// ProfilePhotoPreviewScreen). Cancelling or backing out at any step
-  /// leaves the existing photo and the cooldown untouched.
+  /// The camera icon's full entry point: the 6-month check first (it blocks
+  /// everything below without touching the camera), then the "your photo can
+  /// only change every 6 months" confirmation, then the front camera and a
+  /// preview, with Retake going back to the camera. Nothing is saved until the
+  /// preview screen's "Save Profile Photo" succeeds (see
+  /// ProfilePhotoPreviewScreen); cancelling at any step changes nothing.
+  ///
+  /// A profile photo is taken with the camera only, never picked from the
+  /// gallery or the phone's files (Esperanza QA, 2026-10-07): it identifies the
+  /// resident on the Digital ID, so it is a photo of them taken now.
   Future<void> _onCameraIconTap() async {
     final profile = context.read<ResidentProfileService>().profileFor(_account);
     // The server owns the six-month rule (counted from the officer's
@@ -226,23 +227,21 @@ class _PersonalInformationScreenState extends State<PersonalInformationScreen> {
     final proceed = await AppDialogs.centeredConfirm(
       context,
       title: 'Change Profile Photo',
-      message: 'Your profile photo can only be changed once every 6 months.\n\n'
-          'For better identification, please use a recent photo taken in a well-lit area with a plain or white '
+      message: 'Your profile photo can only be changed once every 6 months, and it is taken with your camera.\n\n'
+          'For better identification, please take it in a well-lit area with a plain or white '
           'background. Make sure your full face is clearly visible and avoid filters, sunglasses, masks, or '
           'anything that may cover your face.',
       confirmLabel: 'Proceed',
     );
     if (!proceed || !mounted) return;
 
-    var source = await _showPhotoSourceSheet();
-    if (source == null || !mounted) return;
-
     while (true) {
       final file = await pickImageProtected(
         context,
-        source: source!,
+        source: ImageSource.camera,
+        preferredCamera: CameraDevice.front,
         maxDimension: 1024,
-        explanation: 'Esperanza needs your camera or photos to set your profile photo. The LGU checks it before it appears on your Digital ID.',
+        explanation: 'Esperanza needs your camera to take your profile photo. The LGU checks it before it appears on your Digital ID.',
       );
       if (file == null || !mounted) return;
       // Read bytes up front — on Flutter Web, `file.path` is a blob: URL
@@ -254,7 +253,7 @@ class _PersonalInformationScreenState extends State<PersonalInformationScreen> {
       final saved = await Navigator.of(context).push<bool>(
         MaterialPageRoute(
           fullscreenDialog: true,
-          builder: (_) => ProfilePhotoPreviewScreen(bytes: bytes, source: source!),
+          builder: (_) => ProfilePhotoPreviewScreen(bytes: bytes, source: ImageSource.camera),
         ),
       );
       if (!mounted) return;
@@ -263,69 +262,9 @@ class _PersonalInformationScreenState extends State<PersonalInformationScreen> {
         AppDialogs.toast(context, 'Photo sent. It appears on your Digital ID once the LGU approves it.');
         return;
       }
-      if (saved == false) {
-        // Retake / Choose Another.
-        final nextSource = await _showPhotoSourceSheet();
-        if (nextSource == null || !mounted) return;
-        source = nextSource;
-        continue;
-      }
+      if (saved == false) continue; // Retake: back to the camera.
       return; // Dismissed (back gesture/app bar back) — nothing changed.
     }
-  }
-
-  Future<ImageSource?> _showPhotoSourceSheet() {
-    return showModalBottomSheet<ImageSource>(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) => SafeArea(
-        child: Container(
-          margin: const EdgeInsets.all(AppSpacing.md),
-          child: Material(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(AppRadius.xl),
-            clipBehavior: Clip.antiAlias,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Padding(
-                    padding: EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.md, AppSpacing.lg, AppSpacing.sm),
-                    child: Align(
-                      alignment: Alignment.centerLeft,
-                      child: Text(
-                        'Change Profile Photo',
-                        style: TextStyle(fontSize: AppTextSize.card, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
-                      ),
-                    ),
-                  ),
-                  _photoSourceOption(ctx, Icons.photo_camera_outlined, 'Take Photo', ImageSource.camera),
-                  _photoSourceOption(ctx, Icons.image_outlined, 'Choose from Gallery', ImageSource.gallery),
-                  const Divider(height: 1),
-                  ListTile(
-                    leading: const Icon(Icons.close_rounded, color: AppColors.rose600),
-                    title: const Text(
-                      'Cancel',
-                      style: TextStyle(fontSize: AppTextSize.body, fontWeight: FontWeight.w500, color: AppColors.rose600),
-                    ),
-                    onTap: () => Navigator.pop(ctx),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _photoSourceOption(BuildContext context, IconData icon, String label, ImageSource source) {
-    return ListTile(
-      leading: Icon(icon, color: AppColors.brand600),
-      title: Text(label, style: const TextStyle(fontSize: AppTextSize.body, fontWeight: FontWeight.w500)),
-      onTap: () => Navigator.pop(context, source),
-    );
   }
 
   Future<void> _pickDocument() async {

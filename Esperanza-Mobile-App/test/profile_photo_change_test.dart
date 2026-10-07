@@ -200,7 +200,7 @@ void main() {
 
       expect(find.text('Change Profile Photo'), findsOneWidget);
       expect(
-        find.textContaining('Your profile photo can only be changed once every 6 months.'),
+        find.textContaining('Your profile photo can only be changed once every 6 months, and it is taken with your camera.'),
         findsOneWidget,
       );
       expect(find.text('Cancel'), findsOneWidget);
@@ -224,25 +224,27 @@ void main() {
       expect(service.profileFor(MockCatalog.demoAccounts.last).isProfilePhotoOnCooldown, isFalse);
     });
 
-    testWidgets('Proceed opens the Take Photo / Choose from Gallery / Cancel sheet, without opening a picker', (
-      tester,
-    ) async {
-      await _pumpPersonalInformation(tester, MockCatalog.demoAccounts.last);
+    // Esperanza QA, 2026-10-07: a profile photo is taken with the camera,
+    // never chosen from the gallery or the phone's files.
+    testWidgets('Proceed goes straight to the camera: there is no gallery or file option', (tester) async {
+      final service = await _pumpPersonalInformation(tester, MockCatalog.demoAccounts.last);
 
       await tester.tap(find.byIcon(Icons.camera_alt_rounded));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Proceed'));
       await tester.pumpAndSettle();
 
-      expect(find.text('Take Photo'), findsOneWidget);
-      expect(find.text('Choose from Gallery'), findsOneWidget);
-      expect(find.text('Cancel'), findsOneWidget);
+      // The camera's own explanation, before Android/iOS asks for permission.
+      expect(find.textContaining('Esperanza needs your camera to take your profile photo'), findsOneWidget);
+      expect(find.text('Choose from Gallery'), findsNothing);
+      expect(find.text('Take Photo'), findsNothing, reason: 'no source sheet at all');
       expect(tester.takeException(), isNull);
 
-      // Cancel closes the sheet without ever reaching a real picker call.
-      await tester.tap(find.text('Cancel'));
+      // Not Now closes it without ever reaching a real camera call.
+      await tester.tap(find.text('Not Now'));
       await tester.pumpAndSettle();
-      expect(find.text('Take Photo'), findsNothing);
+      expect(find.text('Personal Information'), findsOneWidget);
+      expect(service.profileFor(MockCatalog.demoAccounts.last).personal.photoBytesBase64, isNull);
       expect(tester.takeException(), isNull);
     });
 
