@@ -39,7 +39,7 @@ class VerificationStatusPanel extends StatelessWidget {
   };
 
   String? get _actionLabel => switch (status) {
-    AppStatus.rejected => 'Resubmit Information',
+    AppStatus.rejected => 'Send a New ID',
     AppStatus.draft => 'Continue Registration',
     _ => null,
   };

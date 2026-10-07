@@ -51,6 +51,12 @@ class Attachment {
   final DateTime addedAt;
   final String documentTypeLabel;
 
+  /// Set when this is a document already in the resident's Papeles on the
+  /// server: a requirement is then attached by reference (`papeles_id`), as
+  /// the web portal does, with nothing uploaded again and no file needed on
+  /// this phone. Not persisted: it is derived from the Papeles row each time.
+  final int? papelesId;
+
   Attachment({
     required this.id,
     required this.fileName,
@@ -61,6 +67,7 @@ class Attachment {
     this.remoteUrl,
     required this.addedAt,
     required this.documentTypeLabel,
+    this.papelesId,
   });
 
   String get readableSize {

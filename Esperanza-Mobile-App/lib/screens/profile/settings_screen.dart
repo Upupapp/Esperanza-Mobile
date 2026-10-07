@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../services/api_client.dart';
 import '../legal/privacy_policy_screen.dart';
+import '../legal/terms_screen.dart';
 import 'change_password_screen.dart';
 import 'data_requests_screen.dart';
 import '../../services/message_language.dart';
@@ -141,6 +142,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   icon: Icons.privacy_tip_outlined,
                   label: 'Privacy Policy',
                   open: () => const PrivacyPolicyScreen(),
+                ),
+                const Divider(height: 1, indent: AppSpacing.lg, endIndent: AppSpacing.lg),
+                _LinkTile(
+                  icon: Icons.gavel_outlined,
+                  label: 'Terms and Conditions',
+                  open: () => const TermsScreen(),
                 ),
               ],
             ),

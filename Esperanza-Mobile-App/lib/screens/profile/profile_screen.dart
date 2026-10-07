@@ -16,11 +16,11 @@ import '../../widgets/app_dialogs.dart';
 import '../../widgets/menu_tile.dart';
 import '../../widgets/resident_profile_status_card.dart';
 import '../../widgets/verification_status_panel.dart';
-import '../auth/register_screen.dart';
 import '../directory/directory_screen.dart';
 import '../support/help_support_screen.dart';
 import 'digital_id_screen.dart';
 import 'edit_profile_screen.dart';
+import 'id_verification_screen.dart';
 import 'resident_profile/resident_profile_overview_screen.dart';
 import 'settings_screen.dart';
 import '../../theme/app_typography.dart';
@@ -105,8 +105,11 @@ class ProfileScreen extends StatelessWidget {
           const SizedBox(height: AppSpacing.lg),
           VerificationStatusPanel(
             status: AppStatusX.fromLabel(account.status),
+            // A rejected account sends a new valid ID from here, as on the web
+            // portal's Profile; it used to open registration, which makes a
+            // second account instead of fixing this one.
             onAction: account.status == 'Rejected'
-                ? () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const RegisterScreen()))
+                ? () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const IdVerificationScreen()))
                 : null,
           ),
           const SizedBox(height: AppSpacing.lg),
@@ -114,6 +117,11 @@ class ProfileScreen extends StatelessWidget {
             icon: Icons.badge_outlined,
             label: 'Digital ID',
             onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const DigitalIdScreen())),
+          ),
+          MenuListTile(
+            icon: Icons.verified_user_outlined,
+            label: 'Valid ID Verification',
+            onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const IdVerificationScreen())),
           ),
           ResidentProfileStatusCard(
             profile: residentProfile,

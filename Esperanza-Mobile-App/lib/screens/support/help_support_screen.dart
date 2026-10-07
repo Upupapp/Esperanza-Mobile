@@ -1,5 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
+import '../../services/citizen_session_service.dart';
+import '../../services/site_content_service.dart';
 import '../../theme/app_colors.dart';
+import '../../utils/phone_dial.dart';
 import '../../utils/app_version.dart';
 import '../../theme/app_spacing.dart';
 import '../../theme/app_typography.dart';
@@ -7,7 +12,9 @@ import '../../widgets/app_card.dart';
 import '../../widgets/expandable_panel.dart';
 import '../../widgets/section_header.dart';
 import '../legal/privacy_policy_screen.dart';
+import '../legal/terms_screen.dart';
 import 'report_problem_screen.dart';
+import 'support_tickets_screen.dart';
 
 /// Help & Support — accessible from the hamburger drawer (and the Profile
 /// menu's matching entry). FAQ copy below only describes behavior actually
@@ -15,6 +22,11 @@ import 'report_problem_screen.dart';
 /// flow + attachment picker, the universal AppStatus vocabulary, the
 /// notifications red-dot rule, Balita's guest-vs-signed-in restriction,
 /// etc.) — see each section for what it's grounded in.
+///
+/// Above that app help, what the web portal's Help page shows from the LGU
+/// itself (Settings > Site Content): its FAQs, video tutorials, and the
+/// support team's contact channels and office hours. The contact card used
+/// to say "[TO BE PROVIDED]" while the LGU had published all of them.
 class HelpSupportScreen extends StatefulWidget {
   const HelpSupportScreen({super.key});
 
@@ -29,6 +41,18 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
   final _uploadKey = GlobalKey();
   final _notificationsKey = GlobalKey();
   final _troubleshootingKey = GlobalKey();
+  HelpContent? _content;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadContent();
+  }
+
+  Future<void> _loadContent() async {
+    final content = await SiteContentService.help();
+    if (mounted) setState(() => _content = content);
+  }
 
   void _jumpTo(GlobalKey key) {
     final ctx = key.currentContext;
@@ -67,6 +91,35 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
             onTechnical: () => _jumpTo(_troubleshootingKey),
           ),
           const SizedBox(height: AppSpacing.xl),
+
+          if (_content?.faqs.isNotEmpty ?? false) ...[
+            const SectionHeader(title: 'Frequently Asked Questions'),
+            for (final faq in _content!.faqs)
+              ExpandablePanel(title: faq.question, child: Text(faq.answer, style: AppTypography.body)),
+            const SizedBox(height: AppSpacing.lg),
+          ],
+          if (_content?.tutorials.isNotEmpty ?? false) ...[
+            const SectionHeader(title: 'Video Tutorials'),
+            for (final t in _content!.tutorials)
+              Padding(
+                padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+                child: AppCard(
+                  onTap: () {
+                    final uri = Uri.tryParse(t.videoUrl);
+                    if (uri != null) launchUrl(uri, mode: LaunchMode.externalApplication);
+                  },
+                  child: Row(
+                    children: [
+                      const Icon(Icons.play_circle_outline_rounded, color: AppColors.brand600),
+                      const SizedBox(width: AppSpacing.md),
+                      Expanded(child: Text(t.title, style: AppTypography.bodyMedium)),
+                      if (t.duration != null) Text(t.duration!, style: AppTypography.fine),
+                    ],
+                  ),
+                ),
+              ),
+            const SizedBox(height: AppSpacing.lg),
+          ],
 
           SectionHeader(key: _accountKey, title: 'Account & Profile'),
           const ExpandablePanel(
@@ -124,8 +177,9 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
           const ExpandablePanel(
             title: 'How do I change my profile picture?',
             child: Text(
-              'Open Personal Information in your Resident Profile and tap your photo to choose a new one from '
-              'your gallery.',
+              'Open Personal Information in your Resident Profile and tap the camera button on your photo. The '
+              'photo is taken with your camera, not chosen from your gallery, and the LGU approves it before it '
+              'appears on your Digital ID. It can be changed once every 6 months.',
               style: AppTypography.body,
             ),
           ),
@@ -406,7 +460,8 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
             title: 'Sign-in problem',
             child: Text(
               'Double-check your registered email and try again. If you’re a returning user without an '
-              'account on this device, use Sign In rather than Create Account.',
+              'account on this device, use Sign In rather than Create Account. Forgot your password? Tap '
+              '“Forgot password?” on the sign-in screen to reset it with a code.',
               style: AppTypography.body,
             ),
           ),
@@ -416,13 +471,26 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
           AppCard(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-              children: const [
-                Text('Municipality of Esperanza Support', style: AppTypography.subsectionLabel),
-                SizedBox(height: AppSpacing.md),
-                _ContactRow(icon: Icons.mail_outline_rounded, label: 'Email', value: '[TO BE PROVIDED]'),
-                _ContactRow(icon: Icons.call_outlined, label: 'Phone', value: '[TO BE PROVIDED]'),
-                _ContactRow(icon: Icons.apartment_outlined, label: 'Office', value: '[TO BE PROVIDED]'),
-                _ContactRow(icon: Icons.schedule_outlined, label: 'Office Hours', value: '[TO BE PROVIDED]'),
+              children: [
+                const Text('Municipality of Esperanza Support', style: AppTypography.subsectionLabel),
+                const SizedBox(height: AppSpacing.md),
+                if (_content == null)
+                  const Text('Loading contact details…', style: AppTypography.helper)
+                else if (_content!.channels.isEmpty && _content!.officeHours == null)
+                  Row(
+                    children: [
+                      const Expanded(
+                        child: Text('Contact details could not be loaded.', style: AppTypography.helper),
+                      ),
+                      TextButton(onPressed: _loadContent, child: const Text('Try again')),
+                    ],
+                  )
+                else ...[
+                  for (final c in _content!.channels)
+                    _ContactRow(icon: _channelIcon(c.key), label: c.label, value: c.value, onTap: _channelAction(c)),
+                  if (_content!.officeHours != null)
+                    _ContactRow(icon: Icons.schedule_outlined, label: 'Office Hours', value: _content!.officeHours!),
+                ],
               ],
             ),
           ),
@@ -449,17 +517,52 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
               ],
             ),
           ),
-          const SizedBox(height: AppSpacing.xxl),
-
-          Center(
-            child: TextButton(
-              onPressed: () =>
-                  Navigator.of(context).push(MaterialPageRoute(builder: (_) => const PrivacyPolicyScreen())),
-              child: const Text(
-                'Privacy Policy',
-                style: TextStyle(fontSize: AppTextSize.helper, fontWeight: FontWeight.w600, color: AppColors.brand600),
+          if (context.watch<CitizenSessionService>().isSignedIn) ...[
+            const SizedBox(height: AppSpacing.md),
+            AppCard(
+              onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const SupportTicketsScreen())),
+              child: Row(
+                children: [
+                  Container(
+                    width: 38,
+                    height: 38,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(color: AppColors.brand50, borderRadius: BorderRadius.circular(AppRadius.md)),
+                    child: const Icon(Icons.confirmation_number_outlined, size: 19, color: AppColors.brand600),
+                  ),
+                  const SizedBox(width: AppSpacing.md),
+                  const Expanded(
+                    child: Text(
+                      'My Support Tickets',
+                      style: TextStyle(fontSize: AppTextSize.body, fontWeight: FontWeight.w600, color: AppColors.slate700),
+                    ),
+                  ),
+                  const Icon(Icons.chevron_right_rounded, color: AppColors.slate300),
+                ],
               ),
             ),
+          ],
+          const SizedBox(height: AppSpacing.xxl),
+
+          Wrap(
+            alignment: WrapAlignment.center,
+            children: [
+              TextButton(
+                onPressed: () =>
+                    Navigator.of(context).push(MaterialPageRoute(builder: (_) => const PrivacyPolicyScreen())),
+                child: const Text(
+                  'Privacy Policy',
+                  style: TextStyle(fontSize: AppTextSize.helper, fontWeight: FontWeight.w600, color: AppColors.brand600),
+                ),
+              ),
+              TextButton(
+                onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const TermsScreen())),
+                child: const Text(
+                  'Terms and Conditions',
+                  style: TextStyle(fontSize: AppTextSize.helper, fontWeight: FontWeight.w600, color: AppColors.brand600),
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: AppSpacing.xs),
           const Center(
@@ -474,15 +577,34 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
   }
 }
 
+IconData _channelIcon(String key) => switch (key) {
+  'phone' => Icons.call_outlined,
+  'email' => Icons.mail_outline_rounded,
+  'visit' => Icons.apartment_outlined,
+  _ => Icons.info_outline_rounded,
+};
+
+/// A phone channel dials, an email channel opens the mail app; a place to
+/// visit is only read.
+VoidCallback? _channelAction(SupportChannel c) {
+  final Uri? uri = switch (c.key) {
+    'phone' => dialUri(c.value),
+    'email' => Uri(scheme: 'mailto', path: c.value),
+    _ => null,
+  };
+  return uri == null ? null : () => launchUrl(uri);
+}
+
 class _ContactRow extends StatelessWidget {
   final IconData icon;
   final String label;
   final String value;
-  const _ContactRow({required this.icon, required this.label, required this.value});
+  final VoidCallback? onTap;
+  const _ContactRow({required this.icon, required this.label, required this.value, this.onTap});
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
+    final row = Padding(
       padding: const EdgeInsets.only(bottom: AppSpacing.sm),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -493,12 +615,17 @@ class _ContactRow extends StatelessWidget {
           Expanded(
             child: Text(
               value,
-              style: const TextStyle(fontSize: AppTextSize.helper, fontWeight: FontWeight.w600, color: AppColors.slate700),
+              style: TextStyle(
+                fontSize: AppTextSize.helper,
+                fontWeight: FontWeight.w600,
+                color: onTap != null ? AppColors.brand600 : AppColors.slate700,
+              ),
             ),
           ),
         ],
       ),
     );
+    return onTap == null ? row : InkWell(onTap: onTap, child: row);
   }
 }
 

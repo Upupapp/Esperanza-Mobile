@@ -55,6 +55,13 @@ class RequirementUploader extends StatelessWidget {
   /// request detail's lists), so it is not shown twice.
   final bool showTitle;
 
+  /// Documents in the resident's Papeles on the server that may be attached
+  /// here by reference, whatever their type: the web portal's "Or reuse from
+  /// Papeles". Empty (with [onUsePapeles] null) where only a new file is
+  /// taken, e.g. a replacement.
+  final List<MasterFileDocument> papelesChoices;
+  final ValueChanged<MasterFileDocument>? onUsePapeles;
+
   const RequirementUploader({
     super.key,
     required this.requirement,
@@ -65,17 +72,33 @@ class RequirementUploader extends StatelessWidget {
     required this.onUseExisting,
     this.onRemove,
     this.showTitle = true,
+    this.papelesChoices = const [],
+    this.onUsePapeles,
   });
 
   Future<void> _pickNew(BuildContext context) async {
     final source = await showModalBottomSheet<_UploadSource>(
       context: context,
+      // Scrolls rather than overflowing: with "From My Papeles" it is five
+      // rows, more than a short screen or a large text size fits.
+      isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (ctx) => _UploadSourceSheet(requirementLabel: requirement.label),
+      builder: (ctx) => _UploadSourceSheet(
+        requirementLabel: requirement.label,
+        offerPapeles: papelesChoices.isNotEmpty && onUsePapeles != null,
+      ),
     );
     if (source == null || !context.mounted) return;
 
     switch (source) {
+      case _UploadSource.papeles:
+        final doc = await showModalBottomSheet<MasterFileDocument>(
+          context: context,
+          isScrollControlled: true,
+          backgroundColor: Colors.transparent,
+          builder: (ctx) => _PapelesPickerSheet(documents: papelesChoices),
+        );
+        if (doc != null) onUsePapeles?.call(doc);
       case _UploadSource.camera:
       case _UploadSource.gallery:
         final file = await pickImageProtected(
@@ -178,6 +201,8 @@ class RequirementUploader extends StatelessWidget {
   void _openViewer(BuildContext context) {
     final a = attachment!;
     if (a.category != AttachmentCategory.image) return;
+    // A Papeles document attached by reference may have no copy here.
+    if (a.bytes == null && (a.localPath == null || a.localPath!.isEmpty)) return;
     Navigator.of(context).push(
       MaterialPageRoute(
         fullscreenDialog: true,
@@ -187,11 +212,12 @@ class RequirementUploader extends StatelessWidget {
   }
 }
 
-enum _UploadSource { camera, gallery, document }
+enum _UploadSource { camera, gallery, document, papeles }
 
 class _UploadSourceSheet extends StatelessWidget {
   final String requirementLabel;
-  const _UploadSourceSheet({required this.requirementLabel});
+  final bool offerPapeles;
+  const _UploadSourceSheet({required this.requirementLabel, this.offerPapeles = false});
 
   @override
   Widget build(BuildContext context) {
@@ -202,7 +228,7 @@ class _UploadSourceSheet extends StatelessWidget {
           color: Colors.white,
           borderRadius: BorderRadius.circular(AppRadius.xl),
           clipBehavior: Clip.antiAlias,
-          child: Padding(
+          child: SingleChildScrollView(
             padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -220,6 +246,7 @@ class _UploadSourceSheet extends StatelessWidget {
                 _option(context, Icons.photo_camera_outlined, 'Take Photo', _UploadSource.camera),
                 _option(context, Icons.image_outlined, 'Choose Image', _UploadSource.gallery),
                 _option(context, Icons.description_outlined, 'Choose File / PDF', _UploadSource.document),
+                if (offerPapeles) _option(context, Icons.folder_copy_outlined, 'From My Papeles', _UploadSource.papeles),
                 const Divider(height: 1),
                 ListTile(
                   leading: const Icon(Icons.close_rounded, color: AppColors.rose600),
@@ -239,6 +266,66 @@ class _UploadSourceSheet extends StatelessWidget {
       leading: Icon(icon, color: AppColors.brand600),
       title: Text(label, style: const TextStyle(fontSize: AppTextSize.body, fontWeight: FontWeight.w500)),
       onTap: () => Navigator.pop(context, source),
+    );
+  }
+}
+
+/// The resident's Papeles documents, any one of which can satisfy this
+/// requirement: the officer reviewing the request decides whether it does.
+class _PapelesPickerSheet extends StatelessWidget {
+  final List<MasterFileDocument> documents;
+  const _PapelesPickerSheet({required this.documents});
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      child: Container(
+        margin: const EdgeInsets.all(AppSpacing.md),
+        constraints: BoxConstraints(maxHeight: MediaQuery.sizeOf(context).height * 0.7),
+        child: Material(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(AppRadius.xl),
+          clipBehavior: Clip.antiAlias,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const Padding(
+                padding: EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.lg, AppSpacing.lg, AppSpacing.sm),
+                child: Text(
+                  'From My Papeles',
+                  style: TextStyle(fontSize: AppTextSize.body, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
+                ),
+              ),
+              Flexible(
+                child: ListView(
+                  shrinkWrap: true,
+                  children: [
+                    for (final d in documents)
+                      ListTile(
+                        leading: const Icon(Icons.description_outlined, color: AppColors.brand600),
+                        title: Text(d.label, maxLines: 1, overflow: TextOverflow.ellipsis),
+                        subtitle: Text(
+                          d.attachment.fileName,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(fontSize: AppTextSize.label, color: AppColors.textMuted),
+                        ),
+                        onTap: () => Navigator.pop(context, d),
+                      ),
+                  ],
+                ),
+              ),
+              const Divider(height: 1),
+              ListTile(
+                leading: const Icon(Icons.close_rounded, color: AppColors.rose600),
+                title: const Text('Cancel', style: TextStyle(fontSize: AppTextSize.body, fontWeight: FontWeight.w500, color: AppColors.rose600)),
+                onTap: () => Navigator.pop(context),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

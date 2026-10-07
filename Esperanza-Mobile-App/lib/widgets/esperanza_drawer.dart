@@ -9,6 +9,7 @@ import '../services/sign_out.dart';
 import '../screens/auth/register_screen.dart';
 import '../screens/directory/directory_screen.dart';
 import '../screens/legal/privacy_policy_screen.dart';
+import '../screens/legal/terms_screen.dart';
 import '../screens/profile/digital_id_screen.dart';
 import '../screens/profile/profile_screen.dart';
 import '../screens/profile/settings_screen.dart';
@@ -97,6 +98,11 @@ class EsperanzaDrawer extends StatelessWidget {
                     icon: Icons.privacy_tip_outlined,
                     label: 'Privacy Policy',
                     onTap: () => _push(context, const PrivacyPolicyScreen()),
+                  ),
+                  _DrawerTile(
+                    icon: Icons.gavel_outlined,
+                    label: 'Terms and Conditions',
+                    onTap: () => _push(context, const TermsScreen()),
                   ),
                   if (session.isSignedIn) ...[
                     const Padding(

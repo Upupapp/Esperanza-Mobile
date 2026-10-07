@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/access_level.dart';
 import '../models/citizen_account.dart';
+import '../models/id_verification.dart';
 import '../models/profile_photo.dart';
 import '../theme/app_status.dart';
 import 'api_client.dart';
@@ -241,16 +242,25 @@ class CitizenSessionService extends ChangeNotifier {
     return JsonRead.strings(result.data);
   }
 
+  /// GET /citizen/verification/id: the latest valid ID sent, its review
+  /// (with the officer's reason when it was not accepted), and whether a new
+  /// one may be sent. The web portal's Profile shows the same.
+  Future<IdVerificationView> idVerification() async {
+    final result = await api.get('/citizen/verification/id');
+    return IdVerificationView.fromApi(result.data);
+  }
+
   /// POST /citizen/verification/id: the valid ID (front, optional back) and a
   /// selfie the officer compares with it. The officer verifies the account on
-  /// these (backlog B1); until 2026-10-04 they stayed on the phone.
-  Future<void> submitVerificationId({
+  /// these (backlog B1); until 2026-10-04 they stayed on the phone. Returns
+  /// the updated view; a new ID replaces one still waiting for review.
+  Future<IdVerificationView> submitVerificationId({
     required String idType,
     required String frontPath,
     String? backPath,
     String? selfiePath,
   }) async {
-    await api.postMultipart(
+    final result = await api.postMultipart(
       '/citizen/verification/id',
       fields: {'id_type': idType},
       files: {
@@ -259,6 +269,7 @@ class CitizenSessionService extends ChangeNotifier {
         'selfie': ?selfiePath,
       },
     );
+    return IdVerificationView.fromApi(result.data);
   }
 
   /// POST /citizen/profile/photo. Waits for an officer; the Digital ID keeps

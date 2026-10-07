@@ -125,7 +125,7 @@ String _slugify(String label) {
 /// permanent requirement<->attachment mapping a later Web Admin needs (see
 /// this feature's own requirement-mapping guarantee). Every other field is
 /// the real, unmodified file — this never re-encodes or duplicates it.
-Attachment attachmentForReuse(Attachment source, {required String requirementLabel}) => Attachment(
+Attachment attachmentForReuse(Attachment source, {required String requirementLabel, int? papelesId}) => Attachment(
   id: source.id,
   fileName: source.fileName,
   category: source.category,
@@ -135,4 +135,5 @@ Attachment attachmentForReuse(Attachment source, {required String requirementLab
   remoteUrl: source.remoteUrl,
   addedAt: source.addedAt,
   documentTypeLabel: requirementLabel,
+  papelesId: papelesId,
 );

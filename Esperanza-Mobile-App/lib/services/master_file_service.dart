@@ -204,6 +204,15 @@ class MasterFileService extends ChangeNotifier {
     await _persist();
   }
 
+  /// The resident's documents held in Papeles on the server: the ones a
+  /// requirement can be attached from by reference (`papeles_id`), whether
+  /// or not the file is on this phone.
+  List<MasterFileDocument> serverDocumentsFor(String accountId) =>
+      documentsFor(accountId).where((d) => _remoteId(d) != null).toList();
+
+  /// The Papeles id of a server-held document, or null for a local-only one.
+  static int? remoteIdOf(MasterFileDocument doc) => _remoteId(doc);
+
   static int? _remoteId(MasterFileDocument doc) =>
       doc.id.startsWith('pap-') ? int.tryParse(doc.id.substring(4)) : null;
 

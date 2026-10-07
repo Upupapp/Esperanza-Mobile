@@ -75,6 +75,7 @@ class RequestDocumentsPicker extends StatelessWidget {
               serviceName: serviceName,
               category: category,
               onPicked: (a) => onPicked(MapEntry(req.label, a)),
+              allowPapeles: true,
             )
           else
             Text(

@@ -1,4 +1,6 @@
 import 'dart:typed_data';
+import '../legal/terms_screen.dart';
+import '../legal/privacy_policy_screen.dart';
 
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
@@ -663,6 +665,20 @@ class _RegisterScreenState extends State<RegisterScreen> {
             'When you finish, your details are sent to the Municipality of Esperanza for verification.',
             style: TextStyle(fontSize: AppTextSize.helper, color: AppColors.slate600, height: 1.5),
           ),
+        ),
+        // The full documents the box above summarises: the ones the
+        // Municipality publishes, the same the web portal's sign-up links to.
+        Wrap(
+          children: [
+            TextButton(
+              onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const TermsScreen())),
+              child: const Text('Read the Terms and Conditions'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const PrivacyPolicyScreen())),
+              child: const Text('Read the Privacy Policy'),
+            ),
+          ],
         ),
         const SizedBox(height: AppSpacing.lg),
         InkWell(

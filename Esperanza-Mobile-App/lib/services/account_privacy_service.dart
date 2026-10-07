@@ -102,4 +102,25 @@ class AccountPrivacyService {
       body: {'current_password': current, 'password': password, 'password_confirmation': password},
     );
   }
+
+  /// POST /auth/citizen/password/forgot. Always accepted: the server never
+  /// says whether [identifier] matched an account, and sends a code only to
+  /// a verified account's proven contact (AuthController::forgotPassword).
+  static Future<void> requestPasswordReset(String identifier) async {
+    await api.post('/auth/citizen/password/forgot', body: {'identifier': identifier.trim()});
+  }
+
+  /// POST /auth/citizen/password/reset. Every session of the account ends,
+  /// so the resident signs in again with the new password.
+  static Future<void> resetPassword({required String identifier, required String code, required String password}) async {
+    await api.post(
+      '/auth/citizen/password/reset',
+      body: {
+        'identifier': identifier.trim(),
+        'code': code.trim(),
+        'password': password,
+        'password_confirmation': password,
+      },
+    );
+  }
 }

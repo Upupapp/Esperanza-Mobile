@@ -9,6 +9,7 @@ import '../../utils/esperanza_seal.dart';
 import '../../widgets/app_button.dart';
 import '../../widgets/app_text_field.dart';
 import '../../widgets/parallax_header.dart';
+import 'forgot_password_screen.dart';
 import 'register_screen.dart';
 
 /// Citizen sign-in — mobile mirrors the Web Admin's citizen-login half of
@@ -168,6 +169,19 @@ class _LoginScreenState extends State<LoginScreen> {
                       icon: Icons.lock_outline_rounded,
                       controller: _passwordController,
                       obscureText: true,
+                    ),
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: TextButton(
+                        onPressed: _loading
+                            ? null
+                            : () => Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (_) => ForgotPasswordScreen(initialIdentifier: _emailController.text.trim()),
+                                ),
+                              ),
+                        child: const Text('Forgot password?', style: TextStyle(fontSize: AppTextSize.helper)),
+                      ),
                     ),
                     if (_error != null) ...[
                       const SizedBox(height: AppSpacing.md),

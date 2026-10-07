@@ -1,8 +1,52 @@
 import 'api_client.dart';
 import 'json_read.dart';
 
+/// One of the resident's support tickets, as GET /citizen/support/tickets
+/// lists it (CitizenPortalController::ticketRow()), with the office's reply
+/// once it has answered.
+class SupportTicket {
+  final String ref;
+  final String category;
+  final String subject;
+  final String body;
+  final String status;
+  final String? response;
+  final DateTime? respondedAt;
+  final DateTime? createdAt;
+  final String? attachmentName;
+
+  const SupportTicket({
+    required this.ref,
+    required this.category,
+    required this.subject,
+    required this.body,
+    required this.status,
+    this.response,
+    this.respondedAt,
+    this.createdAt,
+    this.attachmentName,
+  });
+
+  static SupportTicket? fromJson(Map<String, dynamic> row) {
+    final ref = JsonRead.nonEmpty(row['ref']);
+    if (ref == null) return null;
+    return SupportTicket(
+      ref: ref,
+      category: JsonRead.nonEmpty(row['category']) ?? 'Other',
+      subject: JsonRead.nonEmpty(row['subject']) ?? '(no subject)',
+      body: JsonRead.string(row['body']) ?? '',
+      status: JsonRead.nonEmpty(row['status']) ?? 'Submitted',
+      response: JsonRead.nonEmpty(row['response']),
+      respondedAt: JsonRead.date(row['responded_at']),
+      createdAt: JsonRead.date(row['created_at']),
+      attachmentName: JsonRead.nonEmpty(JsonRead.map(row['attachment'])?['name']),
+    );
+  }
+}
+
 /// Report a Problem, against POST /citizen/support/tickets
-/// (esperanza-backend CitizenPortalController::storeSupportTicket()).
+/// (esperanza-backend CitizenPortalController::storeSupportTicket()), and the
+/// resident's tickets so far, as the web portal's Help > Support lists them.
 class SupportService {
   SupportService._();
 
@@ -30,5 +74,11 @@ class SupportService {
       );
     }
     return ref;
+  }
+
+  /// GET /citizen/support/tickets, newest first.
+  static Future<List<SupportTicket>> myTickets() async {
+    final rows = await api.getAllPages('/citizen/support/tickets', query: {'per_page': 50}, maxPages: 4);
+    return JsonRead.rows(rows, SupportTicket.fromJson);
   }
 }

@@ -139,14 +139,20 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
   /// ([PendingRequirement]); attaching again replaces the file on record.
   Future<void> _attach(RequestsService service, String requirementKey, Attachment newAttachment) async {
     final path = newAttachment.localPath;
-    if (path == null) {
+    final papelesId = newAttachment.papelesId;
+    if (path == null && papelesId == null) {
       AppDialogs.toast(context, 'Could not read the selected file. Please pick it again.', success: false);
       return;
     }
     setState(() => _busy = true);
     AppHaptics.success();
     try {
-      final updated = await service.attachRequirement(widget.requestId, requirementKey: requirementKey, filePath: path);
+      final updated = await service.attachRequirement(
+        widget.requestId,
+        requirementKey: requirementKey,
+        filePath: path,
+        papelesId: papelesId,
+      );
       if (mounted) {
         setState(() => _latest = updated);
         AppDialogs.toast(context, 'Document attached.');
@@ -582,6 +588,7 @@ class _CorrectionsSection extends StatelessWidget {
                 busy: busy,
                 serviceName: request.typeName,
                 category: request.category,
+                allowPapeles: true,
                 onPicked: (a) => onAttach(m.key, a),
               ),
             ),
@@ -860,6 +867,7 @@ class _AttachSection extends StatelessWidget {
                         busy: busy,
                         serviceName: request.typeName,
                         category: request.category,
+                        allowPapeles: true,
                         onPicked: (a) => onAttach(p.key, a),
                       )
                     else

@@ -509,8 +509,22 @@ class RequestsService extends ChangeNotifier {
   /// ([PendingRequirement]). Attaching again keeps the earlier file in that
   /// requirement's history; a decided requirement is refused (409), and is
   /// corrected through [replaceRequirement] once flagged.
-  Future<ServiceRequest> attachRequirement(String ref, {required String requirementKey, required String filePath}) =>
-      _uploadRequirement(ref, requirementKey, filePath, 'attach');
+  ///
+  /// With [papelesId], a document already in the resident's Papeles is
+  /// attached by reference (`{"papeles_id": ...}`), as the web portal does:
+  /// nothing is uploaded again and the file need not be on this phone. Only
+  /// attach takes a reference; a replacement is always a new file.
+  Future<ServiceRequest> attachRequirement(String ref, {required String requirementKey, String? filePath, int? papelesId}) async {
+    if (papelesId == null) {
+      if (filePath == null) throw ArgumentError('attachRequirement needs a filePath or a papelesId');
+      return _uploadRequirement(ref, requirementKey, filePath, 'attach');
+    }
+    final res = await api.post(
+      '/citizen/requests/${ApiClient.segment(ref)}/requirements/${ApiClient.segment(requirementKey)}/attach',
+      body: {'papeles_id': papelesId},
+    );
+    return _applyDetail(ref, res);
+  }
 
   /// The documents picked while filling in a request, uploaded to it right
   /// after it is filed: each through [attachRequirement], matched to the
@@ -521,16 +535,17 @@ class RequestsService extends ChangeNotifier {
     final failed = <String>[];
     for (final entry in picked.entries) {
       final path = entry.value.localPath;
+      final papelesId = entry.value.papelesId;
       RequirementRow? row;
       for (final r in request.requirementRows) {
         if (r.label == entry.key) row = r;
       }
-      if (row == null || path == null) {
+      if (row == null || (path == null && papelesId == null)) {
         failed.add(entry.key);
         continue;
       }
       try {
-        await attachRequirement(request.referenceNumber, requirementKey: row.key, filePath: path);
+        await attachRequirement(request.referenceNumber, requirementKey: row.key, filePath: path, papelesId: papelesId);
       } on ApiException {
         failed.add(entry.key);
       }
@@ -544,6 +559,10 @@ class RequestsService extends ChangeNotifier {
       filePath: filePath,
       fileField: 'file',
     );
+    return _applyDetail(ref, res);
+  }
+
+  ServiceRequest _applyDetail(String ref, ApiResult res) {
     _requireRef(res);
     final request = _requestFromDetail(res.map);
     final idx = _requests.indexWhere((r) => r.referenceNumber == ref);
