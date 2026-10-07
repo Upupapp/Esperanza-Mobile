@@ -385,6 +385,7 @@ class RequestsService extends ChangeNotifier {
       expectedDays: '',
     )
       ..canResubmit = JsonRead.boolean(json['can_resubmit']) ?? false
+      ..canWithdraw = JsonRead.boolean(json['can_withdraw']) ?? false
       ..attachableRequirements = attachable
       ..missingRequired = missingRequired
       ..requirementRows = requirementRows
@@ -468,6 +469,23 @@ class RequestsService extends ChangeNotifier {
   /// which was never the real vocabulary (see PRODUCTION_READINESS.md).
   Future<ServiceRequest> resubmit(String ref) async {
     final res = await api.post('/citizen/requests/${ApiClient.segment(ref)}/resubmit');
+    _requireRef(res);
+    final request = _requestFromDetail(res.map);
+    final idx = _requests.indexWhere((r) => r.referenceNumber == ref);
+    if (idx != -1) _requests[idx] = request;
+    notifyListeners();
+    return request;
+  }
+
+  /// POST /citizen/requests/{ref}/withdraw (TulongCaseLifecycle::withdraw())
+  /// -- the resident takes back a Tulong request the office has not
+  /// recommended yet; it becomes Cancelled and whoever handles it is told.
+  /// The server refuses anything its `can_withdraw` did not allow.
+  Future<ServiceRequest> withdraw(String ref, {String? reason}) async {
+    final res = await api.post(
+      '/citizen/requests/${ApiClient.segment(ref)}/withdraw',
+      body: {if (reason != null && reason.trim().isNotEmpty) 'reason': reason.trim()},
+    );
     _requireRef(res);
     final request = _requestFromDetail(res.map);
     final idx = _requests.indexWhere((r) => r.referenceNumber == ref);

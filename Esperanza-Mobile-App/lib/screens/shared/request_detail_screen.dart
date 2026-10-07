@@ -174,6 +174,32 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
     }
   }
 
+  /// The resident takes back a Tulong request the office has not
+  /// recommended yet (end-to-end test 2026-10-07: there was no way to).
+  Future<void> _withdraw(RequestsService service, ServiceRequest request) async {
+    final ok = await AppDialogs.confirm(
+      context,
+      title: 'Withdraw this request?',
+      message: 'The office stops working on ${request.referenceNumber} and it cannot be reopened. To ask again, file a new request.',
+      confirmLabel: 'Withdraw',
+      cancelLabel: 'Keep it',
+      danger: true,
+    );
+    if (!ok || !mounted) return;
+    setState(() => _busy = true);
+    try {
+      final updated = await service.withdraw(widget.requestId);
+      if (mounted) {
+        setState(() => _latest = updated);
+        AppDialogs.toast(context, '${request.referenceNumber} withdrawn.');
+      }
+    } on ApiException catch (e) {
+      if (mounted) AppDialogs.toast(context, e.message(), success: false);
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
   /// "Apply Again" on a Rejected request's own Application Rejected panel —
   /// reopens a brand-new application for the same catalog item, reusing the
   /// exact same routing ServiceCatalogScreen's own item list already uses
@@ -354,6 +380,17 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
         if (request.releaseProof != null) ...[
           const SizedBox(height: AppSpacing.xl),
           _ReleaseProofCard(proof: request.releaseProof!, accent: accent),
+        ],
+        if (request.canWithdraw) ...[
+          const SizedBox(height: AppSpacing.xl),
+          AppButton(
+            label: 'Withdraw Request',
+            icon: Icons.undo_rounded,
+            variant: AppButtonVariant.secondary,
+            fullWidth: true,
+            loading: _busy,
+            onPressed: _busy ? null : () => _withdraw(service, request),
+          ),
         ],
         const SizedBox(height: AppSpacing.xl),
         Text(

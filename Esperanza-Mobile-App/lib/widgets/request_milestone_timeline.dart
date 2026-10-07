@@ -278,9 +278,13 @@ class _RejectionReasonCard extends StatelessWidget {
             children: [
               const Icon(Icons.error_outline_rounded, color: AppColors.rose600, size: 18),
               const SizedBox(width: AppSpacing.sm),
-              Text(
-                title,
-                style: const TextStyle(fontSize: AppTextSize.helper, fontWeight: FontWeight.w700, color: AppColors.rose700),
+              // Flexible: "Reason for Cancellation" ran 33 px past a 390-wide
+              // phone at a large text size.
+              Flexible(
+                child: Text(
+                  title,
+                  style: const TextStyle(fontSize: AppTextSize.helper, fontWeight: FontWeight.w700, color: AppColors.rose700),
+                ),
               ),
             ],
           ),

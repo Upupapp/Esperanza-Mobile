@@ -242,6 +242,11 @@ class ServiceRequest {
   /// server-side between one detail fetch and the next.
   bool canResubmit = false;
 
+  /// The server's `can_withdraw`: a Tulong request the office has not
+  /// recommended yet, which the resident may take back (end-to-end test
+  /// 2026-10-07). Re-fetched with every detail, like [canResubmit].
+  bool canWithdraw = false;
+
   /// Requirements still open for a document (see [PendingRequirement]).
   /// Re-fetched with every detail, like [canResubmit]; empty on a list row.
   List<PendingRequirement> attachableRequirements = const [];
