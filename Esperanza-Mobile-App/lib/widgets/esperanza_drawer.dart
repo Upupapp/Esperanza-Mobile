@@ -91,7 +91,7 @@ class EsperanzaDrawer extends StatelessWidget {
                   ),
                   _DrawerTile(
                     icon: Icons.help_outline_rounded,
-                    label: 'Help & Support',
+                    label: 'Suporta',
                     onTap: () => _push(context, const HelpSupportScreen()),
                   ),
                   _DrawerTile(

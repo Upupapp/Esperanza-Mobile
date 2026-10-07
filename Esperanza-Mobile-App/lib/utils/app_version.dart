@@ -1,4 +1,4 @@
-/// The version shown to citizens (Settings → About, Help & Support).
+/// The version shown to citizens (Settings → About, Suporta).
 ///
 /// Kept in step with `version:` in pubspec.yaml by test/app_version_test.dart;
 /// the app has no package_info dependency, and this avoids adding one for a

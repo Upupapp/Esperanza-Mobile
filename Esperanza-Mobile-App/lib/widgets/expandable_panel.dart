@@ -5,7 +5,7 @@ import '../theme/app_typography.dart';
 import 'app_card.dart';
 
 /// A single collapsible card — the FAQ/Privacy-Policy accordion item shared
-/// by Help & Support and the Privacy Policy screen so long-form policy and
+/// by Suporta and the Privacy Policy screen so long-form policy and
 /// help content reads as scannable chunks instead of one continuous wall
 /// of text.
 class ExpandablePanel extends StatefulWidget {
@@ -93,7 +93,7 @@ class _ExpandablePanelState extends State<ExpandablePanel> {
 
 /// A simple dot-bulleted list using the app's standard body text style —
 /// the repeated "short list of plain-language items" shape used throughout
-/// both the Privacy Policy and Help & Support content.
+/// both the Privacy Policy and Suporta content.
 class BulletList extends StatelessWidget {
   final List<String> items;
   const BulletList(this.items, {super.key});

@@ -16,7 +16,7 @@ import '../legal/terms_screen.dart';
 import 'report_problem_screen.dart';
 import 'support_tickets_screen.dart';
 
-/// Help & Support — accessible from the hamburger drawer (and the Profile
+/// Suporta (the website's name for it) — accessible from the hamburger drawer (and the Profile
 /// menu's matching entry). FAQ copy below only describes behavior actually
 /// present in this codebase (registration wizard, Dokyu/Tulong request
 /// flow + attachment picker, the universal AppStatus vocabulary, the
@@ -64,7 +64,7 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Help & Support'),
+        title: const Text('Suporta'),
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(52),
           child: Padding(

@@ -314,7 +314,7 @@ void main() {
     await _viaDrawer(tester, 'Digital ID', find.byType(Scaffold));
     await _viaDrawer(tester, 'Documents Uploaded', find.byType(Scaffold));
     await _viaDrawer(tester, 'Government Directory', find.byType(Scaffold));
-    await _viaDrawer(tester, 'Help & Support', find.byType(Scaffold));
+    await _viaDrawer(tester, 'Suporta', find.byType(Scaffold));
     await _viaDrawer(tester, 'Privacy Policy', find.byType(Scaffold));
 
     // ── The core product flow: a request, filled in and submitted ───────

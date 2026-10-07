@@ -208,7 +208,7 @@ No. `AccessGuard` only renders `RestrictedFeatureNotice` when the level requirem
 Same shared `RequestListScreen` used by Dokyu, parameterized by `ServiceCategory.tulong` — Active/Done tabs, request tracking, and a **New Request** FAB that opens `ServiceCatalogScreen` (Medical/Burial/Educational/Financial/Food/Pension/Solo Parent assistance types from `MockCatalog.assistanceTypes`).
 
 ### Profile / account information available
-Via the drawer → Profile: avatar/initials, full name, account ID + barangay, a profile-completeness progress bar (`account.profileCompleteness`, e.g. 82% for Cristy), an **Edit Profile** button, the `VerificationStatusPanel`, a `ResidentProfileStatusCard` (separate Household & Family completeness — see Section 0), Government Directory, Settings, Help & Support, and Sign Out.
+Via the drawer → Profile: avatar/initials, full name, account ID + barangay, a profile-completeness progress bar (`account.profileCompleteness`, e.g. 82% for Cristy), an **Edit Profile** button, the `VerificationStatusPanel`, a `ResidentProfileStatusCard` (separate Household & Family completeness — see Section 0), Government Directory, Settings, Suporta, and Sign Out.
 
 ### If account info needs to be updated later
 `EditProfileScreen` (reachable from Profile → "Edit Profile") calls `CitizenSessionService.updateProfile(updated)`, which persists the edited `CitizenAccount` — this does **not** reset `status` back to `Pending Review`/unverified. **Not yet implemented**: there is no "changes require re-verification" rule in the current code; an already-verified user can edit their profile freely without losing verified status. Flag this if the client expects edits to trigger re-review.

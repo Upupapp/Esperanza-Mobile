@@ -15,7 +15,7 @@ import '../../services/api_client.dart';
 
 const _categories = SupportService.categories;
 
-/// A simple "report a problem" form reachable from Help & Support.
+/// A simple "report a problem" form reachable from Suporta.
 ///
 ///
 /// Files a real support ticket (POST /citizen/support/tickets, see
@@ -93,7 +93,7 @@ class _ReportProblemScreenState extends State<ReportProblemScreen> {
       title: 'Report Submitted',
       message:
           'Salamat! Your report was sent to Esperanza LGU as ticket $ref. Keep this reference if you contact the '
-          'office about it. For anything urgent, use the contact details on the Help & Support page.',
+          'office about it. For anything urgent, use the contact details on the Suporta page.',
     );
     if (mounted) Navigator.of(context).pop();
   }

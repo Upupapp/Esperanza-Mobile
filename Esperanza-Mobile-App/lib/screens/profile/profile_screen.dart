@@ -147,7 +147,7 @@ class ProfileScreen extends StatelessWidget {
           ),
           MenuListTile(
             icon: Icons.help_outline_rounded,
-            label: 'Help & Support',
+            label: 'Suporta',
             onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const HelpSupportScreen())),
           ),
           const SizedBox(height: AppSpacing.md),
