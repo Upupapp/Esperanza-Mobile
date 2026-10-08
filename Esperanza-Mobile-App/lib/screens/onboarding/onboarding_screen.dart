@@ -9,6 +9,7 @@ import '../../theme/app_typography.dart';
 import '../../utils/esperanza_seal.dart';
 import '../../utils/fade_page_route.dart';
 import '../../widgets/app_button.dart';
+import '../../widgets/esperanza_art.dart';
 import 'onboarding_page_data.dart';
 import 'widgets/onboarding_parallax_layer.dart';
 import 'widgets/onboarding_progress.dart';
@@ -501,9 +502,14 @@ class _CopyBlock extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // On frosted glass (2026-10 design): the photograph blurs behind it.
     final block = Padding(
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xxl),
-      child: Column(
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+      child: GlassPanel(
+        dark: true,
+        borderRadius: BorderRadius.circular(28),
+        padding: const EdgeInsets.all(AppSpacing.xl),
+        child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -550,6 +556,7 @@ class _CopyBlock extends StatelessWidget {
             ),
           ],
         ],
+      ),
       ),
     );
 
@@ -603,22 +610,20 @@ class _Chip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return GlassPanel(
+      dark: true,
+      blur: 12,
+      borderRadius: BorderRadius.circular(AppRadius.full),
       padding: const EdgeInsets.symmetric(
         horizontal: AppSpacing.md,
         vertical: AppSpacing.sm,
-      ),
-      decoration: BoxDecoration(
-        color: AppColors.surface.withValues(alpha: 0.14),
-        borderRadius: BorderRadius.circular(AppRadius.full),
-        border: Border.all(color: AppColors.surface.withValues(alpha: 0.28)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           // The icon is the second channel that keeps these distinguishable
           // without relying on colour.
-          Icon(feature.icon, size: 15, color: AppColors.surface),
+          Icon(feature.icon, size: 15, color: AppColors.gold300),
           const SizedBox(width: AppSpacing.sm - 2),
           Flexible(
             child: Text(

@@ -23,6 +23,7 @@ import 'request_detail_screen.dart';
 import 'service_catalog_screen.dart';
 import '../../theme/app_typography.dart';
 import '../../utils/date_text.dart';
+import '../../widgets/esperanza_art.dart';
 
 // This screen's own FAB-clearance constants — not navbar geometry. Pair
 // with `MediaQuery.paddingOf(context).bottom`, which RootShell's
@@ -132,6 +133,9 @@ class _RequestListScreenState extends State<RequestListScreen> {
     final visible = _filters.apply(tabSource);
 
     return Scaffold(
+      // Clear as a tab, over RootShell's GlassBackdrop; solid when pushed as
+      // its own page, so the page beneath never shows through a transition.
+      backgroundColor: widget.pushed ? null : AppColors.clear,
       // A Scaffold with a drawer shows the menu icon instead of a back arrow.
       drawer: widget.pushed ? null : const EsperanzaDrawer(),
       appBar: AppBar(
@@ -383,10 +387,12 @@ class _RequestTile extends StatelessWidget {
           children: [
             Row(
               children: [
+                RequestClayIcon(request.category),
+                const SizedBox(width: AppSpacing.md),
                 Expanded(
                   child: Text(
                     request.typeName,
-                    style: const TextStyle(fontSize: AppTextSize.body, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
+                    style: const TextStyle(fontSize: AppTextSize.body, fontWeight: FontWeight.w700, color: AppColors.navy900),
                   ),
                 ),
                 const SizedBox(width: AppSpacing.xs),

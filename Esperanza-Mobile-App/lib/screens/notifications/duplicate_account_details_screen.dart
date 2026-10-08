@@ -7,6 +7,7 @@ import '../../theme/app_spacing.dart';
 import '../../widgets/app_button.dart';
 import '../../widgets/app_dialogs.dart';
 import '../../theme/app_typography.dart';
+import '../../widgets/esperanza_art.dart';
 
 /// Phase 6 — "One Person, One Account" duplicate-account simulation,
 /// FRONTEND SIMULATION ONLY (see module doc). Opened from the original
@@ -135,13 +136,12 @@ class _ResolvedCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final confirmed = resolution == 'confirmed';
-    return Container(
+    return GlassSurface(
+      radius: AppRadius.xl,
       padding: const EdgeInsets.all(AppSpacing.lg),
-      decoration: BoxDecoration(
-        color: confirmed ? AppColors.emerald50 : AppColors.rose50,
-        borderRadius: BorderRadius.circular(AppRadius.lg),
-        border: Border.all(color: (confirmed ? AppColors.emerald500 : AppColors.rose500).withValues(alpha: 0.25)),
-      ),
+      tint: confirmed ? AppColors.emerald50 : AppColors.rose50,
+      tintEnd: confirmed ? AppColors.emerald50 : AppColors.rose50,
+      rim: (confirmed ? AppColors.emerald500 : AppColors.rose500),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

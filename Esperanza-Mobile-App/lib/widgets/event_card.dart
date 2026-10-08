@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import '../models/announcement.dart';
 import '../screens/events/event_detail_screen.dart';
 import '../theme/app_colors.dart';
-import '../theme/app_shadows.dart';
 import '../theme/app_spacing.dart';
 import '../theme/app_typography.dart';
+import 'esperanza_art.dart';
 
 /// One event as its own card, laid out like the PAAIPE Mobile App's events
 /// list (Upupapp/PAAIPE-Mobile-APP `EventsView`, `.teresa-event-card`):
@@ -30,20 +30,15 @@ class EventCard extends StatelessWidget {
         label: event.title,
         excludeSemantics: false,
         child: Material(
-          color: AppColors.surface,
+          color: Colors.transparent,
           borderRadius: BorderRadius.circular(AppRadius.xl),
           child: InkWell(
             borderRadius: BorderRadius.circular(AppRadius.xl),
             onTap: () => EventDetailScreen.open(context, event),
-            child: Ink(
-              decoration: BoxDecoration(
-                // The fill is not optional: without it the shadow paints
-                // through and the card reads grey.
-                color: AppColors.surface,
-                borderRadius: BorderRadius.circular(AppRadius.xl),
-                border: Border.all(color: AppColors.slate200),
-                boxShadow: AppShadows.card,
-              ),
+            // The subtle glass layer: a frosted pane over the quiet page,
+            // still opaque enough that the details read at a glance.
+            child: GlassSurface.glass(
+              radius: AppRadius.xl,
               padding: const EdgeInsets.all(AppSpacing.md),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,

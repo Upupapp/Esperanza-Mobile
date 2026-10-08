@@ -39,6 +39,8 @@ class BalitaScreen extends StatelessWidget {
     final balita = context.read<BalitaService>();
 
     return Scaffold(
+      // Clear, over RootShell's GlassBackdrop: the glass cards show its colour.
+      backgroundColor: AppColors.clear,
       drawer: const EsperanzaDrawer(),
       appBar: AppBar(
         title: const Text('Balita'),

@@ -4,6 +4,7 @@ import '../../theme/app_spacing.dart';
 import '../../widgets/app_button.dart';
 import 'request_detail_screen.dart';
 import '../../theme/app_typography.dart';
+import '../../widgets/esperanza_art.dart';
 
 /// "Show confirmation" step from Section 5 — a dedicated success screen
 /// (not just a toast) so the submission feels real and gives the citizen
@@ -36,19 +37,19 @@ class RequestSubmittedScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      // Scrolls when it must (a short phone, a large text size), centred
+      // otherwise.
       body: SafeArea(
-        child: Padding(
+        child: LayoutBuilder(
+          builder: (context, constraints) => SingleChildScrollView(
           padding: const EdgeInsets.all(AppSpacing.xxl),
+          child: ConstrainedBox(
+          constraints: BoxConstraints(minHeight: constraints.maxHeight - AppSpacing.xxl * 2),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Container(
-                width: 88,
-                height: 88,
-                decoration: BoxDecoration(color: AppColors.emerald50, shape: BoxShape.circle),
-                child: const Icon(Icons.check_rounded, size: 44, color: AppColors.emerald500),
-              ),
-              const SizedBox(height: AppSpacing.xxl),
+              const SuccessIllustration(),
+              const SizedBox(height: AppSpacing.lg),
               const Text(
                 'Request Submitted',
                 style: TextStyle(fontSize: AppTextSize.section, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
@@ -60,13 +61,9 @@ class RequestSubmittedScreen extends StatelessWidget {
                 style: const TextStyle(fontSize: AppTextSize.body, color: AppColors.slate500),
               ),
               const SizedBox(height: AppSpacing.xl),
-              Container(
+              GlassSurface(
+                radius: AppRadius.xl,
                 padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl, vertical: AppSpacing.md),
-                decoration: BoxDecoration(
-                  color: AppColors.slate50,
-                  borderRadius: BorderRadius.circular(AppRadius.md),
-                  border: Border.all(color: AppColors.slate100),
-                ),
                 child: Column(
                   children: [
                     const Text(
@@ -109,6 +106,8 @@ class RequestSubmittedScreen extends StatelessWidget {
                 fullWidth: true,
               ),
             ],
+          ),
+          ),
           ),
         ),
       ),

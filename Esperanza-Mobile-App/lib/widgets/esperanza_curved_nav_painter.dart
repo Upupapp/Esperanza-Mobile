@@ -1,13 +1,14 @@
 import 'package:flutter/rendering.dart';
-import 'esperanza_nav_motion.dart';
+import '../theme/app_colors.dart';
 
-/// Paints the navbar surface: a full-width bar, rounded only on its top two
-/// corners (flush/square at the bottom, since it sits at the true screen
-/// edge, not floating on a margin), with a cradle dipped into the top edge
-/// beneath the active tab. Direct port of Servana's
-/// `ServanaCurvedNavPainter` — same path construction, same draw order
-/// (shadow first, along the identical shifted path, then fill, then a hairline
-/// border) — only the class name changed.
+/// Paints the navbar surface. Originally a port of Servana's
+/// `ServanaCurvedNavPainter` (a full-width bar, rounded on top, with a
+/// cradle dipped under the active tab); since the 2026-10 design refresh it
+/// is a floating frosted-glass pill, inset from the screen edges, with a
+/// gold glow under the active tab where the cradle was. [EsperanzaCurvedNavBar] blurs what is
+/// behind it through [pillPath]; this painter lays the glass over that
+/// blur: a soft navy shadow, a translucent white body lit from above, a
+/// bright rim and a faint blue hairline.
 class EsperanzaCurvedNavPainter extends CustomPainter {
   final double cradleCentreX;
   final Color surfaceColor;
@@ -15,54 +16,92 @@ class EsperanzaCurvedNavPainter extends CustomPainter {
   final Color borderColor;
   final bool showCradle;
 
+  /// The device's bottom inset: the pill floats above the gesture area
+  /// rather than running under it.
+  final double bottomInset;
+
   const EsperanzaCurvedNavPainter({
     required this.cradleCentreX,
     required this.surfaceColor,
     required this.shadowColor,
     required this.borderColor,
     required this.showCradle,
+    this.bottomInset = 0,
   });
 
-  static const double _cradleHalfWidth = 44;
-  static const double _cradleDepth = 18;
+  /// Side margin of the floating pill. Small enough that the outer tabs'
+  /// labels ("Emergency") stay inside it on a 280pt phone.
+  static const double sideMargin = 8;
+  static const double topMargin = 4;
+  static const double pillRadius = 30;
 
-  Path _buildPath(Size size) {
-    const r = EsperanzaNavMotion.surfaceRadius;
-    final path = Path()..moveTo(0, r);
-    path.quadraticBezierTo(0, 0, r, 0);
+  /// Space between the pill and the bottom of the screen: clear of the
+  /// gesture handle when there is one.
+  static double bottomGap(double bottomInset) => bottomInset > 0 ? bottomInset + 4 : 10;
 
-    if (showCradle) {
-      final left = cradleCentreX - _cradleHalfWidth;
-      final right = cradleCentreX + _cradleHalfWidth;
-      path.lineTo(left, 0);
-      // Two mirrored cubics so the shoulders leave and rejoin the top edge
-      // tangentially — a single arc would show a crease at the join.
-      path.cubicTo(left + _cradleHalfWidth * 0.45, 0, cradleCentreX - _cradleHalfWidth * 0.62, _cradleDepth,
-          cradleCentreX, _cradleDepth);
-      path.cubicTo(cradleCentreX + _cradleHalfWidth * 0.62, _cradleDepth, right - _cradleHalfWidth * 0.45, 0, right,
-          0);
-    }
-
-    path.lineTo(size.width - r, 0);
-    path.quadraticBezierTo(size.width, 0, size.width, r);
-    path.lineTo(size.width, size.height);
-    path.lineTo(0, size.height);
-    path.close();
-    return path;
+  /// The pill's outline. A plain stadium: the dipped cradle of the old
+  /// full-width bar ran into the rounded corners under the outer tabs, and
+  /// the design has none; the active tab is marked by its gold bubble and
+  /// the glow painted under it (at [cradleCentreX]) instead. Shared with the
+  /// blur clip so glass and paint are always the same shape.
+  static Path pillPath(Size size, {double bottomInset = 0}) {
+    final rect = Rect.fromLTRB(sideMargin, topMargin, size.width - sideMargin, size.height - bottomGap(bottomInset));
+    return Path()..addRRect(RRect.fromRectAndRadius(rect, const Radius.circular(pillRadius)));
   }
 
   @override
   void paint(Canvas canvas, Size size) {
-    final path = _buildPath(size);
+    final path = pillPath(size, bottomInset: bottomInset);
+    final bounds = path.getBounds();
 
-    // Only the top edge can cast a visible shadow — the bar sits at the
-    // screen bottom, so the shadow is drawn along the same path, shifted up.
-    final shadowPaint = Paint()
-      ..color = shadowColor
-      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 10);
-    canvas.drawPath(path.shift(const Offset(0, -2)), shadowPaint);
+    // A deep, soft float shadow under the whole pill.
+    canvas.drawPath(
+      path.shift(const Offset(0, 8)),
+      Paint()
+        ..color = shadowColor
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 16),
+    );
 
-    canvas.drawPath(path, Paint()..color = surfaceColor);
+    // Frosted body: translucent white, brighter at the top.
+    canvas.drawPath(
+      path,
+      Paint()
+        ..shader = LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          // Frosted but mostly opaque (2026-10 refinement): the content
+          // scrolling under it softens through, the icons stay crisp.
+          colors: [surfaceColor.withValues(alpha: 0.92), surfaceColor.withValues(alpha: 0.84)],
+        ).createShader(bounds),
+    );
+
+    // Inner light along the top rim, the glass catching light.
+    canvas.save();
+    canvas.clipPath(path);
+    canvas.drawPath(
+      path.shift(const Offset(0, 3)),
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 6
+        ..color = surfaceColor.withValues(alpha: 0.9)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3),
+    );
+    canvas.restore();
+
+    // A warm glow on the glass under the active tab's gold bubble.
+    if (showCradle) {
+      final glow = Rect.fromCenter(center: Offset(cradleCentreX, bounds.top + 6), width: 96, height: 44);
+      canvas.save();
+      canvas.clipPath(path);
+      canvas.drawOval(
+        glow,
+        Paint()
+          ..shader = RadialGradient(
+            colors: [AppColors.gold300.withValues(alpha: 0.45), AppColors.gold300.withValues(alpha: 0)],
+          ).createShader(glow),
+      );
+      canvas.restore();
+    }
 
     canvas.drawPath(
       path,
@@ -79,6 +118,20 @@ class EsperanzaCurvedNavPainter extends CustomPainter {
         surfaceColor != oldDelegate.surfaceColor ||
         shadowColor != oldDelegate.shadowColor ||
         borderColor != oldDelegate.borderColor ||
-        showCradle != oldDelegate.showCradle;
+        showCradle != oldDelegate.showCradle ||
+        bottomInset != oldDelegate.bottomInset;
   }
+}
+
+/// Clips the backdrop blur to the pill.
+class EsperanzaNavPillClipper extends CustomClipper<Path> {
+  final double bottomInset;
+
+  const EsperanzaNavPillClipper({required this.bottomInset});
+
+  @override
+  Path getClip(Size size) => EsperanzaCurvedNavPainter.pillPath(size, bottomInset: bottomInset);
+
+  @override
+  bool shouldReclip(EsperanzaNavPillClipper old) => old.bottomInset != bottomInset;
 }

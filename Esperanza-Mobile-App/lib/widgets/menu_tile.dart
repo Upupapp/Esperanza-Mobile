@@ -32,10 +32,10 @@ class MenuListTile extends StatelessWidget {
               height: 38,
               alignment: Alignment.center,
               decoration: BoxDecoration(
-                color: danger ? AppColors.rose50 : AppColors.slate100,
+                color: danger ? AppColors.rose50 : AppColors.brand50,
                 borderRadius: BorderRadius.circular(AppRadius.md),
               ),
-              child: Icon(icon, size: 20, color: danger ? AppColors.rose500 : AppColors.slate500),
+              child: Icon(icon, size: 20, color: danger ? AppColors.rose600 : AppColors.brand600),
             ),
             const SizedBox(width: AppSpacing.md),
             Expanded(
@@ -44,10 +44,25 @@ class MenuListTile extends StatelessWidget {
                 style: TextStyle(fontSize: AppTextSize.body, fontWeight: FontWeight.w600, color: color),
               ),
             ),
-            if (!danger) const Icon(Icons.chevron_right_rounded, color: AppColors.slate300),
+            if (!danger) const ChevronBubble(),
           ],
         ),
       ),
+    );
+  }
+}
+
+/// The round chevron at the end of a tappable row (2026-10 refresh).
+class ChevronBubble extends StatelessWidget {
+  const ChevronBubble({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 28,
+      height: 28,
+      decoration: const BoxDecoration(color: AppColors.slate100, shape: BoxShape.circle),
+      child: const Icon(Icons.chevron_right_rounded, size: 20, color: AppColors.slate500),
     );
   }
 }

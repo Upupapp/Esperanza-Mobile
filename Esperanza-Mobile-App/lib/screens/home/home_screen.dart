@@ -1,15 +1,21 @@
+import 'dart:ui' as ui;
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../../models/announcement.dart';
 import '../../models/citizen_account.dart';
 import '../../models/service_request.dart';
 import '../../services/api_client.dart';
+import '../../services/balita_service.dart';
 import '../../services/json_read.dart';
 import '../../services/notifications_service.dart';
 import '../../services/citizen_session_service.dart';
 import '../../services/requests_service.dart';
 import '../../services/resident_profile_service.dart';
 import '../../theme/app_colors.dart';
+import '../../theme/app_shadows.dart';
 import '../../theme/app_spacing.dart';
 import '../../theme/tulong_status.dart';
 import '../../theme/app_typography.dart';
@@ -18,13 +24,13 @@ import '../../widgets/app_button.dart';
 import '../../widgets/app_card.dart';
 import '../../widgets/app_dialogs.dart';
 import '../../widgets/empty_state.dart';
+import '../../widgets/esperanza_art.dart';
 import '../../widgets/esperanza_drawer.dart';
 import '../../widgets/event_card.dart';
 import '../../utils/banner_memory.dart';
 import '../../widgets/home_welcome_banner.dart';
 import '../../widgets/live_banners.dart';
 import '../../widgets/sakuna_alerts_ui.dart';
-import '../../widgets/parallax_header.dart';
 import '../../widgets/resident_profile_status_card.dart';
 import '../../widgets/section_header.dart';
 import '../../widgets/stat_tile.dart';
@@ -32,12 +38,21 @@ import '../../widgets/service_launcher_menu.dart';
 import '../../widgets/status_chip.dart';
 import '../auth/login_screen.dart';
 import '../auth/register_screen.dart';
+import '../balita/balita_post_screen.dart';
+import '../directory/directory_screen.dart';
+import '../shared/documents_uploaded_screen.dart';
+import '../shared/my_requests_screen.dart';
 import '../profile/resident_profile/resident_profile_overview_screen.dart';
 import 'root_shell.dart';
+import '../../models/access_level.dart';
+import '../../services/mock_catalog.dart';
+import '../../widgets/access_guard.dart';
+import '../shared/service_search_screen.dart';
 
-/// Mirrors citizen/dashboard.blade.php: navy hero with greeting + barangay
-/// identity, quick-action stat tiles, active-requests preview, Balita
-/// preview, upcoming events preview. Renders a reduced Guest variant
+/// Mirrors citizen/dashboard.blade.php in what it shows: navy hero with
+/// greeting + barangay identity, quick actions, stat tiles, active-requests
+/// preview, the latest LGU announcements, upcoming events preview. Laid out
+/// to the 2026-10 design refresh. Renders a reduced Guest variant
 /// (Section 6) when no account is signed in — Balita/Events previews stay
 /// visible (public content), account-specific sections (stat tiles,
 /// Resident Profile status, Active Requests) don't.
@@ -142,24 +157,23 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     final activeRequests = requests.all.where((r) => !RequestStatusView(r.status).isDone).toList()
       ..sort((a, b) => b.submittedAt.compareTo(a.submittedAt));
     final residentProfile = account != null ? context.watch<ResidentProfileService>().profileFor(account) : null;
+    final updates = _latestUpdates(context);
 
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      drawer: const EsperanzaDrawer(),
-      // bottom: false — RootShell's extendBody:true publishes a bottom
-      // MediaQuery padding matching the floating navbar's *full* reported
-      // height (barHeight + protrusion, ~150px — headroom for the circle,
-      // not just the visible ~72px pill). A bottom-insetting SafeArea
-      // would reserve all of that as extra space *inside* this Scaffold's
-      // own opaque backgroundColor, which is exactly what read as a large
-      // light rectangle sitting behind/above the navbar — Home is the only
-      // tab that wraps its body in SafeArea at all, which is why this
-      // didn't show up on Dokyu/Tulong/Balita/Emergency. Top/left/right
-      // protection is still needed here since, unlike those tabs, Home has
-      // no AppBar of its own to already clear the status bar/notch.
-      body: SafeArea(
-        bottom: false,
-        child: RefreshIndicator(
+    // 2026-10 refresh: a full-bleed navy hero under the status bar (light
+    // icons over it), a quick-actions card riding its lower edge, then the
+    // dashboard on the light page. No SafeArea: the hero pads itself below
+    // the status bar, and RootShell's floating navbar is cleared by the
+    // list's own bottom padding (see the note on it below).
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: SystemUiOverlayStyle.light,
+      child: Scaffold(
+        backgroundColor: AppColors.background,
+        drawer: const EsperanzaDrawer(),
+        body: Stack(
+          children: [
+            // The soft colour wash the frosted panels blur (2026-10 design).
+            const Positioned.fill(child: RepaintBoundary(child: CustomPaint(painter: SoftBackdropPainter()))),
+            RefreshIndicator(
           // It only waited half a second: the counts and Active Requests
           // stayed as loaded at start-up (Esperanza bugs QA item 10, seen on
           // the emulator). Pulling down now re-reads requests and the bell.
@@ -175,216 +189,232 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           },
           child: ListView(
             controller: _scrollController,
-            // 100 (rather than a plain 32) leaves real, transparent
-            // clearance for the floating navbar — matching the same value
-            // RequestListScreen's own list already uses for this — so the
-            // last card can scroll clear of it without needing SafeArea's
-            // much larger, opaquely-backed inset to do that job.
-            padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.lg, AppSpacing.lg, AppSpacing.page),
+            // Bottom clearance for the floating navbar, transparent rather
+            // than SafeArea's opaque inset (see RequestListScreen).
+            padding: const EdgeInsets.only(bottom: AppSpacing.page),
             children: [
               _Hero(account: account, scrollController: _scrollController),
-              const SizedBox(height: AppSpacing.lg),
-              // Alerts in force for the resident's barangay, like the website's
-              // dashboard; they were only on the Emergency tab.
-              ActiveAlertsCard(onOpen: () => RootShell.jumpTo(context, 3)),
-              FutureBuilder<List<LiveBanner>>(
-                future: _bannersFuture,
-                builder: (context, snapshot) {
-                  final banners = snapshot.data ?? const <LiveBanner>[];
-                  if (banners.isEmpty) return const SizedBox.shrink();
-                  return Padding(
-                    padding: const EdgeInsets.only(bottom: AppSpacing.xl),
-                    child: LiveBannersStrip(banners: banners),
-                  );
-                },
+              // Rides up over the hero's lower edge, as in the design.
+              Transform.translate(
+                offset: const Offset(0, -_Hero.overlap),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+                  child: _QuickActions(signedIn: account != null),
+                ),
               ),
-              if (account != null) ...[
-                ResidentProfileStatusCard(
-                  profile: residentProfile!,
-                  onTap: () => Navigator.of(
-                    context,
-                  ).push(MaterialPageRoute(builder: (_) => const ResidentProfileOverviewScreen())),
-                ),
-                const SizedBox(height: AppSpacing.xl),
-                // Two content-sized rows instead of GridView.count's fixed
-                // childAspectRatio: a fixed aspect ratio forces an exact
-                // cell height regardless of how much vertical space the
-                // icon + value + label actually need, which is exactly
-                // what caused "BOTTOM OVERFLOWED BY 19 PIXELS" — at larger
-                // text-scale settings or on narrower phones it will always
-                // overflow *some* aspect ratio no matter what number is
-                // chosen. Sizing each row to its own content (via
-                // IntrinsicHeight + stretch) makes overflow structurally
-                // impossible while still keeping both tiles in a row
-                // equal height.
-                IntrinsicHeight(
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      Expanded(
-                        child: StatTile(
-                          label: 'Dokyu Requests',
-                          value: '${requests.byCategory(ServiceCategory.dokyu).length}',
-                          icon: Icons.description_outlined,
-                          color: StatTileColor.brand,
-                          onTap: () => RootShell.openService(context, ServiceLauncherTarget.dokyu),
-                        ),
-                      ),
-                      const SizedBox(width: AppSpacing.md),
-                      Expanded(
-                        child: StatTile(
-                          label: 'Tulong Requests',
-                          value: '${requests.byCategory(ServiceCategory.tulong).length}',
-                          icon: Icons.volunteer_activism_outlined,
-                          color: StatTileColor.purple,
-                          onTap: () => RootShell.openService(context, ServiceLauncherTarget.tulong),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: AppSpacing.md),
-                IntrinsicHeight(
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      Expanded(
-                        child: StatTile(
-                          label: 'Active Requests',
-                          value: '${activeRequests.length}',
-                          icon: Icons.hourglass_top_outlined,
-                          color: StatTileColor.orange,
-                        ),
-                      ),
-                      const SizedBox(width: AppSpacing.md),
-                      Expanded(
-                        child: StatTile(
-                          // "Account Details", not "Profile Complete": this is
-                          // account.profileCompleteness — the four contact
-                          // fields on Edit Profile (mobile, occupation, purok,
-                          // barangay). The Resident Profile card directly above
-                          // shows overallCompletionPercent, which weighs the
-                          // Personal/Family/Household sections. Both are
-                          // correct and they legitimately differ, but until
-                          // 2026-08-30 they sat on one screen as "Profile
-                          // Complete" and "Resident Profile" with no way for a
-                          // citizen to tell they measure different forms.
-                          label: 'Account Details',
-                          value: '${account.profileCompleteness}%',
-                          icon: Icons.badge_outlined,
-                          color: StatTileColor.gold,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: AppSpacing.xxl),
-                SectionHeader(
-                  title: 'Active Requests',
-                  actionLabel: activeRequests.isNotEmpty ? 'View all' : null,
-                  onAction: () => RootShell.openService(context, ServiceLauncherTarget.dokyu),
-                ),
-                if (activeRequests.isEmpty)
-                  AppCard(
-                    child: EmptyState(
-                      icon: Icons.inbox_outlined,
-                      title: 'No active requests',
-                      description: 'Start a Dokyu or Tulong request and track it here.',
-                      padding: const EdgeInsets.symmetric(vertical: AppSpacing.xxl, horizontal: AppSpacing.xl),
+              // Shifted up by the same amount, so the overlap leaves no gap.
+              Transform.translate(
+                offset: const Offset(0, -_Hero.overlap + AppSpacing.xl),
+                child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    // Alerts in force for the resident's barangay, like the
+                    // website's dashboard; they were only on the Emergency tab.
+                    ActiveAlertsCard(onOpen: () => RootShell.jumpTo(context, 3)),
+                    // The banners staff publish; the municipal card when none
+                    // are live, so the slot is never empty.
+                    FutureBuilder<List<LiveBanner>>(
+                      future: _bannersFuture,
+                      builder: (context, snapshot) {
+                        final banners = snapshot.data ?? const <LiveBanner>[];
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: AppSpacing.xxl),
+                          child: banners.isEmpty ? const _PromoCard() : LiveBannersStrip(banners: banners),
+                        );
+                      },
                     ),
-                  )
-                else
-                  ...activeRequests.take(3).map((r) => _RequestPreviewTile(request: r)),
-                const SizedBox(height: AppSpacing.xxl),
-              ],
-              // No Balita/News section here — Balita already has its own
-              // dedicated bottom tab; duplicating the feed on Home only
-              // adds noise. Events stays, since Home has always carried a
-              // short upcoming-events teaser distinct from the full
-              // Events list.
-              SectionHeader(
-                title: 'Upcoming Events',
-                actionLabel: 'View all',
-                onAction: () => RootShell.jumpTo(context, 2), // Events — see RootShell's 4-tab index space
+                    if (account != null) ...[
+                      ResidentProfileStatusCard(
+                        profile: residentProfile!,
+                        onTap: () => Navigator.of(
+                          context,
+                        ).push(MaterialPageRoute(builder: (_) => const ResidentProfileOverviewScreen())),
+                      ),
+                      const SizedBox(height: AppSpacing.xl),
+                      const SectionHeader(title: 'Overview'),
+                      // Content-sized rows, not GridView.count's fixed aspect
+                      // ratio, which overflowed at large text sizes ("BOTTOM
+                      // OVERFLOWED BY 19 PIXELS"); IntrinsicHeight keeps both
+                      // tiles in a row the same height.
+                      IntrinsicHeight(
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            Expanded(
+                              child: StatTile(
+                                label: 'Dokyu Requests',
+                                value: '${requests.byCategory(ServiceCategory.dokyu).length}',
+                                icon: Icons.description_outlined,
+                                color: StatTileColor.azure,
+                                onTap: () => RootShell.openService(context, ServiceLauncherTarget.dokyu),
+                              ),
+                            ),
+                            const SizedBox(width: AppSpacing.md),
+                            Expanded(
+                              child: StatTile(
+                                label: 'Tulong Requests',
+                                value: '${requests.byCategory(ServiceCategory.tulong).length}',
+                                icon: Icons.volunteer_activism_outlined,
+                                color: StatTileColor.indigo,
+                                onTap: () => RootShell.openService(context, ServiceLauncherTarget.tulong),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: AppSpacing.md),
+                      IntrinsicHeight(
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            Expanded(
+                              child: StatTile(
+                                label: 'Active Requests',
+                                value: '${activeRequests.length}',
+                                icon: Icons.hourglass_top_outlined,
+                                color: StatTileColor.amber,
+                              ),
+                            ),
+                            const SizedBox(width: AppSpacing.md),
+                            Expanded(
+                              child: StatTile(
+                                // "Account Details", not "Profile Complete": the
+                                // four contact fields on Edit Profile, which
+                                // legitimately differs from the Resident Profile
+                                // card's own percentage above.
+                                label: 'Account Details',
+                                value: '${account.profileCompleteness}%',
+                                icon: Icons.badge_outlined,
+                                color: StatTileColor.gold,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: AppSpacing.xxl),
+                      SectionHeader(
+                        title: 'Active Requests',
+                        actionLabel: activeRequests.isNotEmpty ? 'View all' : null,
+                        onAction: () => RootShell.openService(context, ServiceLauncherTarget.dokyu),
+                      ),
+                      if (activeRequests.isEmpty)
+                        AppCard(
+                          child: EmptyState(
+                            icon: Icons.inbox_outlined,
+                            title: 'No active requests',
+                            description: 'Start a Dokyu or Tulong request and track it here.',
+                            padding: const EdgeInsets.symmetric(vertical: AppSpacing.xxl, horizontal: AppSpacing.xl),
+                          ),
+                        )
+                      else
+                        ...activeRequests.take(3).map((r) => _RequestPreviewTile(request: r)),
+                      const SizedBox(height: AppSpacing.xxl),
+                    ],
+                    // The two newest LGU announcements, as the design's "Latest
+                    // Updates"; the whole feed stays on the Balita tab.
+                    if (updates.isNotEmpty) ...[
+                      SectionHeader(
+                        title: 'Latest Updates',
+                        actionLabel: 'View all',
+                        onAction: () => RootShell.jumpTo(context, 1),
+                      ),
+                      for (final post in updates) _UpdateTile(post: post),
+                      const SizedBox(height: AppSpacing.xl),
+                    ],
+                    SectionHeader(
+                      title: 'Upcoming Events',
+                      actionLabel: 'View all',
+                      onAction: () => RootShell.jumpTo(context, 2), // Events — see RootShell's 4-tab index space
+                    ),
+                    FutureBuilder<List<EventItem>>(
+                      future: _eventsFuture,
+                      builder: (context, snapshot) {
+                        final events = snapshot.data ?? const <EventItem>[];
+                        return Column(
+                          children: [for (final e in events) EventCard(event: e, compact: true)],
+                        );
+                      },
+                    ),
+                  ],
+                ),
               ),
-              FutureBuilder<List<EventItem>>(
-                future: _eventsFuture,
-                builder: (context, snapshot) {
-                  final events = snapshot.data ?? const <EventItem>[];
-                  return Column(
-                    children: [for (final e in events) EventCard(event: e, compact: true)],
-                  );
-                },
               ),
             ],
           ),
+        ),
+          ],
         ),
       ),
     );
   }
 }
 
+/// The two newest LGU announcements from the Balita feed RootShell loads.
+/// Empty where no feed is provided (a Home shown on its own).
+List<Announcement> _latestUpdates(BuildContext context) {
+  try {
+    return context.watch<BalitaService>().posts.where((p) => p.kind == PostKind.announcement).take(2).toList();
+  } on ProviderNotFoundException {
+    return const [];
+  }
+}
+
+/// The navy hero (2026-10 design): a deep gradient with a wave-shaped lower
+/// edge trimmed in gold, frosted buttons, the resident's photo in a gold ring
+/// and the greeting. The shortcuts panel rides over the wave.
 class _Hero extends StatelessWidget {
   final CitizenAccount? account;
   final ScrollController scrollController;
   const _Hero({required this.account, required this.scrollController});
 
-  static const _labelStyle = TextStyle(fontFamily: AppTypography.sans, fontSize: AppTextSize.helper, fontWeight: FontWeight.w500);
-  static const _buttonGap = 10.0;
-  // Matches AppButtonSize.sm's own geometry (padding/icon/icon-gap) — used
-  // only to measure whether the full label fits, never to render.
-  static const _nonTextWidth = (14 * 2) + 16 + AppSpacing.sm;
-
-  bool _fitsOneLine(String text, double maxWidth) {
-    final painter = TextPainter(
-      text: TextSpan(text: text, style: _labelStyle),
-      maxLines: 1,
-      textDirection: TextDirection.ltr,
-    )..layout(maxWidth: double.infinity);
-    return painter.width <= maxWidth;
-  }
+  /// How far the shortcuts panel rides up over the hero.
+  static const double overlap = 64;
 
   @override
   Widget build(BuildContext context) {
-    return ParallaxHeader(
-      scrollController: scrollController,
-      borderRadius: BorderRadius.circular(AppRadius.xl),
-      background: const DecoratedBox(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [AppColors.navy900, AppColors.brand700],
-          ),
-        ),
-      ),
-      foreground: Padding(
-        padding: const EdgeInsets.all(AppSpacing.xl),
-        child: account != null ? _signedInContent(context, account!) : _guestContent(context),
-      ),
-    );
-  }
-
-  Widget _topBar(BuildContext context, {required Widget middle}) {
-    return Row(
+    final top = MediaQuery.paddingOf(context).top;
+    return Stack(
       children: [
-        Builder(
-          builder: (context) => InkWell(
-            borderRadius: BorderRadius.circular(AppRadius.xl),
-            onTap: () => Scaffold.of(context).openDrawer(),
-            child: const Padding(
-              padding: EdgeInsets.all(AppSpacing.xs),
-              child: Icon(Icons.menu_rounded, color: Colors.white, size: 22),
-            ),
-          ),
+        const Positioned.fill(child: CustomPaint(painter: _HeroWavePainter())),
+        Padding(
+          padding: EdgeInsets.fromLTRB(AppSpacing.lg, top + AppSpacing.sm, AppSpacing.lg, overlap + AppSpacing.xxxl),
+          child: account != null ? _signedInContent(context, account!) : _guestContent(context),
         ),
-        const SizedBox(width: AppSpacing.sm),
-        Expanded(child: middle),
-        const SizedBox(width: AppSpacing.sm),
-        const AlertsAction(color: Colors.white),
       ],
     );
   }
+
+  Widget _frosted({required Widget child}) => ClipOval(
+    child: BackdropFilter(
+      filter: ui.ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+      child: Container(
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [AppColors.surface.withValues(alpha: 0.24), AppColors.surface.withValues(alpha: 0.08)],
+          ),
+          border: Border.all(color: AppColors.surface.withValues(alpha: 0.30)),
+        ),
+        child: child,
+      ),
+    ),
+  );
+
+  Widget _menuButton() => Builder(
+    builder: (context) => _frosted(
+      child: IconButton(
+        tooltip: 'Menu',
+        onPressed: () => Scaffold.of(context).openDrawer(),
+        icon: const Icon(Icons.menu_rounded, color: AppColors.surface, size: 22),
+      ),
+    ),
+  );
+
+  Widget _bell() => _frosted(child: const AlertsAction(color: AppColors.surface, edgePadding: false));
 
   Widget _signedInContent(BuildContext context, CitizenAccount account) {
     final personal = context.watch<ResidentProfileService>().profileFor(account).personal;
@@ -396,119 +426,62 @@ class _Hero extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _topBar(
-          context,
-          middle: Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              CircleAvatar(
-                radius: 22,
-                backgroundColor: Colors.white.withValues(alpha: 0.15),
+        Row(children: [_menuButton(), const Spacer(), _bell()]),
+        const SizedBox(height: AppSpacing.lg),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(3),
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: const LinearGradient(colors: [AppColors.gold300, AppColors.gold500]),
+                boxShadow: [BoxShadow(color: AppColors.gold400.withValues(alpha: 0.45), blurRadius: 16)],
+              ),
+              child: CircleAvatar(
+                radius: 30,
+                backgroundColor: AppColors.navy700,
                 backgroundImage: photo,
                 onBackgroundImageError: photo != null ? (error, stackTrace) {} : null,
                 child: photo == null
                     ? Text(
                         account.initials,
-                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
+                        style: const TextStyle(color: AppColors.surface, fontWeight: FontWeight.w700, fontSize: AppTextSize.card),
                       )
                     : null,
               ),
-              const SizedBox(width: AppSpacing.md),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Magandang araw, ${account.firstName} 👋',
-                      // Wraps, never truncates: on a 390pt phone one line
-                      // cut the greeting at "Magandang araw,…" and the
-                      // name, the whole point of it, never showed.
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: AppTextSize.card,
-                        fontWeight: FontWeight.w700,
-                        height: 1.25,
-                      ),
+            ),
+            const SizedBox(width: AppSpacing.lg),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Magandang araw, ${account.firstName} 👋',
+                    // Wraps, never truncates: on a 390pt phone one line cut
+                    // the greeting at "Magandang araw,…" and the name, the
+                    // whole point of it, never showed.
+                    style: const TextStyle(
+                      color: AppColors.surface,
+                      fontSize: AppTextSize.section,
+                      fontWeight: FontWeight.w700,
+                      height: 1.2,
                     ),
-                    const SizedBox(height: AppSpacing.xs),
-                    Text(
-                      'Brgy. ${account.barangay}',
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: AppTextSize.label, height: 1.3),
-                    ),
-                  ],
-                ),
+                  ),
+                  const SizedBox(height: AppSpacing.xs),
+                  Text(
+                    'How can we help you today?',
+                    style: TextStyle(color: AppColors.surface.withValues(alpha: 0.80), fontSize: AppTextSize.helper, height: 1.3),
+                  ),
+                ],
               ),
-            ],
-          ),
+            ),
+          ],
         ),
         const SizedBox(height: AppSpacing.lg),
-        LayoutBuilder(
-          builder: (context, constraints) {
-            const tulongLabel = 'New Tulong Request';
-            const dokyuLabel = 'New Dokyu Request';
-
-            final tulongButton = AppButton(
-              label: tulongLabel,
-              icon: Icons.volunteer_activism_outlined,
-              variant: AppButtonVariant.secondary,
-              size: AppButtonSize.sm,
-              fullWidth: true,
-              // Through RootShell's one gateway, exactly like the four other
-              // Home call sites. Until 2026-08-30 this pushed TulongScreen raw
-              // - the tab was gated at AccessLevel.verified while this shortcut
-              // to the identical screen was not, so an Unverified citizen
-              // tapping the Home CTA walked straight into the request flow the
-              // tab refuses them.
-              //
-              // The first fix wrapped the push in the same AccessGuard. That
-              // closed the access hole but left TWO routes to one screen, and
-              // the second still bypassed openService's duplicate-account
-              // interception - whose own doc comment already claimed every Home
-              // tile funnelled through it. Routing here restores both rules at
-              // once, and leaves one path to gate instead of a set to keep in
-              // step.
-              onPressed: () => RootShell.openService(context, ServiceLauncherTarget.tulong),
-            );
-            final dokyuButton = AppButton(
-              label: dokyuLabel,
-              icon: Icons.note_add_outlined,
-              variant: AppButtonVariant.gold,
-              size: AppButtonSize.sm,
-              fullWidth: true,
-              // Same gateway - see the Tulong button above.
-              onPressed: () => RootShell.openService(context, ServiceLauncherTarget.dokyu),
-            );
-
-            // Side by side only if BOTH full labels genuinely fit on one
-            // line at this width — real font-metric measurement, not a
-            // guessed breakpoint, so it can't silently start truncating
-            // again on a device slightly narrower than whatever number
-            // was hard-coded. Otherwise stack full-width so the primary
-            // action labels are never cut off.
-            final perButtonWidth = (constraints.maxWidth - _buttonGap) / 2;
-            final availableTextWidth = perButtonWidth - _nonTextWidth;
-            final sideBySideFits =
-                _fitsOneLine(tulongLabel, availableTextWidth) && _fitsOneLine(dokyuLabel, availableTextWidth);
-
-            if (sideBySideFits) {
-              return Row(
-                children: [
-                  Expanded(child: tulongButton),
-                  const SizedBox(width: _buttonGap),
-                  Expanded(child: dokyuButton),
-                ],
-              );
-            }
-            return Column(
-              children: [
-                tulongButton,
-                const SizedBox(height: _buttonGap),
-                dokyuButton,
-              ],
-            );
-          },
-        ),
+        _Pill(icon: Icons.place_rounded, label: 'Brgy. ${account.barangay}'),
+        const SizedBox(height: AppSpacing.lg),
+        const _SearchBar(),
       ],
     );
   }
@@ -517,22 +490,28 @@ class _Hero extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _topBar(
-          context,
-          middle: const Text(
-            'Esperanza',
-            style: TextStyle(fontFamily: 'Lora', color: Colors.white, fontSize: AppTextSize.section, fontWeight: FontWeight.w600),
-          ),
+        Row(
+          children: [
+            _menuButton(),
+            const SizedBox(width: AppSpacing.md),
+            const Expanded(
+              child: Text(
+                'Esperanza',
+                style: TextStyle(fontFamily: 'Lora', color: AppColors.surface, fontSize: AppTextSize.section, fontWeight: FontWeight.w600),
+              ),
+            ),
+            _bell(),
+          ],
         ),
-        const SizedBox(height: AppSpacing.lg),
+        const SizedBox(height: AppSpacing.xl),
         const Text(
           'Welcome, Guest 👋',
-          style: TextStyle(color: Colors.white, fontSize: AppTextSize.card, fontWeight: FontWeight.w700),
+          style: TextStyle(color: AppColors.surface, fontSize: AppTextSize.section, fontWeight: FontWeight.w700),
         ),
         const SizedBox(height: AppSpacing.xs),
         Text(
           "You're browsing public content. Sign in or create an account for full access.",
-          style: TextStyle(color: Colors.white.withValues(alpha: 0.75), fontSize: AppTextSize.label, height: 1.35),
+          style: TextStyle(color: AppColors.surface.withValues(alpha: 0.80), fontSize: AppTextSize.helper, height: 1.35),
         ),
         const SizedBox(height: AppSpacing.lg),
         Row(
@@ -546,7 +525,7 @@ class _Hero extends StatelessWidget {
                 onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const RegisterScreen())),
               ),
             ),
-            const SizedBox(width: _buttonGap),
+            const SizedBox(width: AppSpacing.md),
             Expanded(
               child: AppButton(
                 label: 'Sign In',
@@ -559,6 +538,378 @@ class _Hero extends StatelessWidget {
           ],
         ),
       ],
+    );
+  }
+}
+
+/// The hero's ground: navy gradient with a wave for its lower edge, a
+/// lighter swell inside it, a gold trim along the wave and a warm glow.
+class _HeroWavePainter extends CustomPainter {
+  const _HeroWavePainter();
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final w = size.width, h = size.height;
+    Path wave(double lift) => Path()
+      ..moveTo(0, 0)
+      ..lineTo(w, 0)
+      ..lineTo(w, h - 70 - lift)
+      ..cubicTo(w * 0.72, h - 10 - lift, w * 0.35, h - 110 - lift, 0, h - 30 - lift)
+      ..close();
+
+    final body = wave(0);
+    canvas.drawPath(
+      body.shift(const Offset(0, 8)),
+      Paint()
+        ..color = AppColors.navy900.withValues(alpha: 0.25)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 14),
+    );
+    canvas.drawPath(
+      body,
+      Paint()
+        ..shader = const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [AppColors.navy950, AppColors.navy800, AppColors.brand800],
+        ).createShader(Offset.zero & size),
+    );
+    canvas.save();
+    canvas.clipPath(body);
+    // A lighter swell, the second wave in the design.
+    canvas.drawPath(
+      Path()
+        ..moveTo(0, h * 0.55)
+        ..cubicTo(w * 0.35, h * 0.35, w * 0.65, h * 0.85, w, h * 0.50)
+        ..lineTo(w, h)
+        ..lineTo(0, h)
+        ..close(),
+      Paint()..color = AppColors.brand600.withValues(alpha: 0.22),
+    );
+    // A cool highlight in the corner (gold over navy reads olive).
+    final g = Rect.fromCircle(center: Offset(w * 0.95, h * 0.02), radius: w * 0.55);
+    canvas.drawCircle(
+      g.center,
+      g.width / 2,
+      Paint()..shader = RadialGradient(colors: [AppColors.brand400.withValues(alpha: 0.38), AppColors.brand400.withValues(alpha: 0)]).createShader(g),
+    );
+    canvas.restore();
+
+    // Gold trim riding the wave.
+    final trim = Path()
+      ..moveTo(0, h - 30)
+      ..cubicTo(w * 0.35, h - 110, w * 0.72, h - 10, w, h - 70);
+    canvas.drawPath(
+      trim,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 10
+        ..color = AppColors.gold400.withValues(alpha: 0.35)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6),
+    );
+    canvas.drawPath(
+      trim,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 3.5
+        ..strokeCap = StrokeCap.round
+        ..shader = const LinearGradient(colors: [AppColors.gold300, AppColors.gold500]).createShader(Offset.zero & size),
+    );
+  }
+
+  @override
+  bool shouldRepaint(_HeroWavePainter old) => false;
+}
+
+/// The frosted search bar in the hero (2026-10 design). Opens Service
+/// Search behind the same access guard as the Dokyu and Tulong tabs; the
+/// duplicate demo account is sent to RootShell's own prompt instead.
+class _SearchBar extends StatelessWidget {
+  const _SearchBar();
+
+  void _open(BuildContext context) {
+    final session = context.read<CitizenSessionService>();
+    if (session.account?.id == MockCatalog.duplicateVerifiedDemoAccount.id) {
+      RootShell.openService(context, ServiceLauncherTarget.dokyu);
+      return;
+    }
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => const AccessGuard(
+          required: AccessLevel.verified,
+          featureName: 'Service search',
+          child: ServiceSearchScreen(),
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      button: true,
+      label: 'Search services, permits, or documents',
+      excludeSemantics: true,
+      child: GestureDetector(
+        onTap: () => _open(context),
+        child: GlassPanel(
+          dark: true,
+          blur: 12,
+          borderRadius: BorderRadius.circular(AppRadius.full),
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: AppSpacing.md),
+          child: Row(
+            children: [
+              Icon(Icons.search_rounded, color: AppColors.surface.withValues(alpha: 0.9), size: 20),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(
+                child: Text(
+                  'Search services, permits, or documents',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(color: AppColors.surface.withValues(alpha: 0.85), fontSize: AppTextSize.helper),
+                ),
+              ),
+              Icon(Icons.tune_rounded, color: AppColors.gold300, size: 20),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _Pill extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  const _Pill({required this.icon, required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    return GlassPanel(
+      dark: true,
+      blur: 10,
+      borderRadius: BorderRadius.circular(AppRadius.full),
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.xs + 2),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 15, color: AppColors.gold300),
+          const SizedBox(width: AppSpacing.xs),
+          Flexible(
+            child: Text(
+              label,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(color: AppColors.surface, fontSize: AppTextSize.label, fontWeight: FontWeight.w600),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// The four shortcuts under the hero, as clay icons on a frosted panel.
+/// Every request shortcut goes through RootShell.openService, the one
+/// gateway that applies access and duplicate-account rules (a Home shortcut
+/// once pushed TulongScreen raw and let an unverified citizen past the
+/// tab's gate).
+class _QuickActions extends StatelessWidget {
+  final bool signedIn;
+  const _QuickActions({required this.signedIn});
+
+  @override
+  Widget build(BuildContext context) {
+    void push(Widget screen) => Navigator.of(context).push(MaterialPageRoute(builder: (_) => screen));
+    final actions = [
+      _QuickAction(
+        label: 'New Dokyu Request',
+        glyph: ClayGlyph.document,
+        onTap: () => RootShell.openService(context, ServiceLauncherTarget.dokyu),
+      ),
+      _QuickAction(
+        label: 'New Tulong Request',
+        glyph: ClayGlyph.heart,
+        onTap: () => RootShell.openService(context, ServiceLauncherTarget.tulong),
+      ),
+      if (signedIn) ...[
+        _QuickAction(label: 'My Documents', glyph: ClayGlyph.folder, onTap: () => push(const DocumentsUploadedScreen())),
+        _QuickAction(label: 'Track Requests', glyph: ClayGlyph.pin, onTap: () => push(const MyRequestsScreen())),
+      ] else ...[
+        _QuickAction(label: 'Directory', glyph: ClayGlyph.building, onTap: () => push(const DirectoryScreen())),
+        _QuickAction(label: 'Emergency', glyph: ClayGlyph.shield, onTap: () => RootShell.jumpTo(context, 3)),
+      ],
+    ];
+    // Glass card + clay icons, the app's signature pairing. Subtle glass
+    // with a light blur: it rides over the hero's wave, which softens
+    // through it (at the old 62% the navy muddied the labels).
+    return GlassSurface.glass(
+      blur: true,
+      radius: 28,
+      padding: const EdgeInsets.fromLTRB(AppSpacing.xs, AppSpacing.lg, AppSpacing.xs, AppSpacing.md),
+      child: IntrinsicHeight(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [for (final a in actions) Expanded(child: a)],
+        ),
+      ),
+    );
+  }
+}
+
+class _QuickAction extends StatelessWidget {
+  final String label;
+  final ClayGlyph glyph;
+  final VoidCallback onTap;
+  const _QuickAction({required this.label, required this.glyph, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      button: true,
+      label: label,
+      excludeSemantics: true,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xs, vertical: AppSpacing.xs),
+          child: Column(
+            children: [
+              ClayTile(size: 64, warm: true, child: ClayIcon(glyph, size: 42)),
+              const SizedBox(height: AppSpacing.sm),
+              Text(
+                label,
+                textAlign: TextAlign.center,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(fontSize: AppTextSize.label, fontWeight: FontWeight.w600, color: AppColors.navy800, height: 1.25),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// The municipal card shown when staff have no banner live: the painted
+/// scene (sun, hills, the town hall in clay, the gold ribbon) with a gold
+/// arrow into the government directory.
+class _PromoCard extends StatelessWidget {
+  const _PromoCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      button: true,
+      label: 'A more accessible government for you. Open the Government Directory.',
+      excludeSemantics: true,
+      child: GestureDetector(
+        onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const DirectoryScreen())),
+        child: Container(
+          // A floor, not a fixed height: at a large text size the headline
+          // takes more lines and the card grows with it.
+          constraints: const BoxConstraints(minHeight: 176),
+          decoration: BoxDecoration(borderRadius: BorderRadius.circular(28), boxShadow: AppShadows.float),
+          clipBehavior: Clip.antiAlias,
+          child: Stack(
+            children: [
+              const Positioned.fill(
+                child: CustomPaint(
+                  painter: EsperanzaScenePainter(focusX: 0.70, sunX: 0.90, sun: 0.24, ground: 0.80, hallWidth: 0.40),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.all(AppSpacing.xl),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const FractionallySizedBox(
+                      widthFactor: 0.56,
+                      child: Text(
+                        'A more accessible government for you.',
+                        style: TextStyle(color: AppColors.surface, fontSize: AppTextSize.card, fontWeight: FontWeight.w700, height: 1.25),
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.lg),
+                    Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        gradient: const LinearGradient(colors: [AppColors.gold300, AppColors.gold500]),
+                        boxShadow: [BoxShadow(color: AppColors.gold400.withValues(alpha: 0.5), blurRadius: 14, offset: const Offset(0, 4))],
+                      ),
+                      child: const Icon(Icons.arrow_forward_rounded, color: AppColors.navy950, size: 22),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// One LGU announcement under "Latest Updates": a clay megaphone on a
+/// frosted card, the headline, two lines of it and the date. Opens the post.
+class _UpdateTile extends StatelessWidget {
+  final Announcement post;
+  const _UpdateTile({required this.post});
+
+  @override
+  Widget build(BuildContext context) {
+    final lines = post.body.split('\n').where((l) => l.trim().isNotEmpty).toList();
+    final title = post.title ?? (lines.isNotEmpty ? lines.first : 'Announcement');
+    final rest = post.title != null ? lines.where((l) => l.trim() != post.title!.trim()).join(' ') : lines.skip(1).join(' ');
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppSpacing.md),
+      child: GestureDetector(
+        onTap: () => Navigator.of(context).push(
+          MaterialPageRoute(builder: (_) => BalitaPostScreen(announcementId: post.remoteId)),
+        ),
+        child: GlassSurface(
+          radius: 24,
+          padding: const EdgeInsets.all(AppSpacing.md),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const ClayTile(size: 54, radius: 18, child: ClayIcon(ClayGlyph.megaphone, size: 36)),
+              const SizedBox(width: AppSpacing.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(fontSize: AppTextSize.body, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
+                    ),
+                    if (rest.isNotEmpty) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        rest,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(fontSize: AppTextSize.helper, color: AppColors.slate600, height: 1.35),
+                      ),
+                    ],
+                    if (post.at != null) ...[
+                      const SizedBox(height: AppSpacing.xs),
+                      Text(
+                        DateFormat('MMM d, y').format(post.at!.toLocal()),
+                        style: const TextStyle(fontSize: AppTextSize.fine, color: AppColors.textMuted),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

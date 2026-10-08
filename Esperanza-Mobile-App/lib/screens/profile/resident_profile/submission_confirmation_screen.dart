@@ -4,6 +4,7 @@ import '../../../theme/app_spacing.dart';
 import '../../../widgets/app_button.dart';
 import '../profile_screen.dart';
 import '../../../theme/app_typography.dart';
+import '../../../widgets/esperanza_art.dart';
 
 /// Shown immediately after "Submit for LGU Verification" — confirms the
 /// (local, simulated) submission and routes back to Profile (reached via
@@ -23,14 +24,8 @@ class SubmissionConfirmationScreen extends StatelessWidget {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Container(
-                    width: 84,
-                    height: 84,
-                    alignment: Alignment.center,
-                    decoration: const BoxDecoration(color: AppColors.emerald50, shape: BoxShape.circle),
-                    child: const Icon(Icons.check_circle_rounded, size: 44, color: AppColors.emerald500),
-                  ),
-                  const SizedBox(height: AppSpacing.xl),
+                  const SuccessIllustration(),
+                  const SizedBox(height: AppSpacing.lg),
                   const Text(
                     'Profile Submitted',
                     style: TextStyle(fontSize: AppTextSize.section, fontWeight: FontWeight.w700, color: AppColors.textPrimary),

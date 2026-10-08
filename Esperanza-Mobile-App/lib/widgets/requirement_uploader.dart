@@ -9,6 +9,7 @@ import '../utils/protected_action.dart';
 import '../utils/requirement_document_type.dart';
 import '../theme/app_typography.dart';
 import 'image_viewer_scaffold.dart';
+import 'esperanza_art.dart';
 
 /// One requirement's own upload section — the standard per-requirement
 /// attachment architecture shared by every Dokyu and Tulong service (see
@@ -394,13 +395,12 @@ class _ExistingDocumentPrompt extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return GlassSurface(
+      radius: AppRadius.xl,
       padding: const EdgeInsets.all(AppSpacing.md),
-      decoration: BoxDecoration(
-        color: AppColors.emerald50,
-        borderRadius: BorderRadius.circular(AppRadius.md),
-        border: Border.all(color: AppColors.emerald500.withValues(alpha: 0.3)),
-      ),
+      tint: AppColors.emerald50,
+      tintEnd: AppColors.emerald50,
+      rim: AppColors.emerald500,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -489,13 +489,9 @@ class _AttachedTile extends StatelessWidget {
     final isImage = attachment.category == AttachmentCategory.image;
     final provider = isImage ? pickedFileImageProvider(bytes: attachment.bytes, path: attachment.localPath) : null;
 
-    return Container(
+    return GlassSurface(
+      radius: AppRadius.xl,
       padding: const EdgeInsets.all(AppSpacing.sm),
-      decoration: BoxDecoration(
-        color: AppColors.slate50,
-        borderRadius: BorderRadius.circular(AppRadius.md),
-        border: Border.all(color: AppColors.border),
-      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

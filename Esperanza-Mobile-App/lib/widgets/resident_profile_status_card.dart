@@ -30,6 +30,7 @@ class ResidentProfileStatusCard extends StatelessWidget {
   Widget _buildIncomplete() {
     final pct = profile.overallCompletionPercent;
     return AppCard(
+      glass: true,
       onTap: onTap,
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -87,6 +88,7 @@ class ResidentProfileStatusCard extends StatelessWidget {
 
   Widget _buildPending() {
     return AppCard(
+      glass: true,
       onTap: onTap,
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -119,6 +121,7 @@ class ResidentProfileStatusCard extends StatelessWidget {
 
   Widget _buildNeedsCorrection() {
     return AppCard(
+      glass: true,
       onTap: onTap,
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -157,6 +160,7 @@ class ResidentProfileStatusCard extends StatelessWidget {
 
   Widget _buildVerified() {
     return AppCard(
+      glass: true,
       onTap: onTap,
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,

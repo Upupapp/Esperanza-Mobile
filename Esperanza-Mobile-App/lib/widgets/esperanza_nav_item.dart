@@ -18,8 +18,13 @@ class EsperanzaNavItem extends StatelessWidget {
 
   const EsperanzaNavItem({super.key, required this.item, required this.isActive, required this.onTap});
 
-  static const Color _activeColor = AppColors.brand500;
-  static const Color _inactiveColor = AppColors.slate400;
+  // 2026-10 refresh: the active tab is a gold bubble with a navy icon, and
+  // its label navy — the seal's colours, as on Home's primary actions.
+  static const Color _activeColor = AppColors.navy900;
+  static const Color _bubbleColor = AppColors.gold400;
+  // Navy, not slate (2026-10 refinement): quieter than the gold bubble, but
+  // plainly the app's own colour, and well past AA on the white pill.
+  static const Color _inactiveColor = AppColors.navy600;
 
   @override
   Widget build(BuildContext context) {
@@ -40,14 +45,21 @@ class EsperanzaNavItem extends StatelessWidget {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
-                SizedBox(
-                  height: EsperanzaNavMotion.bubbleDiameter * 0.62,
-                  child: isActive
-                      ? const SizedBox.shrink()
-                      : Center(child: Icon(item.outlineIcon, color: color, size: EsperanzaNavMotion.iconSize)),
+                // Flexible: in the floating pill (8pt shorter than the old
+                // bar) a 2x label needs a few points, and this reserved
+                // icon slot gives them up — the 24pt icon still fits.
+                Flexible(
+                  child: SizedBox(
+                    height: EsperanzaNavMotion.bubbleDiameter * 0.62,
+                    child: isActive
+                        ? const SizedBox.shrink()
+                        : Center(child: Icon(item.outlineIcon, color: color, size: EsperanzaNavMotion.iconSize)),
+                  ),
                 ),
                 Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
+                  // 6, not 8: the floating pill is 8pt shorter than the old
+                  // full-width bar, and at 2x text the label needs it.
+                  padding: const EdgeInsets.only(bottom: 6),
                   child: Text(
                     item.label,
                     maxLines: 1,
@@ -97,13 +109,36 @@ class EsperanzaActiveBubble extends StatelessWidget {
     return Container(
       width: EsperanzaNavMotion.bubbleDiameter,
       height: EsperanzaNavMotion.bubbleDiameter,
+      // Clay (2026-10 design): a puffy gold ball lit from the top-left — a
+      // gradient body, a soft highlight and a warm glow beneath it.
       decoration: BoxDecoration(
-        color: EsperanzaNavItem._activeColor,
         shape: BoxShape.circle,
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [AppColors.gold300, EsperanzaNavItem._bubbleColor, AppColors.gold600],
+          stops: [0, 0.55, 1],
+        ),
         border: Border.all(color: AppColors.surface, width: 3),
         boxShadow: [
-          BoxShadow(color: EsperanzaNavItem._activeColor.withValues(alpha: 0.30), blurRadius: 10, offset: const Offset(0, 3)),
+          BoxShadow(color: AppColors.gold600.withValues(alpha: 0.45), blurRadius: 16, offset: const Offset(0, 8), spreadRadius: -3),
+          BoxShadow(color: AppColors.navy900.withValues(alpha: 0.18), blurRadius: 4, offset: const Offset(0, 2)),
         ],
+      ),
+      // The clay shading: a highlight pooled at the upper-left over an inner
+      // shade at the lower-right, so the ball reads as raised.
+      foregroundDecoration: BoxDecoration(
+        shape: BoxShape.circle,
+        gradient: RadialGradient(
+          center: const Alignment(-0.40, -0.50),
+          radius: 0.95,
+          colors: [
+            AppColors.surface.withValues(alpha: 0.50),
+            AppColors.surface.withValues(alpha: 0),
+            AppColors.gold700.withValues(alpha: 0.22),
+          ],
+          stops: const [0, 0.45, 1],
+        ),
       ),
       child: Center(
         child: AnimatedSwitcher(
@@ -112,7 +147,7 @@ class EsperanzaActiveBubble extends StatelessWidget {
           child: Icon(
             item.filledIcon,
             key: ValueKey(item.label),
-            color: Colors.white,
+            color: AppColors.navy950,
             size: EsperanzaNavMotion.iconSize * EsperanzaNavMotion.activeIconScale,
           ),
         ),

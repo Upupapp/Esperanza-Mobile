@@ -14,6 +14,7 @@ import 'personal_information_screen.dart';
 import 'review_submit_screen.dart';
 import '../../../theme/app_typography.dart';
 import '../../../services/api_client.dart';
+import '../../../widgets/esperanza_art.dart';
 
 /// Resident Profile hub — the mobile-side entry point that maps to the Web
 /// Admin's Constituents module. Guides the citizen through Personal ->
@@ -239,13 +240,12 @@ class _CorrectionBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return GlassSurface(
+      radius: AppRadius.xl,
       padding: const EdgeInsets.all(AppSpacing.lg),
-      decoration: BoxDecoration(
-        color: AppColors.rose50,
-        borderRadius: BorderRadius.circular(AppRadius.lg),
-        border: Border.all(color: AppColors.rose500.withValues(alpha: 0.2)),
-      ),
+      tint: AppColors.rose50,
+      tintEnd: AppColors.rose50,
+      rim: AppColors.rose500,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

@@ -8,10 +8,11 @@ import '../../services/master_file_service.dart';
 import '../../services/citizen_session_service.dart';
 import '../../services/resident_profile_service.dart';
 import '../../theme/app_colors.dart';
+import '../../theme/app_shadows.dart';
 import '../../theme/app_spacing.dart';
 import '../../theme/app_status.dart';
 import '../../utils/demo_resident_photo.dart';
-import '../../widgets/app_card.dart';
+import '../../widgets/app_button.dart';
 import '../../widgets/app_dialogs.dart';
 import '../../widgets/menu_tile.dart';
 import '../../widgets/resident_profile_status_card.dart';
@@ -45,40 +46,72 @@ class ProfileScreen extends StatelessWidget {
       body: ListView(
         padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.md, AppSpacing.lg, AppSpacing.xxxl),
         children: [
-          AppCard(
-            padding: const EdgeInsets.fromLTRB(AppSpacing.xl, AppSpacing.xxl, AppSpacing.xl, AppSpacing.xl),
+          // The account card (2026-10 refresh): navy, the photo in a gold
+          // ring, the completeness bar in gold.
+          Container(
+            padding: const EdgeInsets.all(AppSpacing.xl),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(AppRadius.xl + AppSpacing.xs),
+              gradient: const LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [AppColors.navy900, AppColors.navy700, AppColors.brand800],
+              ),
+              boxShadow: AppShadows.float,
+            ),
             child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                CircleAvatar(
-                  radius: 34,
-                  backgroundColor: AppColors.brand50,
-                  backgroundImage: photo,
-                  onBackgroundImageError: photo != null ? (error, stackTrace) {} : null,
-                  child: photo == null
-                      ? Text(
-                          account.initials,
-                          style: const TextStyle(fontSize: AppTextSize.section, fontWeight: FontWeight.w700, color: AppColors.brand600),
-                        )
-                      : null,
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(3),
+                      decoration: const BoxDecoration(color: AppColors.gold400, shape: BoxShape.circle),
+                      child: CircleAvatar(
+                        radius: 32,
+                        backgroundColor: AppColors.navy700,
+                        backgroundImage: photo,
+                        onBackgroundImageError: photo != null ? (error, stackTrace) {} : null,
+                        child: photo == null
+                            ? Text(
+                                account.initials,
+                                style: const TextStyle(fontSize: AppTextSize.section, fontWeight: FontWeight.w700, color: AppColors.surface),
+                              )
+                            : null,
+                      ),
+                    ),
+                    const SizedBox(width: AppSpacing.lg),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            account.fullName,
+                            style: const TextStyle(fontSize: AppTextSize.section, fontWeight: FontWeight.w700, color: AppColors.surface),
+                          ),
+                          const SizedBox(height: AppSpacing.xs),
+                          Text(
+                            'Citizen Account · Brgy. ${account.barangay}',
+                            style: TextStyle(fontSize: AppTextSize.label, color: AppColors.surface.withValues(alpha: 0.78)),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            account.id,
+                            style: TextStyle(fontSize: AppTextSize.label, color: AppColors.surface.withValues(alpha: 0.78)),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: AppSpacing.md),
-                Text(
-                  account.fullName,
-                  style: const TextStyle(fontSize: AppTextSize.card, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
-                ),
-                const SizedBox(height: AppSpacing.xs),
-                Text(
-                  '${account.id} · Brgy. ${account.barangay}',
-                  style: const TextStyle(fontSize: AppTextSize.label, color: AppColors.textMuted),
-                ),
-                const SizedBox(height: AppSpacing.lg),
+                const SizedBox(height: AppSpacing.xl),
                 ClipRRect(
                   borderRadius: BorderRadius.circular(AppRadius.full),
                   child: LinearProgressIndicator(
                     value: account.profileCompleteness / 100,
                     minHeight: 7,
-                    backgroundColor: AppColors.slate100,
-                    valueColor: const AlwaysStoppedAnimation(AppColors.emerald500),
+                    backgroundColor: AppColors.surface.withValues(alpha: 0.15),
+                    valueColor: const AlwaysStoppedAnimation(AppColors.gold400),
                   ),
                 ),
                 const SizedBox(height: AppSpacing.sm),
@@ -86,18 +119,15 @@ class ProfileScreen extends StatelessWidget {
                   // Names the form it measures — see home_screen.dart's
                   // Account Details tile.
                   'Account details ${account.profileCompleteness}% complete',
-                  style: const TextStyle(fontSize: AppTextSize.label, color: AppColors.textMuted),
+                  style: TextStyle(fontSize: AppTextSize.label, color: AppColors.surface.withValues(alpha: 0.78)),
                 ),
                 const SizedBox(height: AppSpacing.lg),
-                SizedBox(
-                  width: double.infinity,
-                  height: 46,
-                  child: OutlinedButton.icon(
-                    onPressed: () =>
-                        Navigator.of(context).push(MaterialPageRoute(builder: (_) => const EditProfileScreen())),
-                    icon: const Icon(Icons.edit_outlined, size: 16),
-                    label: const Text('Edit Profile'),
-                  ),
+                AppButton(
+                  label: 'Edit Profile',
+                  icon: Icons.edit_outlined,
+                  variant: AppButtonVariant.gold,
+                  fullWidth: true,
+                  onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const EditProfileScreen())),
                 ),
               ],
             ),

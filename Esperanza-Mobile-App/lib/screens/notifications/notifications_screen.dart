@@ -104,6 +104,8 @@ class _NotificationTile extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(bottom: AppSpacing.sm),
       child: AppCard(
+        glass: true,
+        tint: n.kind.background,
         onTap: () {
           context.read<NotificationsService>().markRead(n.id);
           n.onTap?.call();
@@ -114,14 +116,24 @@ class _NotificationTile extends StatelessWidget {
             Stack(
               clipBehavior: Clip.none,
               children: [
+                // A clay ball in the notification's tone (2026-10 design).
                 Container(
-                  width: 36,
-                  height: 36,
+                  width: 42,
+                  height: 42,
                   decoration: BoxDecoration(
-                    color: n.kind.background,
-                    borderRadius: BorderRadius.circular(AppRadius.sm),
+                    shape: BoxShape.circle,
+                    gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: n.kind.clay),
+                    boxShadow: [BoxShadow(color: n.kind.clay.last.withValues(alpha: 0.35), blurRadius: 10, offset: const Offset(0, 4))],
                   ),
-                  child: Icon(n.icon, size: 17, color: n.kind.foreground),
+                  foregroundDecoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: RadialGradient(
+                      center: const Alignment(-0.45, -0.55),
+                      radius: 0.7,
+                      colors: [AppColors.surface.withValues(alpha: 0.40), AppColors.surface.withValues(alpha: 0)],
+                    ),
+                  ),
+                  child: Icon(n.icon, size: 19, color: n.kind.onClay),
                 ),
                 // Small, subtle unread marker — not a numeric badge, since
                 // this app has no unread-count system beyond "read or not".

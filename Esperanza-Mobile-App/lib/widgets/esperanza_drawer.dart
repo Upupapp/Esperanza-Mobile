@@ -22,6 +22,7 @@ import '../theme/app_spacing.dart';
 import '../utils/demo_resident_photo.dart';
 import 'app_dialogs.dart';
 import '../theme/app_typography.dart';
+import 'esperanza_art.dart';
 
 /// The app's hamburger-menu drawer (Section 2) — hosts Profile and the
 /// screens that no longer have a dedicated bottom tab now that Balita and
@@ -35,13 +36,20 @@ class EsperanzaDrawer extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final session = context.watch<CitizenSessionService>();
+    // 2026-10 design: a soft white body under a navy header that runs up under
+    // the status bar; each entry an icon in a soft neumorphic chip.
     return Drawer(
+      // Opaque: page text showing through a menu is hard to read.
+      backgroundColor: AppColors.slate50,
+      surfaceTintColor: AppColors.clear,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.horizontal(right: Radius.circular(28))),
+      clipBehavior: Clip.antiAlias,
       child: SafeArea(
+        top: false,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             _Header(session: session),
-            const Divider(height: 1),
             Expanded(
               child: ListView(
                 padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
@@ -193,20 +201,24 @@ class _Header extends StatelessWidget {
     final photo = profileImageFor(account, personal, approvedUrl: context.watch<CitizenSessionService>().photo?.approvedUrl);
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(AppSpacing.xl, AppSpacing.xxl, AppSpacing.xl, AppSpacing.xl),
+      padding: EdgeInsets.fromLTRB(AppSpacing.xl, MediaQuery.paddingOf(context).top + AppSpacing.xl, AppSpacing.xl, AppSpacing.xl),
       decoration: const BoxDecoration(
+        borderRadius: BorderRadius.only(bottomRight: Radius.circular(28)),
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [AppColors.navy900, AppColors.brand700],
+          colors: [AppColors.navy950, AppColors.navy800, AppColors.brand800],
         ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          CircleAvatar(
-            radius: 26,
-            backgroundColor: Colors.white.withValues(alpha: 0.15),
+          Container(
+            padding: const EdgeInsets.all(3),
+            decoration: const BoxDecoration(shape: BoxShape.circle, color: AppColors.gold400),
+            child: CircleAvatar(
+            radius: 28,
+            backgroundColor: AppColors.surface.withValues(alpha: 0.15),
             backgroundImage: photo,
             onBackgroundImageError: photo != null ? (error, stackTrace) {} : null,
             child: photo != null
@@ -214,19 +226,20 @@ class _Header extends StatelessWidget {
                 : (account != null
                     ? Text(
                         account.initials,
-                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: AppTextSize.card),
+                        style: const TextStyle(color: AppColors.surface, fontWeight: FontWeight.w700, fontSize: AppTextSize.card),
                       )
-                    : const Icon(Icons.person_outline_rounded, color: Colors.white, size: 26)),
+                    : const Icon(Icons.person_outline_rounded, color: AppColors.surface, size: 26)),
+            ),
           ),
           const SizedBox(height: AppSpacing.md),
           Text(
             account?.fullName ?? 'Guest',
-            style: const TextStyle(color: Colors.white, fontSize: AppTextSize.card, fontWeight: FontWeight.w700),
+            style: const TextStyle(color: AppColors.surface, fontSize: AppTextSize.card, fontWeight: FontWeight.w700),
           ),
           const SizedBox(height: AppSpacing.xs),
           Text(
-            account != null ? 'Brgy. ${account.barangay}' : 'Sign in to access more features',
-            style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: AppTextSize.label),
+            account != null ? 'Citizen Account · Brgy. ${account.barangay}' : 'Sign in to access more features',
+            style: TextStyle(color: AppColors.surface.withValues(alpha: 0.7), fontSize: AppTextSize.label),
           ),
         ],
       ),
@@ -243,13 +256,21 @@ class _DrawerTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = danger ? AppColors.rose600 : AppColors.slate700;
+    final color = danger ? AppColors.rose600 : AppColors.navy900;
     return ListTile(
-      leading: Icon(icon, color: danger ? AppColors.rose500 : AppColors.slate500, size: 22),
+      contentPadding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+      leading: NeuWell(
+        radius: AppRadius.md,
+        child: SizedBox.square(
+          dimension: 40,
+          child: Icon(icon, color: danger ? AppColors.rose600 : AppColors.navy700, size: 21),
+        ),
+      ),
       title: Text(
         label,
         style: TextStyle(fontSize: AppTextSize.body, fontWeight: FontWeight.w600, color: color),
       ),
+      trailing: danger ? null : const Icon(Icons.chevron_right_rounded, color: AppColors.slate400),
       onTap: onTap,
     );
   }

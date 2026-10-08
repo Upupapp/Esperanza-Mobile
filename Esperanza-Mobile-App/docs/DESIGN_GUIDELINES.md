@@ -188,13 +188,13 @@ kept only for existing call sites.
 
 ## 5. Shape, elevation, sizing
 
-**Radius** (`AppRadius`): `sm 8` chips, thumbnails · `md 12` buttons, inputs, tiles ·
-`lg 16` cards, dialogs · `xl 20` bottom sheets, hero cards · `full` pills, badges, avatars.
-Off-scale radii (10, 14) round to the nearest step.
+**Radius** (`AppRadius`): `sm 8` chips, thumbnails · `md 12` icon chips, tiles ·
+`lg 16` inputs · `xl 20` cards · 28 dialogs, sheets, wizard cards and hero panels ·
+`full` buttons, pills, badges, avatars. Off-scale radii round to the nearest step.
 
-**Elevation** (`AppShadows`): `card` for resting cards (barely there, with the border doing the
-work) · `cardHover` for pressed or dragged items · `float` for the navbar, FAB and popovers
-only. No other shadows; never stack a shadow on a coloured fill.
+**Elevation:** cards carry the glass glow (`GlassSurface.shadow`, a soft blue-tinted shadow);
+`AppShadows.float` is for floating panels; the gold glow (`AppShadows.gold`) sits only under
+gold actions. Clay objects carry their own drop shadow. No other shadows.
 
 **Sizing** (`AppSizes`, web `--size-*`):
 - **Touch targets:** every tappable thing is at least **44 × 44**. Pad a small icon's hit area
@@ -205,9 +205,56 @@ only. No other shadows; never stack a shadow on a coloured fill.
   56 empty states and confirmations.
 - **Avatars:** 32 / 40 / 56.
 
-**Icon style:** Material **outlined** (`Icons.*_outlined`) for navigation, list leading icons
-and anything at rest. **Rounded filled** (`Icons.*_rounded`) for the selected or active state
-and inside filled buttons. Don't mix styles within one row.
+**Icon style:** feature and service icons are **clay** (`ClayIcon`, see §5.1). Material
+**outlined** icons stay for navigation, list leading icons and controls; **rounded filled** for
+the selected state and inside filled buttons. Don't mix styles within one row.
+
+### 5.1 Clay, glass, neumorphism (2026-10)
+
+The visual system mixes three techniques, each for one job. All of it is painted in code from
+the palette (`lib/widgets/esperanza_art.dart`); no colour outside `AppColors`, no image asset.
+
+- **Navy = identity and structure. Gold = action and selection. Frosted white = content.
+  Soft shadow = depth. Clay = personality.**
+- **The material hierarchy (refined 2026-10-08).** Every screen reads as five distinct levels:
+  quiet background → primary surface (glass card) → secondary surface → interactive element →
+  primary action. They must never share one colour, transparency and shadow.
+  - **Background — quiet.** `SoftBackdropPainter` is solid `slate100` with a breath of `brand50`
+    at the top. No colour blobs behind content. Strong gradients live only in branded focal
+    areas: splash, onboarding, sign-in scene, the Home hero, banners, `NavyBand`, the profile
+    header, KPI tiles.
+  - **Clean card — the default.** `GlassSurface` / `AppCard` is near-opaque white (≈0.95)
+    fading to `brand50`, with a soft upper-left sheen (no glare band), a lit rim and a clear
+    soft navy shadow. Most cards, forms, lists, Balita posts (`frosted`) and Emergency alerts.
+  - **Glass — selected elevated surfaces only.** `GlassSurface.glass` / `AppCard(glass: true)`:
+    ≈0.88 white, a brighter pooled highlight, a white rim and a slightly deeper shadow; `blur`
+    only where something sits behind it. Used for: the Resident Profile card, Home's quick
+    actions (glass card + clay icons, the app's signature pairing), event cards, notification
+    cards, the verification panel, dialogs, the floating nav (≈0.88 with blur) and the hero
+    search bar (`GlassPanel(dark: true)`). Never on every card; never on Emergency's alert.
+    A status tone tints a card (`tint`, `tintEnd`, `rim`) but never replaces its words. If
+    glass hurts readability, reduce the glass, never the text contrast.
+  - **One technique per component:** cards = glass or clean, icons = clay, controls =
+    neumorphic or solid, heroes and banners = gradient (opaque, never glass).
+- **Claymorphism — accents.** `ClayIcon` glyphs (document, heart, folder, pin, megaphone,
+  building, shield, bell, check, warning, info, error, camera, box, search, person, calendar)
+  on `ClayTile` (opaque, inflated: pooled highlight, inner shade, contact + lift shadows;
+  `warm: true` for Home's quick actions, a gold inner shade), `ClayBadge` status balls, the
+  gold active nav bubble and the navy "+" (both shaded as raised balls), `SuccessIllustration`,
+  the opening scene (`EsperanzaScenePainter`, `paintMunicipalHall`). Clay marks what matters; it
+  is not on every element.
+- **Neumorphism — controls, subtly.** Fields are soft sunken wells with a `slate300` hairline at
+  rest, gold when focused (theme `inputDecorationTheme`, `NeuWell`); `SegmentedTabs` is a well
+  with a raised pill; buttons are gently raised and press in (`AppButton`). Never a whole screen
+  or a card.
+- **Selection:** a period or filter switch shows the chosen option as a raised navy pill with
+  white text and a gold dot (Events' Upcoming/Past); the nav marks the active tab with the raised
+  gold bubble; inactive nav icons are navy.
+- **Forms:** the wizard pattern — navy `NavyBand` header with the numbered stepper (current
+  step gold, done steps checked), the form on a glass card (`wizardCardPadding`), pill buttons.
+- **States:** empty = `EmptyState` with a clay illustration and the next action; error =
+  `ClayBadge(error)` + plain words + Try again; loading = `EsperanzaLoader`; success =
+  `SuccessIllustration`.
 
 ---
 
@@ -217,14 +264,14 @@ Use the shared widget; never restyle a raw Material widget on a screen.
 
 | Need | Widget | Rules |
 |---|---|---|
-| Buttons | `AppButton` | **primary** (brand) once per screen · **secondary** (outlined) for alternatives · **ghost** for low-emphasis/cancel · **danger** for destructive and emergency · **gold** for rare celebratory CTAs. Labels are verbs ("Submit request"). Use `loading:` instead of disabling during a call |
-| Cards | `AppCard` | Pass `onTap` for tappable cards (ink + semantics). Don't nest cards |
+| Buttons | `AppButton` | **primary** (gold, navy text) once per screen · **navy** for a strong secondary · **secondary** (outline: light, navy edge) for alternatives such as Back · **ghost** for low-emphasis · **danger** for destructive and emergency. A module accent (Tulong purple) may override primary. Labels are verbs ("Submit request"). Use `loading:` instead of disabling during a call |
+| Cards | `AppCard` | Glass (`GlassSurface`). Pass `onTap` for tappable cards (ink + semantics), `tint` for a status tone. Don't nest cards |
 | Text input | `AppTextField`, `AppDateField` | Always a visible label; hint text is an example, not the label. Errors in `danger` below the field, in words that say how to fix it |
 | Status | `StatusChip` | Only via `AppStatus`. Never a coloured `Text` |
 | Tabs | `SegmentedTabs` | 2–4 options, short labels |
 | Section heading | `SectionHeader` | `eyebrow` or `sectionTitle`, optional trailing action |
 | Loading / error / retry | `AsyncStateView` | Every network-backed screen. Error text comes from the server's bilingual message |
-| Empty | `EmptyState` | Icon 56, title, one sentence on what to do next |
+| Empty | `EmptyState` | Clay illustration (`glyph`, or chosen from `icon`), title, one sentence, and the next action where there is one |
 | Confirm / info | `AppDialogs.confirm` / `.info` | Destructive confirms name the thing ("Delete this draft?") |
 | Toast | `AppDialogs.toast` | Short outcomes only; never the only record of an error that needs action |
 | Upload | `RequirementUploader` | Shows file name, type and a remove action |

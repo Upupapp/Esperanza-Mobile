@@ -31,6 +31,22 @@ extension NotificationKindX on NotificationKind {
         NotificationKind.urgent => AppColors.rose700,
       };
 
+  /// The clay ball's gradient (2026-10 design): navy for information, gold
+  /// for action and warning, green for success, red for urgent.
+  List<Color> get clay => switch (this) {
+        NotificationKind.info => const [AppColors.brand500, AppColors.navy800],
+        NotificationKind.actionRequired => const [AppColors.gold300, AppColors.gold600],
+        NotificationKind.success => const [AppColors.green500, AppColors.emerald700],
+        NotificationKind.warning => const [AppColors.gold400, AppColors.amber700],
+        NotificationKind.urgent => const [AppColors.rose500, AppColors.rose700],
+      };
+
+  /// The icon on the clay ball: navy on gold, white on the darker tones.
+  Color get onClay => switch (this) {
+        NotificationKind.actionRequired => AppColors.navy950,
+        _ => AppColors.surface,
+      };
+
   Color get background => switch (this) {
         NotificationKind.info => AppColors.indigo50,
         NotificationKind.actionRequired => AppColors.amber50,

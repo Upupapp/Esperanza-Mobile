@@ -4,6 +4,8 @@ import '../services/api_client.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
 import '../theme/app_typography.dart';
+import 'app_button.dart';
+import 'esperanza_art.dart';
 
 /// Loading/error/data wrapper for a screen backed by a real API call —
 /// the mobile equivalent of the Web Admin's `x-ui.skeleton`/`x-ui.error-state`
@@ -38,7 +40,7 @@ class _AsyncStateViewState<T> extends State<AsyncStateView<T>> {
       builder: (context, snapshot) {
         if (snapshot.connectionState != ConnectionState.done) {
           return const Center(
-            child: Padding(padding: EdgeInsets.all(AppSpacing.xxxl), child: CircularProgressIndicator()),
+            child: Padding(padding: EdgeInsets.all(AppSpacing.xxxl), child: EsperanzaLoader()),
           );
         }
         if (snapshot.hasError) {
@@ -66,11 +68,17 @@ class _ErrorState extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.cloud_off_outlined, size: 36, color: AppColors.slate400),
-            const SizedBox(height: AppSpacing.md),
-            Text(message, textAlign: TextAlign.center, style: const TextStyle(fontSize: AppTextSize.helper, color: AppColors.slate600)),
+            const ClayBadge(ClayGlyph.error, size: 64),
             const SizedBox(height: AppSpacing.lg),
-            OutlinedButton(onPressed: onRetry, child: const Text('Try Again')),
+            const Text(
+              'Something went wrong',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: AppTextSize.card, fontWeight: FontWeight.w700, color: AppColors.navy900),
+            ),
+            const SizedBox(height: AppSpacing.xs),
+            Text(message, textAlign: TextAlign.center, style: const TextStyle(fontSize: AppTextSize.helper, color: AppColors.slate600, height: 1.4)),
+            const SizedBox(height: AppSpacing.lg),
+            AppButton(label: 'Try Again', icon: Icons.refresh_rounded, variant: AppButtonVariant.secondary, onPressed: onRetry),
           ],
         ),
       ),

@@ -313,6 +313,9 @@ class _RootShellState extends State<RootShell> with WidgetsBindingObserver {
       // clearance math in screens/shared/request_list_screen.dart) doesn't
       // sit underneath it.
       extendBody: true,
+      // The tabs are clear; this page's route paints the soft backdrop
+      // beneath them (BackdropPageTransitionsBuilder), so their glass cards
+      // show colour through them.
       body: IndexedStack(index: _bodyIndex, children: _screens),
       bottomNavigationBar: EsperanzaCurvedNavBar(
         items: _items,
@@ -334,7 +337,11 @@ class AlertsAction extends StatelessWidget {
   // white AppBar) would be invisible there, so only that one call site
   // passes an explicit white override.
   final Color? color;
-  const AlertsAction({super.key, this.color});
+
+  /// False where the bell sits in its own circle (Home's hero) rather than
+  /// at the trailing edge of an AppBar.
+  final bool edgePadding;
+  const AlertsAction({super.key, this.color, this.edgePadding = true});
 
   @override
   Widget build(BuildContext context) {
@@ -348,7 +355,7 @@ class AlertsAction extends StatelessWidget {
       // equivalent margin — this pulls the bell in by roughly the same
       // amount so the header reads as symmetrical left-to-right, without
       // touching icon size or notification behavior.
-      padding: const EdgeInsets.only(right: AppSpacing.sm),
+      padding: EdgeInsets.only(right: edgePadding ? AppSpacing.sm : 0),
       child: Stack(
         clipBehavior: Clip.none,
         children: [

@@ -273,14 +273,15 @@ class _ChannelChip extends StatelessWidget {
       selected: selected,
       onSelected: onSelected,
       showCheckmark: true,
-      checkmarkColor: AppColors.brand600,
-      selectedColor: AppColors.brand50,
+      // Gold means "on" (2026-10 design); the check mark says it again.
+      checkmarkColor: AppColors.navy950,
+      selectedColor: AppColors.gold400,
       labelStyle: TextStyle(
         fontSize: AppTextSize.helper,
-        fontWeight: FontWeight.w600,
-        color: selected ? AppColors.brand700 : AppColors.slate600,
+        fontWeight: selected ? FontWeight.w700 : FontWeight.w600,
+        color: selected ? AppColors.navy950 : AppColors.slate600,
       ),
-      side: BorderSide(color: selected ? AppColors.brand200 : AppColors.slate200),
+      side: BorderSide(color: selected ? AppColors.gold500 : AppColors.slate200),
       // Chips draw at 32pt; the padded tap target keeps them at 48.
       materialTapTargetSize: MaterialTapTargetSize.padded,
     );

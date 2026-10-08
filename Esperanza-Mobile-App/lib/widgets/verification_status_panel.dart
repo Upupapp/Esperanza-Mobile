@@ -48,6 +48,7 @@ class VerificationStatusPanel extends StatelessWidget {
   Widget build(BuildContext context) {
     final actionLabel = _actionLabel;
     return AppCard(
+      glass: true,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

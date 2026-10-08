@@ -15,6 +15,7 @@ import '../legal/privacy_policy_screen.dart';
 import '../legal/terms_screen.dart';
 import 'report_problem_screen.dart';
 import 'support_tickets_screen.dart';
+import '../../widgets/esperanza_art.dart';
 
 /// Suporta (the website's name for it) — accessible from the hamburger drawer (and the Profile
 /// menu's matching entry). FAQ copy below only describes behavior actually
@@ -704,15 +705,17 @@ class _QuickHelpCard extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Container(
-            width: 34,
-            height: 34,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: item.color.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(AppRadius.sm),
-            ),
-            child: Icon(item.icon, size: 17, color: item.color),
+          // A clay icon for the topic (2026-10 design).
+          ClayIcon(
+            switch (item.icon) {
+              Icons.person_outline_rounded => ClayGlyph.person,
+              Icons.description_outlined => ClayGlyph.document,
+              Icons.volunteer_activism_outlined => ClayGlyph.heart,
+              Icons.add_photo_alternate_outlined => ClayGlyph.folder,
+              Icons.notifications_outlined => ClayGlyph.bell,
+              _ => ClayGlyph.warning,
+            },
+            size: 38,
           ),
           const SizedBox(height: AppSpacing.sm),
           Text(

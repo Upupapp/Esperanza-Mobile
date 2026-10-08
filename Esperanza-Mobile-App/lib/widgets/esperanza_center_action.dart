@@ -51,7 +51,9 @@ class _EsperanzaCenterActionState extends State<EsperanzaCenterAction> {
   @override
   Widget build(BuildContext context) {
     final active = widget.activeIcon != null;
-    final fill = widget.activeAccent ?? AppColors.gold500;
+    // Navy with a gold plus (2026-10 refresh): the active tab's bubble is
+    // gold now, and two gold circles side by side read as one control.
+    final fill = widget.activeAccent ?? AppColors.navy800;
     final reduced = EsperanzaNavMotion.reduced(context);
 
     return Semantics(
@@ -65,16 +67,49 @@ class _EsperanzaCenterActionState extends State<EsperanzaCenterAction> {
           scale: _scale,
           duration: EsperanzaNavMotion.press,
           curve: Curves.easeOut,
-          child: Container(
+          child: AnimatedContainer(
+            duration: EsperanzaNavMotion.press,
             width: EsperanzaNavMotion.centerDiameter,
             height: EsperanzaNavMotion.centerDiameter,
+            // Clay (2026-10 design): a deep navy ball lit from the top-left
+            // (or the open module's own colour), with a soft highlight.
             decoration: BoxDecoration(
-              color: fill,
               shape: BoxShape.circle,
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: widget.activeAccent != null
+                    ? [Color.lerp(fill, AppColors.surface, 0.25)!, fill]
+                    : const [AppColors.brand700, AppColors.navy800, AppColors.navy950],
+              ),
               border: Border.all(color: AppColors.surface, width: 3),
+              // Floating above the bar: a wide soft lift and a tight contact
+              // shadow, as a physical control. Pressed, the lift shrinks, so
+              // it sinks toward the bar as well as scaling down.
               boxShadow: [
-                BoxShadow(color: fill.withValues(alpha: 0.34), blurRadius: 12, offset: const Offset(0, 4)),
+                BoxShadow(
+                  color: AppColors.navy900.withValues(alpha: _scale < 1 ? 0.26 : 0.38),
+                  blurRadius: _scale < 1 ? 10 : 20,
+                  offset: Offset(0, _scale < 1 ? 4 : 10),
+                  spreadRadius: -3,
+                ),
+                BoxShadow(color: AppColors.navy900.withValues(alpha: 0.20), blurRadius: 4, offset: const Offset(0, 2)),
               ],
+            ),
+            // Clay shading: a highlight pooled at the upper-left, an inner
+            // shade deepening to the lower-right — slightly inflated.
+            foregroundDecoration: BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: RadialGradient(
+                center: const Alignment(-0.40, -0.50),
+                radius: 0.95,
+                colors: [
+                  AppColors.surface.withValues(alpha: 0.34),
+                  AppColors.surface.withValues(alpha: 0),
+                  AppColors.navy950.withValues(alpha: 0.35),
+                ],
+                stops: const [0, 0.45, 1],
+              ),
             ),
             child: Center(
               child: AnimatedSwitcher(
@@ -83,8 +118,8 @@ class _EsperanzaCenterActionState extends State<EsperanzaCenterAction> {
                 child: Icon(
                   widget.activeIcon ?? Icons.add_rounded,
                   key: ValueKey(widget.activeIcon ?? Icons.add_rounded),
-                  color: Colors.white,
-                  size: 28,
+                  color: widget.activeAccent != null ? AppColors.surface : AppColors.gold400,
+                  size: 30,
                 ),
               ),
             ),

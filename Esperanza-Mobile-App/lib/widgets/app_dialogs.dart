@@ -3,10 +3,15 @@ import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
 import '../theme/app_typography.dart';
 import 'app_button.dart';
+import 'esperanza_art.dart';
 
 /// Centralized confirmation dialog + toast helpers so every screen shows
 /// confirmations/success/error feedback consistently (Section 2 of the
 /// alignment doc — reusable states, not per-screen one-offs).
+///
+/// 2026-10 design: a near-opaque frosted surface (readability first), a
+/// clay badge saying what kind of message it is — a blue "i", or a gold "!"
+/// before something destructive — and the pill buttons.
 class AppDialogs {
   AppDialogs._();
 
@@ -20,7 +25,7 @@ class AppDialogs {
   }) async {
     final result = await showModalBottomSheet<bool>(
       context: context,
-      backgroundColor: Colors.transparent,
+      backgroundColor: AppColors.clear,
       builder: (ctx) => _ConfirmSheet(
         title: title,
         message: message,
@@ -43,7 +48,7 @@ class AppDialogs {
   }) {
     return showModalBottomSheet<void>(
       context: context,
-      backgroundColor: Colors.transparent,
+      backgroundColor: AppColors.clear,
       builder: (ctx) => _InfoSheet(title: title, message: message, actionLabel: actionLabel),
     );
   }
@@ -107,6 +112,41 @@ class AppDialogs {
   }
 }
 
+/// The dialog and sheet surface: a glass pane over the dimmed page — white
+/// at the lit top-left, a touch translucent toward a breath of blue, a bright
+/// rim and a soft navy shadow. Opaque enough that nothing behind competes
+/// with the message.
+final _surface = BoxDecoration(
+  borderRadius: BorderRadius.circular(28),
+  gradient: LinearGradient(
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    colors: [AppColors.surface, AppColors.surface.withValues(alpha: 0.95), AppColors.brand50.withValues(alpha: 0.92)],
+    stops: const [0, 0.45, 1],
+  ),
+  border: Border.all(color: AppColors.surface, width: 1.4),
+  boxShadow: [BoxShadow(color: AppColors.navy900.withValues(alpha: 0.18), blurRadius: 30, offset: const Offset(0, 12))],
+);
+
+/// A clay badge beside the title: what kind of message this is.
+class _Header extends StatelessWidget {
+  final String title;
+  final bool danger;
+  const _Header({required this.title, this.danger = false});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        ClayBadge(danger ? ClayGlyph.warning : ClayGlyph.info, size: 40),
+        const SizedBox(width: AppSpacing.md),
+        Expanded(child: Text(title, style: AppTypography.h3.copyWith(fontWeight: FontWeight.w700, color: AppColors.navy900))),
+      ],
+    );
+  }
+}
+
 class _ConfirmSheet extends StatelessWidget {
   final String title;
   final String message;
@@ -128,7 +168,7 @@ class _ConfirmSheet extends StatelessWidget {
       child: Container(
         margin: const EdgeInsets.all(AppSpacing.md),
         padding: const EdgeInsets.all(AppSpacing.xl),
-        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(AppRadius.xl)),
+        decoration: _surface,
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -142,9 +182,9 @@ class _ConfirmSheet extends StatelessWidget {
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(title, style: AppTypography.h3),
+                    _Header(title: title, danger: danger),
                     const SizedBox(height: AppSpacing.sm),
-                    Text(message, style: const TextStyle(fontSize: AppTextSize.body, color: AppColors.slate500, height: 1.4)),
+                    Text(message, style: const TextStyle(fontSize: AppTextSize.body, color: AppColors.slate600, height: 1.45)),
                   ],
                 ),
               ),
@@ -176,11 +216,11 @@ class _CenteredConfirmDialog extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Dialog(
-      backgroundColor: Colors.transparent,
+      backgroundColor: AppColors.clear,
       insetPadding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
       child: Container(
         padding: const EdgeInsets.all(AppSpacing.xl),
-        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(AppRadius.xl)),
+        decoration: _surface,
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -191,9 +231,9 @@ class _CenteredConfirmDialog extends StatelessWidget {
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(title, style: AppTypography.h3),
+                    _Header(title: title, danger: danger),
                     const SizedBox(height: AppSpacing.sm),
-                    Text(message, style: const TextStyle(fontSize: AppTextSize.body, color: AppColors.slate500, height: 1.4)),
+                    Text(message, style: const TextStyle(fontSize: AppTextSize.body, color: AppColors.slate600, height: 1.45)),
                   ],
                 ),
               ),
@@ -217,11 +257,11 @@ class _CenteredInfoDialog extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Dialog(
-      backgroundColor: Colors.transparent,
+      backgroundColor: AppColors.clear,
       insetPadding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
       child: Container(
         padding: const EdgeInsets.all(AppSpacing.xl),
-        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(AppRadius.xl)),
+        decoration: _surface,
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -232,9 +272,9 @@ class _CenteredInfoDialog extends StatelessWidget {
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(title, style: AppTypography.h3),
+                    _Header(title: title),
                     const SizedBox(height: AppSpacing.sm),
-                    Text(message, style: const TextStyle(fontSize: AppTextSize.body, color: AppColors.slate500, height: 1.4)),
+                    Text(message, style: const TextStyle(fontSize: AppTextSize.body, color: AppColors.slate600, height: 1.45)),
                   ],
                 ),
               ),
@@ -266,7 +306,7 @@ class _InfoSheet extends StatelessWidget {
       child: Container(
         margin: const EdgeInsets.all(AppSpacing.md),
         padding: const EdgeInsets.all(AppSpacing.xl),
-        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(AppRadius.xl)),
+        decoration: _surface,
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -279,9 +319,9 @@ class _InfoSheet extends StatelessWidget {
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(title, style: AppTypography.h3),
+                    _Header(title: title),
                     const SizedBox(height: AppSpacing.sm),
-                    Text(message, style: const TextStyle(fontSize: AppTextSize.body, color: AppColors.slate500, height: 1.4)),
+                    Text(message, style: const TextStyle(fontSize: AppTextSize.body, color: AppColors.slate600, height: 1.45)),
                   ],
                 ),
               ),
@@ -313,8 +353,8 @@ class _ConfirmActions extends StatelessWidget {
   final String confirmLabel;
   final bool danger;
 
-  /// AppButton's md size: 18pt horizontal padding each side.
-  static const double _buttonPadding = 36;
+  /// AppButton's md size: 20pt horizontal padding each side.
+  static const double _buttonPadding = 40;
 
   bool _fits(BuildContext context, String label, double width) {
     final painter = TextPainter(

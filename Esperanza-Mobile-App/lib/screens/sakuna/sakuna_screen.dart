@@ -23,6 +23,7 @@ import '../../services/requests_service.dart';
 import '../../services/citizen_session_service.dart';
 import '../../services/sakuna_alerts.dart';
 import '../../utils/date_text.dart';
+import '../../widgets/esperanza_art.dart';
 
 /// GET /hotlines (public, PublicContentController::hotlines).
 Future<List<(String, String)>> _loadHotlines() async {
@@ -93,6 +94,8 @@ class _SakunaScreenState extends State<SakunaScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      // Clear, over RootShell's GlassBackdrop: the glass cards show its colour.
+      backgroundColor: AppColors.clear,
       drawer: const EsperanzaDrawer(),
       appBar: AppBar(title: const Text('Risk Reduction & Emergency'), actions: const [AlertsAction()]),
       // Bottom padding must include the inherited navbar MediaQuery inset
@@ -485,13 +488,12 @@ class _AlertCard extends StatelessWidget {
     return Semantics(
       container: true,
       label: 'Emergency alert',
-      child: Container(
+      child: GlassSurface(
+        radius: AppRadius.xl,
         padding: const EdgeInsets.all(AppSpacing.lg),
-        decoration: BoxDecoration(
-          color: AppColors.rose50,
-          borderRadius: BorderRadius.circular(AppRadius.lg),
-          border: Border.all(color: AppColors.rose600.withValues(alpha: 0.25)),
-        ),
+        tint: AppColors.rose50,
+        tintEnd: AppColors.rose50,
+        rim: AppColors.rose600,
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [

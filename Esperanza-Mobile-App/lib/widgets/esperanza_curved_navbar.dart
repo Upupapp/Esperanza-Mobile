@@ -1,3 +1,5 @@
+import 'dart:ui' as ui;
+
 import 'package:flutter/material.dart';
 import '../theme/app_elevation.dart';
 import '../theme/app_colors.dart';
@@ -48,7 +50,7 @@ class EsperanzaCurvedNavBar extends StatelessWidget {
 
   static int _slotOf(int itemIndex) => itemIndex < 2 ? itemIndex : itemIndex + 1;
 
-  static const Color _surface = Colors.white;
+  static const Color _surface = AppColors.surface;
   // A visible hairline, not AppColors.border (slate100 — nearly invisible
   // against a white/light page background, which is what made the bar's
   // own top edge — and by extension the moving active bubble/cradle
@@ -59,10 +61,10 @@ class EsperanzaCurvedNavBar extends StatelessWidget {
   // bar's bottom/side edges sit flush against the screen edge, so the top
   // — the only edge with page content actually visible behind it — is
   // where this reads.
-  static const Color _border = AppColors.brand100;
+  static const Color _border = AppColors.slate200;
   // Was a raw 0x1A0B1B4A literal commented "navy900 @ 10%" — but 0B1B4A is not
   // navy900 (0B1730). Now actually derived from the token. See AppElevation.
-  static final Color _shadow = AppElevation.navbarShadow;
+  static final Color _shadow = AppElevation.navbarShadow.withValues(alpha: 0.18);
 
   @override
   Widget build(BuildContext context) {
@@ -92,15 +94,31 @@ class EsperanzaCurvedNavBar extends StatelessWidget {
                     duration: EsperanzaNavMotion.selectionFor(context),
                     curve: EsperanzaNavMotion.selectionCurve,
                     builder: (context, x, _) {
-                      return CustomPaint(
-                        key: const ValueKey('nav-bar-shape'),
-                        painter: EsperanzaCurvedNavPainter(
-                          cradleCentreX: x,
-                          surfaceColor: _surface,
-                          shadowColor: _shadow,
-                          borderColor: _border,
-                          showCradle: !reduced,
-                        ),
+                      // Frosted glass (2026-10 design): what scrolls behind
+                      // the pill is blurred, clipped to the pill itself, and
+                      // the painter lays the translucent glass over it.
+                      return Stack(
+                        fit: StackFit.expand,
+                        children: [
+                          ClipPath(
+                            clipper: EsperanzaNavPillClipper(bottomInset: bottomInset),
+                            child: BackdropFilter(
+                              filter: ui.ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+                              child: const SizedBox.expand(),
+                            ),
+                          ),
+                          CustomPaint(
+                            key: const ValueKey('nav-bar-shape'),
+                            painter: EsperanzaCurvedNavPainter(
+                              cradleCentreX: x,
+                              surfaceColor: _surface,
+                              shadowColor: _shadow,
+                              borderColor: _border,
+                              showCradle: !reduced,
+                              bottomInset: bottomInset,
+                            ),
+                          ),
+                        ],
                       );
                     },
                   ),
@@ -111,8 +129,8 @@ class EsperanzaCurvedNavBar extends StatelessWidget {
                 Positioned(
                   left: 0,
                   right: 0,
-                  top: 0,
-                  bottom: bottomInset,
+                  top: EsperanzaCurvedNavPainter.topMargin,
+                  bottom: EsperanzaCurvedNavPainter.bottomGap(bottomInset),
                   child: Row(
                     children: [
                       EsperanzaNavItem(

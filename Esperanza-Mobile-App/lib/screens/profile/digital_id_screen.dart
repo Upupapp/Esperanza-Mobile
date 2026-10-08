@@ -20,6 +20,7 @@ import '../../utils/esperanza_seal.dart';
 import '../../widgets/app_card.dart';
 import '../../theme/app_typography.dart';
 import '../../widgets/image_viewer_scaffold.dart';
+import '../../widgets/esperanza_art.dart';
 
 /// Esperanza Digital ID — a resident's own wallet for *official,
 /// already-issued* digital government/LGU credentials (Barangay Resident
@@ -801,13 +802,12 @@ class _OfflineNotice extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return GlassSurface(
+      radius: AppRadius.xl,
       padding: const EdgeInsets.fromLTRB(AppSpacing.md, AppSpacing.sm, AppSpacing.xs, AppSpacing.sm),
-      decoration: BoxDecoration(
-        color: AppColors.amber50,
-        borderRadius: BorderRadius.circular(AppRadius.md),
-        border: Border.all(color: AppColors.amber500.withValues(alpha: 0.4)),
-      ),
+      tint: AppColors.amber50,
+      tintEnd: AppColors.amber50,
+      rim: AppColors.amber500,
       child: Row(
         children: [
           const Icon(Icons.cloud_off_rounded, size: AppSizes.iconBase, color: AppColors.amber700),

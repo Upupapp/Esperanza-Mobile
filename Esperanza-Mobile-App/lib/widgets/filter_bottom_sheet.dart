@@ -247,14 +247,19 @@ class _Pill extends StatelessWidget {
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.sm),
+        // Gold means selected, everywhere (2026-10 design).
         decoration: BoxDecoration(
-          color: selected ? accent.withValues(alpha: 0.1) : AppColors.slate50,
+          color: selected ? AppColors.gold400 : AppColors.slate50,
           borderRadius: BorderRadius.circular(AppRadius.full),
-          border: Border.all(color: selected ? accent : AppColors.slate200),
+          border: Border.all(color: selected ? AppColors.gold500 : AppColors.slate200),
         ),
         child: Text(
           label,
-          style: TextStyle(fontSize: AppTextSize.helper, fontWeight: FontWeight.w600, color: selected ? accent : AppColors.slate600),
+          style: TextStyle(
+            fontSize: AppTextSize.helper,
+            fontWeight: selected ? FontWeight.w700 : FontWeight.w600,
+            color: selected ? AppColors.navy950 : AppColors.slate600,
+          ),
         ),
       ),
     );

@@ -9,6 +9,8 @@ import '../home/root_shell.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_spacing.dart';
 import '../../theme/app_typography.dart';
+import '../../widgets/empty_state.dart';
+import '../../widgets/esperanza_art.dart';
 
 /// Events — previously a segmented sub-tab inside Balita
 /// (`BalitaScreen`'s `_EventsList`), promoted to its own bottom-nav
@@ -27,6 +29,8 @@ class EventsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      // Clear, over RootShell's GlassBackdrop: the glass cards show its colour.
+      backgroundColor: AppColors.clear,
       drawer: const EsperanzaDrawer(),
       appBar: AppBar(title: const Text('Events'), actions: const [AlertsAction()]),
       body: AsyncStateView<List<EventItem>>(
@@ -92,7 +96,12 @@ class _EventsBodyState extends State<_EventsBody> {
           ),
           const SizedBox(height: AppSpacing.lg),
           if (list.isEmpty)
-            _EmptyNote('No ${_period == _Period.upcoming ? 'upcoming' : 'past'} events right now.')
+            EmptyState(
+              glyph: ClayGlyph.calendar,
+              title: 'No ${_period == _Period.upcoming ? 'upcoming' : 'past'} events right now.',
+              description: 'Municipal and barangay events appear here as they are announced.',
+              padding: const EdgeInsets.symmetric(vertical: AppSpacing.xxl, horizontal: AppSpacing.lg),
+            )
           else
             for (var i = 0; i < list.length; i++) ...[
               if (i > 0) const SizedBox(height: AppSpacing.lg),
@@ -104,8 +113,10 @@ class _EventsBodyState extends State<_EventsBody> {
   }
 }
 
-/// PAAIPE `.filter-pills` button: 44pt tall, pill-shaped, solid blue when
-/// chosen.
+/// PAAIPE `.filter-pills` button: 44pt tall, pill-shaped. Chosen: a raised
+/// navy pill with white text and a gold dot (2026-10 refinement), the same
+/// navy-for-selected as SegmentedTabs; not chosen: plain white with a slate
+/// hairline, so the difference is plain without colour alone.
 class _PeriodPill extends StatelessWidget {
   const _PeriodPill({required this.label, required this.selected, required this.onTap});
 
@@ -118,55 +129,53 @@ class _PeriodPill extends StatelessWidget {
     return Semantics(
       button: true,
       selected: selected,
-      child: Material(
-        color: selected ? AppColors.brand500 : AppColors.surface,
-        shape: StadiumBorder(side: BorderSide(color: selected ? AppColors.brand500 : AppColors.slate200)),
-        child: InkWell(
-          customBorder: const StadiumBorder(),
-          onTap: onTap,
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(minHeight: AppSizes.minTouchTarget),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg + 2),
-              child: Center(
-                widthFactor: 1,
-                child: Text(
-                  label,
-                  style: TextStyle(
-                    fontSize: AppTextSize.helper,
-                    fontWeight: FontWeight.w500,
-                    color: selected ? Colors.white : AppColors.textMuted,
-                  ),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        decoration: ShapeDecoration(
+          shape: StadiumBorder(side: BorderSide(color: selected ? AppColors.navy800 : AppColors.slate200)),
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: selected ? const [AppColors.navy700, AppColors.navy900] : const [AppColors.surface, AppColors.surface],
+          ),
+          shadows: selected
+              ? [BoxShadow(color: AppColors.navy900.withValues(alpha: 0.28), blurRadius: 12, offset: const Offset(0, 5), spreadRadius: -3)]
+              : [BoxShadow(color: AppColors.navy900.withValues(alpha: 0.05), blurRadius: 3, offset: const Offset(0, 1))],
+        ),
+        child: Material(
+          type: MaterialType.transparency,
+          child: InkWell(
+            customBorder: const StadiumBorder(),
+            onTap: onTap,
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(minHeight: AppSizes.minTouchTarget),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg + 2),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (selected) ...[
+                      Container(
+                        width: 7,
+                        height: 7,
+                        decoration: const BoxDecoration(shape: BoxShape.circle, color: AppColors.gold400),
+                      ),
+                      const SizedBox(width: AppSpacing.sm),
+                    ],
+                    Text(
+                      label,
+                      style: TextStyle(
+                        fontSize: AppTextSize.helper,
+                        fontWeight: selected ? FontWeight.w700 : FontWeight.w600,
+                        color: selected ? AppColors.surface : AppColors.navy700,
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),
           ),
         ),
-      ),
-    );
-  }
-}
-
-/// PAAIPE `.empty-note`: a quiet bordered note rather than a large empty
-/// illustration.
-class _EmptyNote extends StatelessWidget {
-  const _EmptyNote(this.text);
-
-  final String text;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(AppSpacing.lg),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.65),
-        border: Border.all(color: AppColors.slate200),
-        borderRadius: BorderRadius.circular(AppRadius.lg),
-      ),
-      child: Text(
-        text,
-        textAlign: TextAlign.center,
-        style: const TextStyle(fontSize: AppTextSize.label, height: 1.5, color: AppColors.slate600),
       ),
     );
   }

@@ -7,16 +7,17 @@ import '../../services/citizen_session_service.dart';
 import '../../services/requests_service.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_spacing.dart';
-import '../../utils/esperanza_seal.dart';
 import '../../utils/office_logo.dart';
 import '../../utils/tulong_eligibility.dart';
 import '../../widgets/app_card.dart';
+import '../../widgets/menu_tile.dart';
 import 'new_request_screen.dart';
 import 'request_detail_screen.dart';
 import 'service_request_wizard_screen.dart';
 import '../sakuna/report_incident_screen.dart';
 import '../../theme/app_typography.dart';
 import '../../utils/office_name.dart';
+import '../../widgets/esperanza_art.dart';
 
 /// Step 1 of the request wizard — pick a document/assistance type, guided
 /// by progressive filtering (Barangay/LGU -> Department -> Specific
@@ -228,15 +229,15 @@ class _StepTile extends StatelessWidget {
         child: Row(
           children: [
             Container(
-              width: 42,
-              height: 42,
-              decoration: BoxDecoration(color: accent.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(AppRadius.md)),
+              width: 52,
+              height: 52,
+              decoration: BoxDecoration(color: accent.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(AppRadius.lg)),
               child: logoAsset != null
                   ? Padding(
                       padding: const EdgeInsets.all(AppSpacing.xs),
                       child: Image.asset(logoAsset!, fit: BoxFit.contain),
                     )
-                  : Icon(icon, color: accent, size: 19),
+                  : Icon(icon, color: accent, size: 24),
             ),
             const SizedBox(width: AppSpacing.md),
             Expanded(
@@ -245,7 +246,8 @@ class _StepTile extends StatelessWidget {
                 style: const TextStyle(fontSize: AppTextSize.body, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
               ),
             ),
-            const Icon(Icons.chevron_right_rounded, color: AppColors.slate300),
+            const SizedBox(width: AppSpacing.sm),
+            const ChevronBubble(),
           ],
         ),
       ),
@@ -253,57 +255,75 @@ class _StepTile extends StatelessWidget {
   }
 }
 
-class _ItemList extends StatelessWidget {
+/// The services themselves, with a search field over them (2026-10 refresh,
+/// from the design's "Search services"): it filters by name and office.
+class _ItemList extends StatefulWidget {
   final ServiceCategory category;
   final List<CatalogItem> items;
   final Color accent;
   const _ItemList({required this.category, required this.items, required this.accent});
 
-  /// Tulong's reapplication rule is checked here, before the request screen
-  /// ever opens — the citizen must never fill out an entire application
-  /// only to discover at Submit that it's blocked (see
-  /// utils/tulong_eligibility.dart). Dokyu items open immediately; there is
-  /// no such restriction for Dokyu (the same document may legitimately be
-  /// requested again).
-  Future<void> _open(BuildContext context, CatalogItem item) async {
-    if (category == ServiceCategory.tulong) {
-      final account = context.read<CitizenSessionService>().account;
-      if (account != null) {
-        final result = tulongEligibilityFor(context.read<RequestsService>(), typeName: item.name);
-        if (!result.isEligible) {
-          final viewRequest = await showTulongBlockedDialog(context, result);
-          if (viewRequest && context.mounted) {
-            Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => RequestDetailScreen(requestId: result.blockingRequest!.id)),
-            );
-          }
-          return;
-        }
-      }
-    }
-    if (!context.mounted) return;
-    if (category == ServiceCategory.sakunaIncident) {
-      Navigator.of(context).push(
-        MaterialPageRoute(builder: (_) => ReportIncidentScreen(item: item, accent: accent)),
-      );
-      return;
-    }
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => item.formSpec != null
-            ? ServiceRequestWizardScreen(category: category, item: item, accent: accent)
-            : NewRequestScreen(category: category, item: item, accent: accent),
-      ),
-    );
-  }
+  @override
+  State<_ItemList> createState() => _ItemListState();
+}
+
+class _ItemListState extends State<_ItemList> {
+  String _query = '';
+
+  ServiceCategory get category => widget.category;
+  Color get accent => widget.accent;
+
+  Future<void> _open(BuildContext context, CatalogItem item) => openCatalogItem(context, category, item, accent);
 
   @override
   Widget build(BuildContext context) {
+    final q = _query.trim().toLowerCase();
+    final items = q.isEmpty
+        ? widget.items
+        : widget.items.where((i) => i.name.toLowerCase().contains(q) || i.office.toLowerCase().contains(q)).toList();
     return ListView.builder(
       padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.md, AppSpacing.lg, AppSpacing.xxl),
-      itemCount: items.length,
-      itemBuilder: (context, i) {
-        final item = items[i];
+      itemCount: items.length + 1,
+      itemBuilder: (context, index) {
+        if (index == 0) {
+          return Padding(
+            padding: const EdgeInsets.only(bottom: AppSpacing.lg),
+            child: Column(
+              children: [
+                TextField(
+                  onChanged: (v) => setState(() => _query = v),
+                  textInputAction: TextInputAction.search,
+                  decoration: InputDecoration(
+                    hintText: 'Search services',
+                    prefixIcon: const Icon(Icons.search_rounded, color: AppColors.slate500),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: AppSpacing.md),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(AppRadius.full),
+                      borderSide: const BorderSide(color: AppColors.slate200),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(AppRadius.full),
+                      borderSide: const BorderSide(color: AppColors.slate200),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(AppRadius.full),
+                      borderSide: const BorderSide(color: AppColors.gold500, width: 1.5),
+                    ),
+                  ),
+                ),
+                if (items.isEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(top: AppSpacing.xxl),
+                    child: Text(
+                      'No service matches "${_query.trim()}".',
+                      style: const TextStyle(fontSize: AppTextSize.helper, color: AppColors.textMuted),
+                    ),
+                  ),
+              ],
+            ),
+          );
+        }
+        final item = items[index - 1];
         return Padding(
           padding: const EdgeInsets.only(bottom: AppSpacing.sm),
           child: AppCard(
@@ -311,20 +331,19 @@ class _ItemList extends StatelessWidget {
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Container(
-                  width: 42,
-                  height: 42,
-                  decoration: BoxDecoration(
-                    color: accent.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(AppRadius.md),
-                  ),
-                  // The Esperanza municipal seal — every individual Dokyu/
-                  // Tulong service card uses it (no per-document logo
-                  // exists, unlike the office-selection step above, which
-                  // does have some office-specific logos).
-                  child: Padding(
-                    padding: const EdgeInsets.all(AppSpacing.xs),
-                    child: Image.asset(esperanzaSealAsset, fit: BoxFit.contain),
+                // The service's clay icon (2026-10 design): one icon style
+                // across the app, the same as Service Search. The office step
+                // above keeps the offices' own logos.
+                ClayTile(
+                  size: 56,
+                  radius: 18,
+                  child: ClayIcon(
+                    switch (category) {
+                      ServiceCategory.tulong => ClayGlyph.heart,
+                      ServiceCategory.sakunaIncident => ClayGlyph.shield,
+                      _ => ClayGlyph.document,
+                    },
+                    size: 34,
                   ),
                 ),
                 const SizedBox(width: AppSpacing.md),
@@ -358,7 +377,7 @@ class _ItemList extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: AppSpacing.sm),
-                const Icon(Icons.chevron_right_rounded, color: AppColors.slate300),
+                const Padding(padding: EdgeInsets.only(top: AppSpacing.md), child: ChevronBubble()),
               ],
             ),
           ),
@@ -378,7 +397,7 @@ class _ItemList extends StatelessWidget {
   Widget _pill(IconData icon, String text) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: AppSpacing.xs),
-      decoration: BoxDecoration(color: AppColors.slate100, borderRadius: BorderRadius.circular(AppRadius.sm)),
+      decoration: BoxDecoration(color: AppColors.slate100, borderRadius: BorderRadius.circular(AppRadius.full)),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -404,4 +423,45 @@ class _ItemList extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Opens one service from a catalogue: the request wizard when it has a form
+/// spec, the plain request screen otherwise, the incident form for Sakuna.
+/// Shared by the catalogue and Service Search, so both apply the same rules.
+///
+/// Tulong's reapplication rule is checked here, before the request screen
+/// ever opens — the citizen must never fill out an entire application only
+/// to discover at Submit that it's blocked (see utils/tulong_eligibility.dart).
+/// Dokyu items open immediately; there is no such restriction for Dokyu (the
+/// same document may legitimately be requested again).
+Future<void> openCatalogItem(BuildContext context, ServiceCategory category, CatalogItem item, Color accent) async {
+  if (category == ServiceCategory.tulong) {
+    final account = context.read<CitizenSessionService>().account;
+    if (account != null) {
+      final result = tulongEligibilityFor(context.read<RequestsService>(), typeName: item.name);
+      if (!result.isEligible) {
+        final viewRequest = await showTulongBlockedDialog(context, result);
+        if (viewRequest && context.mounted) {
+          Navigator.of(context).push(
+            MaterialPageRoute(builder: (_) => RequestDetailScreen(requestId: result.blockingRequest!.id)),
+          );
+        }
+        return;
+      }
+    }
+  }
+  if (!context.mounted) return;
+  if (category == ServiceCategory.sakunaIncident) {
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => ReportIncidentScreen(item: item, accent: accent)),
+    );
+    return;
+  }
+  Navigator.of(context).push(
+    MaterialPageRoute(
+      builder: (_) => item.formSpec != null
+          ? ServiceRequestWizardScreen(category: category, item: item, accent: accent)
+          : NewRequestScreen(category: category, item: item, accent: accent),
+    ),
+  );
 }

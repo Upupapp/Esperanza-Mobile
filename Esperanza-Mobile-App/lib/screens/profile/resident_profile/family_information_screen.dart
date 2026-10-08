@@ -14,6 +14,7 @@ import '../../../widgets/app_text_field.dart';
 import '../../../widgets/form_section.dart';
 import 'family_member_form_sheet.dart';
 import '../../../theme/app_typography.dart';
+import '../../../widgets/esperanza_art.dart';
 
 /// Step 2 — Family Information. Citizen-facing framing of the Web Admin's
 /// Constituents > Families module: members are added/edited/removed
@@ -507,13 +508,12 @@ class _ExistingMatchBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return GlassSurface(
+      radius: AppRadius.xl,
       padding: const EdgeInsets.all(AppSpacing.lg),
-      decoration: BoxDecoration(
-        color: AppColors.brand50,
-        borderRadius: BorderRadius.circular(AppRadius.lg),
-        border: Border.all(color: AppColors.brand200),
-      ),
+      tint: AppColors.brand50,
+      tintEnd: AppColors.brand50,
+      rim: AppColors.brand200,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

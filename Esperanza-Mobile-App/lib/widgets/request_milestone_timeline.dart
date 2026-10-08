@@ -7,6 +7,7 @@ import '../theme/app_spacing.dart';
 import '../theme/app_typography.dart';
 import '../theme/tulong_status.dart';
 import '../utils/date_text.dart';
+import 'esperanza_art.dart';
 
 /// The richer Dokyu/Tulong milestone timeline (Phase 5, rewritten for the
 /// Mobile-only final request-flow correction pass — frontend simulation
@@ -197,25 +198,54 @@ class _MilestoneRow extends StatelessWidget {
           children: [
             Column(
               children: [
+                // 2026-10 design: a step done is a filled circle with a check,
+                // the current step a gold ball with a glow, a step ahead a
+                // white ring; a refusal or a request for action carries its
+                // own mark, so colour is never the only signal.
                 AnimatedContainer(
                   duration: AppMotion.fast,
-                  width: state == _MilestoneState.current ? 14 : 10,
-                  height: state == _MilestoneState.current ? 14 : 10,
+                  width: 22,
+                  height: 22,
+                  alignment: Alignment.center,
                   decoration: BoxDecoration(
-                    color: state == _MilestoneState.future ? Colors.white : dotColor,
+                    color: switch (state) {
+                      _MilestoneState.future => AppColors.surface,
+                      _MilestoneState.current => AppColors.gold400,
+                      _ => dotColor,
+                    },
                     shape: BoxShape.circle,
-                    border: Border.all(color: dotColor, width: state == _MilestoneState.future ? 1.5 : 0),
-                    boxShadow: state == _MilestoneState.current
-                        ? [BoxShadow(color: dotColor.withValues(alpha: 0.35), blurRadius: 6, spreadRadius: 2)]
-                        : null,
+                    border: Border.all(
+                      color: state == _MilestoneState.future ? AppColors.slate300 : AppColors.surface,
+                      width: state == _MilestoneState.future ? 1.6 : 2,
+                    ),
+                    boxShadow: state == _MilestoneState.future
+                        ? null
+                        : [
+                            BoxShadow(
+                              color: (state == _MilestoneState.current ? AppColors.gold400 : dotColor).withValues(alpha: 0.40),
+                              blurRadius: state == _MilestoneState.current ? 10 : 6,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
                   ),
+                  child: switch (state) {
+                    _MilestoneState.done => const Icon(Icons.check_rounded, size: 13, color: AppColors.surface),
+                    _MilestoneState.current => Container(
+                      width: 7,
+                      height: 7,
+                      decoration: const BoxDecoration(color: AppColors.navy900, shape: BoxShape.circle),
+                    ),
+                    _MilestoneState.rejected => const Icon(Icons.close_rounded, size: 13, color: AppColors.surface),
+                    _MilestoneState.needsAction => const Icon(Icons.priority_high_rounded, size: 13, color: AppColors.surface),
+                    _MilestoneState.future => null,
+                  },
                 ),
                 if (!isLast)
                   Expanded(
                     child: Container(
                       width: 2,
                       margin: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
-                      color: state == _MilestoneState.future ? AppColors.slate100 : dotColor.withValues(alpha: 0.35),
+                      color: state == _MilestoneState.future ? AppColors.slate200 : dotColor.withValues(alpha: 0.45),
                     ),
                   ),
               ],
@@ -264,13 +294,12 @@ class _RejectionReasonCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return GlassSurface(
+      radius: AppRadius.xl,
       padding: const EdgeInsets.all(AppSpacing.md),
-      decoration: BoxDecoration(
-        color: AppColors.rose50,
-        borderRadius: BorderRadius.circular(AppRadius.md),
-        border: Border.all(color: AppColors.rose500.withValues(alpha: 0.25)),
-      ),
+      tint: AppColors.rose50,
+      tintEnd: AppColors.rose50,
+      rim: AppColors.rose500,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

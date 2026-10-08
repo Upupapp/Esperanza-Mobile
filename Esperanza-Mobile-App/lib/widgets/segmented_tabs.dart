@@ -3,6 +3,7 @@ import '../theme/app_elevation.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
 import '../theme/app_typography.dart';
+import 'esperanza_art.dart';
 
 /// A reusable pill/segmented tab control — same visual language reused for
 /// the request Active/Done tabs and the Balita/Events tabs. Segments are
@@ -20,14 +21,16 @@ class SegmentedTabs extends StatelessWidget {
     required this.labels,
     required this.selectedIndex,
     required this.onChanged,
-    this.accent = AppColors.brand600,
+    this.accent = AppColors.navy800,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    // A neumorphic well (2026-10 design) holding a raised white pill for the
+    // selected segment.
+    return NeuWell(
+      radius: AppRadius.full,
       padding: const EdgeInsets.all(AppSpacing.xs),
-      decoration: BoxDecoration(color: AppColors.slate100, borderRadius: BorderRadius.circular(AppRadius.md)),
       child: Row(
         children: [
           for (int i = 0; i < labels.length; i++) ...[
@@ -58,9 +61,9 @@ class _Segment extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: Colors.transparent,
+      color: AppColors.clear,
       child: InkWell(
-        borderRadius: BorderRadius.circular(AppRadius.sm),
+        borderRadius: BorderRadius.circular(AppRadius.full),
         onTap: onTap,
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 160),
@@ -68,16 +71,23 @@ class _Segment extends StatelessWidget {
           padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
           alignment: Alignment.center,
           decoration: BoxDecoration(
-            color: selected ? Colors.white : Colors.transparent,
-            borderRadius: BorderRadius.circular(AppRadius.sm),
+            color: selected ? AppColors.surface : AppColors.clear,
+            borderRadius: BorderRadius.circular(AppRadius.full),
             boxShadow: selected
-                ? [BoxShadow(color: AppElevation.tabPillShadow, blurRadius: 6, offset: const Offset(0, 1))]
+                ? [
+                    BoxShadow(color: AppElevation.tabPillShadow, blurRadius: 10, offset: const Offset(0, 3)),
+                    BoxShadow(color: AppColors.navy800.withValues(alpha: 0.10), blurRadius: 8, offset: const Offset(0, 4)),
+                  ]
                 : null,
           ),
           child: Text(
             label,
             textAlign: TextAlign.center,
-            style: TextStyle(fontSize: AppTextSize.helper, fontWeight: FontWeight.w600, color: selected ? accent : AppColors.slate500),
+            style: TextStyle(
+              fontSize: AppTextSize.helper,
+              fontWeight: selected ? FontWeight.w700 : FontWeight.w600,
+              color: selected ? accent : AppColors.slate600,
+            ),
           ),
         ),
       ),

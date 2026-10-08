@@ -38,7 +38,10 @@ class PostCard extends StatelessWidget {
 
     return Padding(
       padding: const EdgeInsets.only(bottom: AppSpacing.md),
+      // Frosted white: a post is read at length, and the standard glass let
+      // the coloured backdrop wash through the text.
       child: AppCard(
+        frosted: true,
         padding: const EdgeInsets.fromLTRB(AppSpacing.md, AppSpacing.md, AppSpacing.md, AppSpacing.xs),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,

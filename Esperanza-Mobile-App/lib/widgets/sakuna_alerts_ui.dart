@@ -10,6 +10,7 @@ import '../services/sakuna_alerts.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
 import '../theme/app_typography.dart';
+import 'esperanza_art.dart';
 
 /// A Sakuna alert the LGU published for the resident's barangay, opened as a
 /// dialog the moment the app picks it up (it refreshes every minute while
@@ -99,22 +100,25 @@ class _ActiveAlertsCardState extends State<ActiveAlertsCard> {
           for (final alert in _alerts)
             Padding(
               padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+              // Rose-tinted glass (2026-10 design): the same glass as every
+              // card, leaning red, with a red rim and a clay red badge, so an
+              // alert stands out without breaking the page's look.
               child: Material(
-                color: AppColors.rose50,
-                borderRadius: BorderRadius.circular(AppRadius.lg),
+                color: AppColors.clear,
+                borderRadius: BorderRadius.circular(AppRadius.xl),
                 child: InkWell(
-                  borderRadius: BorderRadius.circular(AppRadius.lg),
+                  borderRadius: BorderRadius.circular(AppRadius.xl),
                   onTap: widget.onOpen,
-                  child: Container(
+                  child: GlassSurface(
+                    radius: AppRadius.xl,
+                    tint: AppColors.rose50,
+                    tintEnd: AppColors.rose50,
+                    rim: AppColors.rose500,
                     padding: const EdgeInsets.all(AppSpacing.lg),
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(AppRadius.lg),
-                      border: Border.all(color: AppColors.rose600.withValues(alpha: 0.35), width: 1.2),
-                    ),
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Icon(Icons.campaign_rounded, color: AppColors.rose600, size: 22),
+                        const _AlertBadge(),
                         const SizedBox(width: AppSpacing.md),
                         Expanded(
                           child: Column(
@@ -141,6 +145,38 @@ class _ActiveAlertsCardState extends State<ActiveAlertsCard> {
             ),
         ],
       ),
+    );
+  }
+}
+
+/// The alert's badge: a red clay ball lit from the top-left, with the
+/// megaphone in white.
+class _AlertBadge extends StatelessWidget {
+  const _AlertBadge();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 40,
+      height: 40,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [AppColors.rose500, AppColors.rose700],
+        ),
+        boxShadow: [BoxShadow(color: AppColors.rose600.withValues(alpha: 0.40), blurRadius: 12, offset: const Offset(0, 5))],
+      ),
+      foregroundDecoration: BoxDecoration(
+        shape: BoxShape.circle,
+        gradient: RadialGradient(
+          center: const Alignment(-0.45, -0.55),
+          radius: 0.7,
+          colors: [AppColors.surface.withValues(alpha: 0.40), AppColors.surface.withValues(alpha: 0)],
+        ),
+      ),
+      child: const Icon(Icons.campaign_rounded, color: AppColors.surface, size: 22),
     );
   }
 }

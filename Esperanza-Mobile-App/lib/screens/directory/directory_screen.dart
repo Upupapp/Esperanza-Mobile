@@ -11,6 +11,7 @@ import '../../utils/phone_dial.dart';
 import '../../widgets/app_card.dart';
 import '../../widgets/async_state_view.dart';
 import '../../widgets/segmented_tabs.dart';
+import '../../widgets/esperanza_art.dart';
 
 /// The Government Directory: municipal offices (public GET /directory,
 /// CommunicationsController::directory) and barangays (public GET
@@ -205,12 +206,8 @@ class _OfficeTile extends StatelessWidget {
       child: AppCard(
         child: Row(
           children: [
-            Container(
-              width: 42,
-              height: 42,
-              decoration: BoxDecoration(color: AppColors.navy900, borderRadius: BorderRadius.circular(AppRadius.md)),
-              child: const Icon(Icons.account_balance_outlined, color: Colors.white, size: 18),
-            ),
+            // The clay town hall (2026-10 design), as on Home.
+            const ClayTile(size: 48, radius: 16, child: ClayIcon(ClayGlyph.building, size: 32)),
             const SizedBox(width: AppSpacing.md),
             Expanded(
               child: Column(

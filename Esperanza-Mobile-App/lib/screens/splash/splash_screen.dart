@@ -1,22 +1,20 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../../main.dart';
 import '../../services/onboarding_service.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_spacing.dart';
 import '../../theme/app_typography.dart';
-import '../../utils/esperanza_seal.dart';
+import '../../widgets/esperanza_art.dart';
 import '../../utils/fade_page_route.dart';
 import '../onboarding/onboarding_screen.dart';
 
 /// The every-launch opening animation — distinct from the one-time
-/// [OnboardingScreen] flow. Same dark navy background + soft brand-blue
-/// glow LoginScreen already uses behind its own seal/wordmark (see that
-/// screen's `ParallaxHeader`), so the very first frame a user sees already
-/// feels like "this app" rather than a generic splash. A single
-/// [AnimationController] fades/scales the seal in first, then fades the
-/// "Esperanza Mobile" wordmark in underneath it — simple opacity + a very
-/// subtle scale, no spinning/bouncing/particles, using only Flutter's
-/// built-in animation classes (no new package).
+/// [OnboardingScreen] flow. The painted Esperanza scene (sun, hills, the
+/// municipal hall, the gold ribbon; see esperanza_art.dart): one
+/// [AnimationController] grows the sun's rays in, then fades the
+/// "Esperanza Mobile" wordmark and tagline in — simple opacity and a very
+/// subtle scale, using only Flutter's built-in animation classes.
 ///
 /// Total time on screen — animation plus a short hold so the finished
 /// branding is actually visible before handing off — lands around 1.9s,
@@ -102,87 +100,68 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.navy900,
-      // SafeArea + an explicit Center (rather than relying on Stack's own
-      // alignment to fill/center within whatever constraints happen to
-      // reach it) — guarantees the whole branding group sits in the
-      // visually-true middle of the usable screen on every device/notch/
-      // browser viewport, without any hardcoded position. Nothing below
-      // this point (animation, curves, durations, sizes, colors) changed —
-      // only how the group as a whole is positioned.
-      body: SafeArea(
-        child: Center(
-          child: AnimatedBuilder(
-            animation: _controller,
-            builder: (context, child) {
-              return Stack(
-                alignment: Alignment.center,
-                clipBehavior: Clip.none,
-                children: [
-                  // Soft glow behind the seal — the same device LoginScreen's
-                  // own hero uses.
-                  Opacity(
-                    opacity: _logoOpacity.value,
-                    child: Container(
-                      width: 280,
-                      height: 280,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        gradient: RadialGradient(
-                          colors: [AppColors.brand500.withValues(alpha: 0.28), Colors.transparent],
+    // The design's opening scene (2026-10): navy sky, a gold sun whose rays
+    // grow in, the municipal hall in clay on its hill and the gold ribbon,
+    // with the wordmark and tagline fading in between sun and hall.
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: SystemUiOverlayStyle.light,
+      child: Scaffold(
+      backgroundColor: AppColors.navy950,
+      body: AnimatedBuilder(
+        animation: _controller,
+        builder: (context, _) {
+          return Stack(
+            fit: StackFit.expand,
+            children: [
+              CustomPaint(
+                painter: EsperanzaScenePainter(
+                  sun: 0.17,
+                  ground: 0.80,
+                  hallWidth: 0.64,
+                  progress: _logoOpacity.value,
+                ),
+              ),
+              SafeArea(
+                child: Align(
+                  alignment: const Alignment(0, -0.18),
+                  child: Opacity(
+                    opacity: _titleOpacity.value,
+                    child: Transform.scale(
+                      scale: _logoScale.value,
+                      child: const Padding(
+                        padding: EdgeInsets.symmetric(horizontal: AppSpacing.xxl),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              'Esperanza Mobile',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                fontFamily: AppTypography.display,
+                                fontSize: AppTextSize.display,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.surface,
+                                height: 1.1,
+                                shadows: [Shadow(color: AppColors.navy950, blurRadius: 18)],
+                              ),
+                            ),
+                            SizedBox(height: AppSpacing.md),
+                            Text(
+                              'Your Gateway to a Brighter Community',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(fontSize: AppTextSize.body, color: AppColors.slate200, height: 1.4),
+                            ),
+                          ],
                         ),
                       ),
                     ),
                   ),
-                  Column(
-                    mainAxisSize: MainAxisSize.min,
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Opacity(
-                        opacity: _logoOpacity.value,
-                        child: Transform.scale(
-                          scale: _logoScale.value,
-                          child: Container(
-                            width: 112,
-                            height: 112,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              border: Border.all(color: Colors.white.withValues(alpha: 0.2), width: 2),
-                            ),
-                            child: ClipOval(
-                              // Source seal is 500x500; displayed at 112
-                              // logical px here, so cap decode to that (x
-                              // DPR) instead of the full source resolution.
-                              child: Image.asset(
-                                esperanzaSealAsset,
-                                fit: BoxFit.cover,
-                                cacheWidth: (112 * MediaQuery.devicePixelRatioOf(context)).round(),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: AppSpacing.xl),
-                      Opacity(
-                        opacity: _titleOpacity.value,
-                        child: const Text(
-                          'Esperanza Mobile',
-                          style: TextStyle(
-                            fontFamily: AppTypography.display,
-                            fontSize: AppTextSize.page,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.white,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              );
-            },
-          ),
-        ),
+                ),
+              ),
+            ],
+          );
+        },
+      ),
       ),
     );
   }

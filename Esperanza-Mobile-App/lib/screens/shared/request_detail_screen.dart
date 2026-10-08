@@ -31,6 +31,7 @@ import 'new_request_screen.dart';
 import 'service_request_wizard_screen.dart';
 import '../../utils/date_text.dart';
 import '../../utils/peso_text.dart';
+import '../../widgets/esperanza_art.dart';
 
 /// Full request detail + real status history, against
 /// GET /citizen/requests/{ref} (production-readiness programme,
@@ -461,13 +462,12 @@ class _RejectedApplicationCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return GlassSurface(
+      radius: AppRadius.xl,
       padding: const EdgeInsets.all(AppSpacing.lg),
-      decoration: BoxDecoration(
-        color: AppColors.rose50,
-        borderRadius: BorderRadius.circular(AppRadius.lg),
-        border: Border.all(color: AppColors.rose500.withValues(alpha: 0.35), width: 1.2),
-      ),
+      tint: AppColors.rose50,
+      tintEnd: AppColors.rose50,
+      rim: AppColors.rose500,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -531,13 +531,12 @@ class _CorrectionsSection extends StatelessWidget {
     // resubmitted without the ID (QA run 2026-10-05).
     final missing = request.missingRequired;
     final allResolved = unresolved.isEmpty && missing.isEmpty;
-    return Container(
+    return GlassSurface(
+      radius: AppRadius.xl,
       padding: const EdgeInsets.all(AppSpacing.lg),
-      decoration: BoxDecoration(
-        color: AppColors.orange50,
-        borderRadius: BorderRadius.circular(AppRadius.lg),
-        border: Border.all(color: AppColors.orange500.withValues(alpha: 0.35), width: 1.2),
-      ),
+      tint: AppColors.orange50,
+      tintEnd: AppColors.orange50,
+      rim: AppColors.orange500,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -743,13 +742,10 @@ class _FlaggedRequirementCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return GlassSurface(
+      radius: AppRadius.xl,
       padding: const EdgeInsets.all(AppSpacing.md),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(AppRadius.md),
-        border: Border.all(color: AppColors.orange500.withValues(alpha: 0.25)),
-      ),
+      rim: AppColors.orange500,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -821,13 +817,9 @@ class _AttachSection extends StatelessWidget {
       if (owed == 0 && pending.isNotEmpty) 'Every required document is attached. You can change one until the office reviews it.',
       if (rows.isNotEmpty) '$accepted of ${rows.length} accepted by the office.',
     ].join(' ');
-    return Container(
+    return GlassSurface(
+      radius: AppRadius.xl,
       padding: const EdgeInsets.all(AppSpacing.lg),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(AppRadius.lg),
-        border: Border.all(color: AppColors.border),
-      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -988,13 +980,12 @@ class _FeeCard extends StatelessWidget {
         : payment.isRejected
         ? (AppColors.rose50, AppColors.rose600, Icons.error_outline_rounded, 'The payment was not accepted. Please contact the office.')
         : (AppColors.orange50, AppColors.orange700, Icons.payments_outlined, 'Pay at the office and bring your reference number. The office issues the official receipt.');
-    return Container(
+    return GlassSurface(
+      radius: AppRadius.xl,
       padding: const EdgeInsets.all(AppSpacing.lg),
-      decoration: BoxDecoration(
-        color: bg,
-        borderRadius: BorderRadius.circular(AppRadius.lg),
-        border: Border.all(color: fg.withValues(alpha: 0.35), width: 1.2),
-      ),
+      tint: bg,
+      tintEnd: bg,
+      rim: fg,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -1033,13 +1024,12 @@ class _AssistanceCard extends StatelessWidget {
       _ => 'Approved — being prepared',
     };
     final amount = pesoText(received ? (assistance.releasedAmount ?? assistance.approvedAmount) : assistance.approvedAmount);
-    return Container(
+    return GlassSurface(
+      radius: AppRadius.xl,
       padding: const EdgeInsets.all(AppSpacing.lg),
-      decoration: BoxDecoration(
-        color: AppColors.emerald50,
-        borderRadius: BorderRadius.circular(AppRadius.lg),
-        border: Border.all(color: AppColors.emerald500.withValues(alpha: 0.35), width: 1.2),
-      ),
+      tint: AppColors.emerald50,
+      tintEnd: AppColors.emerald50,
+      rim: AppColors.emerald500,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -1090,13 +1080,12 @@ class _ManualVerificationCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return GlassSurface(
+      radius: AppRadius.xl,
       padding: const EdgeInsets.all(AppSpacing.lg),
-      decoration: BoxDecoration(
-        color: AppColors.orange50,
-        borderRadius: BorderRadius.circular(AppRadius.lg),
-        border: Border.all(color: AppColors.orange500.withValues(alpha: 0.35), width: 1.2),
-      ),
+      tint: AppColors.orange50,
+      tintEnd: AppColors.orange50,
+      rim: AppColors.orange500,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

@@ -2,10 +2,17 @@ import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
 import '../theme/app_typography.dart';
+import 'esperanza_art.dart';
 
 /// Mirrors `resources/views/components/ui/empty-state.blade.php`.
+/// The empty state (2026-10 design): a clay illustration on a clay tile,
+/// a friendly title, a line of explanation and, where there is one, the
+/// next action. [glyph] picks the illustration; without one it is chosen
+/// from [icon] (a bell for notifications, a folder for documents…), and an
+/// icon with no clay counterpart is shown in navy on the clay tile.
 class EmptyState extends StatelessWidget {
   final IconData icon;
+  final ClayGlyph? glyph;
   final String title;
   final String? description;
   final Widget? action;
@@ -14,6 +21,7 @@ class EmptyState extends StatelessWidget {
   const EmptyState({
     super.key,
     this.icon = Icons.inbox_outlined,
+    this.glyph,
     required this.title,
     this.description,
     this.action,
@@ -26,16 +34,18 @@ class EmptyState extends StatelessWidget {
       padding: padding,
       child: Column(
         children: [
-          Container(
-            width: 64,
-            height: 64,
-            decoration: BoxDecoration(color: AppColors.slate100, borderRadius: BorderRadius.circular(AppRadius.lg)),
-            child: Icon(icon, size: 28, color: AppColors.slate400),
+          ClayTile(
+            size: 84,
+            radius: 26,
+            child: (glyph ?? _glyphFor(icon)) != null
+                ? ClayIcon((glyph ?? _glyphFor(icon))!, size: 52)
+                : Icon(icon, size: 34, color: AppColors.navy700),
           ),
           const SizedBox(height: AppSpacing.lg),
           Text(
             title,
-            style: const TextStyle(fontSize: AppTextSize.body, fontWeight: FontWeight.w600, color: AppColors.slate700),
+            textAlign: TextAlign.center,
+            style: const TextStyle(fontSize: AppTextSize.card, fontWeight: FontWeight.w700, color: AppColors.navy900),
           ),
           if (description != null) ...[
             const SizedBox(height: AppSpacing.xs),
@@ -55,6 +65,31 @@ class EmptyState extends StatelessWidget {
 /// A shimmering skeleton block, mirroring the Web Admin's `.skeleton` class
 /// (used while mock data "loads" on screen entry, matching the Web Admin's
 /// deliberate skeleton-then-content pattern on e.g. citizen/dashboard.blade.php).
+/// The clay illustration that matches an empty state's Material icon.
+ClayGlyph? _glyphFor(IconData icon) {
+  final names = <IconData, ClayGlyph>{
+    Icons.inbox_outlined: ClayGlyph.box,
+    Icons.inbox_rounded: ClayGlyph.box,
+    Icons.notifications_none_rounded: ClayGlyph.bell,
+    Icons.notifications_outlined: ClayGlyph.bell,
+    Icons.notifications_off_outlined: ClayGlyph.bell,
+    Icons.description_outlined: ClayGlyph.document,
+    Icons.article_outlined: ClayGlyph.document,
+    Icons.folder_open_outlined: ClayGlyph.folder,
+    Icons.folder_outlined: ClayGlyph.folder,
+    Icons.search_off_rounded: ClayGlyph.search,
+    Icons.search_rounded: ClayGlyph.search,
+    Icons.campaign_outlined: ClayGlyph.megaphone,
+    Icons.newspaper_outlined: ClayGlyph.megaphone,
+    Icons.volunteer_activism_outlined: ClayGlyph.heart,
+    Icons.apartment_outlined: ClayGlyph.building,
+    Icons.account_balance_outlined: ClayGlyph.building,
+    Icons.person_outline_rounded: ClayGlyph.person,
+    Icons.report_outlined: ClayGlyph.shield,
+  };
+  return names[icon];
+}
+
 class SkeletonBox extends StatefulWidget {
   final double height;
   final double? width;
@@ -94,7 +129,11 @@ class _SkeletonBoxState extends State<SkeletonBox> with SingleTickerProviderStat
             gradient: LinearGradient(
               begin: Alignment(-1 + _controller.value * 2, 0),
               end: Alignment(1 + _controller.value * 2, 0),
-              colors: const [AppColors.slate100, AppColors.slate200, AppColors.slate100],
+              colors: [
+                AppColors.surface.withValues(alpha: 0.55),
+                AppColors.brand100.withValues(alpha: 0.75),
+                AppColors.surface.withValues(alpha: 0.55),
+              ],
             ),
           ),
         );
@@ -118,16 +157,12 @@ class ErrorState extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: AppSpacing.page, horizontal: AppSpacing.xxl),
       child: Column(
         children: [
-          Container(
-            width: 64,
-            height: 64,
-            decoration: BoxDecoration(color: AppColors.rose50, borderRadius: BorderRadius.circular(AppRadius.lg)),
-            child: const Icon(Icons.error_outline_rounded, size: 28, color: AppColors.rose600),
-          ),
+          const ClayBadge(ClayGlyph.error, size: 64),
           const SizedBox(height: AppSpacing.lg),
           Text(
             title,
-            style: const TextStyle(fontSize: AppTextSize.body, fontWeight: FontWeight.w600, color: AppColors.slate700),
+            textAlign: TextAlign.center,
+            style: const TextStyle(fontSize: AppTextSize.card, fontWeight: FontWeight.w700, color: AppColors.navy900),
           ),
           if (description != null) ...[
             const SizedBox(height: AppSpacing.xs),

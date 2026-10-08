@@ -308,7 +308,8 @@ void main() {
 
       expect(find.text("Quiambao's Sari-Sari Store"), findsOneWidget);
       expect(find.text('Retail - Sari-Sari Store'), findsOneWidget);
-      expect(find.text('3'), findsOneWidget);
+      // In the field: the step indicator's circles have numbers of their own.
+      expect(find.descendant(of: find.byType(TextField), matching: find.text('3')), findsOneWidget);
       expect(find.text('15000'), findsOneWidget);
 
       // Editable: clear and retype the business name field.

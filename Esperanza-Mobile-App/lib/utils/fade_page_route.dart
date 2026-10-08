@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../widgets/esperanza_art.dart';
 
 /// A simple, lightweight cross-fade page transition — built entirely on
 /// Flutter's own `PageRouteBuilder` (no animation package) — used for the
@@ -8,7 +9,10 @@ import 'package:flutter/material.dart';
 PageRouteBuilder<T> fadePageRoute<T>(Widget page) {
   return PageRouteBuilder<T>(
     transitionDuration: const Duration(milliseconds: 400),
-    pageBuilder: (context, animation, secondaryAnimation) => page,
+    // The soft page backdrop under the page, as every themed route has
+    // (BackdropPageTransitionsBuilder): scaffolds are clear, and without it
+    // a tab reached through this route showed black.
+    pageBuilder: (context, animation, secondaryAnimation) => GlassBackdrop(child: page),
     transitionsBuilder: (context, animation, secondaryAnimation, child) {
       return FadeTransition(opacity: animation, child: child);
     },

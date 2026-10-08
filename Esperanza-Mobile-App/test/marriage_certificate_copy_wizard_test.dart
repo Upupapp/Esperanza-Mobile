@@ -94,6 +94,10 @@ void main() {
       200,
       scrollable: find.byType(Scrollable).first,
     );
+    // As for the office above: scrollUntilVisible can stop with the card
+    // still just below the viewport; ensureVisible brings it fully in.
+    await tester.ensureVisible(find.text('Certified Copy of Marriage Certificate'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Certified Copy of Marriage Certificate'));
     await tester.pumpAndSettle();
 
@@ -131,6 +135,10 @@ void main() {
       200,
       scrollable: find.byType(Scrollable).first,
     );
+    // As for the office above: scrollUntilVisible can stop with the card
+    // still just below the viewport; ensureVisible brings it fully in.
+    await tester.ensureVisible(find.text('Certified Copy of Marriage Certificate'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Certified Copy of Marriage Certificate'));
     await tester.pumpAndSettle();
 

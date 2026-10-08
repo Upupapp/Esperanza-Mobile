@@ -99,6 +99,10 @@ class AppColors {
   static const danger = rose600;
   static const info = brand500;
 
+  /// Fully transparent: a surface that lets the backdrop behind it show
+  /// (the tab screens over RootShell's glass backdrop).
+  static const clear = Color(0x00000000);
+
   static const background = slate50;
   static const surface = Colors.white;
   static const border = slate100;

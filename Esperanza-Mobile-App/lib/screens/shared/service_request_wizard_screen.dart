@@ -31,6 +31,7 @@ import '../profile/resident_profile/personal_information_screen.dart';
 import 'request_detail_screen.dart';
 import 'request_submitted_screen.dart';
 import '../../theme/app_typography.dart';
+import '../../widgets/esperanza_art.dart';
 
 /// "Sir Paul's Required Form Experience" — a data-driven, multi-step
 /// service-request wizard mirroring `RegisterScreen`'s step pattern
@@ -671,21 +672,27 @@ class _ServiceRequestWizardScreenState extends State<ServiceRequestWizardScreen>
   Widget build(BuildContext context) {
     return _WizardAccent(
       category: widget.category,
+      // The design's form wizard (2026-10): a navy header holding the
+      // stepper, the step's form on a glass card, the pill buttons below.
       child: Scaffold(
-        appBar: AppBar(title: Text(widget.item.name)),
+        appBar: NavyBand.appBar(title: Text(widget.item.name)),
         body: SafeArea(
+          top: false,
           child: Column(
             children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(AppSpacing.xl, AppSpacing.md, AppSpacing.xl, 0),
+              NavyBand(
                 child: OnboardingStepIndicator(
                   currentStep: _step,
                   stepLabels: _stepLabels,
                   accent: _accent.strongOrNull,
+                  onDark: true,
                 ),
               ),
               Expanded(
-                child: SingleChildScrollView(padding: const EdgeInsets.all(AppSpacing.xl), child: _buildStep()),
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.all(AppSpacing.lg),
+                  child: GlassSurface(radius: 28, padding: wizardCardPadding(context), child: _buildStep()),
+                ),
               ),
               Padding(
                 padding: const EdgeInsets.fromLTRB(AppSpacing.xl, 0, AppSpacing.xl, AppSpacing.xl),

@@ -1,14 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../../services/api_client.dart';
 import '../../services/citizen_session_service.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_spacing.dart';
 import '../../theme/app_typography.dart';
-import '../../utils/esperanza_seal.dart';
 import '../../widgets/app_button.dart';
 import '../../widgets/app_text_field.dart';
-import '../../widgets/parallax_header.dart';
+import '../../widgets/esperanza_art.dart';
 import 'forgot_password_screen.dart';
 import 'register_screen.dart';
 
@@ -74,75 +74,49 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.navy900,
-      body: SafeArea(
-        child: SingleChildScrollView(
-          controller: _scrollController,
-          padding: const EdgeInsets.fromLTRB(AppSpacing.xxl, AppSpacing.xxxl, AppSpacing.xxl, AppSpacing.xxl),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              ParallaxHeader(
-                scrollController: _scrollController,
-                parallaxFactor: 0.25,
-                background: Center(
-                  child: Container(
-                    width: 260,
-                    height: 260,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      gradient: RadialGradient(
-                        colors: [AppColors.brand500.withValues(alpha: 0.28), Colors.transparent],
-                      ),
+    // The design's opening scene behind the sign-in (2026-10): the sun over
+    // the municipal hall, the gold ribbon, and the form on frosted glass.
+    final height = MediaQuery.sizeOf(context).height;
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: SystemUiOverlayStyle.light,
+      child: Scaffold(
+      backgroundColor: AppColors.navy950,
+      body: Stack(
+        fit: StackFit.expand,
+        children: [
+          const RepaintBoundary(
+            child: CustomPaint(painter: EsperanzaScenePainter(sunX: 0.80, sun: 0.115, sunScale: 0.55, ground: 0.22, hallWidth: 0.36)),
+          ),
+          SafeArea(
+            child: SingleChildScrollView(
+              controller: _scrollController,
+              padding: const EdgeInsets.fromLTRB(AppSpacing.xl, 0, AppSpacing.xl, AppSpacing.xxl),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  // Short enough that the whole form, Continue as Guest
+                  // included, fits a 844pt-tall phone without scrolling.
+                  SizedBox(height: height * 0.265),
+                  const Text(
+                    'Esperanza',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontFamily: 'Lora',
+                      fontSize: AppTextSize.display,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.surface,
                     ),
                   ),
-                ),
-                foreground: Center(
-                  child: Column(
-                    children: [
-                      Container(
-                        width: 84,
-                        height: 84,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          border: Border.all(color: Colors.white.withValues(alpha: 0.2), width: 2),
-                        ),
-                        child: ClipOval(
-                          // Source seal is 500x500; displayed at 84 logical
-                          // px here, so cap decode to that (x DPR) instead
-                          // of the full source resolution.
-                          child: Image.asset(
-                            esperanzaSealAsset,
-                            fit: BoxFit.cover,
-                            cacheWidth: (84 * MediaQuery.devicePixelRatioOf(context)).round(),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: AppSpacing.lg),
-                      const Text(
-                        'Esperanza',
-                        style: TextStyle(
-                          fontFamily: 'Lora',
-                          fontSize: AppTextSize.page,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.white,
-                        ),
-                      ),
-                      const SizedBox(height: AppSpacing.xs),
-                      Text(
-                        'Citizen Portal · Municipality of Esperanza, Masbate',
-                        style: TextStyle(fontSize: AppTextSize.helper, color: Colors.white.withValues(alpha: 0.55)),
-                        textAlign: TextAlign.center,
-                      ),
-                    ],
+                  const SizedBox(height: AppSpacing.xs),
+                  Text(
+                    'Citizen Portal · Municipality of Esperanza, Masbate',
+                    style: TextStyle(fontSize: AppTextSize.helper, color: AppColors.surface.withValues(alpha: 0.75)),
+                    textAlign: TextAlign.center,
                   ),
-                ),
-              ),
-              const SizedBox(height: AppSpacing.xl),
-              Container(
+                  const SizedBox(height: AppSpacing.xl),
+              GlassPanel(
+                borderRadius: BorderRadius.circular(28),
                 padding: const EdgeInsets.all(AppSpacing.xl),
-                decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(24)),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
@@ -239,6 +213,9 @@ class _LoginScreenState extends State<LoginScreen> {
             ],
           ),
         ),
+      ),
+        ],
+      ),
       ),
     );
   }

@@ -13,6 +13,7 @@ import '../../widgets/status_chip.dart';
 import 'request_detail_screen.dart';
 import '../../theme/app_typography.dart';
 import '../../utils/date_text.dart';
+import '../../widgets/esperanza_art.dart';
 
 /// The signed-in resident's full Dokyu + Tulong request history in one
 /// place — derived straight from [RequestsService], never a separate
@@ -132,6 +133,8 @@ class _MyRequestCard extends StatelessWidget {
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                RequestClayIcon(request.category),
+                const SizedBox(width: AppSpacing.md),
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: AppSpacing.xs),
                   decoration: BoxDecoration(

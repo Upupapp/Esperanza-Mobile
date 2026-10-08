@@ -22,6 +22,7 @@ import '../../widgets/onboarding_step_indicator.dart';
 import '../../widgets/password_requirements.dart';
 import '../../widgets/verification_status_panel.dart';
 import '../../theme/app_typography.dart';
+import '../../widgets/esperanza_art.dart';
 
 /// Citizen registration, restructured (Section 9) from one long form into
 /// a step-by-step wizard: Personal Information -> Terms & Conditions ->
@@ -425,18 +426,21 @@ class _RegisterScreenState extends State<RegisterScreen> {
   @override
   Widget build(BuildContext context) {
     final showIndicator = !(_alreadyHasAccount && _step == 5);
+    // The design's form wizard (2026-10): a navy header holding the stepper,
+    // the step's form on a glass card, the pill buttons below.
     return Scaffold(
-      appBar: AppBar(title: Text(_step == 5 ? 'Verification Status' : 'Create your account')),
+      appBar: NavyBand.appBar(title: Text(_step == 5 ? 'Verification Status' : 'Create your account')),
       body: SafeArea(
+        top: false,
         child: Column(
           children: [
             if (showIndicator)
-              Padding(
-                padding: const EdgeInsets.fromLTRB(AppSpacing.xl, AppSpacing.md, AppSpacing.xl, 0),
-                child: OnboardingStepIndicator(currentStep: _step, stepLabels: _stepLabels),
-              ),
+              NavyBand(child: OnboardingStepIndicator(currentStep: _step, stepLabels: _stepLabels, onDark: true)),
             Expanded(
-              child: SingleChildScrollView(padding: const EdgeInsets.all(AppSpacing.xl), child: _buildStep()),
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.lg, AppSpacing.lg, AppSpacing.lg),
+                child: GlassSurface(radius: 28, padding: wizardCardPadding(context), child: _buildStep()),
+              ),
             ),
             if (_step < 5)
               Padding(
@@ -564,6 +568,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       )
                     : AppButton(
                         label: _emailCodeSent ? 'Resend' : 'Verify',
+                        size: AppButtonSize.sm,
                         variant: _emailCodeSent ? AppButtonVariant.secondary : AppButtonVariant.primary,
                         loading: _emailSending,
                         onPressed: _emailSending ? null : _sendEmailCode,
@@ -834,20 +839,32 @@ class _RegisterScreenState extends State<RegisterScreen> {
           'Take a clear photo of your face. The LGU staff who verify your account compare it with your ID.',
           style: TextStyle(fontSize: AppTextSize.helper, color: AppColors.textMuted, height: 1.4),
         ),
-        const SizedBox(height: AppSpacing.xxl),
+        const SizedBox(height: AppSpacing.xl),
+        // The camera frame (2026-10 design): a gold ring holding a clay
+        // camera until the selfie is taken, then the selfie itself.
         Center(
-          child: ClipOval(
-            child: Container(
-              width: 140,
-              height: 140,
-              color: _selfieBytes != null ? AppColors.emerald50 : AppColors.slate100,
-              child: _selfieBytes != null
-                  ? Image.memory(_selfieBytes!, fit: BoxFit.cover, semanticLabel: 'Your selfie')
-                  : const Icon(Icons.face_retouching_natural_rounded, size: 56, color: AppColors.slate400),
+          child: Container(
+            width: 168,
+            height: 168,
+            padding: const EdgeInsets.all(6),
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: const LinearGradient(colors: [AppColors.gold300, AppColors.gold500]),
+              boxShadow: [BoxShadow(color: AppColors.gold400.withValues(alpha: 0.35), blurRadius: 18, offset: const Offset(0, 6))],
+            ),
+            child: ClipOval(
+              child: Container(
+                color: _selfieBytes != null ? AppColors.emerald50 : AppColors.brand50,
+                child: _selfieBytes != null
+                    ? Image.memory(_selfieBytes!, fit: BoxFit.cover, semanticLabel: 'Your selfie')
+                    : const Center(child: ClayIcon(ClayGlyph.camera, size: 76)),
+              ),
             ),
           ),
         ),
-        const SizedBox(height: AppSpacing.xxl),
+        const SizedBox(height: AppSpacing.xl),
+        const _SelfieTips(),
+        const SizedBox(height: AppSpacing.xl),
         AppButton(
           label: _selfieBytes != null ? 'Retake Selfie' : 'Take Selfie',
           icon: Icons.camera_alt_outlined,
@@ -1037,6 +1054,58 @@ class _RegisterScreenState extends State<RegisterScreen> {
           // "Nicanor/Perlita no longer opening" after using this button
           // or the drawer's Sign In from Guest mode.
           onPressed: () => Navigator.of(context, rootNavigator: true).popUntil((route) => route.isFirst),
+        ),
+      ],
+    );
+  }
+}
+
+/// The selfie step's guidance: how to take a usable selfie, and what it is
+/// used for. Plain and short — this is a security step, not a decoration.
+class _SelfieTips extends StatelessWidget {
+  const _SelfieTips();
+
+  @override
+  Widget build(BuildContext context) {
+    Widget tip(IconData icon, String text) => Padding(
+      padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, size: 18, color: AppColors.navy700),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(child: Text(text, style: const TextStyle(fontSize: AppTextSize.helper, color: AppColors.slate700, height: 1.35))),
+        ],
+      ),
+    );
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        tip(Icons.wb_sunny_outlined, 'Stand in good light, facing the camera.'),
+        tip(Icons.face_outlined, 'Show your whole face: no sunglasses, mask or cap.'),
+        tip(Icons.person_outline_rounded, 'Only you in the photo, with a plain background if you can.'),
+        const SizedBox(height: AppSpacing.xs),
+        Container(
+          padding: const EdgeInsets.all(AppSpacing.md),
+          decoration: BoxDecoration(
+            color: AppColors.navy800.withValues(alpha: 0.06),
+            borderRadius: BorderRadius.circular(AppRadius.lg),
+            border: Border.all(color: AppColors.navy700.withValues(alpha: 0.15)),
+          ),
+          child: const Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(Icons.lock_outline_rounded, size: 18, color: AppColors.navy800),
+              SizedBox(width: AppSpacing.sm),
+              Expanded(
+                child: Text(
+                  'Your selfie is used only to verify your account: the LGU staff who review it compare it with your '
+                  'valid ID. It is not your profile photo and is never shown publicly.',
+                  style: TextStyle(fontSize: AppTextSize.label, color: AppColors.navy800, height: 1.4),
+                ),
+              ),
+            ],
+          ),
         ),
       ],
     );
