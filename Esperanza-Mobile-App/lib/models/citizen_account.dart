@@ -18,7 +18,18 @@ class CitizenAccount {
   final String civilStatus;
   final String occupation;
   final int profileCompleteness;
+
+  /// The LGU's residency decision (Pending Review, Approved, Rejected...).
   final String status;
+
+  /// Whether Esperanza currently recognises the identity (models/identity_status.dart);
+  /// null before any ID was sent, or for a cached account from an older build.
+  final String? identityStatus;
+
+  /// The server's `access_level` (Verified | Unverified): Verified only while
+  /// the account is Approved AND the identity is Verified. Null on an account
+  /// cached by an older build, which then falls back to `status`.
+  final String? serverAccessLevel;
 
   CitizenAccount({
     required this.id,
@@ -35,6 +46,8 @@ class CitizenAccount {
     required this.occupation,
     required this.profileCompleteness,
     required this.status,
+    this.identityStatus,
+    this.serverAccessLevel,
   });
 
   String get fullName => '$firstName $lastName';
@@ -55,6 +68,8 @@ class CitizenAccount {
         'occupation': occupation,
         'profileCompleteness': profileCompleteness,
         'status': status,
+        'identityStatus': identityStatus,
+        'serverAccessLevel': serverAccessLevel,
       };
 
   factory CitizenAccount.fromJson(Map<String, dynamic> json) => CitizenAccount(
@@ -72,5 +87,7 @@ class CitizenAccount {
         occupation: json['occupation'],
         profileCompleteness: json['profileCompleteness'],
         status: json['status'],
+        identityStatus: json['identityStatus'] is String ? json['identityStatus'] as String : null,
+        serverAccessLevel: json['serverAccessLevel'] is String ? json['serverAccessLevel'] as String : null,
       );
 }

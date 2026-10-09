@@ -39,7 +39,14 @@ centres, Sakuna incident reports, notifications, profile edits (with verify-by-c
 changes), resident profile submission and status, the Digital ID (with its signed QR), Report
 a Problem (support tickets), notification preferences, change password and data-subject
 requests (Settings), the published Privacy Policy and the Master File (the Papeles wallet). Nothing citizen-facing
-is simulated any more except the registration ID/face-scan step (`PENDING.md` item 21).
+is simulated any more: since 2026-10-09 the registration ID and face check is real too - Didit's
+capture screen (`didit_sdk`, `lib/services/identity_capture.dart`) when the server's
+`identity_capture` is `hosted`, the app's own ID and selfie steps when it is `own`. The identity
+status (Pending, In Progress, Verified, Failed, Requires Review, Revoked) is its own closed set,
+apart from the residency `status`; never route it through AppStatus. Dokyu and Tulong need both a
+Verified identity and an approved account - the app takes `access_level` from the server.
+**iOS:** `didit_sdk` adds a native dependency and `NSMicrophoneUsageDescription`; the macOS lane
+must build and check iOS before the next iOS release.
 
 **Check routes against the backend, not the spec.** Citizen-only routes live under
 `/citizen/...` in esperanza-backend `routes/api.php` (Balita likes/comments/community posts

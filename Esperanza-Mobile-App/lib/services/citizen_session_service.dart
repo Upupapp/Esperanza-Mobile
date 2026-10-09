@@ -64,6 +64,13 @@ class CitizenSessionService extends ChangeNotifier {
     // to `draft` and locked the citizen OUT of Dokyu, meaning the identical
     // word granted access on one surface and denied it on the other.
     final isVerified = status == AppStatus.approved || status == AppStatus.verified;
+    // The server's access_level wins when it sent one: an approved account
+    // whose identity the LGU revoked (or is re-checking) is Unverified there,
+    // and must not look Verified here (2026-10-09). The status-derived answer
+    // above stays the fallback for an account cached by an older build.
+    final server = acc.serverAccessLevel;
+    if (server != null) return server == 'Verified' ? AccessLevel.verified : AccessLevel.unverified;
+    if (acc.identityStatus != null && acc.identityStatus != 'Verified') return AccessLevel.unverified;
     return isVerified ? AccessLevel.verified : AccessLevel.unverified;
   }
 
@@ -327,9 +334,10 @@ class CitizenSessionService extends ChangeNotifier {
     await _applyProfile(result.map);
   }
 
-  /// Account statuses whose identity fields the server locks
-  /// (CitizenAccount::hasFullServiceAccess()).
-  bool get identityLocked => accessLevel == AccessLevel.verified;
+  /// The server locks the identifying fields of an APPROVED account - also
+  /// while its identity is revoked, so they cannot be retyped before an
+  /// officer looks again (CitizenPortalController, 2026-10-09).
+  bool get identityLocked => _account?.status == 'Approved';
 
   Future<void> _applyProfile(Map<String, dynamic> p) async {
     final accountNo = JsonRead.nonEmpty(p['account_no']);
@@ -359,6 +367,8 @@ class CitizenSessionService extends ChangeNotifier {
         occupation: str('occupation'),
         profileCompleteness: JsonRead.integer(p['profile_completeness']) ?? 0,
         status: JsonRead.nonEmpty(p['status']) ?? 'Draft',
+        identityStatus: JsonRead.nonEmpty(p['identity_status']),
+        serverAccessLevel: JsonRead.nonEmpty(p['access_level']),
       ),
     );
   }

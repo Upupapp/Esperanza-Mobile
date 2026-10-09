@@ -1,4 +1,5 @@
 import '../services/json_read.dart';
+import 'identity_status.dart';
 
 /// The resident's latest valid-ID submission, as GET /citizen/verification/id
 /// describes it (esperanza-backend DescribesIdentity::describeIdDocument()).
@@ -34,6 +35,29 @@ class IdSubmission {
   }
 }
 
+/// The resident's identity status as GET /citizen/verification/id reports
+/// it, apart from the residency decision. [reasons] are codes, set only on a
+/// Failed check (identityReasonText words them).
+class IdentityState {
+  final IdentityStatus? status;
+  final List<String> reasons;
+  final bool awaitingCheck;
+  final DateTime? updatedAt;
+
+  const IdentityState({this.status, this.reasons = const [], this.awaitingCheck = false, this.updatedAt});
+
+  static IdentityState fromApi(Object? raw) {
+    final json = JsonRead.map(raw);
+    if (json == null) return const IdentityState();
+    return IdentityState(
+      status: IdentityStatusX.fromLabel(JsonRead.nonEmpty(json['status'])),
+      reasons: JsonRead.strings(json['reasons']),
+      awaitingCheck: JsonRead.boolean(json['awaiting_check']) ?? false,
+      updatedAt: JsonRead.date(json['updated_at']),
+    );
+  }
+}
+
 /// GET /citizen/verification/id: the IDs the LGU accepts, whether this
 /// account may send one (only while it is Pending Review or Rejected:
 /// IdentityRecords::canSubmitId()), and the latest submission.
@@ -41,12 +65,27 @@ class IdVerificationView {
   final List<String> idTypes;
   final bool canSubmit;
   final IdSubmission? submission;
+  final IdentityState identity;
 
-  const IdVerificationView({this.idTypes = const [], this.canSubmit = false, this.submission});
+  /// Where the ID and selfie are captured: `hosted` (Didit's screen) or
+  /// `own` (this app's form). See services/identity_capture.dart.
+  final String capture;
+
+  const IdVerificationView({
+    this.idTypes = const [],
+    this.canSubmit = false,
+    this.submission,
+    this.identity = const IdentityState(),
+    this.capture = 'own',
+  });
+
+  bool get onDidit => capture == 'hosted';
 
   /// Sending is offered exactly where the web portal offers it: the server
-  /// allows it, and the last ID is not still waiting for an officer.
-  bool get canSendNew => canSubmit && !(submission?.isPending ?? false);
+  /// allows it, and the last ID is not still waiting for an officer - unless
+  /// its identity check failed or was revoked, which only new photos can fix.
+  bool get canSendNew =>
+      canSubmit && (!(submission?.isPending ?? false) || (identity.status?.residentCanResend ?? false));
 
   static IdVerificationView fromApi(Object? raw) {
     final json = JsonRead.map(raw) ?? const <String, dynamic>{};
@@ -54,6 +93,8 @@ class IdVerificationView {
       idTypes: JsonRead.strings(json['id_types']),
       canSubmit: JsonRead.boolean(json['can_submit']) ?? false,
       submission: IdSubmission.fromApi(json['submission']),
+      identity: IdentityState.fromApi(json['identity']),
+      capture: JsonRead.string(json['capture']) == 'hosted' ? 'hosted' : 'own',
     );
   }
 }

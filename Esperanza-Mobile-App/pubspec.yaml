@@ -41,6 +41,9 @@ dependencies:
   provider: ^6.1.5+1
   intl: ^0.20.3
   url_launcher: ^6.3.2
+  # Didit's identity capture screen (2026-10-09): the ID scan and face check
+  # run in Didit's SDK when the server's identity_capture is "hosted".
+  didit_sdk: ^4.9.1
   # The real API client (production-readiness programme, 2026-09-25) — see
   # lib/services/api_client.dart. There was no HTTP client dependency at all
   # before this; every request, notification and profile edit was simulated

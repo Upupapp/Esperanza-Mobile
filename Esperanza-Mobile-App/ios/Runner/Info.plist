@@ -51,6 +51,8 @@
 	<true/>
 	<key>NSCameraUsageDescription</key>
 	<string>Esperanza uses your camera to take your selfie and profile photo for account verification, and to photograph requirements such as IDs, receipts and certificates for your Dokyu and Tulong requests.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Esperanza's identity check (by Didit) may use the microphone during the live face check. Nothing is recorded for Esperanza.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Esperanza Mobile needs access to your photo library so you can attach existing photos of requirements to a Dokyu or Tulong request.</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>

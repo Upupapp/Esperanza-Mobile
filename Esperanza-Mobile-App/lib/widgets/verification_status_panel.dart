@@ -18,7 +18,11 @@ class VerificationStatusPanel extends StatelessWidget {
   final AppStatus status;
   final VoidCallback? onAction;
 
-  const VerificationStatusPanel({super.key, required this.status, this.onAction});
+  /// The identity is not verified yet (2026-10-09): the LGU reviews residency
+  /// only after it is, so "no action needed" would be untrue.
+  final bool waitingOnIdentity;
+
+  const VerificationStatusPanel({super.key, required this.status, this.onAction, this.waitingOnIdentity = false});
 
   IconData get _icon => switch (status) {
     AppStatus.approved => Icons.verified_rounded,
@@ -28,6 +32,8 @@ class VerificationStatusPanel extends StatelessWidget {
   };
 
   String get _explanation => switch (status) {
+    AppStatus.pendingReview || AppStatus.rejected when waitingOnIdentity =>
+      'Esperanza LGU reviews your residency once your identity is verified. Verify your identity below first.',
     AppStatus.pendingReview =>
       'Esperanza LGU is reviewing your submitted information. This usually takes 1–3 business days — no action needed from you right now.',
     AppStatus.underVerification =>

@@ -23,6 +23,10 @@ import '../../widgets/password_requirements.dart';
 import '../../widgets/verification_status_panel.dart';
 import '../../theme/app_typography.dart';
 import '../../widgets/esperanza_art.dart';
+import '../../services/identity_capture.dart';
+import '../../models/identity_status.dart';
+import '../../widgets/identity_status_panel.dart';
+import '../../models/citizen_account.dart';
 
 /// Citizen registration, restructured (Section 9) from one long form into
 /// a step-by-step wizard: Personal Information -> Terms & Conditions ->
@@ -31,6 +35,13 @@ import '../../widgets/esperanza_art.dart';
 /// in, the ID and the selfie go to POST /citizen/verification/id, where the
 /// officer who verifies the account sees them (backlog B1, 2026-10-04). The
 /// face step used to be a timer that "scanned" nothing.
+///
+/// Identity on Didit's screen (2026-10-09): when the server's
+/// identity_capture is `hosted`, the Valid ID and Selfie steps are skipped -
+/// Didit's SDK captures both, and it needs the account to exist first. After
+/// the account is created the last step offers "Verify your identity" (Didit)
+/// or "do it later" from the profile. Either way the account is Unverified
+/// until the identity is verified AND the LGU approves residency.
 ///
 /// If a citizen already has an account (Section 7 — don't force them
 /// through registration again just because they aren't verified yet),
@@ -102,6 +113,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
   bool _submitting = false;
   String? _error;
 
+  // Identity on Didit's screen: whether the server uses it, and the step's state.
+  bool _hosted = false;
+  bool _launchingDidit = false;
+  bool _checkingDidit = false;
+  String? _diditMessage;
+
   @override
   void initState() {
     super.initState();
@@ -109,10 +126,66 @@ class _RegisterScreenState extends State<RegisterScreen> {
     _alreadyHasAccount = account != null;
     _step = _alreadyHasAccount ? 5 : 0;
     if (!_alreadyHasAccount) _loadIdTypes();
+    _loadCaptureMode();
     // What a failed Continue said goes once the form is edited: "Please enter
     // your first and last name" stayed on screen after both were filled in.
     for (final c in [_firstName, _lastName, _email, _mobile, _purok, _password]) {
       c.addListener(_clearStaleError);
+    }
+  }
+
+  Future<void> _loadCaptureMode() async {
+    final mode = await IdentityCapture.mode();
+    if (mounted) setState(() => _hosted = mode == IdentityCapture.hosted);
+  }
+
+  /// The steps the indicator shows: without Valid ID and Selfie when Didit's
+  /// screen captures them after the account exists.
+  List<String> get _visibleLabels => _hosted
+      ? const ['Personal Information', 'Terms & Conditions', 'Review', 'Verify Identity']
+      : _stepLabels;
+
+  int get _visibleStep => !_hosted ? _step : switch (_step) { 0 => 0, 1 => 1, 4 => 2, _ => 3 };
+
+  /// Didit's capture screen, from the last step. The result shown is the one
+  /// the server reads from Didit; nothing here decides it.
+  Future<void> _verifyOnDidit() async {
+    setState(() {
+      _launchingDidit = true;
+      _diditMessage = null;
+    });
+    final session = context.read<CitizenSessionService>();
+    try {
+      final r = await IdentityCapture.verifyOnDidit();
+      if (!mounted) return;
+      if (r.launch.outcome == DiditLaunchOutcome.cancelled) {
+        setState(() => _diditMessage = 'Verification closed before it finished. You can start again now, or later from your profile.');
+        return;
+      }
+      if (r.launch.outcome == DiditLaunchOutcome.failed && r.launch.error == 'cameraAccessDenied') {
+        setState(() => _diditMessage = 'Esperanza needs your camera for the ID scan and face check. Allow camera access in Settings, then try again.');
+      }
+      // Wait briefly for the result if Didit is still finishing it.
+      setState(() => _checkingDidit = true);
+      var view = r.view;
+      for (var i = 0; i < 12 && (view?.identity.awaitingCheck ?? false) && mounted; i++) {
+        await Future<void>.delayed(const Duration(seconds: 2));
+        try {
+          view = await session.idVerification();
+        } on ApiException {
+          // A dropped connection mid-wait: keep the last view.
+        }
+      }
+      await session.refresh();
+    } on ApiException catch (e) {
+      if (mounted) setState(() => _diditMessage = e.explain());
+    } finally {
+      if (mounted) {
+        setState(() {
+          _launchingDidit = false;
+          _checkingDidit = false;
+        });
+      }
     }
   }
 
@@ -162,7 +235,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
     setState(() {
       _error = null;
       _attempted = false;
-      if (_step < _stepLabels.length - 1) _step++;
+      // Didit's screen captures the ID and selfie after the account exists.
+      if (_hosted && _step == 1) {
+        _step = 4;
+      } else if (_step < _stepLabels.length - 1) {
+        _step++;
+      }
     });
   }
 
@@ -173,7 +251,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     }
     setState(() {
       _error = null;
-      _step--;
+      _step = _hosted && _step == 4 ? 1 : _step - 1;
     });
   }
 
@@ -320,7 +398,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   /// A failure here does not undo the account: the status step says so and
   /// offers to send them again.
   Future<void> _sendIdentity() async {
-    if (_idType == null || _idFilePath == null || _identitySent) return;
+    if (_hosted || _idType == null || _idFilePath == null || _identitySent) return;
     setState(() => _sendingIdentity = true);
     try {
       await context.read<CitizenSessionService>().submitVerificationId(
@@ -435,7 +513,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         child: Column(
           children: [
             if (showIndicator)
-              NavyBand(child: OnboardingStepIndicator(currentStep: _step, stepLabels: _stepLabels, onDark: true)),
+              NavyBand(child: OnboardingStepIndicator(currentStep: _visibleStep, stepLabels: _visibleLabels, onDark: true)),
             Expanded(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.lg, AppSpacing.lg, AppSpacing.lg),
@@ -915,9 +993,18 @@ class _RegisterScreenState extends State<RegisterScreen> {
           _termsAccepted ? 'Accepted' : 'Not accepted',
           onEdit: () => setState(() => _step = 1),
         ),
-        _reviewRow('Type of ID', _idType ?? '—', onEdit: () => setState(() => _step = 2)),
-        _reviewRow('Valid ID', _idFileName ?? '—', onEdit: () => setState(() => _step = 2)),
-        _reviewRow('Selfie', _selfiePath != null ? 'Taken' : 'Not taken', onEdit: () => setState(() => _step = 3)),
+        if (!_hosted) ...[
+          _reviewRow('Type of ID', _idType ?? '—', onEdit: () => setState(() => _step = 2)),
+          _reviewRow('Valid ID', _idFileName ?? '—', onEdit: () => setState(() => _step = 2)),
+          _reviewRow('Selfie', _selfiePath != null ? 'Taken' : 'Not taken', onEdit: () => setState(() => _step = 3)),
+        ] else
+          const Padding(
+            padding: EdgeInsets.only(bottom: AppSpacing.md),
+            child: Text(
+              'Next: once your account is created, you will verify your identity by scanning your valid ID and doing a quick face check.',
+              style: TextStyle(fontSize: AppTextSize.helper, color: AppColors.textMuted, height: 1.4),
+            ),
+          ),
         if (_error != null) ...[
           const SizedBox(height: AppSpacing.md),
           Text(_error!, key: _errorKey, style: const TextStyle(fontSize: AppTextSize.helper, color: AppColors.rose600)),
@@ -1032,7 +1119,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
           ),
         ],
         const SizedBox(height: AppSpacing.xl),
-        VerificationStatusPanel(status: status),
+        if (_hosted && account != null) ...[
+          _diditStep(account),
+          const SizedBox(height: AppSpacing.lg),
+        ],
+        VerificationStatusPanel(
+          status: status,
+          waitingOnIdentity: _hosted && account != null && account.identityStatus != 'Verified' && account.status != 'Approved',
+        ),
         const SizedBox(height: AppSpacing.xxl),
         if (account != null)
         AppButton(
@@ -1054,6 +1148,46 @@ class _RegisterScreenState extends State<RegisterScreen> {
           // "Nicanor/Perlita no longer opening" after using this button
           // or the drawer's Sign In from Guest mode.
           onPressed: () => Navigator.of(context, rootNavigator: true).popUntil((route) => route.isFirst),
+        ),
+      ],
+    );
+  }
+}
+
+extension on _RegisterScreenState {
+  /// "Verify your identity" on Didit's screen, or the result once there is
+  /// one. Continue to App below is the "do it later": the profile offers it
+  /// again, and Dokyu and Tulong stay closed until it is done.
+  Widget _diditStep(CitizenAccount account) {
+    final identity = IdentityStatusX.fromLabel(account.identityStatus);
+    if (identity != null && !identity.residentCanResend) {
+      return IdentityStatusPanel(status: identity);
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (identity != null) ...[IdentityStatusPanel(status: identity), const SizedBox(height: AppSpacing.md)],
+        const Text(
+          'Verify your identity',
+          style: TextStyle(fontSize: AppTextSize.card, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
+        ),
+        const SizedBox(height: AppSpacing.xs),
+        const Text(
+          'Have your valid ID ready. You will scan it with your camera, then do a quick face check - about 2 minutes. '
+          'The check is done by Didit, our identity verification provider. You can also do this later from your profile.',
+          style: TextStyle(fontSize: AppTextSize.helper, color: AppColors.textMuted, height: 1.4),
+        ),
+        if (_diditMessage != null) ...[
+          const SizedBox(height: AppSpacing.sm),
+          Text(_diditMessage!, style: const TextStyle(fontSize: AppTextSize.helper, color: AppColors.rose600, height: 1.4)),
+        ],
+        const SizedBox(height: AppSpacing.md),
+        AppButton(
+          label: _checkingDidit ? 'Checking your identity…' : 'Verify My Identity',
+          icon: Icons.document_scanner_outlined,
+          fullWidth: true,
+          loading: _launchingDidit,
+          onPressed: _launchingDidit ? null : _verifyOnDidit,
         ),
       ],
     );

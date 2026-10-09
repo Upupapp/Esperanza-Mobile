@@ -15,6 +15,9 @@ import '../../utils/protected_action.dart';
 import '../../widgets/app_button.dart';
 import '../../widgets/app_card.dart';
 import '../../widgets/app_dialogs.dart';
+import '../../models/identity_status.dart';
+import '../../widgets/identity_status_panel.dart';
+import '../../services/identity_capture.dart';
 
 /// Valid ID verification after sign-up: the ID the LGU is checking, the
 /// officer's reason when it was not accepted, and sending a new one. The
@@ -24,7 +27,13 @@ import '../../widgets/app_dialogs.dart';
 ///
 /// Sending is offered only where the server takes it: an account that is
 /// Pending Review or Rejected, with no ID still waiting for an officer
-/// ([IdVerificationView.canSendNew]).
+/// ([IdVerificationView.canSendNew]) - or one whose identity check failed or
+/// was revoked, which only new photos can fix.
+///
+/// Every ID sent is checked automatically (document, face match, liveness;
+/// esperanza-backend IdentityVerification). The check runs after the upload
+/// is answered, so the screen polls until it settles and shows the outcome.
+/// It is the IDENTITY result only; residency stays the officer's decision.
 class IdVerificationScreen extends StatefulWidget {
   const IdVerificationScreen({super.key});
 
@@ -41,6 +50,8 @@ class _IdVerificationScreenState extends State<IdVerificationScreen> {
   _Picked? _front;
   _Picked? _back;
   _Picked? _selfie;
+  bool _checking = false;
+  bool _launching = false;
 
   @override
   void initState() {
@@ -58,6 +69,56 @@ class _IdVerificationScreenState extends State<IdVerificationScreen> {
       });
     } on ApiException catch (e) {
       if (mounted) setState(() => _loadError = e.explain());
+    }
+  }
+
+  /// Didit's capture screen (identity_capture = hosted): the ID scan and the
+  /// face check happen there; the result shown is the one the server reads
+  /// from Didit afterwards.
+  Future<void> _verifyOnDidit() async {
+    setState(() {
+      _launching = true;
+      _sendError = null;
+    });
+    try {
+      final r = await IdentityCapture.verifyOnDidit();
+      if (!mounted) return;
+      if (r.view != null) setState(() => _view = r.view);
+      if (r.launch.outcome == DiditLaunchOutcome.cancelled) {
+        AppDialogs.toast(context, 'Verification closed before it finished. You can start again any time.', success: false);
+      } else if (r.launch.outcome == DiditLaunchOutcome.failed && r.launch.error == 'cameraAccessDenied') {
+        setState(() => _sendError = 'Esperanza needs your camera for the ID scan and face check. Allow camera access in Settings, then try again.');
+      }
+      await _awaitCheck();
+    } on ApiException catch (e) {
+      if (mounted) setState(() => _sendError = e.explain());
+    } finally {
+      if (mounted) setState(() => _launching = false);
+    }
+  }
+
+  /// Polls while the automated check runs (seconds when the provider is up).
+  /// Gives up quietly after [attempts]: the status says Pending and the
+  /// resident is told it will be checked shortly; nothing is lost.
+  Future<void> _awaitCheck({int attempts = 12, Duration every = const Duration(seconds: 2)}) async {
+    if (!(_view?.identity.awaitingCheck ?? false)) return;
+    setState(() => _checking = true);
+    try {
+      for (var i = 0; i < attempts && mounted; i++) {
+        await Future<void>.delayed(every);
+        if (!mounted) return;
+        try {
+          final view = await context.read<CitizenSessionService>().idVerification();
+          if (!mounted) return;
+          setState(() => _view = view);
+          if (!view.identity.awaitingCheck) break;
+        } on ApiException {
+          // A dropped connection mid-poll: keep the last view and try again.
+        }
+      }
+      if (mounted) await context.read<CitizenSessionService>().refresh().catchError((_) {});
+    } finally {
+      if (mounted) setState(() => _checking = false);
     }
   }
 
@@ -119,8 +180,15 @@ class _IdVerificationScreenState extends State<IdVerificationScreen> {
   }
 
   Future<void> _send() async {
-    if (_idType == null || _front == null) {
-      setState(() => _sendError = _idType == null ? 'Choose the type of ID.' : 'Add the front of your ID.');
+    if (_idType == null || _front == null || _selfie == null) {
+      setState(
+        () => _sendError = _idType == null
+            ? 'Choose the type of ID.'
+            : _front == null
+            ? 'Add the front of your ID.'
+            // The face match and liveness check need it (2026-10-09).
+            : 'Take a selfie with the camera.',
+      );
       return;
     }
     setState(() {
@@ -142,7 +210,8 @@ class _IdVerificationScreenState extends State<IdVerificationScreen> {
         _back = null;
         _selfie = null;
       });
-      AppDialogs.toast(context, 'Valid ID sent. The LGU checks it before verifying your account.');
+      AppDialogs.toast(context, 'Valid ID sent. Checking your ID and selfie now.');
+      await _awaitCheck();
     } on ApiException catch (e) {
       if (mounted) setState(() => _sendError = e.explain());
     } finally {
@@ -171,9 +240,15 @@ class _IdVerificationScreenState extends State<IdVerificationScreen> {
                 const SizedBox(height: AppSpacing.md),
                 AppButton(label: 'Try again', variant: AppButtonVariant.secondary, onPressed: _load),
               ] else ...[
-                _SubmissionCard(submission: view.submission),
+                if (view.identity.status != null) ...[
+                  _IdentityCard(identity: view.identity, checking: _checking),
+                  const SizedBox(height: AppSpacing.md),
+                ],
+                _SubmissionCard(submission: view.submission, identityVerified: view.identity.status == IdentityStatus.verified),
                 const SizedBox(height: AppSpacing.xl),
-                if (view.canSendNew)
+                if (view.canSendNew && view.onDidit)
+                  ..._diditStart(view)
+                else if (view.canSendNew)
                   ..._sendForm(view)
                 else
                   Text(_whyNoSend(view), style: AppTypography.helper),
@@ -186,17 +261,49 @@ class _IdVerificationScreenState extends State<IdVerificationScreen> {
   }
 
   String _whyNoSend(IdVerificationView view) {
+    if (view.identity.status == IdentityStatus.requiresReview) {
+      return 'LGU staff will review your ID and selfie. You will be notified when it is reviewed.';
+    }
     if (view.submission?.isPending ?? false) {
       return 'An officer is checking the ID you sent. You will be notified when it is reviewed.';
     }
     return 'Your account does not need a valid ID now.';
   }
 
-  List<Widget> _sendForm(IdVerificationView view) => [
-    Text(view.submission?.isRejected ?? false ? 'Send a New ID' : 'Verify Your ID', style: AppTypography.sectionTitle),
+  List<Widget> _diditStart(IdVerificationView view) => [
+    Text(
+      (view.submission?.isRejected ?? false) || (view.identity.status?.residentCanResend ?? false) ? 'Verify Again' : 'Verify Your Identity',
+      style: AppTypography.sectionTitle,
+    ),
     const SizedBox(height: AppSpacing.xs),
     const Text(
-      'Any valid government-issued ID. A selfie helps the officer match the ID to you.',
+      'Have your valid ID ready. You will scan it with your camera, then do a quick face check. It takes about 2 minutes. '
+      'The check is done by Didit, our identity verification provider.',
+      style: AppTypography.helper,
+    ),
+    if (_sendError != null) ...[
+      const SizedBox(height: AppSpacing.sm),
+      Text(_sendError!, style: AppTypography.helper.copyWith(color: AppColors.danger)),
+    ],
+    const SizedBox(height: AppSpacing.xl),
+    AppButton(
+      label: 'Start Verification',
+      icon: Icons.document_scanner_outlined,
+      fullWidth: true,
+      size: AppButtonSize.lg,
+      loading: _launching,
+      onPressed: _launching || _checking ? null : _verifyOnDidit,
+    ),
+  ];
+
+  List<Widget> _sendForm(IdVerificationView view) => [
+    Text(
+      (view.submission?.isRejected ?? false) || (view.identity.status?.residentCanResend ?? false) ? 'Send a New ID' : 'Verify Your ID',
+      style: AppTypography.sectionTitle,
+    ),
+    const SizedBox(height: AppSpacing.xs),
+    const Text(
+      'Any valid government-issued ID, and a selfie taken now with the camera. Your selfie is compared with the photo on your ID to confirm it is you.',
       style: AppTypography.helper,
     ),
     const SizedBox(height: AppSpacing.lg),
@@ -224,7 +331,7 @@ class _IdVerificationScreenState extends State<IdVerificationScreen> {
         if (p != null && mounted) setState(() => _back = p);
       },
     ),
-    _FileRow(label: 'Selfie (optional)', picked: _selfie, onPick: _sending ? null : _takeSelfie, camera: true),
+    _FileRow(label: 'Selfie', picked: _selfie, onPick: _sending ? null : _takeSelfie, camera: true),
     if (_sendError != null) ...[
       const SizedBox(height: AppSpacing.sm),
       Text(_sendError!, style: AppTypography.helper.copyWith(color: AppColors.danger)),
@@ -232,6 +339,46 @@ class _IdVerificationScreenState extends State<IdVerificationScreen> {
     const SizedBox(height: AppSpacing.xl),
     AppButton(label: 'Send for Verification', fullWidth: true, size: AppButtonSize.lg, loading: _sending, onPressed: _sending ? null : _send),
   ];
+}
+
+/// The identity status of the latest ID sent, with what to fix when the
+/// check failed. Separate from the ID record's own review below it.
+class _IdentityCard extends StatelessWidget {
+  final IdentityState identity;
+  final bool checking;
+  const _IdentityCard({required this.identity, required this.checking});
+
+  @override
+  Widget build(BuildContext context) {
+    final status = identity.status!;
+    final reasons = [for (final r in identity.reasons) ?identityReasonText(r)];
+    return AppCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('Identity check', style: AppTypography.labelText),
+          const SizedBox(height: AppSpacing.xs),
+          Row(
+            children: [
+              IdentityStatusPill(status: status),
+              if (checking && status.awaitingCheck) ...[
+                const SizedBox(width: AppSpacing.sm),
+                const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2)),
+                const SizedBox(width: AppSpacing.xs),
+                const Flexible(child: Text('Checking your ID…', style: AppTypography.fine)),
+              ],
+            ],
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          Text(status.explanation, style: AppTypography.helper),
+          for (final r in reasons) ...[
+            const SizedBox(height: AppSpacing.xs),
+            Text('• $r', style: AppTypography.helper.copyWith(color: AppColors.rose700)),
+          ],
+        ],
+      ),
+    );
+  }
 }
 
 class _Picked {
@@ -243,7 +390,10 @@ class _Picked {
 
 class _SubmissionCard extends StatelessWidget {
   final IdSubmission? submission;
-  const _SubmissionCard({required this.submission});
+
+  /// Once the identity is verified, what waits is the residency decision.
+  final bool identityVerified;
+  const _SubmissionCard({required this.submission, this.identityVerified = false});
 
   @override
   Widget build(BuildContext context) {
@@ -255,6 +405,8 @@ class _SubmissionCard extends StatelessWidget {
         ? (AppColors.emerald700, 'Accepted')
         : s.isRejected
         ? (AppColors.rose700, 'Not accepted${s.remarks != null ? ': ${s.remarks}' : ''}')
+        : s.isPending && identityVerified
+        ? (AppColors.orange700, 'Identity confirmed. Waiting for the LGU to approve your residency')
         : s.isPending
         ? (AppColors.orange700, 'Waiting for the LGU to check it')
         : (AppColors.slate600, s.status);

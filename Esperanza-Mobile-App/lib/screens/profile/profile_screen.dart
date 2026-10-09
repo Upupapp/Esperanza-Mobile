@@ -25,6 +25,8 @@ import 'id_verification_screen.dart';
 import 'resident_profile/resident_profile_overview_screen.dart';
 import 'settings_screen.dart';
 import '../../theme/app_typography.dart';
+import '../../models/identity_status.dart';
+import '../../widgets/identity_status_panel.dart';
 
 /// Profile hub — account summary + links to everything that doesn't get
 /// its own bottom-nav tab (Balita/Events, Directory, Risk Reduction,
@@ -135,6 +137,7 @@ class ProfileScreen extends StatelessWidget {
           const SizedBox(height: AppSpacing.lg),
           VerificationStatusPanel(
             status: AppStatusX.fromLabel(account.status),
+            waitingOnIdentity: account.identityStatus != 'Verified' && account.status != 'Approved',
             // A rejected account sends a new valid ID from here, as on the web
             // portal's Profile; it used to open registration, which makes a
             // second account instead of fixing this one.
@@ -142,6 +145,23 @@ class ProfileScreen extends StatelessWidget {
                 ? () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const IdVerificationScreen()))
                 : null,
           ),
+          // Identity, apart from residency (2026-10-09): a verified identity
+          // does not approve residency, and a revoked one pauses requests
+          // without changing it.
+          if (IdentityStatusX.fromLabel(account.identityStatus) case final identity?) ...[
+            const SizedBox(height: AppSpacing.md),
+            IdentityStatusPanel(
+              status: identity,
+              onResend: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const IdVerificationScreen())),
+            ),
+          ] else if (account.status == 'Pending Review' || account.status == 'Rejected') ...[
+            // Registered without verifying (2026-10-09, "do it later"): the
+            // LGU cannot approve residency until the identity is verified.
+            const SizedBox(height: AppSpacing.md),
+            IdentityStatusPanel.notStarted(
+              onStart: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const IdVerificationScreen())),
+            ),
+          ],
           const SizedBox(height: AppSpacing.lg),
           MenuListTile(
             icon: Icons.badge_outlined,
