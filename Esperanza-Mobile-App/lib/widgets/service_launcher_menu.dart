@@ -3,19 +3,25 @@ import '../theme/app_colors.dart';
 import '../theme/app_elevation.dart';
 import '../theme/app_haptics.dart';
 import '../theme/app_typography.dart';
+import 'esperanza_art.dart';
 import 'esperanza_nav_motion.dart';
 import '../theme/app_spacing.dart';
 
 /// The two destinations the bottom nav's center "+" launches — Dokyu and
 /// Tulong no longer have their own permanent nav slots (see root_shell.dart).
 enum ServiceLauncherTarget {
-  dokyu(label: 'Dokyu', icon: Icons.description_rounded, accent: AppColors.brand500),
-  tulong(label: 'Tulong', icon: Icons.volunteer_activism_rounded, accent: AppColors.purple500);
+  dokyu(label: 'Dokyu', icon: Icons.description_rounded, glyph: ClayGlyph.document, accent: AppColors.brand500),
+  tulong(label: 'Tulong', icon: Icons.volunteer_activism_rounded, glyph: ClayGlyph.heart, accent: AppColors.purple500);
 
-  const ServiceLauncherTarget({required this.label, required this.icon, required this.accent});
+  const ServiceLauncherTarget({required this.label, required this.icon, required this.glyph, required this.accent});
 
   final String label;
+
+  /// The flat icon, for the "+" while the module is open.
   final IconData icon;
+
+  /// The clay icon, for the launcher's bubble.
+  final ClayGlyph glyph;
   final Color accent;
 }
 
@@ -226,20 +232,25 @@ class _LauncherBubble extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Container(
-                width: _diameter,
-                height: _diameter,
+              // Clay (2026-10 design): an inflated white clay ball holding the
+              // module's 3D clay icon — the same objects as Home's quick
+              // actions, so "+" → Dokyu / Tulong reads as the same thing —
+              // over a soft glow in the module's own colour.
+              DecoratedBox(
                 decoration: BoxDecoration(
-                  color: target.accent,
                   shape: BoxShape.circle,
-                  border: Border.all(color: AppColors.surface, width: 3),
                   boxShadow: [
-                    BoxShadow(color: target.accent.withValues(alpha: 0.30), blurRadius: 10, offset: const Offset(0, 3)),
+                    BoxShadow(color: target.accent.withValues(alpha: 0.35), blurRadius: 18, offset: const Offset(0, 8), spreadRadius: -4),
                   ],
                 ),
-                child: Icon(target.icon, color: Colors.white, size: EsperanzaNavMotion.iconSize),
+                child: ClayTile(
+                  size: _diameter,
+                  radius: _diameter / 2,
+                  warm: true,
+                  child: ClayIcon(target.glyph, size: _diameter * 0.62),
+                ),
               ),
-              const SizedBox(height: AppSpacing.xs),
+              const SizedBox(height: AppSpacing.sm),
               // The label carries its own background, for the same reason the
               // bubble above carries a white ring: the scrim behind this menu
               // is a deliberate 12% tint rather than a modal barrier, so
@@ -253,13 +264,17 @@ class _LauncherBubble extends StatelessWidget {
               // original decision intact: the menu still reads as a light
               // overlay, and the labels no longer depend on what is behind
               // them.
+              // A small raised clay pill: opaque white, a white rim, a wide
+              // soft lift and a tight contact shadow.
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: AppSpacing.xs),
+                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.xs),
                 decoration: BoxDecoration(
                   color: AppColors.surface,
                   borderRadius: BorderRadius.circular(AppRadius.full),
+                  border: Border.all(color: AppColors.slate100, width: 1),
                   boxShadow: [
-                    BoxShadow(color: AppElevation.tabPillShadow, blurRadius: 6, offset: const Offset(0, 2)),
+                    BoxShadow(color: AppColors.navy800.withValues(alpha: 0.16), blurRadius: 12, offset: const Offset(0, 6), spreadRadius: -3),
+                    BoxShadow(color: AppElevation.tabPillShadow, blurRadius: 3, offset: const Offset(0, 1)),
                   ],
                 ),
                 child: Text(

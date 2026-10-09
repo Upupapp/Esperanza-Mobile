@@ -940,6 +940,10 @@ class EsperanzaScenePainter extends CustomPainter {
   final double hallWidth;
   final double progress;
 
+  /// Only the gold ribbon and the ground in front of it, over a transparent
+  /// canvas: laid over a photo so the card keeps its signature sweep.
+  final bool foregroundOnly;
+
   /// Horizontal centre of the hall (and of the sun, unless [sunX] is set),
   /// as a fraction of the width.
   final double focusX;
@@ -955,12 +959,19 @@ class EsperanzaScenePainter extends CustomPainter {
     this.showHall = true,
     this.hallWidth = 0.62,
     this.progress = 1,
+    this.foregroundOnly = false,
   });
 
   @override
   void paint(Canvas canvas, Size size) {
-    final w = size.width, h = size.height;
     final rect = Offset.zero & size;
+    final gy = size.height * ground;
+    if (!foregroundOnly) _paintBackground(canvas, size, rect, gy);
+    _paintForeground(canvas, size, rect, gy);
+  }
+
+  void _paintBackground(Canvas canvas, Size size, Rect rect, double gy) {
+    final w = size.width, h = size.height;
     canvas.drawRect(
       rect,
       Paint()
@@ -1015,7 +1026,6 @@ class EsperanzaScenePainter extends CustomPainter {
     clay(canvas, Path()..addOval(Rect.fromCircle(center: sunC, radius: sunR)), const [AppColors.gold300, AppColors.gold500]);
 
     // Hills behind the hall.
-    final gy = h * ground;
     final back = Path()
       ..moveTo(0, gy - h * 0.10)
       ..cubicTo(w * 0.25, gy - h * 0.20, w * 0.55, gy - h * 0.02, w, gy - h * 0.14)
@@ -1027,7 +1037,10 @@ class EsperanzaScenePainter extends CustomPainter {
     if (showHall) {
       paintMunicipalHall(canvas, Offset(w * focusX, gy + h * 0.02), w * hallWidth);
     }
+  }
 
+  void _paintForeground(Canvas canvas, Size size, Rect rect, double gy) {
+    final w = size.width, h = size.height;
     // The gold ribbon sweeping across the foreground.
     final ribbon = Path()
       ..moveTo(0, gy - h * 0.02)
@@ -1048,7 +1061,7 @@ class EsperanzaScenePainter extends CustomPainter {
 
   @override
   bool shouldRepaint(EsperanzaScenePainter old) =>
-      old.focusX != focusX || old.sunX != sunX || old.sunScale != sunScale || old.sun != sun || old.ground != ground || old.showHall != showHall || old.progress != progress || old.hallWidth != hallWidth;
+      old.focusX != focusX || old.sunX != sunX || old.sunScale != sunScale || old.sun != sun || old.ground != ground || old.showHall != showHall || old.progress != progress || old.hallWidth != hallWidth || old.foregroundOnly != foregroundOnly;
 }
 
 /// The municipal hall as a clay model: steps, white columns, a navy

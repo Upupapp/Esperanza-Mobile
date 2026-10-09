@@ -791,11 +791,17 @@ class _QuickAction extends StatelessWidget {
   }
 }
 
-/// The municipal card shown when staff have no banner live: the painted
-/// scene (sun, hills, the town hall in clay, the gold ribbon) with a gold
-/// arrow into the government directory.
+/// The municipal card shown when staff have no banner live, with a gold
+/// arrow into the government directory. The painted navy scene holds the
+/// headline on the left and blends, through a gradient, into a photo of the
+/// Esperanza Town Hall on the right; the gold ribbon sweeps across both.
 class _PromoCard extends StatelessWidget {
   const _PromoCard();
+
+  /// The Esperanza, Masbate town hall, from the photo the LGU team supplied:
+  /// two parked motorcycles and a passer-by removed (no real person in a
+  /// public repo), then upscaled 2x and sharpened.
+  static const _townHallPhoto = 'assets/images/esperanza_town_hall.jpg';
 
   @override
   Widget build(BuildContext context) {
@@ -815,8 +821,54 @@ class _PromoCard extends StatelessWidget {
             children: [
               const Positioned.fill(
                 child: CustomPaint(
-                  painter: EsperanzaScenePainter(focusX: 0.70, sunX: 0.90, sun: 0.24, ground: 0.80, hallWidth: 0.40),
+                  painter: EsperanzaScenePainter(focusX: 0.70, sunX: 0.90, sun: 0.24, ground: 0.80, showHall: false),
                 ),
+              ),
+              // The town hall photo on the right 70%, fading in from its
+              // left edge so the painted scene flows into it.
+              Positioned.fill(
+                child: Align(
+                  alignment: Alignment.centerRight,
+                  child: FractionallySizedBox(
+                    widthFactor: 0.70,
+                    heightFactor: 1,
+                    child: ShaderMask(
+                      blendMode: BlendMode.dstIn,
+                      shaderCallback: (bounds) => const LinearGradient(
+                        colors: [AppColors.clear, AppColors.navy950],
+                        stops: [0, 0.45],
+                      ).createShader(bounds),
+                      child: Image.asset(
+                        _townHallPhoto,
+                        fit: BoxFit.cover,
+                        alignment: const Alignment(0.1, 0),
+                        excludeFromSemantics: true,
+                        errorBuilder: (context, error, stackTrace) => const SizedBox.shrink(),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              // A navy scrim from the left, so the white headline never sits
+              // on the pale facade.
+              Positioned.fill(
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        AppColors.navy950.withValues(alpha: 0.55),
+                        AppColors.navy950.withValues(alpha: 0.35),
+                        AppColors.navy950.withValues(alpha: 0),
+                      ],
+                      stops: const [0, 0.48, 0.72],
+                    ),
+                  ),
+                ),
+              ),
+              // The gold ribbon and ground over everything: the card's sweep
+              // runs unbroken from the scene across the photo.
+              const Positioned.fill(
+                child: CustomPaint(painter: EsperanzaScenePainter(ground: 0.80, foregroundOnly: true)),
               ),
               Padding(
                 padding: const EdgeInsets.all(AppSpacing.xl),
@@ -827,7 +879,13 @@ class _PromoCard extends StatelessWidget {
                       widthFactor: 0.56,
                       child: Text(
                         'A more accessible government for you.',
-                        style: TextStyle(color: AppColors.surface, fontSize: AppTextSize.card, fontWeight: FontWeight.w700, height: 1.25),
+                        style: TextStyle(
+                          color: AppColors.surface,
+                          fontSize: AppTextSize.card,
+                          fontWeight: FontWeight.w700,
+                          height: 1.25,
+                          shadows: [Shadow(color: AppColors.navy950, blurRadius: 8)],
+                        ),
                       ),
                     ),
                     const SizedBox(height: AppSpacing.lg),
