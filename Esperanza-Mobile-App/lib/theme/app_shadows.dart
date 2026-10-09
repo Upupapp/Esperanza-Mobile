@@ -20,9 +20,4 @@ class AppShadows {
   static const List<BoxShadow> float = [
     BoxShadow(color: Color(0x2E0B1730), blurRadius: 32, offset: Offset(0, 12), spreadRadius: -8),
   ];
-
-  /// The warm glow under a gold primary button (gold400 #ECC02A).
-  static const List<BoxShadow> gold = [
-    BoxShadow(color: Color(0x59ECC02A), blurRadius: 16, offset: Offset(0, 6), spreadRadius: -4),
-  ];
 }

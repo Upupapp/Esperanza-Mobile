@@ -7,7 +7,7 @@ import '../theme/app_typography.dart';
 /// Tulong.
 ///
 /// 2026-10 design: the screen's main action, so it is the gold primary pill
-/// with navy text and a warm glow, the same on both modules (gold is the
+/// with navy text, the same on both modules (gold is the
 /// action colour throughout). [accent] (the module colour) is kept for the
 /// call sites; the module still shows in the screen's tabs and cards.
 class NewRequestFab extends StatelessWidget {
@@ -30,7 +30,8 @@ class NewRequestFab extends StatelessWidget {
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(AppRadius.full),
         boxShadow: [
-          BoxShadow(color: AppColors.gold500.withValues(alpha: 0.45), blurRadius: 18, offset: const Offset(0, 8), spreadRadius: -4),
+          // Tight and neutral, like every button: no glow (owner, 2026-10-09).
+          BoxShadow(color: AppColors.navy900.withValues(alpha: 0.18), blurRadius: 6, offset: const Offset(0, 3), spreadRadius: -1),
         ],
       ),
       child: FloatingActionButton.extended(

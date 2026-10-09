@@ -193,8 +193,9 @@ kept only for existing call sites.
 `full` buttons, pills, badges, avatars. Off-scale radii round to the nearest step.
 
 **Elevation:** cards carry the glass glow (`GlassSurface.shadow`, a soft blue-tinted shadow);
-`AppShadows.float` is for floating panels; the gold glow (`AppShadows.gold`) sits only under
-gold actions. Clay objects carry their own drop shadow. No other shadows.
+`AppShadows.float` is for floating panels. Buttons carry one tight neutral shadow and never
+a glow (no coloured halo, no white highlight; owner, 2026-10-09). Clay objects carry their own
+drop shadow. No other shadows.
 
 **Sizing** (`AppSizes`, web `--size-*`):
 - **Touch targets:** every tappable thing is at least **44 × 44**. Pad a small icon's hit area

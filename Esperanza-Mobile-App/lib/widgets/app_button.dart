@@ -11,9 +11,11 @@ enum AppButtonSize { sm, md, lg }
 /// ElevatedButton so styling stays centralized (Section 2 of the alignment
 /// doc).
 ///
-/// The 2026-10 design: pill-shaped, gently raised (a neumorphic pair of
-/// shadows — dark below-right, light above-left — and a clay highlight on
-/// the filled ones), pressing in when touched.
+/// The 2026-10 design: pill-shaped, gently raised (one tight neutral shadow,
+/// and a clay highlight on the filled ones), pressing in when touched. No
+/// glow: the coloured halo under a button, and the white one above it that
+/// read as a glow on navy cards, were removed at the owner's request
+/// (2026-10-09).
 ///
 /// - [AppButtonVariant.primary] / [AppButtonVariant.gold]: gold with navy
 ///   text, the main action. A module accent (Tulong's purple) overrides it.
@@ -85,32 +87,31 @@ class _AppButtonState extends State<AppButton> {
             ? [Color.lerp(accent, AppColors.surface, 0.12)!, accent]
             : const [AppColors.gold300, AppColors.gold400, AppColors.gold500],
         foreground: accent != null ? AppColors.surface : AppColors.navy950,
-        glow: accent ?? AppColors.gold400,
         clay: true,
       ),
       AppButtonVariant.gold => const _VariantStyle(
         fill: [AppColors.gold300, AppColors.gold400, AppColors.gold500],
         foreground: AppColors.navy950,
-        glow: AppColors.gold400,
         clay: true,
       ),
       AppButtonVariant.navy => const _VariantStyle(
         fill: [AppColors.navy600, AppColors.navy800],
         foreground: AppColors.surface,
-        glow: AppColors.navy800,
         clay: true,
       ),
       AppButtonVariant.secondary => _VariantStyle(
         fill: [AppColors.surface.withValues(alpha: 0.95), AppColors.slate100.withValues(alpha: 0.95)],
         foreground: AppColors.navy800,
         border: AppColors.navy700.withValues(alpha: 0.45),
-        neu: true,
       ),
-      AppButtonVariant.ghost => const _VariantStyle(fill: [AppColors.clear, AppColors.clear], foreground: AppColors.slate600),
+      AppButtonVariant.ghost => const _VariantStyle(
+        fill: [AppColors.clear, AppColors.clear],
+        foreground: AppColors.slate600,
+        raised: false,
+      ),
       AppButtonVariant.danger => const _VariantStyle(
         fill: [AppColors.rose500, AppColors.rose600],
         foreground: AppColors.surface,
-        glow: AppColors.rose600,
         clay: true,
       ),
     };
@@ -148,27 +149,15 @@ class _AppButtonState extends State<AppButton> {
       ],
     );
 
-    // Raised at rest, pressed in while touched: the shadows tighten and the
-    // whole button settles a little.
+    // Raised at rest, pressed in while touched: the shadow tightens and the
+    // whole button settles a little. Tight and neutral, never a glow.
     final shadows = <BoxShadow>[
-      if (enabled && c.glow != null)
+      if (enabled && c.raised)
         BoxShadow(
-          color: c.glow!.withValues(alpha: down ? 0.20 : 0.38),
-          blurRadius: down ? 6 : 16,
-          offset: Offset(0, down ? 2 : 7),
-          spreadRadius: -4,
-        ),
-      if (enabled && (c.neu || c.clay))
-        BoxShadow(
-          color: AppColors.surface.withValues(alpha: down ? 0.4 : 0.85),
-          blurRadius: down ? 4 : 8,
-          offset: Offset(down ? -1 : -3, down ? -1 : -3),
-        ),
-      if (enabled && c.neu)
-        BoxShadow(
-          color: AppColors.navy800.withValues(alpha: down ? 0.06 : 0.14),
-          blurRadius: down ? 4 : 12,
-          offset: Offset(down ? 1 : 3, down ? 2 : 5),
+          color: AppColors.navy900.withValues(alpha: down ? 0.10 : 0.18),
+          blurRadius: down ? 3 : 6,
+          offset: Offset(0, down ? 1 : 3),
+          spreadRadius: -1,
         ),
     ];
 
@@ -242,20 +231,18 @@ class _VariantStyle {
   final List<Color> fill;
   final Color foreground;
   final Color? border;
-  final Color? glow;
 
   /// A filled button with a clay sheen.
   final bool clay;
 
-  /// A light button with a neumorphic shadow pair.
-  final bool neu;
+  /// Sits on the page with a small shadow (all but the text-only ghost).
+  final bool raised;
 
   const _VariantStyle({
     required this.fill,
     required this.foreground,
     this.border,
-    this.glow,
     this.clay = false,
-    this.neu = false,
+    this.raised = true,
   });
 }
