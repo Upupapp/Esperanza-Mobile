@@ -13,7 +13,6 @@ import '../../widgets/active_filter_chip.dart';
 import '../../widgets/app_card.dart';
 import '../../widgets/app_dialogs.dart';
 import '../../widgets/empty_state.dart';
-import '../../widgets/esperanza_drawer.dart';
 import '../../widgets/filter_bottom_sheet.dart';
 import '../../widgets/new_request_fab.dart';
 import '../../widgets/segmented_tabs.dart';
@@ -136,9 +135,10 @@ class _RequestListScreenState extends State<RequestListScreen> {
       // Clear as a tab, over RootShell's GlassBackdrop; solid when pushed as
       // its own page, so the page beneath never shows through a transition.
       backgroundColor: widget.pushed ? null : AppColors.clear,
-      // A Scaffold with a drawer shows the menu icon instead of a back arrow.
-      drawer: widget.pushed ? null : const EsperanzaDrawer(),
       appBar: AppBar(
+        // As a tab: the menu (the shell's side menu). Pushed as its own page:
+        // the automatic back arrow.
+        leading: widget.pushed ? null : const ShellMenuButton(),
         title: Text(widget.title),
         actions: const [AlertsAction()],
         bottom: PreferredSize(

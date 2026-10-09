@@ -13,7 +13,6 @@ import '../../theme/app_typography.dart';
 import '../../widgets/app_button.dart';
 import '../../widgets/app_card.dart';
 import '../../widgets/async_state_view.dart';
-import '../../widgets/esperanza_drawer.dart';
 import '../home/root_shell.dart';
 import '../shared/request_list_screen.dart';
 import 'evacuation_center_detail_screen.dart';
@@ -96,8 +95,8 @@ class _SakunaScreenState extends State<SakunaScreen> {
     return Scaffold(
       // Clear, over RootShell's GlassBackdrop: the glass cards show its colour.
       backgroundColor: AppColors.clear,
-      drawer: const EsperanzaDrawer(),
-      appBar: AppBar(title: const Text('Risk Reduction & Emergency'), actions: const [AlertsAction()]),
+      appBar: AppBar(
+        leading: const ShellMenuButton(),title: const Text('Risk Reduction & Emergency'), actions: const [AlertsAction()]),
       // Bottom padding must include the inherited navbar MediaQuery inset
       // (RootShell's extendBody: true publishes it — see
       // widgets/esperanza_curved_navbar.dart) on top of the visual

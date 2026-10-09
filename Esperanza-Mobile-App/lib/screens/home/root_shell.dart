@@ -27,6 +27,7 @@ import 'home_screen.dart';
 import '../../theme/app_spacing.dart';
 import '../../theme/app_typography.dart';
 import '../../services/api_client.dart';
+import '../../widgets/esperanza_drawer.dart';
 
 /// Mobile bottom-nav IA: Home / Balita / + / Events / Emergency, laid out
 /// and animated as a direct port of the Servana Client App's curved main
@@ -74,6 +75,19 @@ class RootShell extends StatefulWidget {
     _key.currentState?.openService(target);
   }
 
+  /// Opens the side menu. It belongs to the shell, not to the tab: a drawer
+  /// in a tab's own Scaffold could only cover that tab, so the floating nav
+  /// bar (the shell's) stayed on top of it. Outside a shell - a screen shown
+  /// on its own - it falls back to that screen's Scaffold.
+  static void openDrawer(BuildContext context) {
+    final shell = context.findAncestorStateOfType<_RootShellState>();
+    if (shell != null) {
+      shell._scaffoldKey.currentState?.openDrawer();
+    } else {
+      Scaffold.maybeOf(context)?.openDrawer();
+    }
+  }
+
   @override
   State<RootShell> createState() => _RootShellState();
 
@@ -81,6 +95,8 @@ class RootShell extends StatefulWidget {
 }
 
 class _RootShellState extends State<RootShell> with WidgetsBindingObserver {
+  final _scaffoldKey = GlobalKey<ScaffoldState>();
+  bool _drawerOpen = false;
   int? _navIndex = 0;
   ServiceLauncherTarget? _activeLauncherTarget;
   int _bodyIndex = 0;
@@ -299,7 +315,26 @@ class _RootShellState extends State<RootShell> with WidgetsBindingObserver {
 
   @override
   Widget build(BuildContext context) {
+    // Back closes an open side menu. Android 16 handles Back predictively,
+    // and an open drawer on the app's first route did not claim it: Back
+    // closed the whole app instead of the menu (seen on the emulator,
+    // 2026-10-09). While the menu is open the shell says it cannot pop, and
+    // closes the menu itself.
+    return PopScope(
+      canPop: !_drawerOpen,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop && _drawerOpen) _scaffoldKey.currentState?.closeDrawer();
+      },
+      child: _scaffold(),
+    );
+  }
+
+  Widget _scaffold() {
     return Scaffold(
+      key: _scaffoldKey,
+      // The side menu, above everything in the shell - the nav bar included.
+      drawer: const EsperanzaDrawer(),
+      onDrawerChanged: (open) => setState(() => _drawerOpen = open),
       // EsperanzaCurvedNavBar reports a bounding box that is its own bar
       // height only (matching Servana's own SizedBox — see
       // widgets/esperanza_curved_navbar.dart); the raised bubble and "+"
@@ -324,6 +359,21 @@ class _RootShellState extends State<RootShell> with WidgetsBindingObserver {
         onTabSelected: setTab,
         onCenterPressed: _openLauncher,
       ),
+    );
+  }
+}
+
+/// The menu button at the leading edge of every tab's AppBar: opens the
+/// shell's side menu (see [RootShell.openDrawer]).
+class ShellMenuButton extends StatelessWidget {
+  const ShellMenuButton({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return IconButton(
+      icon: const Icon(Icons.menu),
+      tooltip: MaterialLocalizations.of(context).openAppDrawerTooltip,
+      onPressed: () => RootShell.openDrawer(context),
     );
   }
 }

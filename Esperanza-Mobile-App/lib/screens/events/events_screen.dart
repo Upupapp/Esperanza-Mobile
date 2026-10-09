@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import '../../models/announcement.dart';
 import '../../services/api_client.dart';
 import '../../services/json_read.dart';
-import '../../widgets/esperanza_drawer.dart';
 import '../../widgets/event_card.dart';
 import '../../widgets/async_state_view.dart';
 import '../home/root_shell.dart';
@@ -31,8 +30,8 @@ class EventsScreen extends StatelessWidget {
     return Scaffold(
       // Clear, over RootShell's GlassBackdrop: the glass cards show its colour.
       backgroundColor: AppColors.clear,
-      drawer: const EsperanzaDrawer(),
-      appBar: AppBar(title: const Text('Events'), actions: const [AlertsAction()]),
+      appBar: AppBar(
+        leading: const ShellMenuButton(),title: const Text('Events'), actions: const [AlertsAction()]),
       body: AsyncStateView<List<EventItem>>(
         loader: () async {
           final rows = await api.getAllPages('/events', query: {'per_page': 100}, maxPages: 5);

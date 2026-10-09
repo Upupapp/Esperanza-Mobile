@@ -11,7 +11,6 @@ import '../../utils/balita_post_actions.dart';
 import '../../widgets/app_dialogs.dart';
 import '../../widgets/async_state_view.dart';
 import '../../widgets/empty_state.dart';
-import '../../widgets/esperanza_drawer.dart';
 import '../home/root_shell.dart';
 import 'compose_post_screen.dart';
 import 'post_card.dart';
@@ -41,8 +40,8 @@ class BalitaScreen extends StatelessWidget {
     return Scaffold(
       // Clear, over RootShell's GlassBackdrop: the glass cards show its colour.
       backgroundColor: AppColors.clear,
-      drawer: const EsperanzaDrawer(),
       appBar: AppBar(
+        leading: const ShellMenuButton(),
         title: const Text('Balita'),
         actions: [
           IconButton(

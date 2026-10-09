@@ -25,7 +25,6 @@ import '../../widgets/app_card.dart';
 import '../../widgets/app_dialogs.dart';
 import '../../widgets/empty_state.dart';
 import '../../widgets/esperanza_art.dart';
-import '../../widgets/esperanza_drawer.dart';
 import '../../widgets/event_card.dart';
 import '../../utils/banner_memory.dart';
 import '../../widgets/home_welcome_banner.dart';
@@ -168,7 +167,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       value: SystemUiOverlayStyle.light,
       child: Scaffold(
         backgroundColor: AppColors.background,
-        drawer: const EsperanzaDrawer(),
         body: Stack(
           children: [
             // The soft colour wash the frosted panels blur (2026-10 design).
@@ -408,7 +406,7 @@ class _Hero extends StatelessWidget {
     builder: (context) => _frosted(
       child: IconButton(
         tooltip: 'Menu',
-        onPressed: () => Scaffold.of(context).openDrawer(),
+        onPressed: () => RootShell.openDrawer(context),
         icon: const Icon(Icons.menu_rounded, color: AppColors.surface, size: 22),
       ),
     ),
