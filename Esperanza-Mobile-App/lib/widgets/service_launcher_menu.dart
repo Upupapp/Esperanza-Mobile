@@ -208,7 +208,7 @@ class _LauncherBubble extends StatelessWidget {
 
   const _LauncherBubble({required this.target, required this.controller, required this.interval, required this.onTap});
 
-  static const double _diameter = EsperanzaNavMotion.bubbleDiameter;
+  static const double _diameter = EsperanzaNavMotion.launcherTileDiameter;
 
   @override
   Widget build(BuildContext context) {

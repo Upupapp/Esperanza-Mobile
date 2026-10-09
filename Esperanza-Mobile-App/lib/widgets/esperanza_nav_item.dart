@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
+import '../theme/app_spacing.dart';
 import '../theme/app_typography.dart';
 import 'esperanza_nav_motion.dart';
 import 'nav_item_data.dart';
@@ -8,9 +9,10 @@ import 'nav_item_data.dart';
 /// of Servana's `ServanaNavItem`: the label is ALWAYS shown (not only for
 /// the active tab, which is how Esperanza's old floating pill behaved) and
 /// occupies a fixed position, so nothing shifts when selection changes. The
-/// icon area above it is a reserved, fixed-height box that goes empty while
+/// icon row above it is a reserved, fixed-height box that goes empty while
 /// this tab is active — the active icon is shown instead inside the
-/// travelling bubble that floats above the bar, not here.
+/// travelling gold capsule, which sits exactly on that row. Icon row and
+/// label are centred together, so the space above and below them matches.
 class EsperanzaNavItem extends StatelessWidget {
   final NavItemData item;
   final bool isActive;
@@ -25,6 +27,10 @@ class EsperanzaNavItem extends StatelessWidget {
   // Navy, not slate (2026-10 refinement): quieter than the gold bubble, but
   // plainly the app's own colour, and well past AA on the white pill.
   static const Color _inactiveColor = AppColors.navy600;
+
+  /// The label's line height; [EsperanzaCurvedNavBar] uses it to place the
+  /// capsule on the icon row.
+  static const double labelLineHeight = 1.1;
 
   @override
   Widget build(BuildContext context) {
@@ -41,25 +47,23 @@ class EsperanzaNavItem extends StatelessWidget {
           highlightShape: BoxShape.rectangle,
           radius: 40,
           child: SizedBox(
-            height: EsperanzaNavMotion.barHeight,
+            height: double.infinity,
             child: Column(
-              mainAxisAlignment: MainAxisAlignment.end,
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                // Flexible: in the floating pill (8pt shorter than the old
-                // bar) a 2x label needs a few points, and this reserved
-                // icon slot gives them up — the 24pt icon still fits.
+                // Flexible: at 2x text the label needs a few points, and
+                // this reserved icon row gives them up — the 24pt icon
+                // still fits.
                 Flexible(
                   child: SizedBox(
-                    height: EsperanzaNavMotion.bubbleDiameter * 0.62,
+                    height: EsperanzaNavMotion.bubbleHeight,
                     child: isActive
                         ? const SizedBox.shrink()
                         : Center(child: Icon(item.outlineIcon, color: color, size: EsperanzaNavMotion.iconSize)),
                   ),
                 ),
                 Padding(
-                  // 6, not 8: the floating pill is 8pt shorter than the old
-                  // full-width bar, and at 2x text the label needs it.
-                  padding: const EdgeInsets.only(bottom: 6),
+                  padding: const EdgeInsets.only(top: EsperanzaNavMotion.labelGap),
                   child: Text(
                     item.label,
                     maxLines: 1,
@@ -80,7 +84,7 @@ class EsperanzaNavItem extends StatelessWidget {
                     style: TextStyle(
                       fontFamily: AppTypography.sans,
                       fontSize: AppTextSize.fine,
-                      height: 1.1,
+                      height: labelLineHeight,
                       color: color,
                       letterSpacing: -0.3,
                       fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
@@ -96,8 +100,9 @@ class EsperanzaNavItem extends StatelessWidget {
   }
 }
 
-/// The travelling active bubble that floats above the bar over whichever
-/// slot is selected — direct port of Servana's `_ActiveBubble`.
+/// The travelling active marker over whichever slot is selected: a gold
+/// clay capsule inside the bar, around the icon. Once Servana's
+/// `_ActiveBubble`, a ball floating above the bar.
 class EsperanzaActiveBubble extends StatelessWidget {
   final NavItemData item;
   final bool reduced;
@@ -108,30 +113,28 @@ class EsperanzaActiveBubble extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: EsperanzaNavMotion.bubbleDiameter,
-      height: EsperanzaNavMotion.bubbleDiameter,
-      // Clay (2026-10 design): a puffy gold ball lit from the top-left — a
-      // gradient body, a soft highlight and a warm glow beneath it.
+      height: EsperanzaNavMotion.bubbleHeight,
+      // Clay (2026-10 design): a puffy gold capsule lit from the top-left —
+      // a gradient body, a soft highlight and a tight shadow, no glow.
       decoration: BoxDecoration(
-        shape: BoxShape.circle,
+        borderRadius: BorderRadius.circular(AppRadius.full),
         gradient: const LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [AppColors.gold300, EsperanzaNavItem._bubbleColor, AppColors.gold600],
           stops: [0, 0.55, 1],
         ),
-        border: Border.all(color: AppColors.surface, width: 3),
         boxShadow: [
-          BoxShadow(color: AppColors.gold600.withValues(alpha: 0.45), blurRadius: 16, offset: const Offset(0, 8), spreadRadius: -3),
           BoxShadow(color: AppColors.navy900.withValues(alpha: 0.18), blurRadius: 4, offset: const Offset(0, 2)),
         ],
       ),
       // The clay shading: a highlight pooled at the upper-left over an inner
-      // shade at the lower-right, so the ball reads as raised.
+      // shade at the lower-right, so the capsule reads as raised.
       foregroundDecoration: BoxDecoration(
-        shape: BoxShape.circle,
+        borderRadius: BorderRadius.circular(AppRadius.full),
         gradient: RadialGradient(
-          center: const Alignment(-0.40, -0.50),
-          radius: 0.95,
+          center: const Alignment(-0.40, -0.60),
+          radius: 1.4,
           colors: [
             AppColors.surface.withValues(alpha: 0.50),
             AppColors.surface.withValues(alpha: 0),
@@ -148,7 +151,7 @@ class EsperanzaActiveBubble extends StatelessWidget {
             item.filledIcon,
             key: ValueKey(item.label),
             color: AppColors.navy950,
-            size: EsperanzaNavMotion.iconSize * EsperanzaNavMotion.activeIconScale,
+            size: EsperanzaNavMotion.iconSize,
           ),
         ),
       ),

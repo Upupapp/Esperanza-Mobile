@@ -1,11 +1,10 @@
 import 'package:flutter/rendering.dart';
-import '../theme/app_colors.dart';
 
 /// Paints the navbar surface. Originally a port of Servana's
 /// `ServanaCurvedNavPainter` (a full-width bar, rounded on top, with a
 /// cradle dipped under the active tab); since the 2026-10 design refresh it
-/// is a floating frosted-glass pill, inset from the screen edges, with a
-/// gold glow under the active tab where the cradle was. [EsperanzaCurvedNavBar] blurs what is
+/// is a floating frosted-glass pill, inset from the screen edges; the active
+/// tab is a gold capsule inside it (no glow). [EsperanzaCurvedNavBar] blurs what is
 /// behind it through [pillPath]; this painter lays the glass over that
 /// blur: a soft navy shadow, a translucent white body lit from above, a
 /// bright rim and a faint blue hairline.
@@ -14,7 +13,6 @@ class EsperanzaCurvedNavPainter extends CustomPainter {
   final Color surfaceColor;
   final Color shadowColor;
   final Color borderColor;
-  final bool showCradle;
 
   /// The device's bottom inset: the pill floats above the gesture area
   /// rather than running under it.
@@ -25,7 +23,6 @@ class EsperanzaCurvedNavPainter extends CustomPainter {
     required this.surfaceColor,
     required this.shadowColor,
     required this.borderColor,
-    required this.showCradle,
     this.bottomInset = 0,
   });
 
@@ -41,9 +38,10 @@ class EsperanzaCurvedNavPainter extends CustomPainter {
 
   /// The pill's outline. A plain stadium: the dipped cradle of the old
   /// full-width bar ran into the rounded corners under the outer tabs, and
-  /// the design has none; the active tab is marked by its gold bubble and
-  /// the glow painted under it (at [cradleCentreX]) instead. Shared with the
-  /// blur clip so glass and paint are always the same shape.
+  /// the design has none; the active tab is marked by its gold capsule
+  /// instead. [cradleCentreX] is kept as the one centre the capsule and the
+  /// surface agree on. Shared with the blur clip so glass and paint are
+  /// always the same shape.
   static Path pillPath(Size size, {double bottomInset = 0}) {
     final rect = Rect.fromLTRB(sideMargin, topMargin, size.width - sideMargin, size.height - bottomGap(bottomInset));
     return Path()..addRRect(RRect.fromRectAndRadius(rect, const Radius.circular(pillRadius)));
@@ -88,21 +86,6 @@ class EsperanzaCurvedNavPainter extends CustomPainter {
     );
     canvas.restore();
 
-    // A warm glow on the glass under the active tab's gold bubble.
-    if (showCradle) {
-      final glow = Rect.fromCenter(center: Offset(cradleCentreX, bounds.top + 6), width: 96, height: 44);
-      canvas.save();
-      canvas.clipPath(path);
-      canvas.drawOval(
-        glow,
-        Paint()
-          ..shader = RadialGradient(
-            colors: [AppColors.gold300.withValues(alpha: 0.45), AppColors.gold300.withValues(alpha: 0)],
-          ).createShader(glow),
-      );
-      canvas.restore();
-    }
-
     canvas.drawPath(
       path,
       Paint()
@@ -118,7 +101,6 @@ class EsperanzaCurvedNavPainter extends CustomPainter {
         surfaceColor != oldDelegate.surfaceColor ||
         shadowColor != oldDelegate.shadowColor ||
         borderColor != oldDelegate.borderColor ||
-        showCradle != oldDelegate.showCradle ||
         bottomInset != oldDelegate.bottomInset;
   }
 }

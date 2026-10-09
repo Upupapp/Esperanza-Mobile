@@ -88,14 +88,14 @@ Future<void> _tapCenter(WidgetTester tester) async {
 
 /// The resting `left` of the floating indicator for a given tab index,
 /// derived the same way EsperanzaCurvedNavBar itself computes it — five
-/// equal slots, skipping the reserved center one.
+/// equal slots across the pill, inset from its rounded ends, skipping the
+/// reserved center one.
 double _expectedRestingLeft(double screenWidth, int itemIndex) {
   const slotCount = 5;
-  final slotWidth = screenWidth / slotCount;
+  const inset = EsperanzaNavMotion.tabInset;
+  final slotWidth = (screenWidth - 2 * inset) / slotCount;
   final slot = itemIndex < 2 ? itemIndex : itemIndex + 1;
-  final minCentre = EsperanzaNavMotion.bubbleDiameter / 2 + EsperanzaNavMotion.surfaceRadius * 0.5;
-  final rawCentreX = (slot + 0.5) * slotWidth;
-  final centreX = rawCentreX.clamp(minCentre, screenWidth - minCentre);
+  final centreX = inset + (slot + 0.5) * slotWidth;
   return centreX - EsperanzaNavMotion.bubbleDiameter / 2;
 }
 

@@ -3,6 +3,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import '../theme/app_elevation.dart';
 import '../theme/app_colors.dart';
+import '../theme/app_typography.dart';
 import 'esperanza_center_action.dart';
 import 'esperanza_curved_nav_painter.dart';
 import 'esperanza_nav_item.dart';
@@ -50,6 +51,18 @@ class EsperanzaCurvedNavBar extends StatelessWidget {
 
   static int _slotOf(int itemIndex) => itemIndex < 2 ? itemIndex : itemIndex + 1;
 
+  /// Centre x of [slot] (0..4): five equal slots across the pill, inset
+  /// from its rounded ends by [EsperanzaNavMotion.tabInset].
+  static double slotCentreX(double width, int slot) {
+    const inset = EsperanzaNavMotion.tabInset;
+    return inset + (slot + 0.5) * (width - 2 * inset) / _slotCount;
+  }
+
+  /// The label's line height at the user's text size (as
+  /// [EsperanzaNavItem] sets it).
+  static double labelHeight(BuildContext context) =>
+      MediaQuery.textScalerOf(context).scale(AppTextSize.fine) * EsperanzaNavItem.labelLineHeight;
+
   static const Color _surface = AppColors.surface;
   // A visible hairline, not AppColors.border (slate100 — nearly invisible
   // against a white/light page background, which is what made the bar's
@@ -77,12 +90,17 @@ class EsperanzaCurvedNavBar extends StatelessWidget {
         child: LayoutBuilder(
           builder: (context, constraints) {
             final width = constraints.maxWidth;
-            final slotWidth = width / _slotCount;
-            final minCentre = EsperanzaNavMotion.bubbleDiameter / 2 + EsperanzaNavMotion.surfaceRadius * 0.5;
-
             final targetSlot = activeLauncherTarget != null ? 2 : _slotOf(activeIndex ?? 0);
-            final rawCentreX = (targetSlot + 0.5) * slotWidth;
-            final activeCentreX = rawCentreX.clamp(minCentre, width - minCentre);
+            final activeCentreX = slotCentreX(width, targetSlot);
+
+            // Each tab centres its icon row and label in the pill, so the
+            // space above and below is the same; the capsule sits on the
+            // icon row. At very large text the row gives way first, so the
+            // capsule is kept inside the pill's top edge.
+            const rowTop = EsperanzaCurvedNavPainter.topMargin;
+            final rowHeight = constraints.maxHeight - rowTop - EsperanzaCurvedNavPainter.bottomGap(bottomInset);
+            final content = EsperanzaNavMotion.bubbleHeight + EsperanzaNavMotion.labelGap + labelHeight(context);
+            final bubbleTop = rowTop + ((rowHeight - content) / 2).clamp(0.0, double.infinity);
 
             return Stack(
               clipBehavior: Clip.none,
@@ -114,7 +132,6 @@ class EsperanzaCurvedNavBar extends StatelessWidget {
                               surfaceColor: _surface,
                               shadowColor: _shadow,
                               borderColor: _border,
-                              showCradle: !reduced,
                               bottomInset: bottomInset,
                             ),
                           ),
@@ -124,11 +141,11 @@ class EsperanzaCurvedNavBar extends StatelessWidget {
                   ),
                 ),
 
-                // 2. Tab cells — spans the bar height only; the extra
-                // bottomInset height below the row is the safe-area gap.
+                // 2. Tab cells — spans the pill only, clear of its rounded
+                // ends; the extra bottomInset height below is the safe area.
                 Positioned(
-                  left: 0,
-                  right: 0,
+                  left: EsperanzaNavMotion.tabInset,
+                  right: EsperanzaNavMotion.tabInset,
                   top: EsperanzaCurvedNavPainter.topMargin,
                   bottom: EsperanzaCurvedNavPainter.bottomGap(bottomInset),
                   child: Row(
@@ -158,16 +175,16 @@ class EsperanzaCurvedNavBar extends StatelessWidget {
                   ),
                 ),
 
-                // 3. Travelling active bubble — hidden while the launcher is
-                // active, since the larger "+" circle already occupies that
-                // slot's visual indicator role.
+                // 3. Travelling active capsule, inside the pill around the
+                // active icon — hidden while the launcher is active, since
+                // the larger "+" circle already occupies that role.
                 if (activeIndex != null)
                   AnimatedPositioned(
                     key: const ValueKey('nav-floating-indicator'),
                     duration: EsperanzaNavMotion.selectionFor(context),
                     curve: EsperanzaNavMotion.selectionCurve,
                     left: activeCentreX - EsperanzaNavMotion.bubbleDiameter / 2,
-                    top: -EsperanzaNavMotion.bubbleLift,
+                    top: bubbleTop,
                     child: IgnorePointer(
                       child: EsperanzaActiveBubble(item: items[activeIndex!], reduced: reduced),
                     ),

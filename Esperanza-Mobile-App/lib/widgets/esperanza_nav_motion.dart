@@ -44,22 +44,30 @@ abstract final class EsperanzaNavMotion {
   /// Bar height before the device's bottom inset.
   static const double barHeight = 72;
 
-  /// Active bubble diameter.
+  /// Width of the active tab's gold capsule. It sits inside the bar, around
+  /// the icon (2026-10-09: it used to float 12pt above the bar as a ball and,
+  /// under Emergency, hung past the pill's rounded end).
   static const double bubbleDiameter = 52;
 
-  /// How far the bubble centre sits above the bar's top edge.
-  static const double bubbleLift = 12;
+  /// Height of that capsule: the icon plus 4pt above and below.
+  static const double bubbleHeight = 32;
+
+  /// Space between the icon row and the label.
+  static const double labelGap = 4;
+
+  /// Inset of the tabs from the screen edges, so the outer labels
+  /// ("Emergency") stay clear of the pill's rounded ends: at the labels'
+  /// height the 30pt end curves in ~13pt past the 8pt side margin.
+  static const double tabInset = 22;
+
+  /// The "+" launcher's menu tiles.
+  static const double launcherTileDiameter = 52;
 
   static const double iconSize = 24;
-  static const double activeIconScale = 1.08;
 
   /// Central action ("+") diameter — larger than a tab bubble so it reads
   /// as a distinct affordance rather than a sixth destination.
   static const double centerDiameter = 56;
-
-  /// Corner radius of the bar's top edge (bottom stays square — the bar
-  /// sits flush against the screen edge, it does not float).
-  static const double surfaceRadius = 24;
 
   /// Resolved travel time — clamped short under reduced motion, which
   /// disables the travelling character without touching haptics.
