@@ -14,11 +14,11 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'package:esperanza_mobile/main.dart';
 import 'package:esperanza_mobile/models/citizen_account.dart';
 import 'package:esperanza_mobile/services/citizen_session_service.dart';
 import 'package:esperanza_mobile/services/mock_catalog.dart';
 import 'package:esperanza_mobile/widgets/app_button.dart';
+import 'support/start_app.dart';
 
 /// The demo-account login cards were removed from LoginScreen (see
 /// PRODUCTION_READINESS.md 4(d)) as a credential-enumeration surface once
@@ -81,10 +81,9 @@ void main() {
     // Onboarding-complete pre-seeded: these regression cases exercise the
     // normal returning-user flow, not the first-run Onboarding screens —
     // see onboarding_flow_test.dart for that.
-    SharedPreferences.setMockInitialValues({'esperanza_onboarding_complete': true});
+    SharedPreferences.setMockInitialValues({});
     _setPhoneViewport(tester);
-    await tester.pumpWidget(const EsperanzaMobileApp());
-    await tester.pumpAndSettle();
+    await pumpAppToSignIn(tester);
 
     await _tapVisible(tester, find.text('Continue as Guest'));
     await _dismissWelcomeBanner(tester);
@@ -116,10 +115,9 @@ void main() {
     // Onboarding-complete pre-seeded: these regression cases exercise the
     // normal returning-user flow, not the first-run Onboarding screens —
     // see onboarding_flow_test.dart for that.
-    SharedPreferences.setMockInitialValues({'esperanza_onboarding_complete': true});
+    SharedPreferences.setMockInitialValues({});
     _setPhoneViewport(tester);
-    await tester.pumpWidget(const EsperanzaMobileApp());
-    await tester.pumpAndSettle();
+    await pumpAppToSignIn(tester);
 
     await _tapVisible(tester, find.text('Continue as Guest'));
     await _dismissWelcomeBanner(tester);
@@ -145,10 +143,9 @@ void main() {
     // Onboarding-complete pre-seeded: these regression cases exercise the
     // normal returning-user flow, not the first-run Onboarding screens —
     // see onboarding_flow_test.dart for that.
-    SharedPreferences.setMockInitialValues({'esperanza_onboarding_complete': true});
+    SharedPreferences.setMockInitialValues({});
     _setPhoneViewport(tester);
-    await tester.pumpWidget(const EsperanzaMobileApp());
-    await tester.pumpAndSettle();
+    await pumpAppToSignIn(tester);
 
     // Sign in as Nicanor (already has an account), then open
     // RegisterScreen — since an account already exists it jumps straight

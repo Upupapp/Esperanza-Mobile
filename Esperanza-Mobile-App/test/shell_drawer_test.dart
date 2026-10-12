@@ -9,12 +9,12 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'package:esperanza_mobile/main.dart';
 import 'package:esperanza_mobile/screens/home/root_shell.dart';
 import 'package:esperanza_mobile/widgets/esperanza_curved_navbar.dart';
 import 'package:esperanza_mobile/widgets/esperanza_drawer.dart';
 
 import 'support/fake_api.dart';
+import 'support/start_app.dart';
 
 void _phone(WidgetTester tester) {
   tester.view.physicalSize = const Size(390, 844);
@@ -24,10 +24,9 @@ void _phone(WidgetTester tester) {
 }
 
 Future<void> _openGuestHome(WidgetTester tester) async {
-  SharedPreferences.setMockInitialValues({'esperanza_onboarding_complete': true});
+  SharedPreferences.setMockInitialValues({});
   _phone(tester);
-  await tester.pumpWidget(const EsperanzaMobileApp());
-  await tester.pumpAndSettle();
+  await pumpAppToSignIn(tester);
   final guest = find.text('Continue as Guest');
   if (guest.evaluate().isNotEmpty) {
     await tester.ensureVisible(guest);

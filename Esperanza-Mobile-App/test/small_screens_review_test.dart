@@ -210,7 +210,7 @@ void main() {
     _size(tester, const Size(320, 568));
     await tester.pumpWidget(const MaterialApp(home: OnboardingScreen()));
     await tester.pumpAndSettle();
-    final paragraph = tester.renderObject<RenderParagraph>(find.text(onboardingBrandName));
+    final paragraph = tester.renderObject<RenderParagraph>(find.text(onboardingBrandLines));
     expect(paragraph.didExceedMaxLines, isFalse);
   });
 
@@ -221,13 +221,13 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(const Key('onboarding_next')));
       await tester.pumpAndSettle();
-      expect(find.text(onboardingScenes[1].headline), findsOneWidget);
+      expect(find.text(onboardingScenes[1].headline).hitTestable(), findsOneWidget);
 
       final handled = await tester.binding.handlePopRoute();
       await tester.pumpAndSettle();
       expect(handled, isTrue);
       expect(find.byType(OnboardingScreen), findsOneWidget);
-      expect(find.text(onboardingScenes[0].headline), findsOneWidget);
+      expect(find.text(onboardingScenes[0].headline).hitTestable(), findsOneWidget);
     });
 
     testWidgets('at double text size the headline and wordmark stop growing before words break', (tester) async {
@@ -238,7 +238,7 @@ void main() {
       await tester.pumpAndSettle();
       double scaleOf(Finder f) => MediaQuery.textScalerOf(tester.element(f)).scale(10) / 10;
       expect(scaleOf(find.text(onboardingScenes[0].headline)), headlineMaxTextScale);
-      expect(scaleOf(find.text(onboardingBrandName)), wordmarkMaxTextScale);
+      expect(scaleOf(find.text(onboardingBrandLines)), wordmarkMaxTextScale);
       // The supporting line still follows the system size in full.
       expect(scaleOf(find.text(onboardingScenes[0].subtext)), 2.0);
     });

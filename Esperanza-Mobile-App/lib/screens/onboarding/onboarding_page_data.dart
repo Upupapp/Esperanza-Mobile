@@ -20,9 +20,7 @@ class OnboardingSceneSpec {
     required this.subtext,
     required this.backgroundAsset,
     required this.semanticDescription,
-    required this.gradientStops,
     required this.features,
-    this.note,
   });
 
   /// Stable id, used for widget keys.
@@ -30,7 +28,7 @@ class OnboardingSceneSpec {
 
   /// Two short lines. The break is authored, not left to the layout — these
   /// are the words a citizen reads first and they should break where they were
-  /// meant to.
+  /// meant to. The second line is set in gold.
   final String headline;
 
   /// One sentence of detail. Must not describe anything the app cannot do.
@@ -41,37 +39,43 @@ class OnboardingSceneSpec {
   /// What the photograph shows, for a screen reader.
   final String semanticDescription;
 
-  /// Three stops for the bottom scrim, interpolated continuously during a
-  /// swipe so the overlay never snaps at a page boundary.
-  final List<double> gradientStops;
-
-  /// Up to three capability chips shown above the headline.
+  /// The three capabilities under the copy: icon tiles on page one, row
+  /// cards on pages two and three.
   final List<OnboardingFeature> features;
 
-  /// A limit rather than a promise — page two's access caveat. Shown on its
-  /// own line, because a limit folded into a sentence reads as a feature.
-  final String? note;
+  /// The first headline line (white).
+  String get headlineLead => headline.split('\n').first;
+
+  /// The second headline line (gold).
+  String get headlineAccent => headline.split('\n').last;
 }
 
 @immutable
 class OnboardingFeature {
-  const OnboardingFeature({required this.icon, required this.label});
+  const OnboardingFeature({required this.icon, required this.label, this.motion = FeatureMotion.bob});
 
   final IconData icon;
   final String label;
+
+  /// How the icon moves while the page is open (the design's own choice
+  /// per icon).
+  final FeatureMotion motion;
 }
 
-/// The three scenes.
+/// The design's small ambient motions for a feature icon.
+enum FeatureMotion { bob, swing, wobble, pulse }
+
+/// The three scenes, as the owner's design sets them ("Esperanza Onboarding
+/// Prototype", 2026-10-12).
 ///
 /// **Copy language.** Filipino headline, English supporting line. That is the
 /// split the app already uses — its home hero greets in Filipino ("Magandang
 /// araw") over an English interface — and it is the split the municipality's
-/// own campaign artwork uses. The hook lands in the language a citizen thinks
-/// in; the detail stays in the language the rest of the interface is written
-/// in.
+/// own campaign artwork uses.
 ///
-/// **Structure.** Each headline is a benefit, not a feature list, and page two
-/// leads with the single strongest one an LGU app has: not queueing.
+/// Page two used to carry a line of its own, "Dokyu and Tulong are available
+/// to verified residents."; the design has none, and Dokyu and Tulong still
+/// say so themselves to anyone not yet verified.
 const onboardingScenes = <OnboardingSceneSpec>[
   OnboardingSceneSpec(
     id: 'scene_bayan',
@@ -79,15 +83,11 @@ const onboardingScenes = <OnboardingSceneSpec>[
     subtext:
         'Municipal services, local news, and your resident account — all in one app.',
     backgroundAsset: 'assets/images/welcome/page_1_bg.jpg',
-    semanticDescription: 'Page 1 of 3: the Esperanza coastline at sunrise',
-    gradientStops: [0.04, 0.52, 0.80],
+    semanticDescription: 'Page 1 of 3: the Esperanza coastline at sunset',
     features: [
-      OnboardingFeature(icon: Icons.badge_outlined, label: 'Resident Profile'),
-      OnboardingFeature(icon: Icons.contact_page_outlined, label: 'Digital ID'),
-      OnboardingFeature(
-        icon: Icons.account_balance_outlined,
-        label: 'LGU Services',
-      ),
+      OnboardingFeature(icon: Icons.person_outline_rounded, label: 'Resident Profile'),
+      OnboardingFeature(icon: Icons.badge_outlined, label: 'Digital ID'),
+      OnboardingFeature(icon: Icons.account_balance_outlined, label: 'LGU Services'),
     ],
   ),
   OnboardingSceneSpec(
@@ -95,21 +95,13 @@ const onboardingScenes = <OnboardingSceneSpec>[
     headline: 'Mag-request.\nHindi na pumila.',
     subtext:
         'Send Dokyu and Tulong requests, upload your requirements, and follow every update from your phone.',
-    note: 'Dokyu and Tulong are available to verified residents.',
     backgroundAsset: 'assets/images/welcome/page_2_bg.jpg',
     semanticDescription:
-        'Page 2 of 3: a resident being handed a document at the municipal services counter',
-    gradientStops: [0.04, 0.48, 0.78],
+        'Page 2 of 3: a municipal staff member reviewing a document at her desk',
     features: [
-      OnboardingFeature(
-        icon: Icons.upload_file_outlined,
-        label: 'Submit Requirements',
-      ),
-      OnboardingFeature(icon: Icons.timeline_outlined, label: 'Track Status'),
-      OnboardingFeature(
-        icon: Icons.notifications_none_rounded,
-        label: 'View Updates',
-      ),
+      OnboardingFeature(icon: Icons.description_rounded, label: 'Submit Requirements'),
+      OnboardingFeature(icon: Icons.trending_up_rounded, label: 'Track Status'),
+      OnboardingFeature(icon: Icons.notifications_rounded, label: 'View Updates', motion: FeatureMotion.swing),
     ],
   ),
   OnboardingSceneSpec(
@@ -120,43 +112,16 @@ const onboardingScenes = <OnboardingSceneSpec>[
     backgroundAsset: 'assets/images/welcome/page_3_bg.jpg',
     semanticDescription:
         'Page 3 of 3: an emergency response team assisting a family during a flood',
-    gradientStops: [0.04, 0.44, 0.76],
     features: [
-      OnboardingFeature(
-        icon: Icons.campaign_outlined,
-        label: 'Official Balita',
-      ),
-      OnboardingFeature(icon: Icons.event_outlined, label: 'Upcoming Events'),
-      OnboardingFeature(
-        icon: Icons.health_and_safety_outlined,
-        label: 'Emergency Help',
-      ),
+      OnboardingFeature(icon: Icons.campaign_rounded, label: 'Official Balita', motion: FeatureMotion.wobble),
+      OnboardingFeature(icon: Icons.calendar_month_rounded, label: 'Upcoming Events'),
+      OnboardingFeature(icon: Icons.health_and_safety_rounded, label: 'Emergency Help', motion: FeatureMotion.pulse),
     ],
   ),
 ];
 
-/// Shown beside the seal on every scene.
+/// Shown beside the seal on every scene, on two lines in the design.
 const onboardingBrandName = 'Municipalidad ng Esperanza';
-
-/// How far each depth travels, as a fraction of viewport width per page of
-/// swipe. Servana's own scale, which reads as depth without ever becoming a
-/// ride:
-///
-///   0.05 – atmospheric, barely moves
-///   0.15 – the photograph
-///   0.35 – mid-ground content
-///   0.55 – interface cards
-///
-/// The photograph moves *against* the swipe at [background], which is what
-/// makes it sit behind the glass; the copy moves with the page and needs no
-/// factor of its own.
-class OnboardingParallax {
-  OnboardingParallax._();
-
-  static const double background = 0.15;
-  static const double backgroundVertical = 0.02;
-  static const double chips = 0.35;
-}
 
 /// `rectangle_cityhall.jpg` is deliberately unused here. It is a genuine
 /// municipal hall, but the seal on its facade reads *Esperanza, Agusan del

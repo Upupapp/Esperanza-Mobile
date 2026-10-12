@@ -9,10 +9,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'package:esperanza_mobile/main.dart';
 import 'package:esperanza_mobile/models/citizen_account.dart';
 import 'package:esperanza_mobile/services/citizen_session_service.dart';
 import 'package:esperanza_mobile/services/mock_catalog.dart';
+import 'support/start_app.dart';
 
 /// The demo-account login cards (including the dedicated "Demo: Duplicate
 /// Perlita Account" button this file's premise used to rely on) were
@@ -60,10 +60,9 @@ void main() {
   testWidgets('Sign In screen no longer offers any demo-account login, duplicate-Perlita included', (
     tester,
   ) async {
-    SharedPreferences.setMockInitialValues({'esperanza_onboarding_complete': true});
+    SharedPreferences.setMockInitialValues({});
     _setPhoneViewport(tester);
-    await tester.pumpWidget(const EsperanzaMobileApp());
-    await tester.pumpAndSettle();
+    await pumpAppToSignIn(tester);
 
     // Inverted from this file's original premise: a one-tap
     // sign-in-as-anyone card (including this one, labeled as a *duplicate*
@@ -80,10 +79,9 @@ void main() {
   testWidgets('Logging in as the duplicate never grants Verified access, and shows the under-review warning', (
     tester,
   ) async {
-    SharedPreferences.setMockInitialValues({'esperanza_onboarding_complete': true});
+    SharedPreferences.setMockInitialValues({});
     _setPhoneViewport(tester);
-    await tester.pumpWidget(const EsperanzaMobileApp());
-    await tester.pumpAndSettle();
+    await pumpAppToSignIn(tester);
 
     await _loginAs(tester, MockCatalog.duplicateVerifiedDemoAccount);
     await _dismissWelcomeBanner(tester);
@@ -106,10 +104,9 @@ void main() {
   testWidgets(
     'Real Perlita receives both duplicate-alert scenarios; resolving A as "Yes" and B as "No" works independently, repeatably',
     (tester) async {
-      SharedPreferences.setMockInitialValues({'esperanza_onboarding_complete': true});
+      SharedPreferences.setMockInitialValues({});
       _setPhoneViewport(tester);
-      await tester.pumpWidget(const EsperanzaMobileApp());
-      await tester.pumpAndSettle();
+      await pumpAppToSignIn(tester);
 
       await _loginAs(tester, MockCatalog.demoAccounts.last); // real Perlita Quiambao
       await _dismissWelcomeBanner(tester);
@@ -186,10 +183,9 @@ void main() {
     'Duplicate account tapping Dokyu via the "+" launcher gets the dedicated verified-account popup, '
     'and "Go to My Verified Account" switches the session and lands on Home',
     (tester) async {
-      SharedPreferences.setMockInitialValues({'esperanza_onboarding_complete': true});
+      SharedPreferences.setMockInitialValues({});
       _setPhoneViewport(tester);
-      await tester.pumpWidget(const EsperanzaMobileApp());
-      await tester.pumpAndSettle();
+      await pumpAppToSignIn(tester);
 
       await _loginAs(tester, MockCatalog.duplicateVerifiedDemoAccount);
       await _dismissWelcomeBanner(tester);
@@ -221,10 +217,9 @@ void main() {
   testWidgets('Duplicate account: "Not Now" on the verified-account popup leaves the session and screen unchanged', (
     tester,
   ) async {
-    SharedPreferences.setMockInitialValues({'esperanza_onboarding_complete': true});
+    SharedPreferences.setMockInitialValues({});
     _setPhoneViewport(tester);
-    await tester.pumpWidget(const EsperanzaMobileApp());
-    await tester.pumpAndSettle();
+    await pumpAppToSignIn(tester);
 
     await _loginAs(tester, MockCatalog.duplicateVerifiedDemoAccount);
     await _dismissWelcomeBanner(tester);

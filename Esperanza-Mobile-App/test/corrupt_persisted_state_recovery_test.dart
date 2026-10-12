@@ -26,7 +26,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:esperanza_mobile/services/citizen_session_service.dart';
 import 'package:esperanza_mobile/services/master_file_service.dart';
 import 'package:esperanza_mobile/services/notifications_service.dart';
-import 'package:esperanza_mobile/services/onboarding_service.dart';
 import 'package:esperanza_mobile/services/persistence_recovery.dart';
 import 'package:esperanza_mobile/services/resident_profile_service.dart';
 
@@ -117,38 +116,6 @@ void main() {
 
       final profiles = ResidentProfileService();
       await _settle(tester, () => profiles.loaded, 'ResidentProfileService');
-    });
-  });
-
-  group('The splash reads a typed preference, and that can throw too', () {
-    // Not a jsonDecode and not a _restore(), so this path sits outside the
-    // shape of every other case in this file — and outside the shape of the
-    // audit that found them. `getBool` is a checked cast inside
-    // shared_preferences: a value of the wrong type raises a TypeError.
-    // SplashScreen._run() awaits this from an initState-started future that
-    // nothing awaits, so an escape means pushReplacement never runs and the
-    // citizen sits on the splash forever — before AuthGate is even reached.
-    testWidgets('a non-bool onboarding flag does not throw out of isComplete', (tester) async {
-      SharedPreferences.setMockInitialValues({'esperanza_onboarding_complete': 'yes'});
-
-      late bool complete;
-      await tester.runAsync(() async {
-        complete = await OnboardingService.isComplete();
-      });
-
-      expect(complete, isFalse, reason: 're-show onboarding rather than strand the citizen');
-      expect(PersistenceRecovery.discards.single.service, 'OnboardingService');
-    });
-
-    testWidgets('the unreadable flag is cleared so the next launch is clean', (tester) async {
-      SharedPreferences.setMockInitialValues({'esperanza_onboarding_complete': 'yes'});
-
-      await tester.runAsync(() async {
-        await OnboardingService.isComplete();
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.reload();
-        expect(prefs.get('esperanza_onboarding_complete'), isNull);
-      });
     });
   });
 

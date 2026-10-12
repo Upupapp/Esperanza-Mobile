@@ -7,13 +7,13 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'package:esperanza_mobile/main.dart';
 import 'package:esperanza_mobile/models/citizen_account.dart';
 import 'package:esperanza_mobile/services/citizen_session_service.dart';
 import 'package:esperanza_mobile/services/mock_catalog.dart';
 
 import 'support/dokyu_tulong_fixtures.dart';
 import 'support/fake_api.dart';
+import 'support/start_app.dart';
 
 /// The demo-account login cards were removed from LoginScreen (see
 /// PRODUCTION_READINESS.md 4(d)) as a credential-enumeration surface once
@@ -76,10 +76,9 @@ void main() {
     // Onboarding-complete pre-seeded: these scenarios exercise the normal
     // returning-user flow, not the first-run Onboarding screens — see
     // onboarding_flow_test.dart for that.
-    SharedPreferences.setMockInitialValues({'esperanza_onboarding_complete': true});
+    SharedPreferences.setMockInitialValues({});
     _setPhoneViewport(tester);
-    await tester.pumpWidget(const EsperanzaMobileApp());
-    await tester.pumpAndSettle();
+    await pumpAppToSignIn(tester);
 
     // 1. Open Sign-In.
     expect(find.text('Welcome back'), findsOneWidget);
@@ -121,10 +120,9 @@ void main() {
     // Onboarding-complete pre-seeded: these scenarios exercise the normal
     // returning-user flow, not the first-run Onboarding screens — see
     // onboarding_flow_test.dart for that.
-    SharedPreferences.setMockInitialValues({'esperanza_onboarding_complete': true});
+    SharedPreferences.setMockInitialValues({});
     _setPhoneViewport(tester);
-    await tester.pumpWidget(const EsperanzaMobileApp());
-    await tester.pumpAndSettle();
+    await pumpAppToSignIn(tester);
 
     // 1. Sign in as Nicanor Sarmiento — registered but unverified
     // (MockCatalog.demoAccounts.first, status 'Pending Review').
@@ -167,7 +165,7 @@ void main() {
     // Onboarding-complete pre-seeded: these scenarios exercise the normal
     // returning-user flow, not the first-run Onboarding screens — see
     // onboarding_flow_test.dart for that.
-    SharedPreferences.setMockInitialValues({'esperanza_onboarding_complete': true});
+    SharedPreferences.setMockInitialValues({});
     // Scenarios A and B never reach the real DokyuScreen/TulongScreen (both
     // are blocked by RestrictedFeatureNotice first), but Perlita is fully
     // verified and does -- and both screens fetch their catalog/request
@@ -175,8 +173,7 @@ void main() {
     // this scenario needs a fake backend where A/B didn't.
     DokyuTulongFixtures.install();
     _setPhoneViewport(tester);
-    await tester.pumpWidget(const EsperanzaMobileApp());
-    await tester.pumpAndSettle();
+    await pumpAppToSignIn(tester);
 
     // 1. Sign in as Perlita Quiambao — fully verified
     // (MockCatalog.demoAccounts.last, status 'Approved').

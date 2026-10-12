@@ -7,7 +7,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'package:esperanza_mobile/main.dart';
 import 'package:esperanza_mobile/models/citizen_account.dart';
 import 'package:esperanza_mobile/screens/balita/post_image_viewer.dart';
 import 'package:esperanza_mobile/services/citizen_session_service.dart';
@@ -15,6 +14,7 @@ import 'package:esperanza_mobile/services/mock_catalog.dart';
 import 'package:esperanza_mobile/widgets/restricted_feature_notice.dart';
 
 import 'support/fake_api.dart';
+import 'support/start_app.dart';
 
 /// The demo-account login cards were removed from LoginScreen (see
 /// PRODUCTION_READINESS.md 4(d)) as a credential-enumeration surface once
@@ -158,10 +158,9 @@ void main() {
   testWidgets(
     'Guest: can open the viewer and read the post, but React/Comment/Share all show the account-required notice',
     (tester) async {
-      SharedPreferences.setMockInitialValues({'esperanza_onboarding_complete': true});
+      SharedPreferences.setMockInitialValues({});
       _setPhoneViewport(tester);
-      await tester.pumpWidget(const EsperanzaMobileApp());
-      await tester.pumpAndSettle();
+      await pumpAppToSignIn(tester);
 
       await tester.tap(find.text('Continue as Guest'));
       await tester.pumpAndSettle();
@@ -227,10 +226,9 @@ void main() {
   testWidgets(
     'Nicanor Sarmiento (signed in, unverified): treated the same as Guest — React/Comment/Share are blocked in the viewer, viewing/zooming stays available',
     (tester) async {
-      SharedPreferences.setMockInitialValues({'esperanza_onboarding_complete': true});
+      SharedPreferences.setMockInitialValues({});
       _setPhoneViewport(tester);
-      await tester.pumpWidget(const EsperanzaMobileApp());
-      await tester.pumpAndSettle();
+      await pumpAppToSignIn(tester);
 
       await _loginAs(tester, MockCatalog.demoAccounts.first); // Nicanor Sarmiento
       await _dismissWelcomeBanner(tester);
@@ -268,10 +266,9 @@ void main() {
   testWidgets(
     'Verified user: engagement row shows reaction count on the left, comments then shares together on the right',
     (tester) async {
-      SharedPreferences.setMockInitialValues({'esperanza_onboarding_complete': true});
+      SharedPreferences.setMockInitialValues({});
       _setPhoneViewport(tester);
-      await tester.pumpWidget(const EsperanzaMobileApp());
-      await tester.pumpAndSettle();
+      await pumpAppToSignIn(tester);
 
       await _loginAs(tester, MockCatalog.demoAccounts.last); // Perlita Quiambao
       await _dismissWelcomeBanner(tester);
@@ -302,10 +299,9 @@ void main() {
   testWidgets('Verified user: commenting in the image viewer increments the visible comment count immediately', (
     tester,
   ) async {
-    SharedPreferences.setMockInitialValues({'esperanza_onboarding_complete': true});
+    SharedPreferences.setMockInitialValues({});
     _setPhoneViewport(tester);
-    await tester.pumpWidget(const EsperanzaMobileApp());
-    await tester.pumpAndSettle();
+    await pumpAppToSignIn(tester);
 
     await _loginAs(tester, MockCatalog.demoAccounts.last); // Perlita Quiambao
     await _dismissWelcomeBanner(tester);

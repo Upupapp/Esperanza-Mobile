@@ -6,10 +6,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'package:esperanza_mobile/main.dart';
 import 'package:esperanza_mobile/models/citizen_account.dart';
 import 'package:esperanza_mobile/services/citizen_session_service.dart';
 import 'package:esperanza_mobile/services/mock_catalog.dart';
+import 'support/start_app.dart';
 
 /// The demo-account login cards (Account A/B included) were removed from
 /// LoginScreen (see PRODUCTION_READINESS.md 4(d)) as a credential-
@@ -47,10 +47,9 @@ void main() {
   testWidgets('Sign In no longer offers Account A/B demo logins, though they still share the same underlying identity', (
     tester,
   ) async {
-    SharedPreferences.setMockInitialValues({'esperanza_onboarding_complete': true});
+    SharedPreferences.setMockInitialValues({});
     _setPhoneViewport(tester);
-    await tester.pumpWidget(const EsperanzaMobileApp());
-    await tester.pumpAndSettle();
+    await pumpAppToSignIn(tester);
 
     // Inverted from this file's original premise: a one-tap
     // sign-in-as-anyone card is a credential-enumeration surface now that
@@ -72,10 +71,9 @@ void main() {
   });
 
   testWidgets('Account A sees the duplicate-registration warning and remains restricted from Dokyu', (tester) async {
-    SharedPreferences.setMockInitialValues({'esperanza_onboarding_complete': true});
+    SharedPreferences.setMockInitialValues({});
     _setPhoneViewport(tester);
-    await tester.pumpWidget(const EsperanzaMobileApp());
-    await tester.pumpAndSettle();
+    await pumpAppToSignIn(tester);
 
     await _loginAs(tester, MockCatalog.unverifiedDuplicateAccountA);
     await _dismissWelcomeBanner(tester);
@@ -109,10 +107,9 @@ void main() {
     'Resolution screen shows both accounts; keeping Account A marks it Continue Verification and B Cancelled, '
     'neither becomes Verified',
     (tester) async {
-      SharedPreferences.setMockInitialValues({'esperanza_onboarding_complete': true});
+      SharedPreferences.setMockInitialValues({});
       _setPhoneViewport(tester);
-      await tester.pumpWidget(const EsperanzaMobileApp());
-      await tester.pumpAndSettle();
+      await pumpAppToSignIn(tester);
 
       await _loginAs(tester, MockCatalog.unverifiedDuplicateAccountA);
       await _dismissWelcomeBanner(tester);
