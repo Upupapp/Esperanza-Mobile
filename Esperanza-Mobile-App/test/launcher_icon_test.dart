@@ -90,16 +90,18 @@ void main() {
       }
     });
 
-    test('the Android 12+ splash is configured, not left to the platform default', () {
-      // Without this the platform draws the adaptive icon's foreground alone on
-      // the window background, so the seal loses its white plate and its black
-      // outer ring sinks into the navy.
+    test('the Android 12+ launch window is plain navy, with no seal of its own', () {
+      // Left to the platform default, Android 12+ draws an icon derived from
+      // the launcher icon. The owner wants none (2026-10-12): the app's own
+      // animated splash is the first place the seal appears.
       final styles = File('android/app/src/main/res/values-v31/styles.xml');
       expect(styles.existsSync(), isTrue);
 
       final source = styles.readAsStringSync();
-      expect(source, contains('windowSplashScreenBackground'));
-      expect(source, contains('windowSplashScreenAnimatedIcon'));
+      expect(source, contains('<item name="android:windowSplashScreenBackground">@color/esperanza_navy_900</item>'));
+      expect(source, contains('<item name="android:windowSplashScreenAnimatedIcon">@drawable/splash_blank</item>'));
+      final blank = File('android/app/src/main/res/drawable/splash_blank.xml').readAsStringSync();
+      expect(blank, contains('@android:color/transparent'));
     });
   });
 
