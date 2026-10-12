@@ -449,6 +449,9 @@ class _FieldState extends State<_Field> {
             controller: widget.controller,
             focusNode: _focus,
             obscureText: widget.obscure,
+            // A password, shown or not, is not something to autocorrect or learn.
+            autocorrect: widget.suffix == null,
+            enableSuggestions: widget.suffix == null,
             autofillHints: widget.autofillHints,
             textInputAction: widget.textInputAction,
             onSubmitted: widget.onSubmitted,
