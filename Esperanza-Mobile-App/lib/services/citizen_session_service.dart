@@ -36,6 +36,12 @@ class CitizenSessionService extends ChangeNotifier {
   bool _loading = true;
   bool _isGuest = false;
 
+  /// True after the server ended the session (a 401), until the next sign-in:
+  /// AuthGate says so on the sign-in screen. A Sign Out the resident chose
+  /// leaves it false.
+  bool get endedByServer => _endedByServer;
+  bool _endedByServer = false;
+
   /// The profile photo as the LGU holds it; refreshed with every profile read
   /// (the app re-reads it on start), never persisted on the phone.
   ProfilePhotoView? _photo;
@@ -98,6 +104,7 @@ class CitizenSessionService extends ChangeNotifier {
     if (_account == null) return;
     _account = null;
     _isGuest = false;
+    _endedByServer = true;
     await api.setToken(null);
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -177,6 +184,7 @@ class CitizenSessionService extends ChangeNotifier {
   Future<void> login(CitizenAccount account) async {
     _account = account;
     _isGuest = false;
+    _endedByServer = false;
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_key, jsonEncode(account.toJson()));
     await prefs.remove(_guestKey);

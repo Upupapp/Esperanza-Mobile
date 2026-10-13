@@ -65,12 +65,41 @@ class EsperanzaMobileApp extends StatelessWidget {
 /// landing here. A previous bug (see git history around this comment)
 /// came from a button pushing a *second* RootShell on top of this one
 /// instead of trusting AuthGate to react to session changes on its own.
-class AuthGate extends StatelessWidget {
+class AuthGate extends StatefulWidget {
   const AuthGate({super.key});
+
+  @override
+  State<AuthGate> createState() => _AuthGateState();
+}
+
+class _AuthGateState extends State<AuthGate> {
+  /// Signed in (not a guest) on the last build.
+  bool _wasSignedIn = false;
+
+  /// The session ended while the resident was inside the app (the server
+  /// refused the sign-in: expired, revoked, or the account removed). Pages
+  /// opened on top of this one would stay on screen showing "Authentication
+  /// is required" with a Try Again that can never work (2026-10-13), so they
+  /// are closed and the reason is said once on the sign-in screen. Only on
+  /// that change: Register opened from sign-in is left alone.
+  void _sessionEnded({required bool byServer}) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      Navigator.of(context).popUntil((route) => route.isFirst);
+      if (byServer) {
+        ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+          const SnackBar(content: Text('Your session has ended. Please sign in again.')),
+        );
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     final session = context.watch<CitizenSessionService>();
+    final signedIn = session.isSignedIn && !session.isGuest;
+    if (_wasSignedIn && !signedIn && !session.loading) _sessionEnded(byServer: session.endedByServer);
+    if (!session.loading) _wasSignedIn = signedIn;
 
     if (session.loading) {
       return const Scaffold(
