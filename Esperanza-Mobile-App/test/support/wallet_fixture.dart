@@ -18,6 +18,7 @@ Map<String, dynamic> walletDocumentJson({
   String documentStatus = 'uploaded_not_checked',
   bool hasBack = false,
   String? lguRemarks,
+  Map<String, dynamic> details = const {},
 }) => {
   'id': id,
   'id_kind': idKind,
@@ -33,6 +34,7 @@ Map<String, dynamic> walletDocumentJson({
   'agency_verification': 'not_available',
   'verified_at': documentStatus == 'uploaded_not_checked' ? null : '2026-10-13T10:00:00+08:00',
   'lgu_remarks': lguRemarks,
+  ...details,
 };
 
 /// [state] is the Resident ID's: 'active' carries the QR, anything else not.

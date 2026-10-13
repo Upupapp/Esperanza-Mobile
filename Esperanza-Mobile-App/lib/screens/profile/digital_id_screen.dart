@@ -8,6 +8,9 @@ import 'package:qr_flutter/qr_flutter.dart';
 import '../../models/identity_status.dart';
 import '../../services/api_client.dart';
 import '../../services/digital_id_service.dart';
+import '../../services/id_portrait.dart';
+import '../../services/id_text_parser.dart';
+import '../../services/id_text_reader.dart';
 import '../../services/wallet_service.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_shadows.dart';
@@ -24,6 +27,7 @@ import '../../widgets/app_dialogs.dart';
 import '../../widgets/app_text_field.dart';
 import '../../widgets/image_viewer_scaffold.dart';
 import '../../widgets/status_chip.dart';
+import '../../widgets/wallet_id_card.dart';
 
 /// The Unified Digital ID Wallet (owner decisions, 2026-10-13), from
 /// GET /citizen/wallet, laid out after the owner's design (2026-10-13,
@@ -56,7 +60,10 @@ class DigitalIdScreen extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text('Digital ID'),
-            Text('Resident ID · Esperanza LGU', style: AppTypography.label.copyWith(color: AppColors.slate600, fontWeight: FontWeight.w400)),
+            Text(
+              'Resident ID · Esperanza LGU',
+              style: AppTypography.label.copyWith(color: AppColors.slate600, fontWeight: FontWeight.w400),
+            ),
           ],
         ),
       ),
@@ -85,19 +92,21 @@ class _WalletViewState extends State<_WalletView> {
 
   Future<void> _openAdd(CitizenWallet wallet, {WalletDocument? replacing}) async {
     final added = await Navigator.of(context).push<bool>(
-      MaterialPageRoute(builder: (_) => AddWalletIdScreen(types: wallet.idTypes, replacing: replacing)),
+      MaterialPageRoute(
+        builder: (_) => AddWalletIdScreen(types: wallet.idTypes, replacing: replacing),
+      ),
     );
     if (added == true && mounted) _reload();
   }
 
   Future<void> _openDocument(CitizenWallet wallet, WalletDocument doc) async {
-    final result = await Navigator.of(context).push<_DocumentAction>(
-      MaterialPageRoute(builder: (_) => _WalletIdDetailScreen(document: doc)),
-    );
+    final result = await Navigator.of(
+      context,
+    ).push<_DocumentAction>(MaterialPageRoute(builder: (_) => _WalletIdDetailScreen(document: doc)));
     if (!mounted) return;
     if (result == _DocumentAction.replace) {
       await _openAdd(wallet, replacing: doc);
-    } else if (result == _DocumentAction.removed) {
+    } else if (result == _DocumentAction.removed || result == _DocumentAction.edited) {
       _reload();
     }
   }
@@ -168,10 +177,7 @@ class _WalletViewState extends State<_WalletView> {
                 onAdd: wallet.idTypes.isEmpty ? null : () => _openAdd(wallet),
                 onOpen: (doc) => _view(wallet, doc),
               ),
-              if (active) ...[
-                const SizedBox(height: AppSpacing.xl),
-                _QrPanel(card: card),
-              ],
+              if (active) ...[const SizedBox(height: AppSpacing.xl), _QrPanel(card: card)],
               const SizedBox(height: AppSpacing.xl),
               _WhereThingsStand(wallet: wallet),
             ],
@@ -248,16 +254,28 @@ class _CardHeader extends StatelessWidget {
                 shape: BoxShape.circle,
                 boxShadow: [BoxShadow(color: AppColors.gold500, spreadRadius: 2)],
               ),
-              child: ClipOval(child: Image.asset(esperanzaSealAsset, fit: BoxFit.cover, semanticLabel: 'Municipality of Esperanza official seal')),
+              child: ClipOval(
+                child: Image.asset(
+                  esperanzaSealAsset,
+                  fit: BoxFit.cover,
+                  semanticLabel: 'Municipality of Esperanza official seal',
+                ),
+              ),
             ),
             const SizedBox(width: AppSpacing.md),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('MUNICIPALITY OF ESPERANZA · MASBATE', style: AppTypography.eyebrow.copyWith(color: AppColors.brand200)),
+                  Text(
+                    'MUNICIPALITY OF ESPERANZA · MASBATE',
+                    style: AppTypography.eyebrow.copyWith(color: AppColors.brand200),
+                  ),
                   const SizedBox(height: 2),
-                  Text('Resident ID', style: AppTypography.cardHeading.copyWith(color: Colors.white, fontWeight: FontWeight.w800)),
+                  Text(
+                    'Resident ID',
+                    style: AppTypography.cardHeading.copyWith(color: Colors.white, fontWeight: FontWeight.w800),
+                  ),
                 ],
               ),
             ),
@@ -337,7 +355,13 @@ class _ActiveCardBody extends StatelessWidget {
                       children: [
                         _fieldLabel(label),
                         const SizedBox(height: 3),
-                        Text(value, style: AppTypography.bodyText.copyWith(fontWeight: FontWeight.w600, color: AppColors.textPrimary)),
+                        Text(
+                          value,
+                          style: AppTypography.bodyText.copyWith(
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.textPrimary,
+                          ),
+                        ),
                       ],
                     ),
                   ),
@@ -442,7 +466,14 @@ class _CardPhoto extends StatelessWidget {
     if (url == null) return placeholder;
     return ClipRRect(
       borderRadius: BorderRadius.circular(10),
-      child: Image.network(url!, width: w, height: h, fit: BoxFit.cover, semanticLabel: 'Resident photo', errorBuilder: (_, _, _) => placeholder),
+      child: Image.network(
+        url!,
+        width: w,
+        height: h,
+        fit: BoxFit.cover,
+        semanticLabel: 'Resident photo',
+        errorBuilder: (_, _, _) => placeholder,
+      ),
     );
   }
 }
@@ -485,11 +516,13 @@ class _Pill extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          if (icon != null) ...[
-            Icon(icon, size: 15, color: foreground),
-            const SizedBox(width: 6),
-          ],
-          Flexible(child: Text(label, style: AppTypography.labelText.copyWith(color: foreground, fontWeight: FontWeight.w700))),
+          if (icon != null) ...[Icon(icon, size: 15, color: foreground), const SizedBox(width: 6)],
+          Flexible(
+            child: Text(
+              label,
+              style: AppTypography.labelText.copyWith(color: foreground, fontWeight: FontWeight.w700),
+            ),
+          ),
         ],
       ),
     );
@@ -500,7 +533,11 @@ class _DashedRule extends StatelessWidget {
   const _DashedRule();
 
   @override
-  Widget build(BuildContext context) => const SizedBox(height: 1, width: double.infinity, child: CustomPaint(painter: _DashPainter()));
+  Widget build(BuildContext context) => const SizedBox(
+    height: 1,
+    width: double.infinity,
+    child: CustomPaint(painter: _DashPainter()),
+  );
 }
 
 class _DashPainter extends CustomPainter {
@@ -576,10 +613,11 @@ class _MyIds extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const SizedBox(height: AppSpacing.sm),
         Row(
           children: [
-            Expanded(child: Text('My IDs', style: AppTypography.sectionTitle.copyWith(fontWeight: FontWeight.w800))),
+            Expanded(
+              child: Text('My IDs', style: AppTypography.sectionTitle.copyWith(fontWeight: FontWeight.w800)),
+            ),
             OutlinedButton.icon(
               onPressed: onAdd,
               icon: const Icon(Icons.add_rounded, size: 18),
@@ -613,9 +651,13 @@ class _MyIds extends StatelessWidget {
                   const TextSpan(
                     children: [
                       TextSpan(text: 'Keep copies of your government IDs here for reference. '),
-                      TextSpan(text: 'Adding an ID does not verify it:', style: TextStyle(fontWeight: FontWeight.w700)),
                       TextSpan(
-                        text: ' it is not checked by the LGU, by the identity check, or by the agency that issued it. '
+                        text: 'Adding an ID does not verify it:',
+                        style: TextStyle(fontWeight: FontWeight.w700),
+                      ),
+                      TextSpan(
+                        text:
+                            ' it is not checked by the LGU, by the identity check, or by the agency that issued it. '
                             'IDs verified by the LGU have the Esperanza seal on them.',
                       ),
                     ],
@@ -626,7 +668,7 @@ class _MyIds extends StatelessWidget {
             ],
           ),
         ),
-        const SizedBox(height: 6),
+        const SizedBox(height: AppSpacing.itemGap),
         if (docs.isEmpty) const _EmptyDeck() else _IdDeck(documents: docs, onOpen: onOpen),
       ],
     );
@@ -639,7 +681,6 @@ class _EmptyDeck extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      margin: const EdgeInsets.only(top: AppSpacing.md),
       padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl, vertical: AppSpacing.xl),
       decoration: BoxDecoration(
         color: AppColors.surface,
@@ -662,23 +703,6 @@ class _EmptyDeck extends StatelessWidget {
     );
   }
 }
-
-/// Each kind of ID gets its own pale tint, so the deck reads at a glance.
-Color _tintFor(String idKind) => switch (idKind) {
-  'philippine_national_id' => AppColors.gold50,
-  'drivers_license' => AppColors.brand50,
-  'philhealth' => AppColors.emerald50,
-  'sss' => AppColors.sky50,
-  'umid' => AppColors.cyan50,
-  'gsis' => AppColors.teal50,
-  'owwa' => AppColors.orange50,
-  'passport' => AppColors.indigo50,
-  'prc' => AppColors.blue50,
-  'postal' => AppColors.amber50,
-  'voters' => AppColors.green50,
-  'other' => AppColors.purple50,
-  _ => AppColors.slate100,
-};
 
 /// Where one card of the deck sits: lifted, tilted, shrunk, faded.
 @immutable
@@ -744,6 +768,7 @@ class _PosedCardState extends AnimatedWidgetBaseState<_PosedCard> {
         alignment: Alignment.topCenter,
         transform: transform,
         child: Stack(
+          fit: StackFit.expand,
           children: [
             widget.child,
             if (p.dim > 0.001)
@@ -778,7 +803,11 @@ class _IdDeck extends StatefulWidget {
 }
 
 class _IdDeckState extends State<_IdDeck> {
-  static const cardHeight = 216.0;
+  /// The card's height at [width], in the wallet card's proportions.
+  static double _heightFor(double width) => width * WalletIdCard.designHeight / WalletIdCard.designWidth;
+
+  /// Set from the deck's width on each layout.
+  double cardHeight = 216;
   static const ease = Duration(milliseconds: 520);
 
   int _a = 0;
@@ -788,6 +817,9 @@ class _IdDeckState extends State<_IdDeck> {
   int? _enter;
 
   int get _n => widget.documents.length;
+
+  /// How far the cards behind the front one rise above it (see [_poseOf]).
+  double get _peekRoom => 15.0 * math.min(_n - 1, 2);
 
   @override
   void didUpdateWidget(_IdDeck old) {
@@ -837,7 +869,7 @@ class _IdDeckState extends State<_IdDeck> {
 
   (_Pose, int, bool) _poseOf(int i) {
     final rel = (i - _a + _n) % _n;
-    const lift = -(cardHeight + 70);
+    final lift = -(cardHeight + 70);
     final pullingBack = rel == _n - 1 && _n > 1 && _dragging && _drag > 0;
     if ((i == _leave && i != _a) || i == _enter || pullingBack) {
       if (pullingBack) {
@@ -852,7 +884,7 @@ class _IdDeckState extends State<_IdDeck> {
           true,
         );
       }
-      return (const _Pose(dy: lift, turn: -5, scale: 0.97, opacity: 0), 60, i == _enter);
+      return (_Pose(dy: lift, turn: -5, scale: 0.97, opacity: 0), 60, i == _enter);
     }
     if (rel == 0) {
       if (_dragging) {
@@ -879,9 +911,7 @@ class _IdDeckState extends State<_IdDeck> {
   Widget build(BuildContext context) {
     final docs = widget.documents;
     final current = docs[_a];
-    final cards = [
-      for (var i = 0; i < _n; i++) (i, _poseOf(i)),
-    ]..sort((x, y) => x.$2.$2.compareTo(y.$2.$2));
+    final cards = [for (var i = 0; i < _n; i++) (i, _poseOf(i))]..sort((x, y) => x.$2.$2.compareTo(y.$2.$2));
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -911,26 +941,34 @@ class _IdDeckState extends State<_IdDeck> {
                 });
               }
             },
-            child: SizedBox(
-              height: 262,
-              child: Stack(
-                clipBehavior: Clip.none,
-                children: [
-                  for (final (i, (pose, _, live)) in cards)
-                    Positioned(
-                      key: ValueKey(docs[i].id),
-                      top: 40,
-                      left: 0,
-                      right: 0,
-                      height: cardHeight,
-                      child: _PosedCard(
-                        pose: pose,
-                        duration: live ? Duration.zero : ease,
-                        child: _IdCardFace(document: docs[i], back: false),
-                      ),
-                    ),
-                ],
-              ),
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                // The card as wide as the deck, at its own proportions.
+                cardHeight = _heightFor(constraints.maxWidth);
+                return SizedBox(
+                  // Room above the front card only for the cards peeking out
+                  // behind it: 15 each, at most two; none with a single ID.
+                  height: _peekRoom + cardHeight + 6,
+                  child: Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      for (final (i, (pose, _, live)) in cards)
+                        Positioned(
+                          key: ValueKey(docs[i].id),
+                          top: _peekRoom,
+                          left: 0,
+                          right: 0,
+                          height: cardHeight,
+                          child: _PosedCard(
+                            pose: pose,
+                            duration: live ? Duration.zero : ease,
+                            child: _IdCardFace(document: docs[i], back: false),
+                          ),
+                        ),
+                    ],
+                  ),
+                );
+              },
             ),
           ),
         ),
@@ -952,16 +990,30 @@ class _IdDeckState extends State<_IdDeck> {
             Expanded(
               child: Semantics(
                 liveRegion: true,
-                child: Text('${_a + 1} of $_n', style: AppTypography.helper.copyWith(color: AppColors.slate600, fontWeight: FontWeight.w600)),
+                child: Text(
+                  '${_a + 1} of $_n',
+                  style: AppTypography.helper.copyWith(color: AppColors.slate600, fontWeight: FontWeight.w600),
+                ),
               ),
             ),
-            _RoundIconButton(icon: Icons.keyboard_arrow_up_rounded, label: 'Previous ID', onPressed: _n < 2 ? null : () => _go(-1)),
+            _RoundIconButton(
+              icon: Icons.keyboard_arrow_up_rounded,
+              label: 'Previous ID',
+              onPressed: _n < 2 ? null : () => _go(-1),
+            ),
             const SizedBox(width: AppSpacing.sm),
-            _RoundIconButton(icon: Icons.keyboard_arrow_down_rounded, label: 'Next ID', onPressed: _n < 2 ? null : () => _go(1)),
+            _RoundIconButton(
+              icon: Icons.keyboard_arrow_down_rounded,
+              label: 'Next ID',
+              onPressed: _n < 2 ? null : () => _go(1),
+            ),
           ],
         ),
         const SizedBox(height: AppSpacing.md),
-        Text('Swipe up or down to browse. Tap a card to view it.', style: AppTypography.label.copyWith(color: AppColors.slate600, fontWeight: FontWeight.w400)),
+        Text(
+          'Swipe up or down to browse. Tap a card to view it.',
+          style: AppTypography.label.copyWith(color: AppColors.slate600, fontWeight: FontWeight.w400),
+        ),
       ],
     );
   }
@@ -1013,87 +1065,33 @@ class _IdCardFace extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final d = document;
-    final url = back ? d.backUrl : d.frontUrl;
-    final missing = _PhotoMissing(text: back ? (d.hasBack ? 'The back cannot be shown right now' : 'No back side added') : 'The photo cannot be shown right now');
-    return Container(
-      clipBehavior: Clip.antiAlias,
-      decoration: BoxDecoration(
-        color: _tintFor(d.idKind),
-        borderRadius: BorderRadius.circular(AppRadius.lg),
-        border: Border.all(color: AppColors.navy900.withValues(alpha: 0.12)),
-        boxShadow: AppShadows.float,
-      ),
-      child: Stack(
-        fit: StackFit.expand,
-        children: [
-          if (url == null) missing else _RetryingImage(url: url, fit: BoxFit.cover, waiting: const SizedBox.shrink(), failed: missing),
-          Positioned(top: 10, right: 10, child: _CornerBadge(status: d.status)),
-          Positioned(
-            left: 10,
-            bottom: 10,
-            right: 90,
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: AppColors.navy900.withValues(alpha: 0.8),
-                  borderRadius: BorderRadius.circular(AppRadius.full),
-                ),
-                child: Text(
-                  back ? '${d.name} · Back' : d.name,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: AppTypography.label.copyWith(color: Colors.white, fontWeight: FontWeight.w700),
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _PhotoMissing extends StatelessWidget {
-  const _PhotoMissing({required this.text});
-
-  final String text;
-
-  @override
-  Widget build(BuildContext context) {
-    return CustomPaint(
-      painter: const _FineHatchPainter(),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 48),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(Icons.image_outlined, size: 30, color: AppColors.slate600),
-            const SizedBox(height: 6),
-            Text(text, textAlign: TextAlign.center, style: AppTypography.helper.copyWith(color: AppColors.navy900, fontWeight: FontWeight.w700)),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _FineHatchPainter extends CustomPainter {
-  const _FineHatchPainter();
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = AppColors.navy900.withValues(alpha: 0.035)
-      ..strokeWidth = 1;
-    for (double d = -size.height; d < size.width + size.height; d += 8) {
-      canvas.drawLine(Offset(d, 0), Offset(d + size.height, size.height), paint);
+    final url = d.frontUrl;
+    const noPhoto = Icon(Icons.image_not_supported_outlined, color: AppColors.textDisabled);
+    // The front's picture is the face on the ID, cropped from the resident's
+    // photo; with no face found, a plain placeholder rather than the whole
+    // card shrunk into the slot. The back has no picture (owner, 2026-10-13);
+    // its photo is on the ID's details page.
+    final face = back ? null : PortraitBox.decode(d.portraitBox);
+    Widget? photo;
+    if (url != null && face != null) {
+      photo = _RetryingImage(
+        url: url,
+        fit: BoxFit.cover,
+        crop: face,
+        waiting: const SizedBox.shrink(),
+        failed: noPhoto,
+      );
     }
+    return DecoratedBox(
+      decoration: BoxDecoration(borderRadius: BorderRadius.circular(AppRadius.lg), boxShadow: AppShadows.float),
+      child: WalletIdCard(
+        document: d,
+        back: back,
+        photo: photo,
+        badge: back ? null : _CornerBadge(status: d.status),
+      ),
+    );
   }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
 class _CornerBadge extends StatelessWidget {
@@ -1181,7 +1179,10 @@ class _HoloSealState extends State<_HoloSeal> with SingleTickerProviderStateMixi
             child: Stack(
               fit: StackFit.expand,
               children: [
-                ColorFiltered(colorFilter: _grey, child: Image.asset(esperanzaSealAsset, fit: BoxFit.cover)),
+                ColorFiltered(
+                  colorFilter: _grey,
+                  child: Image.asset(esperanzaSealAsset, fit: BoxFit.cover),
+                ),
                 AnimatedBuilder(
                   animation: _spin,
                   builder: (context, _) => Opacity(
@@ -1270,7 +1271,11 @@ class _IdViewerState extends State<_IdViewer> with SingleTickerProviderStateMixi
     final scale = math.min(1.55, math.min((size.width - 32) / cardH, roomH / cardW));
     final pop = CurvedAnimation(parent: widget.animation, curve: const Cubic(0.2, 0.8, 0.2, 1));
 
-    Widget face(bool back) => SizedBox(width: cardW, height: cardH, child: _IdCardFace(document: d, back: back));
+    Widget face(bool back) => SizedBox(
+      width: cardW,
+      height: cardH,
+      child: _IdCardFace(document: d, back: back),
+    );
 
     return SafeArea(
       child: Column(
@@ -1295,14 +1300,19 @@ class _IdViewerState extends State<_IdViewer> with SingleTickerProviderStateMixi
                         scale: 1 + (scale - 1) * t,
                         child: Semantics(
                           button: true,
-                          label: '${d.name}, ${showingBack ? 'back' : 'front'}. Double tap to show the ${showingBack ? 'front' : 'back'}.',
+                          label:
+                              '${d.name}, ${showingBack ? 'back' : 'front'}. Double tap to show the ${showingBack ? 'front' : 'back'}.',
                           child: GestureDetector(
                             onTap: _toggle,
                             child: Transform(
                               alignment: Alignment.center,
                               transform: flip,
                               child: showingBack
-                                  ? Transform(alignment: Alignment.center, transform: Matrix4.rotationX(math.pi), child: face(true))
+                                  ? Transform(
+                                      alignment: Alignment.center,
+                                      transform: Matrix4.rotationX(math.pi),
+                                      child: face(true),
+                                    )
                                   : face(false),
                             ),
                           ),
@@ -1323,8 +1333,16 @@ class _IdViewerState extends State<_IdViewer> with SingleTickerProviderStateMixi
                 runSpacing: AppSpacing.sm,
                 alignment: WrapAlignment.center,
                 children: [
-                  _ViewerButton(icon: Icons.close_rounded, label: 'Close', onPressed: () => Navigator.of(context).pop(false)),
-                  _ViewerButton(icon: Icons.info_outline_rounded, label: 'Details', onPressed: () => Navigator.of(context).pop(true)),
+                  _ViewerButton(
+                    icon: Icons.close_rounded,
+                    label: 'Close',
+                    onPressed: () => Navigator.of(context).pop(false),
+                  ),
+                  _ViewerButton(
+                    icon: Icons.info_outline_rounded,
+                    label: 'Details',
+                    onPressed: () => Navigator.of(context).pop(true),
+                  ),
                 ],
               ),
             ),
@@ -1361,7 +1379,10 @@ class _ViewerButton extends StatelessWidget {
               children: [
                 Icon(icon, size: 16, color: AppColors.navy900),
                 const SizedBox(width: AppSpacing.sm),
-                Text(label, style: AppTypography.bodyText.copyWith(color: AppColors.navy900, fontWeight: FontWeight.w700)),
+                Text(
+                  label,
+                  style: AppTypography.bodyText.copyWith(color: AppColors.navy900, fontWeight: FontWeight.w700),
+                ),
               ],
             ),
           ),
@@ -1393,7 +1414,12 @@ class _QrPanel extends StatelessWidget {
             children: [
               const Icon(Icons.qr_code_scanner_rounded, size: 18, color: AppColors.brand800),
               const SizedBox(width: AppSpacing.sm),
-              Expanded(child: Text('Show this to LGU staff', style: AppTypography.cardHeading.copyWith(fontWeight: FontWeight.w700))),
+              Expanded(
+                child: Text(
+                  'Show this to LGU staff',
+                  style: AppTypography.cardHeading.copyWith(fontWeight: FontWeight.w700),
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 14),
@@ -1413,7 +1439,10 @@ class _QrPanel extends StatelessWidget {
                 padding: EdgeInsets.zero,
                 backgroundColor: Colors.white,
                 eyeStyle: const QrEyeStyle(eyeShape: QrEyeShape.square, color: AppColors.navy900),
-                dataModuleStyle: const QrDataModuleStyle(dataModuleShape: QrDataModuleShape.square, color: AppColors.navy900),
+                dataModuleStyle: const QrDataModuleStyle(
+                  dataModuleShape: QrDataModuleShape.square,
+                  color: AppColors.navy900,
+                ),
               ),
             ),
           ),
@@ -1469,7 +1498,11 @@ class _WhereThingsStand extends StatelessWidget {
           : _Pill(label: idStatus.label, foreground: idStatus.foreground, background: idStatus.background),
       lines: [
         ?identity.sourceLabel,
-        if (doc != null) ['Checked ID: ${doc.type ?? 'ID document'}', if (doc.numberLast4 != null) 'ending ${doc.numberLast4}'].join(', '),
+        if (doc != null)
+          [
+            'Checked ID: ${doc.type ?? 'ID document'}',
+            if (doc.numberLast4 != null) 'ending ${doc.numberLast4}',
+          ].join(', '),
       ],
     );
 
@@ -1490,7 +1523,9 @@ class _WhereThingsStand extends StatelessWidget {
           ? _Pill(label: wallet.residencyStatus, foreground: AppColors.slate600, background: AppColors.slate100)
           : StatusChip(status: residency, small: true),
       lines: [
-        wallet.approvalRevoked ? 'The LGU withdrew the approval of your residency.' : 'Decided by the LGU, separately from your identity.',
+        wallet.approvalRevoked
+            ? 'The LGU withdrew the approval of your residency.'
+            : 'Decided by the LGU, separately from your identity.',
       ],
     );
 
@@ -1508,12 +1543,21 @@ class _WhereThingsStand extends StatelessWidget {
       },
       pill: switch (rid.state) {
         ResidentIdState.active => const _Pill(label: 'Active', foreground: Colors.white, background: AppColors.navy900),
-        ResidentIdState.suspended => const _Pill(label: 'Suspended', foreground: AppColors.rose700, background: AppColors.rose50),
-        ResidentIdState.notIssued => const _Pill(label: 'Not issued yet', foreground: AppColors.amber700, background: AppColors.amber50),
+        ResidentIdState.suspended => const _Pill(
+          label: 'Suspended',
+          foreground: AppColors.rose700,
+          background: AppColors.rose50,
+        ),
+        ResidentIdState.notIssued => const _Pill(
+          label: 'Not issued yet',
+          foreground: AppColors.amber700,
+          background: AppColors.amber50,
+        ),
       },
       lines: [
         switch (rid.state) {
-          ResidentIdState.active => issued == null ? 'Valid while your identity and residency stand.' : 'Issued ${_date(issued)}',
+          ResidentIdState.active =>
+            issued == null ? 'Valid while your identity and residency stand.' : 'Issued ${_date(issued)}',
           ResidentIdState.suspended => 'Not valid until the LGU restores it.',
           ResidentIdState.notIssued => 'Issued once your identity is verified and your residency approved.',
         },
@@ -1575,7 +1619,11 @@ class _TimelineRow extends StatelessWidget {
                 ),
                 if (!last)
                   Expanded(
-                    child: Container(width: 2, constraints: const BoxConstraints(minHeight: 20), color: step.color.withValues(alpha: 0.3)),
+                    child: Container(
+                      width: 2,
+                      constraints: const BoxConstraints(minHeight: 20),
+                      color: step.color.withValues(alpha: 0.3),
+                    ),
                   ),
               ],
             ),
@@ -1589,7 +1637,15 @@ class _TimelineRow extends StatelessWidget {
                 children: [
                   Row(
                     children: [
-                      Expanded(child: Text(step.title, style: AppTypography.bodyText.copyWith(fontWeight: FontWeight.w700, color: AppColors.textPrimary))),
+                      Expanded(
+                        child: Text(
+                          step.title,
+                          style: AppTypography.bodyText.copyWith(
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.textPrimary,
+                          ),
+                        ),
+                      ),
                       step.pill,
                     ],
                   ),
@@ -1623,14 +1679,13 @@ class _StatusRow extends StatelessWidget {
       children: [
         Row(
           children: [
-            Expanded(child: Text(title, style: AppTypography.labelText.copyWith(color: AppColors.textPrimary))),
+            Expanded(
+              child: Text(title, style: AppTypography.labelText.copyWith(color: AppColors.textPrimary)),
+            ),
             status,
           ],
         ),
-        for (final d in details) ...[
-          const SizedBox(height: AppSpacing.xs),
-          Text(d, style: AppTypography.helper),
-        ],
+        for (final d in details) ...[const SizedBox(height: AppSpacing.xs), Text(d, style: AppTypography.helper)],
       ],
     );
   }
@@ -1657,7 +1712,9 @@ class _PlainChip extends StatelessWidget {
             Icon(icon, size: AppSizes.iconSm, color: foreground),
             const SizedBox(width: AppSpacing.xs),
           ],
-          Flexible(child: Text(label, style: AppTypography.labelText.copyWith(color: foreground))),
+          Flexible(
+            child: Text(label, style: AppTypography.labelText.copyWith(color: foreground)),
+          ),
         ],
       ),
     );
@@ -1704,9 +1761,14 @@ class _RetryingImage extends StatefulWidget {
     required this.failed,
     this.fit = BoxFit.contain,
     this.tapToRetry = false,
+    this.crop,
   });
 
   final String url;
+
+  /// Show only this part of the photo once it has loaded (the face on an
+  /// ID); waiting and failed states are shown whole, never cropped away.
+  final PortraitBox? crop;
 
   /// Shown between tries.
   final Widget waiting;
@@ -1738,10 +1800,14 @@ class _RetryingImageState extends State<_RetryingImage> {
 
   @override
   Widget build(BuildContext context) {
+    final crop = widget.crop;
     return Image.network(
       widget.url,
       key: ValueKey(_attempt),
-      fit: widget.fit,
+      fit: crop == null ? widget.fit : BoxFit.fill,
+      frameBuilder: crop == null
+          ? null
+          : (context, child, frame, _) => frame == null ? widget.waiting : CroppedPortrait(box: crop, child: child),
       errorBuilder: (context, _, _) {
         if (_triesLeft > 0) {
           if (!_scheduled) {
@@ -1769,7 +1835,7 @@ class _RetryingImageState extends State<_RetryingImage> {
   }
 }
 
-enum _DocumentAction { replace, removed }
+enum _DocumentAction { replace, removed, edited }
 
 /// One kept ID: both sides, what is known about it, Replace and Remove.
 class _WalletIdDetailScreen extends StatefulWidget {
@@ -1804,6 +1870,13 @@ class _WalletIdDetailScreenState extends State<_WalletIdDetailScreen> {
     }
   }
 
+  Future<void> _editDetails() async {
+    final saved = await Navigator.of(
+      context,
+    ).push<bool>(MaterialPageRoute(builder: (_) => _EditIdDetailsScreen(document: widget.document)));
+    if (saved == true && mounted) Navigator.of(context).pop(_DocumentAction.edited);
+  }
+
   void _view(String side, String url) {
     Navigator.of(context).push(
       MaterialPageRoute(
@@ -1825,10 +1898,18 @@ class _WalletIdDetailScreenState extends State<_WalletIdDetailScreen> {
       body: ListView(
         padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.md, AppSpacing.lg, AppSpacing.xxxl),
         children: [
-          _SideImage(label: 'Front', url: d.frontUrl, onView: d.frontUrl == null ? null : () => _view('Front', d.frontUrl!)),
+          _SideImage(
+            label: 'Front',
+            url: d.frontUrl,
+            onView: d.frontUrl == null ? null : () => _view('Front', d.frontUrl!),
+          ),
           const SizedBox(height: AppSpacing.md),
           if (d.hasBack)
-            _SideImage(label: 'Back', url: d.backUrl, onView: d.backUrl == null ? null : () => _view('Back', d.backUrl!))
+            _SideImage(
+              label: 'Back',
+              url: d.backUrl,
+              onView: d.backUrl == null ? null : () => _view('Back', d.backUrl!),
+            )
           else
             const Text('No back side added.', style: AppTypography.helper),
           const SizedBox(height: AppSpacing.lg),
@@ -1838,8 +1919,20 @@ class _WalletIdDetailScreenState extends State<_WalletIdDetailScreen> {
               children: [
                 _Field('ID', d.name),
                 _Field('Issued by', d.issuer ?? 'Not given'),
-                _Field('Expires', d.expiresOn == null ? 'No expiry date given' : _date(d.expiresOn!)),
+                _Field(WalletIdDesign.of(d.idKind).numberLabel, d.details.idNumber ?? 'Not entered'),
+                _Field('Name', d.details.holderName ?? 'Not entered'),
+                for (final key in {...WalletIdDesign.of(d.idKind).front, ...WalletIdDesign.of(d.idKind).back})
+                  if (fieldValue(key, d) case final v?) _Field(fieldLabel(key), v),
+                if (d.expiresOn == null) const _Field('Valid until', 'No expiry date given'),
                 if (d.uploadedAt != null) _Field('Added', _date(d.uploadedAt!.toLocal())),
+                const SizedBox(height: AppSpacing.sm),
+                AppButton(
+                  label: 'Edit details',
+                  icon: Icons.edit_outlined,
+                  variant: AppButtonVariant.secondary,
+                  size: AppButtonSize.sm,
+                  onPressed: _removing ? null : _editDetails,
+                ),
               ],
             ),
           ),
@@ -1866,13 +1959,21 @@ class _WalletIdDetailScreenState extends State<_WalletIdDetailScreen> {
                 const Divider(height: AppSpacing.xl),
                 const _StatusRow(
                   title: 'Identity check',
-                  status: _PlainChip(label: 'Not checked', foreground: AppColors.slate600, background: AppColors.slate100),
+                  status: _PlainChip(
+                    label: 'Not checked',
+                    foreground: AppColors.slate600,
+                    background: AppColors.slate100,
+                  ),
                   details: ['The identity check ran on the ID you sent to verify your account, not on this upload.'],
                 ),
                 const Divider(height: AppSpacing.xl),
                 const _StatusRow(
                   title: 'Issuing agency',
-                  status: _PlainChip(label: 'Not available', foreground: AppColors.slate600, background: AppColors.slate100),
+                  status: _PlainChip(
+                    label: 'Not available',
+                    foreground: AppColors.slate600,
+                    background: AppColors.slate100,
+                  ),
                   details: ['Esperanza is not connected to the agency that issued this ID.'],
                 ),
               ],
@@ -1925,7 +2026,11 @@ class _SideImage extends StatelessWidget {
         children: [
           Icon(Icons.refresh_rounded, size: AppSizes.iconBase, color: AppColors.textMuted),
           SizedBox(height: AppSpacing.xs),
-          Text('This image could not be loaded. Tap to try again.', textAlign: TextAlign.center, style: AppTypography.helper),
+          Text(
+            'This image could not be loaded. Tap to try again.',
+            textAlign: TextAlign.center,
+            style: AppTypography.helper,
+          ),
         ],
       ),
     );
@@ -1963,7 +2068,10 @@ class _Field extends StatelessWidget {
         children: [
           SizedBox(width: 100, child: Text(label, style: AppTypography.helper)),
           Expanded(
-            child: Text(value, style: AppTypography.bodyText.copyWith(fontWeight: FontWeight.w600, color: AppColors.textPrimary)),
+            child: Text(
+              value,
+              style: AppTypography.bodyText.copyWith(fontWeight: FontWeight.w600, color: AppColors.textPrimary),
+            ),
           ),
         ],
       ),
@@ -1996,6 +2104,16 @@ class _AddWalletIdScreenState extends State<AddWalletIdScreen> {
   DateTime? _expires;
   PickedImage? _front;
   PickedImage? _back;
+  String? _frontPath;
+  String? _backPath;
+  final _details = _DetailsControllers();
+  bool _reading = false;
+
+  /// The face on the front photo, for the card's picture.
+  PortraitBox? _portrait;
+
+  /// Set once text was read off the photos into the fields.
+  bool _readFromPhotos = false;
   bool _sending = false;
   String? _error;
   bool _tried = false;
@@ -2018,7 +2136,27 @@ class _AddWalletIdScreenState extends State<AddWalletIdScreen> {
   void dispose() {
     _name.dispose();
     _issuer.dispose();
+    _details.dispose();
     super.dispose();
+  }
+
+  /// Reads the photos on the phone and fills what is still empty.
+  Future<void> _readPhotos() async {
+    final kind = _type?.key;
+    if (kind == null || (_frontPath == null && _backPath == null)) return;
+    setState(() => _reading = true);
+    final reading = await IdTextReader.read(kind, frontPath: _frontPath, backPath: _backPath);
+    if (!mounted) return;
+    setState(() {
+      _reading = false;
+      if (reading != null) {
+        final filled = _details.fillEmpty(reading);
+        if (_expires == null && reading.expiresOn != null) {
+          _expires = reading.expiresOn;
+        }
+        _readFromPhotos = _readFromPhotos || filled || reading.expiresOn != null;
+      }
+    });
   }
 
   bool get _isOther => _type?.isOther ?? false;
@@ -2050,10 +2188,18 @@ class _AddWalletIdScreenState extends State<AddWalletIdScreen> {
       _error = null;
       if (front) {
         _front = picked;
+        _frontPath = file.path;
+        _portrait = null;
       } else {
         _back = picked;
+        _backPath = file.path;
       }
     });
+    if (front) {
+      final portrait = await IdPortraitFinder.find(file.path, bytes);
+      if (mounted) setState(() => _portrait = portrait);
+    }
+    await _readPhotos();
   }
 
   Future<void> _submit() async {
@@ -2076,6 +2222,8 @@ class _AddWalletIdScreenState extends State<AddWalletIdScreen> {
         issuer: _isOther ? _issuer.text : null,
         expiresOn: _expires,
         replaces: widget.replacing?.id,
+        details: _details.toDetails(WalletIdDesign.of(_type!.key)),
+        portraitBox: _portrait?.encode(),
       );
       if (mounted) Navigator.of(context).pop(true);
     } on ApiException catch (e) {
@@ -2106,14 +2254,19 @@ class _AddWalletIdScreenState extends State<AddWalletIdScreen> {
             options: widget.types,
             labelBuilder: (t) => t.name,
             hintText: 'Choose the type of ID',
-            onChanged: replacing != null ? (_) {} : (t) => setState(() => _type = t),
+            onChanged: replacing != null
+                ? (_) {}
+                : (t) {
+                    setState(() => _type = t);
+                    _readPhotos();
+                  },
           ),
           if (_type != null && !_isOther && _type!.issuer != null) ...[
             const SizedBox(height: AppSpacing.xs),
             Text('Issued by ${_type!.issuer}', style: AppTypography.helper),
           ],
           if (_isOther) ...[
-            const SizedBox(height: AppSpacing.md),
+            const SizedBox(height: AppSpacing.fieldGap),
             AppTextField(
               label: 'Name of the ID',
               required: true,
@@ -2123,7 +2276,7 @@ class _AddWalletIdScreenState extends State<AddWalletIdScreen> {
               error: _tried && _name.text.trim().isEmpty ? 'Enter the name of the ID.' : null,
               onChanged: (_) => setState(() {}),
             ),
-            const SizedBox(height: AppSpacing.md),
+            const SizedBox(height: AppSpacing.fieldGap),
             AppTextField(
               label: 'Issued by',
               required: true,
@@ -2134,20 +2287,6 @@ class _AddWalletIdScreenState extends State<AddWalletIdScreen> {
               onChanged: (_) => setState(() {}),
             ),
           ],
-          const SizedBox(height: AppSpacing.md),
-          AppDateField(
-            label: 'Expiry date (if printed on the ID)',
-            value: _expires,
-            hintText: 'No expiry date',
-            firstDate: DateTime(2000),
-            lastDate: DateTime(DateTime.now().year + 30),
-            onChanged: (d) => setState(() => _expires = d),
-          ),
-          if (_expires != null)
-            Align(
-              alignment: Alignment.centerLeft,
-              child: TextButton(onPressed: () => setState(() => _expires = null), child: const Text('Clear expiry date')),
-            ),
           const SizedBox(height: AppSpacing.lg),
           _ImageSlot(
             title: 'Front',
@@ -2155,20 +2294,49 @@ class _AddWalletIdScreenState extends State<AddWalletIdScreen> {
             image: _front,
             missing: _tried && _front == null,
             onPick: (source) => _pick(front: true, source: source),
-            onRemove: () => setState(() => _front = null),
+            onRemove: () => setState(() {
+              _front = null;
+              _frontPath = null;
+              _portrait = null;
+            }),
           ),
           const SizedBox(height: AppSpacing.lg),
           _ImageSlot(
             title: 'Back',
             image: _back,
             onPick: (source) => _pick(front: false, source: source),
-            onRemove: () => setState(() => _back = null),
+            onRemove: () => setState(() {
+              _back = null;
+              _backPath = null;
+            }),
           ),
-          const SizedBox(height: AppSpacing.lg),
+          const SizedBox(height: AppSpacing.sm),
           const Text(
             'Your ID is kept as uploaded and is not checked. JPG, PNG or WebP, up to 10 MB per side.',
             style: AppTypography.helper,
           ),
+          if (_type != null) ...[
+            const SizedBox(height: AppSpacing.sectionGap),
+            const Text('What the ID says', style: AppTypography.cardHeading),
+            const SizedBox(height: AppSpacing.xs),
+            Text(
+              _reading
+                  ? 'Reading your photos…'
+                  : _readFromPhotos
+                  ? 'Read from your photos on this phone. Check every detail against your ID and correct anything that is wrong.'
+                  : 'These go on your ID\'s card in the wallet. Add a photo and they are read from it, or type them.',
+              style: AppTypography.helper.copyWith(color: _readFromPhotos && !_reading ? AppColors.amber700 : null),
+            ),
+            if (_reading) ...[const SizedBox(height: AppSpacing.sm), const LinearProgressIndicator()],
+            const SizedBox(height: AppSpacing.headingGap),
+            _DetailFields(
+              kind: _type!.key,
+              c: _details,
+              expires: _expires,
+              onExpires: (v) => setState(() => _expires = v),
+              onChanged: () => setState(() {}),
+            ),
+          ],
           if (_error != null) ...[
             const SizedBox(height: AppSpacing.md),
             Text(_error!, style: AppTypography.helper.copyWith(color: AppColors.rose700)),
@@ -2180,6 +2348,256 @@ class _AddWalletIdScreenState extends State<AddWalletIdScreen> {
             loading: _sending,
             onPressed: _submit,
           ),
+        ],
+      ),
+    );
+  }
+}
+
+/// The form fields for what an ID says, shared by Add ID and Edit details.
+class _DetailsControllers {
+  final number = TextEditingController();
+  final name = TextEditingController();
+  final address = TextEditingController();
+  final _extras = <String, TextEditingController>{};
+  DateTime? birthdate;
+  String? sex;
+
+  TextEditingController extra(String key) => _extras.putIfAbsent(key, TextEditingController.new);
+
+  void fillFrom(IdDetails d) {
+    number.text = d.idNumber ?? '';
+    name.text = d.holderName ?? '';
+    address.text = d.address ?? '';
+    birthdate = d.birthdate == null ? null : DateTime.tryParse(d.birthdate!);
+    sex = d.sex;
+    d.extras.forEach((k, v) => extra(k).text = v);
+  }
+
+  /// Fills only what is still empty, so nothing the resident typed is
+  /// overwritten. True when anything was filled.
+  bool fillEmpty(IdReading r) {
+    var filled = false;
+    void text(TextEditingController c, String? v) {
+      if (v != null && v.trim().isNotEmpty && c.text.trim().isEmpty) {
+        c.text = v.trim();
+        filled = true;
+      }
+    }
+
+    text(number, r.idNumber);
+    text(name, r.holderName);
+    text(address, r.address);
+    if (birthdate == null && r.birthdate != null) {
+      birthdate = r.birthdate;
+      filled = true;
+    }
+    if (sex == null && r.sex != null) {
+      sex = r.sex;
+      filled = true;
+    }
+    r.extras.forEach((k, v) => text(extra(k), v));
+    return filled;
+  }
+
+  IdDetails toDetails(WalletIdDesign design) => IdDetails(
+    idNumber: number.text.trim().isEmpty ? null : number.text.trim(),
+    holderName: name.text.trim().isEmpty ? null : name.text.trim(),
+    birthdate: birthdate == null ? null : _isoDate(birthdate!),
+    sex: sex,
+    address: address.text.trim().isEmpty ? null : address.text.trim(),
+    extras: {
+      for (final k in design.extras)
+        if ((_extras[k]?.text.trim() ?? '').isNotEmpty) k: _extras[k]!.text.trim(),
+    },
+  );
+
+  void dispose() {
+    number.dispose();
+    name.dispose();
+    address.dispose();
+    for (final c in _extras.values) {
+      c.dispose();
+    }
+  }
+}
+
+String _isoDate(DateTime d) =>
+    '${d.year.toString().padLeft(4, '0')}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+
+/// What the ID says: its number (by the name it goes by on that kind of ID),
+/// the name, birth date, sex, address, expiry and the kind's own fields.
+class _DetailFields extends StatelessWidget {
+  const _DetailFields({
+    required this.kind,
+    required this.c,
+    required this.expires,
+    required this.onExpires,
+    required this.onChanged,
+  });
+
+  final String kind;
+  final _DetailsControllers c;
+  final DateTime? expires;
+  final ValueChanged<DateTime?> onExpires;
+  final VoidCallback onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final design = WalletIdDesign.of(kind);
+    final usesSex = [...design.front, ...design.back].contains('sex');
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        AppTextField(
+          label: kind == 'other' ? 'ID number' : 'ID number (${design.numberLabel})',
+          controller: c.number,
+          maxLength: 40,
+          hintText: 'As printed on the ID',
+          onChanged: (_) => onChanged(),
+        ),
+        const SizedBox(height: AppSpacing.fieldGap),
+        AppTextField(label: 'Name as printed', controller: c.name, maxLength: 160, onChanged: (_) => onChanged()),
+        const SizedBox(height: AppSpacing.fieldGap),
+        AppDateField(
+          label: 'Date of birth',
+          value: c.birthdate,
+          hintText: 'Not entered',
+          firstDate: DateTime(1900),
+          lastDate: DateTime.now(),
+          onChanged: (d) {
+            c.birthdate = d;
+            onChanged();
+          },
+        ),
+        if (usesSex) ...[
+          const SizedBox(height: AppSpacing.fieldGap),
+          AppSelectField<String>(
+            label: 'Sex',
+            value: c.sex,
+            options: const ['Male', 'Female'],
+            labelBuilder: (s) => s,
+            hintText: 'Not entered',
+            onChanged: (s) {
+              c.sex = s;
+              onChanged();
+            },
+          ),
+        ],
+        const SizedBox(height: AppSpacing.fieldGap),
+        AppTextField(
+          label: 'Address',
+          controller: c.address,
+          maxLength: 255,
+          maxLines: 2,
+          onChanged: (_) => onChanged(),
+        ),
+        const SizedBox(height: AppSpacing.fieldGap),
+        AppDateField(
+          label: 'Valid until (if printed on the ID)',
+          value: expires,
+          hintText: 'No expiry date',
+          firstDate: DateTime(2000),
+          lastDate: DateTime(DateTime.now().year + 30),
+          onChanged: onExpires,
+        ),
+        if (expires != null)
+          Align(
+            alignment: Alignment.centerLeft,
+            child: TextButton(onPressed: () => onExpires(null), child: const Text('Clear expiry date')),
+          ),
+        for (final key in design.extras) ...[
+          const SizedBox(height: AppSpacing.fieldGap),
+          AppTextField(
+            label: key == 'registered_on' ? '${fieldLabel(key)} (yyyy-mm-dd)' : fieldLabel(key),
+            controller: c.extra(key),
+            maxLength: 120,
+            onChanged: (_) => onChanged(),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+/// Correct what a kept ID says. Saving a change to an ID the LGU verified or
+/// returned sends it back for review.
+class _EditIdDetailsScreen extends StatefulWidget {
+  const _EditIdDetailsScreen({required this.document});
+
+  final WalletDocument document;
+
+  @override
+  State<_EditIdDetailsScreen> createState() => _EditIdDetailsScreenState();
+}
+
+class _EditIdDetailsScreenState extends State<_EditIdDetailsScreen> {
+  final _c = _DetailsControllers();
+  DateTime? _expires;
+  bool _saving = false;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _c.fillFrom(widget.document.details);
+    _expires = widget.document.expiresOn;
+  }
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  Future<void> _save() async {
+    setState(() {
+      _saving = true;
+      _error = null;
+    });
+    try {
+      final d = widget.document;
+      await WalletService.updateDetails(d.id, _c.toDetails(WalletIdDesign.of(d.idKind)), expiresOn: _expires);
+      if (mounted) Navigator.of(context).pop(true);
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _saving = false;
+        _error = e.message();
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final d = widget.document;
+    return Scaffold(
+      appBar: AppBar(title: const Text('Edit details')),
+      body: ListView(
+        padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.md, AppSpacing.lg, AppSpacing.xxxl),
+        children: [
+          Text('What your ${d.name} says, as printed on it.', style: AppTypography.helper),
+          if (d.status != WalletDocumentStatus.uploadedNotChecked) ...[
+            const SizedBox(height: AppSpacing.sm),
+            Text(
+              'Saving a change sends this ID back to the LGU for review.',
+              style: AppTypography.helper.copyWith(color: AppColors.amber700),
+            ),
+          ],
+          const SizedBox(height: AppSpacing.lg),
+          _DetailFields(
+            kind: d.idKind,
+            c: _c,
+            expires: _expires,
+            onExpires: (v) => setState(() => _expires = v),
+            onChanged: () => setState(() {}),
+          ),
+          if (_error != null) ...[
+            const SizedBox(height: AppSpacing.md),
+            Text(_error!, style: AppTypography.helper.copyWith(color: AppColors.rose700)),
+          ],
+          const SizedBox(height: AppSpacing.xl),
+          AppButton(label: 'Save', fullWidth: true, loading: _saving, onPressed: _save),
         ],
       ),
     );
@@ -2210,7 +2628,10 @@ class _ImageSlot extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text(required ? '$title (required)' : '$title (optional)', style: AppTypography.labelText.copyWith(color: AppColors.textPrimary)),
+          Text(
+            required ? '$title (required)' : '$title (optional)',
+            style: AppTypography.labelText.copyWith(color: AppColors.textPrimary),
+          ),
           const SizedBox(height: AppSpacing.sm),
           if (img != null)
             ClipRRect(

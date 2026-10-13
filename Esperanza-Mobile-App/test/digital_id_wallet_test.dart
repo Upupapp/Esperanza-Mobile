@@ -16,6 +16,7 @@ import 'package:esperanza_mobile/services/api_client.dart';
 import 'package:esperanza_mobile/services/citizen_session_service.dart';
 import 'package:esperanza_mobile/services/mock_catalog.dart';
 import 'package:esperanza_mobile/services/wallet_service.dart';
+import 'package:esperanza_mobile/widgets/app_text_field.dart';
 import 'package:esperanza_mobile/widgets/status_chip.dart';
 
 import 'support/fake_api.dart';
@@ -205,6 +206,67 @@ void main() {
       expect(find.text('Not checked'), findsNothing);
     });
 
+    testWidgets('the card shows what the ID says, and the holder corrects it', (tester) async {
+      tester.view.physicalSize = const Size(390, 2600);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      var number = '12-345678901-2';
+      final patches = <Map<String, dynamic>?>[];
+      Map<String, dynamic> doc() => walletDocumentJson(
+        details: {'id_number': number, 'holder_name': 'Halimbawa Sintetiko', 'birthdate': '1995-01-15', 'sex': 'Female', 'details': <String, dynamic>{}},
+      );
+      FakeApi.installFull((r) {
+        if (r.path == '/citizen/wallet') return walletJson(documents: [doc()]);
+        if (r.method == 'PATCH' && r.path == '/citizen/wallet/ids/41') {
+          patches.add(r.body);
+          number = r.body!['id_number'] as String;
+          return doc();
+        }
+        throw const FakeApiError();
+      });
+      addTearDown(FakeApi.restore);
+      SharedPreferences.setMockInitialValues({});
+      final session = CitizenSessionService();
+      await tester.runAsync(() async {
+        await pumpEventQueue();
+        await session.login(MockCatalog.demoAccounts.last);
+      });
+      await tester.pumpWidget(
+        ChangeNotifierProvider<CitizenSessionService>.value(value: session, child: const MaterialApp(home: DigitalIdScreen())),
+      );
+      await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 50)));
+      await tester.pumpAndSettle();
+
+      // The PhilHealth card: its number labelled as PhilHealth labels it, the name, the birth date.
+      expect(find.text('PIN'), findsOneWidget);
+      expect(find.text('12-345678901-2'), findsOneWidget);
+      expect(find.text('Halimbawa Sintetiko'), findsOneWidget);
+      expect(find.text('Jan 15, 1995'), findsOneWidget);
+      expect(find.text('Esperanza wallet copy · not an official ID'), findsWidgets);
+
+      await _openDetails(tester, 'PhilHealth ID');
+      await tester.ensureVisible(find.text('Edit details'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Edit details'));
+      await tester.pumpAndSettle();
+      final field = find.descendant(of: find.widgetWithText(AppTextField, 'ID number (PIN)'), matching: find.byType(TextField));
+      await tester.enterText(field, '12-345678901-3');
+      await tester.ensureVisible(find.text('Save'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Save'));
+      await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 50)));
+      await tester.pumpAndSettle();
+      await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 50)));
+      await tester.pumpAndSettle();
+
+      expect(patches.single!['id_number'], '12-345678901-3');
+      expect(patches.single!['holder_name'], 'Halimbawa Sintetiko');
+      expect(patches.single!.containsKey('status'), isFalse);
+      // Back on the wallet, the card shows the correction.
+      expect(find.text('12-345678901-3'), findsOneWidget);
+    });
+
     testWidgets('a returned upload says so with the reason, and nothing else changes', (tester) async {
       await _pump(
         tester,
@@ -230,7 +292,7 @@ void main() {
 
   group('Add ID', () {
     Future<void> pumpForm(WidgetTester tester) async {
-      tester.view.physicalSize = const Size(390, 1600);
+      tester.view.physicalSize = const Size(390, 3200);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.resetPhysicalSize);
       addTearDown(tester.view.resetDevicePixelRatio);

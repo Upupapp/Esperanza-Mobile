@@ -102,6 +102,72 @@ class WalletResidentId {
   }
 }
 
+/// What a kept ID says (2026-10-13): read off the resident's photos on the
+/// phone and confirmed by them, or typed. The wallet draws its card from
+/// these. Nothing here is verified by being kept.
+class IdDetails {
+  const IdDetails({this.idNumber, this.holderName, this.birthdate, this.sex, this.address, this.extras = const {}});
+
+  final String? idNumber;
+  final String? holderName;
+
+  /// As printed, `yyyy-mm-dd`.
+  final String? birthdate;
+
+  /// 'Male' or 'Female'.
+  final String? sex;
+  final String? address;
+
+  /// The kind's own fields: blood_type, restrictions, profession ...
+  final Map<String, String> extras;
+
+  bool get isEmpty =>
+      [idNumber, holderName, birthdate, sex, address].every((v) => v == null || v.trim().isEmpty) && extras.isEmpty;
+
+  static IdDetails fromApi(Map<String, dynamic> json) {
+    final raw = json['details'];
+    final extras = <String, String>{};
+    if (raw is Map) {
+      raw.forEach((k, v) {
+        final value = JsonRead.nonEmpty(v);
+        if (k is String && value != null) extras[k] = value;
+      });
+    }
+    return IdDetails(
+      idNumber: JsonRead.nonEmpty(json['id_number']),
+      holderName: JsonRead.nonEmpty(json['holder_name']),
+      birthdate: JsonRead.nonEmpty(json['birthdate']),
+      sex: JsonRead.nonEmpty(json['sex']),
+      address: JsonRead.nonEmpty(json['address']),
+      extras: extras,
+    );
+  }
+
+  /// The fields as the API takes them; empty ones are sent empty, so a
+  /// correction can clear a wrong value.
+  Map<String, String> toFields() => {
+    'id_number': idNumber?.trim() ?? '',
+    'holder_name': holderName?.trim() ?? '',
+    'birthdate': birthdate?.trim() ?? '',
+    if (sex != null && sex!.isNotEmpty) 'sex': sex!,
+    'address': address?.trim() ?? '',
+    for (final e in extras.entries)
+      if (e.value.trim().isNotEmpty) 'details[${e.key}]': e.value.trim(),
+  };
+
+  Map<String, dynamic> toJson() => {
+    'id_number': idNumber?.trim(),
+    'holder_name': holderName?.trim(),
+    'birthdate': (birthdate?.trim().isEmpty ?? true) ? null : birthdate!.trim(),
+    'sex': (sex?.isEmpty ?? true) ? null : sex,
+    'address': address?.trim(),
+    'details': {
+      for (final e in extras.entries)
+        if (e.value.trim().isNotEmpty) e.key: e.value.trim(),
+    },
+  };
+}
+
 /// One government ID the resident keeps in the wallet (a Papeles document).
 class WalletDocument {
   const WalletDocument({
@@ -117,6 +183,8 @@ class WalletDocument {
     this.hasBack = false,
     this.verifiedAt,
     this.lguRemarks,
+    this.details = const IdDetails(),
+    this.portraitBox,
   });
 
   final int id;
@@ -136,6 +204,12 @@ class WalletDocument {
   /// Why LGU staff returned it, for the resident to read.
   final String? lguRemarks;
 
+  /// What the ID says, for its card.
+  final IdDetails details;
+
+  /// Where the face is on the front photo ("x,y,w,h" fractions), or null.
+  final String? portraitBox;
+
   static WalletDocument? fromApi(Map<String, dynamic> json) {
     final id = JsonRead.integer(json['id']);
     final name = JsonRead.nonEmpty(json['name']);
@@ -152,6 +226,8 @@ class WalletDocument {
       hasBack: JsonRead.boolean(json['has_back']) ?? false,
       verifiedAt: JsonRead.date(json['verified_at']),
       lguRemarks: JsonRead.nonEmpty(json['lgu_remarks']),
+      details: IdDetails.fromApi(json),
+      portraitBox: JsonRead.nonEmpty(json['portrait_box']),
       status: switch (JsonRead.nonEmpty(json['document_status'])) {
         'verified_by_lgu' => WalletDocumentStatus.verifiedByLgu,
         'returned_by_lgu' => WalletDocumentStatus.returnedByLgu,
@@ -237,6 +313,8 @@ class WalletService {
     String? issuer,
     DateTime? expiresOn,
     int? replaces,
+    IdDetails details = const IdDetails(),
+    String? portraitBox,
   }) async {
     final res = await api.postMultipart(
       '/citizen/wallet/ids',
@@ -246,6 +324,8 @@ class WalletService {
         if (idKind == 'other' && issuer != null) 'issuer': issuer.trim(),
         if (expiresOn != null) 'expires_on': _date(expiresOn),
         if (replaces != null) 'replaces': '$replaces',
+        ...details.toFields()..removeWhere((_, v) => v.isEmpty),
+        'portrait_box': ?portraitBox,
       },
       bytesFiles: {'front': front, 'back': ?back},
     );
@@ -254,6 +334,23 @@ class WalletService {
       throw const ApiException(
         messageEn: 'Your ID was sent, but the reply could not be read. Pull down to refresh.',
         messageFil: 'Naipadala ang iyong ID, ngunit hindi mabasa ang sagot. Hilahin pababa para i-refresh.',
+      );
+    }
+    return doc;
+  }
+
+  /// PATCH /citizen/wallet/ids/{id}: corrects what the ID says. A change to
+  /// one the LGU verified or returned sends it back for review (server side).
+  static Future<WalletDocument> updateDetails(int id, IdDetails details, {DateTime? expiresOn}) async {
+    final res = await api.patch(
+      '/citizen/wallet/ids/${ApiClient.segment(id)}',
+      body: {...details.toJson(), 'expires_on': expiresOn == null ? null : _date(expiresOn)},
+    );
+    final doc = WalletDocument.fromApi(res.map);
+    if (doc == null) {
+      throw const ApiException(
+        messageEn: 'Your changes were saved, but the reply could not be read. Pull down to refresh.',
+        messageFil: 'Na-save ang iyong mga pagbabago, ngunit hindi mabasa ang sagot. Hilahin pababa para i-refresh.',
       );
     }
     return doc;
