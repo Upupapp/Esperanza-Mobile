@@ -24,6 +24,7 @@ import 'package:esperanza_mobile/services/mock_catalog.dart';
 import 'package:esperanza_mobile/services/notifications_service.dart';
 import 'package:esperanza_mobile/services/requests_service.dart';
 import 'package:esperanza_mobile/services/resident_profile_service.dart';
+import 'package:esperanza_mobile/widgets/resident_record_tile.dart';
 import 'package:esperanza_mobile/widgets/segmented_tabs.dart';
 
 import 'support/dokyu_tulong_fixtures.dart';
@@ -111,6 +112,12 @@ void main() {
       await service.loadRecords();
       expect(service.records, isEmpty);
       expect(service.recordsFailed, isTrue);
+    });
+
+    test('a free document reads as free, not ₱0.00', () {
+      final free = ResidentRecord.fromApi({..._records[2], 'amount': 0})!;
+      expect(ResidentRecordTile.line(free), 'Dokyu · Mar 10, 2025 · DOK-2025-00019');
+      expect(ResidentRecordTile.line(ResidentRecord.fromApi(_records.first)!), 'Tulong · Aug 14, 2025 · ₱3,000.00 · TUL-2025-00071');
     });
 
     test('the assistance received in all counts completed Tulong only', () async {

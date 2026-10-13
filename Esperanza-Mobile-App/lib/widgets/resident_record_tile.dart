@@ -22,10 +22,11 @@ class ResidentRecordTile extends StatelessWidget {
   final ResidentRecord record;
 
   /// Tulong · Aug 14, 2025 · ₱3,000.00 · TUL-2025-00071
+  /// A zero amount (a free document) is left out, as on the web portal.
   static String line(ResidentRecord r) => [
     r.category == ServiceCategory.tulong ? 'Tulong' : 'Dokyu',
     if (r.date != null) shortDate(r.date!),
-    ?pesoText(r.amount),
+    if ((r.amountValue ?? 0) > 0) ?pesoText(r.amount),
     r.ref,
   ].join(' · ');
 
@@ -105,7 +106,11 @@ class _RecordSheet extends StatelessWidget {
     final rows = <(String, String)>[
       ('Status', r.status),
       if (r.date != null) ('Date', shortDate(r.date!)),
-      if (pesoText(r.amount) case final amount?) (r.category == ServiceCategory.tulong ? 'Amount' : 'Fee paid', amount),
+      if ((r.amountValue ?? 0) > 0)
+        (r.category == ServiceCategory.tulong ? 'Amount' : 'Fee paid', pesoText(r.amount)!)
+      // The office's logbook said the document was free (live test 2026-10-13: "₱0.00").
+      else if (r.category == ServiceCategory.dokyu && r.amountValue == 0)
+        ('Fee paid', 'Free'),
       if (r.purpose != null) ('For', r.purpose!),
       ('Reference', r.ref),
       if (r.reference != null) ("Office's number", r.reference!),
