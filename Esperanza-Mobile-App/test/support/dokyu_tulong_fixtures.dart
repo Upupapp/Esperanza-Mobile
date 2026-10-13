@@ -43,11 +43,14 @@ class DokyuTulongFixtures {
   /// Installs a fake API serving the full real catalog and, by default, an
   /// empty request list. [requests] seeds GET /citizen/requests (the
   /// CitizenRequestController::index() thin shape: ref/type/service/status/
-  /// submitted). [onSubmit] and [onResubmit], when given, back POST
+  /// submitted). [records] seeds GET /citizen/records (CitizenRequestController::
+  /// records(): what the offices recorded for them, and what they filed).
+  /// [onSubmit] and [onResubmit], when given, back POST
   /// /citizen/requests and POST /citizen/requests/{ref}/resubmit; a test
   /// that never submits/resubmits can leave them unset.
   static void install({
     List<Map<String, dynamic>> requests = const [],
+    List<Map<String, dynamic>> records = const [],
     Map<String, dynamic> Function(Map<String, dynamic> body)? onSubmit,
     Map<String, dynamic> Function(String ref)? onResubmit,
   }) {
@@ -57,6 +60,10 @@ class DokyuTulongFixtures {
       }
       if (req.method == 'GET' && req.path == '/citizen/requests') {
         return requests;
+      }
+      // The Dokyu and Tulong on their record (2026-10-13): none unless seeded.
+      if (req.method == 'GET' && req.path == '/citizen/records') {
+        return records;
       }
       if (req.method == 'GET' && req.path.startsWith('/citizen/requests/')) {
         final ref = req.path.split('/').last;

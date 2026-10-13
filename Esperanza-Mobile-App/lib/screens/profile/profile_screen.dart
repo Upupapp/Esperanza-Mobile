@@ -22,6 +22,7 @@ import '../support/help_support_screen.dart';
 import 'digital_id_screen.dart';
 import 'edit_profile_screen.dart';
 import 'id_verification_screen.dart';
+import 'received_records_screen.dart';
 import 'resident_profile/resident_profile_overview_screen.dart';
 import 'settings_screen.dart';
 import '../../theme/app_typography.dart';
@@ -177,6 +178,12 @@ class ProfileScreen extends StatelessWidget {
             profile: residentProfile,
             onTap: () =>
                 Navigator.of(context).push(MaterialPageRoute(builder: (_) => const ResidentProfileOverviewScreen())),
+          ),
+          // What the offices recorded for them, and what they filed (2026-10-13).
+          MenuListTile(
+            icon: Icons.volunteer_activism_outlined,
+            label: 'Dokyu & Tulong Received',
+            onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const ReceivedRecordsScreen())),
           ),
           const SizedBox(height: AppSpacing.xl),
           MenuListTile(

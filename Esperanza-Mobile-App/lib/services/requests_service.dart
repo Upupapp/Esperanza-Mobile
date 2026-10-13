@@ -6,6 +6,7 @@ import 'api_client.dart';
 import 'json_read.dart';
 import '../models/attachment.dart';
 import '../models/catalog_item.dart';
+import '../models/resident_record.dart';
 import '../models/service_request.dart';
 import 'service_form_specs.dart';
 
@@ -37,6 +38,29 @@ class RequestsService extends ChangeNotifier {
   List<ServiceRequest> _incidents = [];
 
   List<ServiceRequest> get all => List.unmodifiable([..._requests, ..._incidents]);
+
+  /// The Dokyu and Tulong on the resident's record, the offices' included
+  /// (GET /citizen/records, 2026-10-13); see [loadRecords].
+  List<ResidentRecord> _records = [];
+  bool _recordsPending = false;
+  bool _recordsFailed = false;
+
+  List<ResidentRecord> get records => List.unmodifiable(_records);
+
+  /// The barangay has not yet confirmed the record is theirs: nothing of it
+  /// shows until it does.
+  bool get recordsPending => _recordsPending;
+  bool get recordsFailed => _recordsFailed;
+
+  /// What an office recorded for the resident, of one kind - the Dokyu and
+  /// Tulong lists show these under "From the office".
+  List<ResidentRecord> officeRecords(ServiceCategory category) =>
+      _records.where((r) => r.fromOffice && r.category == category).toList();
+
+  /// The assistance they received in all: completed Tulong with an amount.
+  double get assistanceReceived => _records
+      .where((r) => r.category == ServiceCategory.tulong && r.status == 'Completed')
+      .fold(0, (sum, r) => sum + (r.amountValue ?? 0));
 
   List<ServiceRequest> byCategory(ServiceCategory category) =>
       all.where((r) => r.category == category).toList()..sort((a, b) => b.submittedAt.compareTo(a.submittedAt));
@@ -101,6 +125,25 @@ class RequestsService extends ChangeNotifier {
       _loaded = true;
       notifyListeners();
     }
+  }
+
+  /// GET /citizen/records: what the offices recorded for the resident -
+  /// imported from an office's own files, or encoded at its counter - and
+  /// what they filed, newest first. Read only, and never in the way: a
+  /// failure leaves the list empty (and [recordsFailed] set) rather than
+  /// failing the Dokyu or Tulong screen that asked for it.
+  Future<void> loadRecords() async {
+    try {
+      final res = await api.get('/citizen/records');
+      _records = JsonRead.rows(res.list, ResidentRecord.fromApi);
+      _recordsPending = JsonRead.boolean(res.meta?['pending']) ?? false;
+      _recordsFailed = false;
+    } catch (_) {
+      _records = [];
+      _recordsPending = false;
+      _recordsFailed = true;
+    }
+    notifyListeners();
   }
 
   /// GET /citizen/requests/{ref} -- office, decision remarks, real per-
@@ -579,6 +622,9 @@ class RequestsService extends ChangeNotifier {
   void clear() {
     _requests = [];
     _incidents = [];
+    _records = [];
+    _recordsPending = false;
+    _recordsFailed = false;
     _loaded = false;
     notifyListeners();
   }

@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
 import '../../models/catalog_item.dart';
 import '../../models/request_filters.dart';
+import '../../models/resident_record.dart';
 import '../../models/service_request.dart';
 import '../../services/api_client.dart';
 import '../../services/requests_service.dart';
@@ -15,6 +16,7 @@ import '../../widgets/app_dialogs.dart';
 import '../../widgets/empty_state.dart';
 import '../../widgets/filter_bottom_sheet.dart';
 import '../../widgets/new_request_fab.dart';
+import '../../widgets/resident_record_tile.dart';
 import '../../widgets/segmented_tabs.dart';
 import '../../widgets/status_chip.dart';
 import '../home/root_shell.dart';
@@ -116,7 +118,9 @@ class _RequestListScreenState extends State<RequestListScreen> {
   Future<void> _reload() async {
     final service = context.read<RequestsService>();
     try {
-      await (widget.category == ServiceCategory.sakunaIncident ? service.loadIncidents() : service.loadRequests());
+      await (widget.category == ServiceCategory.sakunaIncident
+          ? service.loadIncidents()
+          : Future.wait([service.loadRequests(), service.loadRecords()]));
     } on ApiException catch (e) {
       if (mounted) AppDialogs.toast(context, e.message(), success: false);
     }
@@ -130,6 +134,13 @@ class _RequestListScreenState extends State<RequestListScreen> {
     final doneAll = categoryRequests.where((r) => RequestStatusView(r.status).isDone).toList();
     final tabSource = _tab == 0 ? activeAll : doneAll;
     final visible = _filters.apply(tabSource);
+    // What the office recorded for them (2026-10-13), under their own
+    // requests: finished ones under Done, any still open under Active. The
+    // filters are about their own requests, so a filtered list leaves these out.
+    final office = requests.officeRecords(widget.category);
+    final officeActive = office.where((r) => !RequestStatusView(r.status).isDone).toList();
+    final officeDone = office.where((r) => RequestStatusView(r.status).isDone).toList();
+    final officeShown = _filters.isActive ? const <ResidentRecord>[] : (_tab == 0 ? officeActive : officeDone);
 
     return Scaffold(
       // Clear as a tab, over RootShell's GlassBackdrop; solid when pushed as
@@ -184,7 +195,7 @@ class _RequestListScreenState extends State<RequestListScreen> {
           Padding(
             padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.md, AppSpacing.lg, AppSpacing.xs),
             child: SegmentedTabs(
-              labels: ['Active (${activeAll.length})', 'Done (${doneAll.length})'],
+              labels: ['Active (${activeAll.length + officeActive.length})', 'Done (${doneAll.length + officeDone.length})'],
               selectedIndex: _tab,
               onChanged: (i) => setState(() => _tab = i),
               accent: widget.accent,
@@ -279,7 +290,7 @@ class _RequestListScreenState extends State<RequestListScreen> {
             child: Align(
               alignment: Alignment.centerLeft,
               child: Text(
-                '${visible.length} result${visible.length == 1 ? '' : 's'}',
+                '${visible.length + officeShown.length} result${visible.length + officeShown.length == 1 ? '' : 's'}',
                 style: const TextStyle(fontSize: AppTextSize.label, color: AppColors.textMuted, fontWeight: FontWeight.w500),
               ),
             ),
@@ -287,7 +298,7 @@ class _RequestListScreenState extends State<RequestListScreen> {
           Expanded(
             child: RefreshIndicator(
               onRefresh: _reload,
-              child: visible.isEmpty
+              child: visible.isEmpty && officeShown.isEmpty
                   ? _EmptyStateArea(
                       icon: widget.icon,
                       title: _filters.isActive
@@ -304,8 +315,12 @@ class _RequestListScreenState extends State<RequestListScreen> {
                   : ListView.builder(
                       physics: const AlwaysScrollableScrollPhysics(),
                       padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.sm, AppSpacing.lg, AppSpacing.page),
-                      itemCount: visible.length,
-                      itemBuilder: (context, i) => _RequestTile(request: visible[i], accent: widget.accent),
+                      itemCount: visible.length + (officeShown.isEmpty ? 0 : officeShown.length + 1),
+                      itemBuilder: (context, i) {
+                        if (i < visible.length) return _RequestTile(request: visible[i], accent: widget.accent);
+                        if (i == visible.length) return _OfficeHeader(first: visible.isEmpty);
+                        return ResidentRecordTile(record: officeShown[i - visible.length - 1]);
+                      },
                     ),
             ),
           ),
@@ -366,6 +381,35 @@ class _EmptyStateArea extends StatelessWidget {
           ),
         );
       },
+    );
+  }
+}
+
+/// Above the office's records in a Dokyu or Tulong list.
+class _OfficeHeader extends StatelessWidget {
+  const _OfficeHeader({required this.first});
+
+  /// Nothing of their own above it: no gap to keep.
+  final bool first;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.only(top: first ? 0 : AppSpacing.md, bottom: AppSpacing.sm),
+      child: const Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'From the office',
+            style: TextStyle(fontSize: AppTextSize.helper, fontWeight: FontWeight.w700, color: AppColors.navy900),
+          ),
+          SizedBox(height: 2),
+          Text(
+            'Recorded for you before you had an account, or at the office counter. Tap one to see it.',
+            style: TextStyle(fontSize: AppTextSize.label, color: AppColors.textMuted),
+          ),
+        ],
+      ),
     );
   }
 }

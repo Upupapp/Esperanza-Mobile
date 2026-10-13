@@ -22,7 +22,7 @@ class TulongScreen extends StatelessWidget {
     final requestsService = context.read<RequestsService>();
     return AsyncStateView<List<CatalogItem>>(
       loader: () async {
-        await Future.wait([requestsService.loadCatalog(), requestsService.loadRequests()]);
+        await Future.wait([requestsService.loadCatalog(), requestsService.loadRequests(), requestsService.loadRecords()]);
         return requestsService.tulongCatalog;
       },
       builder: (context, catalog, reload) => RequestListScreen(
