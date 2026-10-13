@@ -80,7 +80,7 @@ class _ResidentProfileOverviewScreenState extends State<ResidentProfileOverviewS
               'Sections',
               style: TextStyle(fontSize: AppTextSize.helper, fontWeight: FontWeight.w600, color: AppColors.slate600),
             ),
-            const SizedBox(height: AppSpacing.sm),
+            const SizedBox(height: AppSpacing.itemGap),
             _SectionCard(
               icon: Icons.badge_outlined,
               title: 'Personal Information',
@@ -89,7 +89,7 @@ class _ResidentProfileOverviewScreenState extends State<ResidentProfileOverviewS
               onTap: () =>
                   Navigator.of(context).push(MaterialPageRoute(builder: (_) => const PersonalInformationScreen())),
             ),
-            const SizedBox(height: AppSpacing.sm),
+            const SizedBox(height: AppSpacing.itemGap),
             _SectionCard(
               icon: Icons.diversity_3_outlined,
               title: 'Family Information',
@@ -98,7 +98,7 @@ class _ResidentProfileOverviewScreenState extends State<ResidentProfileOverviewS
               onTap: () =>
                   Navigator.of(context).push(MaterialPageRoute(builder: (_) => const FamilyInformationScreen())),
             ),
-            const SizedBox(height: AppSpacing.sm),
+            const SizedBox(height: AppSpacing.itemGap),
             _SectionCard(
               icon: Icons.home_work_outlined,
               title: 'Household Information',
@@ -107,7 +107,7 @@ class _ResidentProfileOverviewScreenState extends State<ResidentProfileOverviewS
               onTap: () =>
                   Navigator.of(context).push(MaterialPageRoute(builder: (_) => const HouseholdInformationScreen())),
             ),
-            const SizedBox(height: AppSpacing.sm),
+            const SizedBox(height: AppSpacing.itemGap),
             _SectionCard(
               icon: Icons.fact_check_outlined,
               title: 'Review & Submit',

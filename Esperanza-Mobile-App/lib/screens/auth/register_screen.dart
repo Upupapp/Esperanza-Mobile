@@ -714,7 +714,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
           hintText: 'At least 8 characters',
           onChanged: (_) => setState(() {}),
         ),
-        const SizedBox(height: AppSpacing.md),
+        const SizedBox(height: AppSpacing.sm),
         PasswordRequirements(password: _password.text),
         if (_error != null) ...[
           const SizedBox(height: AppSpacing.md),

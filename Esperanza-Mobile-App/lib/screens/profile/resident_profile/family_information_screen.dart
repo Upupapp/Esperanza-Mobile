@@ -148,29 +148,34 @@ class _FamilyInformationScreenState extends State<FamilyInformationScreen> {
               title: 'Family Details',
               children: [
                 AppTextField(label: 'Family name', controller: _familyName, icon: Icons.diversity_3_outlined),
-                _InfoRow(
-                  label: 'Head of Family',
-                  value: profile.headIndividual.fullName.isEmpty ? account.fullName : profile.headIndividual.fullName,
-                  actionLabel: profile.allFamilyIndividuals.length > 1 ? 'Change' : null,
-                  onAction: () => _changeHead(profile),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    _InfoRow(
+                      label: 'Head of Family',
+                      value: profile.headIndividual.fullName.isEmpty ? account.fullName : profile.headIndividual.fullName,
+                      actionLabel: profile.allFamilyIndividuals.length > 1 ? 'Change' : null,
+                      onAction: () => _changeHead(profile),
+                    ),
+                    _InfoRow(label: 'Members', value: '${profile.allFamilyIndividuals.length}'),
+                    _InfoRow(label: 'Family ID', value: profile.familyId, muted: true),
+                    _InfoRow(label: 'Household ID', value: profile.householdId, muted: true),
+                    // Mother's Maiden Name — a plain display fact sourced from
+                    // the seeded Mother family member's own maidenName (see
+                    // Individual.maidenName's own doc comment); shown only when
+                    // one is actually on file, never invented for a family
+                    // without this specific data point.
+                    if (profile.familyMembers.any(
+                      (m) => m.relationshipToHead == 'Mother' && m.maidenName.trim().isNotEmpty,
+                    ))
+                      _InfoRow(
+                        label: "Mother's Maiden Name",
+                        value: profile.familyMembers
+                            .firstWhere((m) => m.relationshipToHead == 'Mother' && m.maidenName.trim().isNotEmpty)
+                            .maidenName,
+                      ),
+                  ],
                 ),
-                _InfoRow(label: 'Members', value: '${profile.allFamilyIndividuals.length}'),
-                _InfoRow(label: 'Family ID', value: profile.familyId, muted: true),
-                _InfoRow(label: 'Household ID', value: profile.householdId, muted: true),
-                // Mother's Maiden Name — a plain display fact sourced from
-                // the seeded Mother family member's own maidenName (see
-                // Individual.maidenName's own doc comment); shown only when
-                // one is actually on file, never invented for a family
-                // without this specific data point.
-                if (profile.familyMembers.any(
-                  (m) => m.relationshipToHead == 'Mother' && m.maidenName.trim().isNotEmpty,
-                ))
-                  _InfoRow(
-                    label: "Mother's Maiden Name",
-                    value: profile.familyMembers
-                        .firstWhere((m) => m.relationshipToHead == 'Mother' && m.maidenName.trim().isNotEmpty)
-                        .maidenName,
-                  ),
               ],
             ),
             if (profile.emergencyContactName.trim().isNotEmpty) ...[
@@ -185,6 +190,7 @@ class _FamilyInformationScreenState extends State<FamilyInformationScreen> {
             const SizedBox(height: AppSpacing.sm),
             if (profile.familyMembers.isEmpty)
               Container(
+                margin: const EdgeInsets.only(bottom: AppSpacing.itemGap),
                 padding: const EdgeInsets.all(AppSpacing.lg),
                 decoration: BoxDecoration(color: AppColors.slate50, borderRadius: BorderRadius.circular(AppRadius.md)),
                 child: const Text(
@@ -195,7 +201,6 @@ class _FamilyInformationScreenState extends State<FamilyInformationScreen> {
             else
               for (final member in profile.familyMembers)
                 _MemberTile(member: member, onEdit: () => _editMember(member), onRemove: () => _removeMember(member)),
-            const SizedBox(height: AppSpacing.sm),
             OutlinedButton.icon(
               onPressed: _addMember,
               icon: const Icon(Icons.person_add_alt_1_rounded, size: 17),
@@ -459,7 +464,7 @@ class _MemberTile extends StatelessWidget {
       member.hasEsperanzaAccount ? 'Has Esperanza account' : 'No Esperanza account',
     ];
     return Padding(
-      padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+      padding: const EdgeInsets.only(bottom: AppSpacing.itemGap),
       child: AppCard(
         padding: const EdgeInsets.all(AppSpacing.md),
         onTap: onEdit,

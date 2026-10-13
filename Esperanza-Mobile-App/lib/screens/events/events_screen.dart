@@ -103,7 +103,7 @@ class _EventsBodyState extends State<_EventsBody> {
             )
           else
             for (var i = 0; i < list.length; i++) ...[
-              if (i > 0) const SizedBox(height: AppSpacing.lg),
+              if (i > 0) const SizedBox(height: AppSpacing.itemGap),
               EventCard(event: list[i]),
             ],
         ],

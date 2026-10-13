@@ -91,7 +91,7 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
             onNotifications: () => _jumpTo(_notificationsKey),
             onTechnical: () => _jumpTo(_troubleshootingKey),
           ),
-          const SizedBox(height: AppSpacing.xl),
+          const SizedBox(height: AppSpacing.sectionGap),
 
           if (_content?.faqs.isNotEmpty ?? false) ...[
             const SectionHeader(title: 'Frequently Asked Questions'),
@@ -103,7 +103,7 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
             const SectionHeader(title: 'Video Tutorials'),
             for (final t in _content!.tutorials)
               Padding(
-                padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+                padding: const EdgeInsets.only(bottom: AppSpacing.itemGap),
                 child: AppCard(
                   onTap: () {
                     final uri = Uri.tryParse(t.videoUrl);
@@ -399,7 +399,7 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
               style: AppTypography.body,
             ),
           ),
-          const SizedBox(height: AppSpacing.xl),
+          const SizedBox(height: AppSpacing.lg),
 
           SectionHeader(key: _troubleshootingKey, title: 'Troubleshooting'),
           const ExpandablePanel(
@@ -466,7 +466,7 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
               style: AppTypography.body,
             ),
           ),
-          const SizedBox(height: AppSpacing.xl),
+          const SizedBox(height: AppSpacing.lg),
 
           const SectionHeader(title: 'Contact Support'),
           AppCard(

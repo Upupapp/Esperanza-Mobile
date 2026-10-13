@@ -50,7 +50,7 @@ class ResidentRecordTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final r = record;
     return Padding(
-      padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+      padding: const EdgeInsets.only(bottom: AppSpacing.itemGap),
       child: AppCard(
         onTap: () => _open(context),
         child: Row(

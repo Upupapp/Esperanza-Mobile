@@ -163,11 +163,12 @@ class _DirectoryBodyState extends State<_DirectoryBody> {
           else ...[
             if (myBarangay != null) ...[
               const Text('Your barangay', style: AppTypography.subsectionLabel),
-              const SizedBox(height: AppSpacing.sm),
+              const SizedBox(height: AppSpacing.headingGap),
               _BarangayTile(barangay: myBarangay, highlighted: true),
+              // The tile's own 12 below it, plus 12: a section's 24.
               const SizedBox(height: AppSpacing.md),
               const Text('All barangays', style: AppTypography.subsectionLabel),
-              const SizedBox(height: AppSpacing.sm),
+              const SizedBox(height: AppSpacing.headingGap),
             ],
             if (shownBarangays.isEmpty)
               _Note(q.isEmpty ? 'No barangays listed yet.' : 'No barangay matches "$_query".')
@@ -202,7 +203,7 @@ class _OfficeTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final who = [?office.head, ?office.position].join(' · ');
     return Padding(
-      padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+      padding: const EdgeInsets.only(bottom: AppSpacing.itemGap),
       child: AppCard(
         child: Row(
           children: [
@@ -282,7 +283,7 @@ class _BarangayTile extends StatelessWidget {
       ],
     );
     return Padding(
-      padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+      padding: const EdgeInsets.only(bottom: AppSpacing.itemGap),
       child: highlighted
           ? Container(
               padding: const EdgeInsets.all(AppSpacing.lg),

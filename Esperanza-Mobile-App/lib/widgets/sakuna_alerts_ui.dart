@@ -94,12 +94,12 @@ class _ActiveAlertsCardState extends State<ActiveAlertsCard> {
   Widget build(BuildContext context) {
     if (_alerts.isEmpty) return const SizedBox.shrink();
     return Padding(
-      padding: const EdgeInsets.only(bottom: AppSpacing.lg),
+      padding: const EdgeInsets.only(bottom: AppSpacing.md),
       child: Column(
         children: [
           for (final alert in _alerts)
             Padding(
-              padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+              padding: const EdgeInsets.only(bottom: AppSpacing.itemGap),
               // Rose-tinted glass (2026-10 design): the same glass as every
               // card, leaning red, with a red rim and a clay red badge, so an
               // alert stands out without breaking the page's look.

@@ -77,7 +77,7 @@ class _ReviewSubmitScreenState extends State<ReviewSubmitScreen> {
                 if (profile.personal.barangay.isNotEmpty) 'Brgy. ${profile.personal.barangay}',
               ],
             ),
-            const SizedBox(height: AppSpacing.sm),
+            const SizedBox(height: AppSpacing.itemGap),
             _SummaryCard(
               title: 'Family',
               status: profile.familyStatus,
@@ -89,7 +89,7 @@ class _ReviewSubmitScreenState extends State<ReviewSubmitScreen> {
                 '${profile.allFamilyIndividuals.length} Member${profile.allFamilyIndividuals.length == 1 ? '' : 's'}',
               ],
             ),
-            const SizedBox(height: AppSpacing.sm),
+            const SizedBox(height: AppSpacing.itemGap),
             _SummaryCard(
               title: 'Household',
               status: profile.householdStatus,
@@ -102,7 +102,7 @@ class _ReviewSubmitScreenState extends State<ReviewSubmitScreen> {
                 '${profile.householdResidentCount} Resident${profile.householdResidentCount == 1 ? '' : 's'}',
               ],
             ),
-            const SizedBox(height: AppSpacing.sm),
+            const SizedBox(height: AppSpacing.itemGap),
             AppCard(
               child: Row(
                 children: [

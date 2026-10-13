@@ -4,6 +4,7 @@ import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
 import 'app_button.dart';
 import 'app_card.dart';
+import 'menu_tile.dart';
 import '../theme/app_typography.dart';
 
 /// The Resident Profile status card — used identically on both the Home
@@ -31,6 +32,7 @@ class ResidentProfileStatusCard extends StatelessWidget {
     final pct = profile.overallCompletionPercent;
     return AppCard(
       glass: true,
+      padding: const EdgeInsets.all(AppSpacing.md),
       onTap: onTap,
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -89,9 +91,10 @@ class ResidentProfileStatusCard extends StatelessWidget {
   Widget _buildPending() {
     return AppCard(
       glass: true,
+      padding: const EdgeInsets.all(AppSpacing.md),
       onTap: onTap,
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           _iconBadge(Icons.hourglass_top_rounded, AppColors.amber50, AppColors.amber700),
           const SizedBox(width: AppSpacing.md),
@@ -113,7 +116,8 @@ class ResidentProfileStatusCard extends StatelessWidget {
               ],
             ),
           ),
-          const Icon(Icons.chevron_right_rounded, color: AppColors.slate300),
+          const SizedBox(width: AppSpacing.sm),
+          const ChevronBubble(),
         ],
       ),
     );
@@ -122,6 +126,7 @@ class ResidentProfileStatusCard extends StatelessWidget {
   Widget _buildNeedsCorrection() {
     return AppCard(
       glass: true,
+      padding: const EdgeInsets.all(AppSpacing.md),
       onTap: onTap,
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -161,9 +166,10 @@ class ResidentProfileStatusCard extends StatelessWidget {
   Widget _buildVerified() {
     return AppCard(
       glass: true,
+      padding: const EdgeInsets.all(AppSpacing.md),
       onTap: onTap,
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           _iconBadge(Icons.verified_rounded, AppColors.emerald50, AppColors.emerald700),
           const SizedBox(width: AppSpacing.md),
@@ -185,7 +191,8 @@ class ResidentProfileStatusCard extends StatelessWidget {
               ],
             ),
           ),
-          const Icon(Icons.chevron_right_rounded, color: AppColors.slate300),
+          const SizedBox(width: AppSpacing.sm),
+          const ChevronBubble(),
         ],
       ),
     );
@@ -193,11 +200,11 @@ class ResidentProfileStatusCard extends StatelessWidget {
 
   Widget _iconBadge(IconData icon, Color bg, Color fg) {
     return Container(
-      width: 40,
-      height: 40,
+      width: 38,
+      height: 38,
       alignment: Alignment.center,
       decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(AppRadius.md)),
-      child: Icon(icon, size: 19, color: fg),
+      child: Icon(icon, size: 20, color: fg),
     );
   }
 

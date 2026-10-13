@@ -151,9 +151,9 @@ class _SakunaScreenState extends State<SakunaScreen> {
                 ),
               ),
             ),
-            const SizedBox(height: AppSpacing.lg),
+            const SizedBox(height: AppSpacing.sectionGap),
             _AlertsSection(key: ValueKey('alerts-$_generation')),
-            const SizedBox(height: AppSpacing.xl),
+            const SizedBox(height: AppSpacing.sectionGap),
             // Reporting an incident has no dependency on the hotlines/centers
             // fetch below -- it must stay reachable even if that fetch fails,
             // so it renders unconditionally rather than living inside the
@@ -209,11 +209,12 @@ class _SakunaScreenState extends State<SakunaScreen> {
                     ),
                   ...data.hotlines.map(
                     (h) => Padding(
-                      padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+                      padding: const EdgeInsets.only(bottom: AppSpacing.itemGap),
                       child: _HotlineTile(office: h.$1, contact: h.$2),
                     ),
                   ),
-                  const SizedBox(height: AppSpacing.xl),
+                  // The last tile's own 12, plus 12: a section's 24.
+                  const SizedBox(height: AppSpacing.md),
                   _EvacuationCentersSection(centers: data.centers),
                 ],
               ),
@@ -268,7 +269,7 @@ class _EvacuationCentersSection extends StatelessWidget {
           ),
         for (final c in sorted) ...[
           Padding(
-            padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+            padding: const EdgeInsets.only(bottom: AppSpacing.itemGap),
             child: AppCard(
               onTap: () => Navigator.of(context).push(
                 MaterialPageRoute(
@@ -467,7 +468,12 @@ class _AlertsSectionState extends State<_AlertsSection> {
           children: [
             const Text('Active Alerts', style: AppTypography.subsectionLabel),
             const SizedBox(height: AppSpacing.md),
-            for (final a in alerts) ...[_AlertCard(alert: a), const SizedBox(height: AppSpacing.sm)],
+            // 12 between alerts and none after the last: the section gap
+            // below is the same with alerts or without.
+            for (var i = 0; i < alerts.length; i++) ...[
+              if (i > 0) const SizedBox(height: AppSpacing.itemGap),
+              _AlertCard(alert: alerts[i]),
+            ],
           ],
         );
       },

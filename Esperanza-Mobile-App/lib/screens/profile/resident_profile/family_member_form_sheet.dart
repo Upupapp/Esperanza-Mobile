@@ -126,7 +126,7 @@ class _FamilyMemberFormSheetState extends State<FamilyMemberFormSheet> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         AppTextField(label: 'Full name', controller: _fullName, icon: Icons.person_outline_rounded),
-                        const SizedBox(height: AppSpacing.md),
+                        const SizedBox(height: AppSpacing.fieldGap),
                         AppSelectField<String>(
                           label: 'Relationship to Head of Family',
                           value: _relationship,
@@ -134,7 +134,7 @@ class _FamilyMemberFormSheetState extends State<FamilyMemberFormSheet> {
                           labelBuilder: (v) => v,
                           onChanged: (v) => setState(() => _relationship = v),
                         ),
-                        const SizedBox(height: AppSpacing.md),
+                        const SizedBox(height: AppSpacing.fieldGap),
                         Row(
                           children: [
                             Expanded(
@@ -156,7 +156,7 @@ class _FamilyMemberFormSheetState extends State<FamilyMemberFormSheet> {
                             ),
                           ],
                         ),
-                        const SizedBox(height: AppSpacing.md),
+                        const SizedBox(height: AppSpacing.fieldGap),
                         AppSelectField<String>(
                           label: 'Civil status',
                           value: _civilStatus,
@@ -164,9 +164,9 @@ class _FamilyMemberFormSheetState extends State<FamilyMemberFormSheet> {
                           labelBuilder: (v) => v,
                           onChanged: (v) => setState(() => _civilStatus = v),
                         ),
-                        const SizedBox(height: AppSpacing.md),
+                        const SizedBox(height: AppSpacing.fieldGap),
                         AppTextField(label: 'Occupation', controller: _occupation, icon: Icons.work_outline_rounded),
-                        const SizedBox(height: AppSpacing.md),
+                        const SizedBox(height: AppSpacing.fieldGap),
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.xs),
                           decoration: BoxDecoration(color: AppColors.slate50, borderRadius: BorderRadius.circular(AppRadius.md)),

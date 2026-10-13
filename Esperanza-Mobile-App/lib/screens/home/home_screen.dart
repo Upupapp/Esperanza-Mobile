@@ -202,7 +202,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               ),
               // Shifted up by the same amount, so the overlap leaves no gap.
               Transform.translate(
-                offset: const Offset(0, -_Hero.overlap + AppSpacing.xl),
+                offset: const Offset(0, -_Hero.overlap + AppSpacing.sectionGap),
                 child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
                 child: Column(
@@ -230,7 +230,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                           context,
                         ).push(MaterialPageRoute(builder: (_) => const ResidentProfileOverviewScreen())),
                       ),
-                      const SizedBox(height: AppSpacing.xl),
+                      const SizedBox(height: AppSpacing.sectionGap),
                       const SectionHeader(title: 'Overview'),
                       // Content-sized rows, not GridView.count's fixed aspect
                       // ratio, which overflowed at large text sizes ("BOTTOM
@@ -298,17 +298,22 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                         onAction: () => RootShell.openService(context, ServiceLauncherTarget.dokyu),
                       ),
                       if (activeRequests.isEmpty)
-                        AppCard(
-                          child: EmptyState(
-                            icon: Icons.inbox_outlined,
-                            title: 'No active requests',
-                            description: 'Start a Dokyu or Tulong request and track it here.',
-                            padding: const EdgeInsets.symmetric(vertical: AppSpacing.xxl, horizontal: AppSpacing.xl),
+                        // The same 12 below it as below a request tile.
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: AppSpacing.itemGap),
+                          child: AppCard(
+                            child: EmptyState(
+                              icon: Icons.inbox_outlined,
+                              title: 'No active requests',
+                              description: 'Start a Dokyu or Tulong request and track it here.',
+                              padding: const EdgeInsets.symmetric(vertical: AppSpacing.xxl, horizontal: AppSpacing.xl),
+                            ),
                           ),
                         )
                       else
                         ...activeRequests.take(3).map((r) => _RequestPreviewTile(request: r)),
-                      const SizedBox(height: AppSpacing.xxl),
+                      // The last card's own 12, plus 12: a section's 24.
+                      const SizedBox(height: AppSpacing.md),
                     ],
                     // The two newest LGU announcements, as the design's "Latest
                     // Updates"; the whole feed stays on the Balita tab.
@@ -319,7 +324,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                         onAction: () => RootShell.jumpTo(context, 1),
                       ),
                       for (final post in updates) _UpdateTile(post: post),
-                      const SizedBox(height: AppSpacing.xl),
+                      const SizedBox(height: AppSpacing.md),
                     ],
                     SectionHeader(
                       title: 'Upcoming Events',
@@ -977,7 +982,7 @@ class _RequestPreviewTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+      padding: const EdgeInsets.only(bottom: AppSpacing.itemGap),
       child: AppCard(
         padding: const EdgeInsets.all(AppSpacing.md),
         onTap: () {

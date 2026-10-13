@@ -273,7 +273,6 @@ class _HouseholdInformationScreenState extends State<HouseholdInformationScreen>
                       memberCount: f.members.length,
                       onRemove: () => _removeOtherFamily(f.familyId),
                     ),
-                  const SizedBox(height: AppSpacing.xs),
                   OutlinedButton.icon(
                     onPressed: _addOtherFamily,
                     icon: const Icon(Icons.add_rounded, size: 17),
@@ -351,7 +350,6 @@ class _FamilyChip extends StatelessWidget {
       if (memberCount > 0) '$memberCount member${memberCount == 1 ? '' : 's'}',
     ];
     return Container(
-      margin: const EdgeInsets.only(bottom: AppSpacing.sm),
       padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.sm),
       decoration: BoxDecoration(
         color: isOwn ? AppColors.brand50 : AppColors.slate50,
@@ -499,6 +497,7 @@ class _OtherFamilyFormSheetState extends State<_OtherFamilyFormSheet> {
                 ),
                 const SizedBox(height: AppSpacing.lg),
                 AppTextField(label: 'Family name', controller: _familyName, icon: Icons.diversity_3_outlined),
+                const SizedBox(height: AppSpacing.fieldGap),
                 AppTextField(
                   label: 'Family head (optional)',
                   controller: _headName,

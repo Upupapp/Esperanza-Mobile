@@ -133,6 +133,12 @@ class _RootShellState extends State<RootShell> with WidgetsBindingObserver {
     if (state == AppLifecycleState.resumed) {
       _loadNotifications();
       _startPolling();
+      // An LGU decision made while the app was in the background shows on
+      // return, not only after signing in again (2026-10-13).
+      final session = context.read<CitizenSessionService>();
+      if (session.account != null && !session.isGuest) {
+        session.refresh().catchError((Object _) {});
+      }
     } else if (state == AppLifecycleState.paused) {
       _poll?.cancel();
       _poll = null;

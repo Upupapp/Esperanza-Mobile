@@ -21,7 +21,7 @@ class MenuListTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final color = danger ? AppColors.rose600 : AppColors.slate700;
     return Padding(
-      padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+      padding: const EdgeInsets.only(bottom: AppSpacing.itemGap),
       child: AppCard(
         padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.md),
         onTap: onTap,
