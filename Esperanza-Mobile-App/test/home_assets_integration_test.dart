@@ -8,13 +8,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'package:esperanza_mobile/main.dart';
 import 'package:esperanza_mobile/widgets/event_card.dart';
 import 'package:esperanza_mobile/widgets/home_welcome_banner.dart';
 
 import 'support/fake_api.dart';
 import 'package:esperanza_mobile/screens/events/event_detail_screen.dart';
 import 'package:esperanza_mobile/screens/shared/event_poster_viewer.dart';
+import 'support/start_app.dart';
 
 /// Unwraps the `ResizeImage` that `Image.asset(..., cacheWidth: ...)` now
 /// wraps its `AssetImage` in (a performance optimization — decode at
@@ -69,7 +69,7 @@ Future<void> _enterAsGuest(WidgetTester tester, {List<Map<String, dynamic>> anno
   // Onboarding-complete pre-seeded: this suite exercises the normal
   // returning-user flow, not the first-run Onboarding screens — see
   // onboarding_flow_test.dart for that.
-  SharedPreferences.setMockInitialValues({'esperanza_onboarding_complete': true});
+  SharedPreferences.setMockInitialValues({});
   // RootShell mounts every tab eagerly (IndexedStack), so BalitaScreen's own
   // AsyncStateView fires its GET /announcements the moment this pumps --
   // [announcements] has to be in place *before* pumpWidget, not installed
@@ -80,8 +80,7 @@ Future<void> _enterAsGuest(WidgetTester tester, {List<Map<String, dynamic>> anno
     return const <Map<String, dynamic>>[];
   });
   _setPhoneViewport(tester);
-  await tester.pumpWidget(const EsperanzaMobileApp());
-  await tester.pumpAndSettle();
+  await pumpAppToSignIn(tester);
   await tester.ensureVisible(find.text('Continue as Guest'));
   await tester.tap(find.text('Continue as Guest'));
   await tester.pumpAndSettle();

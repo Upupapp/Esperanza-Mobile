@@ -1,46 +1,49 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
+import 'package:flutter/services.dart';
 
 import '../../main.dart';
-import '../../services/onboarding_service.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_haptics.dart';
-import '../../theme/app_spacing.dart';
 import '../../theme/app_typography.dart';
+import '../../utils/ambient_motion.dart';
 import '../../utils/esperanza_seal.dart';
 import '../../utils/fade_page_route.dart';
-import '../../widgets/app_button.dart';
-import '../../widgets/esperanza_art.dart';
+import '../../widgets/gold_action_button.dart';
+import '../../widgets/opening_waves.dart';
+import '../../widgets/seal_badge.dart';
 import 'onboarding_page_data.dart';
-import 'widgets/onboarding_parallax_layer.dart';
-import 'widgets/onboarding_progress.dart';
 
-/// The three first-run welcome screens, shown once (see [OnboardingService])
-/// straight after the every-launch [SplashScreen].
-///
-/// **The pattern is the Servana client's welcome experience**, rebuilt on
-/// Esperanza's palette, seal and voice: a full-bleed photograph per scene
-/// under a navy scrim whose stops interpolate continuously through the swipe,
-/// the photograph lagging the page for depth, and white copy set low over the
-/// dark half of the frame where it is always legible. The retired design put
-/// a boxed illustration above dark-on-light copy; this one lets the
-/// photograph carry the page.
-///
-/// **What the previous design could not do.** Each page used to be a single
-/// flattened PNG — the whole interface, headline and all, baked into one
-/// 1.4 MB image. Screen two advertised **"Business Permit — Approved"**, an
-/// outcome nothing here produces: there is no backend. Its ~0.65 aspect ratio
-/// against a phone's ~0.46 forced `BoxFit.contain`, letterboxing every device,
-/// and each image carried an empty grey panel where a control had been mocked
-/// up and never built. None of the text scaled, none of it reached a screen
-/// reader, and none of it could be tested.
-///
-/// The invariants around it are unchanged and deliberately so: splash runs
-/// every launch, onboarding runs once, Skip and Get Started both complete it,
-/// and completion is persisted before `AuthGate` replaces this route.
 /// How far the onboarding headline and wordmark follow the system text size.
 const headlineMaxTextScale = 1.4;
 const wordmarkMaxTextScale = 1.5;
 
+/// The wordmark as the design sets it, on two lines.
+const onboardingBrandLines = 'Municipalidad\nng Esperanza';
+
+/// The three welcome screens, shown after the every-launch [SplashScreen]
+/// whenever no one is signed in.
+///
+/// The owner's design ("Esperanza Onboarding Prototype", screens 2-4,
+/// 2026-10-12), followed closely: a photograph across the top 57% with a slow
+/// zoom, page one's gold-and-blue ribbon along its foot, the seal, wordmark
+/// and Skip over it; below, a two-line headline (the second line gold), one
+/// sentence, the page's three capabilities (icon tiles on page one, row cards
+/// on two and three, each icon with its own small motion), the page dots and
+/// a gold Next / Get Started with a shine passing over it.
+///
+/// Pages change by cross-fade: the photograph fades into the next, and the
+/// copy fades with an 18px rise while its cards follow one after another. A
+/// horizontal swipe anywhere turns the page, as do Next and the dots.
+///
+/// What is the app's, not the design's: Skip leaves the last page (a Skip
+/// that does nothing the reader wants should not be focusable or announced),
+/// Back steps back a page, the headline caps at 1.4x text, the dots have 44pt
+/// tap targets, and everything decorative stops under reduce motion
+/// ([AmbientMotion]). Skip and Get Started both lead to `AuthGate`, which
+/// replaces this route.
 class OnboardingScreen extends StatefulWidget {
   const OnboardingScreen({super.key});
 
@@ -48,75 +51,82 @@ class OnboardingScreen extends StatefulWidget {
   State<OnboardingScreen> createState() => _OnboardingScreenState();
 }
 
-class _OnboardingScreenState extends State<OnboardingScreen> {
-  final _pageController = PageController();
-
-  /// The settled page. Driven by `onPageChanged`; the per-frame scroll
-  /// position is read straight off the controller inside `AnimatedBuilder`s,
-  /// so a swipe never calls `setState`.
+class _OnboardingScreenState extends State<OnboardingScreen> with SingleTickerProviderStateMixin {
   int _page = 0;
+
+  /// False for the first frame, so page one rises in as the screen opens,
+  /// as it does after the design's splash.
+  bool _entered = false;
   bool _finishing = false;
   bool _precached = false;
+
+  /// Seconds since the screen opened, for the ambient motion. Advanced by a
+  /// ticker only while [AmbientMotion] allows it.
+  final _clock = ValueNotifier<double>(0);
+  late final Ticker _ambient = createTicker((elapsed) => _clock.value = elapsed.inMicroseconds / 1e6);
+
+  Offset? _pointerDown;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) setState(() => _entered = true);
+    });
+  }
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
+    final ambient = AmbientMotion.of(context);
+    if (ambient && !_ambient.isActive) {
+      _ambient.start();
+    } else if (!ambient && _ambient.isActive) {
+      _ambient.stop();
+      _clock.value = 0;
+    }
     if (_precached) return;
     _precached = true;
-    // Decoded at display width, once. Without this the first swipe reaches a
-    // page whose photograph has not decoded and shows the Scaffold instead.
-    final cacheWidth =
-        (MediaQuery.sizeOf(context).width *
-                MediaQuery.devicePixelRatioOf(context))
-            .round();
+    // Decoded once, before the first page change asks for them.
     for (final scene in onboardingScenes) {
-      precacheImage(
-        backgroundProvider(scene.backgroundAsset, cacheWidth),
-        context,
-      );
+      precacheImage(AssetImage(scene.backgroundAsset), context);
     }
-    precacheImage(const AssetImage(esperanzaSealAsset), context);
+    precacheImage(ResizeImage(const AssetImage(esperanzaSealAsset), width: SealBadge.cacheWidth(context)), context);
   }
-
-  /// One provider shape for precache and render alike. Two different shapes
-  /// populate two different image-cache entries, and the precache silently
-  /// buys nothing.
-  static ImageProvider backgroundProvider(String asset, int cacheWidth) =>
-      ResizeImage.resizeIfNeeded(cacheWidth, null, AssetImage(asset));
 
   @override
   void dispose() {
-    _pageController.dispose();
+    _ambient.dispose();
+    _clock.dispose();
     super.dispose();
   }
 
-  Future<void> _finish() async {
+  bool get _isLast => _page == onboardingScenes.length - 1;
+
+  void _finish() {
     if (_finishing) return;
+    // Nothing is saved: the pages open the app again for as long as no one
+    // is signed in.
     setState(() => _finishing = true);
-    await OnboardingService.markComplete();
-    if (!mounted) return;
     // pushReplacement — AuthGate becomes the new root route, the same
     // invariant SplashScreen's own handoff preserves (see its doc comment).
     Navigator.of(context).pushReplacement(fadePageRoute(const AuthGate()));
   }
 
+  void _go(int page) {
+    final target = page.clamp(0, onboardingScenes.length - 1);
+    if (target == _page || _finishing) return;
+    AppHaptics.selection();
+    setState(() => _page = target);
+  }
+
   void _next() {
-    if (_page >= onboardingScenes.length - 1) {
+    if (_isLast) {
       AppHaptics.medium();
       _finish();
       return;
     }
-    AppHaptics.selection();
-    if (MediaQuery.disableAnimationsOf(context)) {
-      // Someone who asked the platform for no animation should not wait out a
-      // 340 ms slide to reach the next page.
-      _pageController.jumpToPage(_page + 1);
-    } else {
-      _pageController.nextPage(
-        duration: const Duration(milliseconds: 340),
-        curve: Curves.easeOutCubic,
-      );
-    }
+    _go(_page + 1);
   }
 
   void _skip() {
@@ -124,262 +134,269 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     _finish();
   }
 
-  /// The scrim's three stops, interpolated between the neighbouring scenes so
-  /// the overlay never snaps at a page boundary — Servana's trick, and the
-  /// reason the transition reads as one continuous surface.
-  List<double> _stops() {
-    final progress = OnboardingParallaxLayer.progressOf(_pageController);
-    final lo = progress.floor().clamp(0, onboardingScenes.length - 1);
-    final hi = progress.ceil().clamp(0, onboardingScenes.length - 1);
-    final a = onboardingScenes[lo].gradientStops;
-    if (lo == hi) return a;
-    final b = onboardingScenes[hi].gradientStops;
-    final t = progress - lo;
-    return [for (var i = 0; i < 3; i++) a[i] + (b[i] - a[i]) * t];
+  /// The design's swipe: more than 48 across, and clearly more across than
+  /// down, so scrolling the copy never turns the page.
+  void _onPointerUp(PointerUpEvent e) {
+    final start = _pointerDown;
+    _pointerDown = null;
+    if (start == null) return;
+    final d = e.position - start;
+    if (d.dx.abs() > 48 && d.dx.abs() > d.dy.abs() * 1.3) {
+      if (d.dx < 0 && !_isLast) _go(_page + 1);
+      if (d.dx > 0 && _page > 0) _go(_page - 1);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final reduceMotion = MediaQuery.disableAnimationsOf(context);
-    final screen = MediaQuery.sizeOf(context);
-    final landscape = screen.width > screen.height;
-    final isLast = _page == onboardingScenes.length - 1;
-    final scene = onboardingScenes[_page];
-    final cacheWidth =
-        (MediaQuery.sizeOf(context).width *
-                MediaQuery.devicePixelRatioOf(context))
-            .round();
+    final size = MediaQuery.sizeOf(context);
+    final pad = MediaQuery.paddingOf(context);
+    final reduce = MediaQuery.disableAnimationsOf(context);
+    // The design's vh-based sizes: a share of the screen height, kept
+    // between its own bounds.
+    double vh(double percent, double lo, double hi) => (size.height * percent / 100).clamp(lo, hi);
+    final photoHeight = math.max(size.height * 0.57, 300.0);
+    final headerTop = pad.top + 11;
 
-    // Android's back button on page 2 or 3 used to close the app; it now
-    // steps back a page, and leaves onboarding only from the first.
+    // Android's back button on page 2 or 3 used to close the app; it steps
+    // back a page, and leaves onboarding only from the first.
     return PopScope(
       canPop: _page == 0,
       onPopInvokedWithResult: (didPop, _) {
-        if (didPop || _page == 0) return;
-        if (reduceMotion) {
-          _pageController.jumpToPage(_page - 1);
-        } else {
-          _pageController.previousPage(
-            duration: const Duration(milliseconds: 340),
-            curve: Curves.easeOutCubic,
-          );
-        }
+        if (!didPop && _page > 0) _go(_page - 1);
       },
-      child: Scaffold(
-        // Navy, not white: this is only ever visible for a stray frame, and
-        // against these dark plates a white flash is the jarring one.
-        backgroundColor: AppColors.navy950,
-        body: Stack(
-          fit: StackFit.expand,
-          children: [
-            // ── Background photographs ────────────────────────────────────
-            PageView.builder(
-              controller: _pageController,
-              itemCount: onboardingScenes.length,
-              onPageChanged: (i) => setState(() => _page = i),
-              itemBuilder: (context, i) => OnboardingParallaxLayer(
-                transformKey: Key('onboarding_background_$i'),
-                controller: _pageController,
-                pageIndex: i,
-                factor: OnboardingParallax.background,
-                verticalFactor: OnboardingParallax.backgroundVertical,
-                enabled: !reduceMotion,
-                child: Semantics(
-                  label: onboardingScenes[i].semanticDescription,
-                  image: true,
-                  child: SizedBox.expand(
-                    child: Image(
-                      image: backgroundProvider(
-                        onboardingScenes[i].backgroundAsset,
-                        cacheWidth,
-                      ),
-                      fit: BoxFit.cover,
-                      // Top-anchored in portrait; in landscape the top of
-                      // each plate is sky, so centre it.
-                      alignment: landscape
-                          ? Alignment.center
-                          : Alignment.topCenter,
-                      filterQuality: FilterQuality.medium,
-                      excludeFromSemantics: true,
-                      // A missing plate must not show a white void behind white
-                      // text. The palette's darkest ink is the safe fallback.
-                      errorBuilder: (_, _, _) =>
-                          const ColoredBox(color: AppColors.navy950),
+      child: AnnotatedRegion<SystemUiOverlayStyle>(
+        value: SystemUiOverlayStyle.light,
+        child: Scaffold(
+          backgroundColor: AppColors.navy900,
+          body: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 480),
+              child: Listener(
+                behavior: HitTestBehavior.translucent,
+                onPointerDown: (e) => _pointerDown = e.position,
+                onPointerUp: _onPointerUp,
+                onPointerCancel: (_) => _pointerDown = null,
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    Positioned(
+                      key: const Key('onboarding_photo'),
+                      top: 0,
+                      left: 0,
+                      right: 0,
+                      height: photoHeight,
+                      child: _Photograph(page: _page, clock: _clock, reduce: reduce),
                     ),
-                  ),
-                ),
-              ),
-            ),
-
-            // ── Scrim ─────────────────────────────────────────────────────
-            Positioned.fill(
-              child: IgnorePointer(
-                child: AnimatedBuilder(
-                  animation: _pageController,
-                  builder: (context, _) => DecoratedBox(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: [
-                          AppColors.navy950.withValues(alpha: 0.05),
-                          AppColors.navy900.withValues(alpha: 0.55),
-                          AppColors.navy950.withValues(alpha: 0.94),
-                        ],
-                        stops: reduceMotion
-                            ? onboardingScenes[_page].gradientStops
-                            : _stops(),
-                      ),
+                    Positioned(
+                      top: headerTop,
+                      left: 22,
+                      right: 12,
+                      child: _Header(onSkip: _isLast || _finishing ? null : _skip),
                     ),
-                  ),
-                ),
-              ),
-            ),
-
-            // ── Top scrim ─────────────────────────────────────────────────
-            //
-            // The main scrim is deliberately near-transparent at the top so the
-            // photograph opens the frame. That leaves the seal and wordmark
-            // sitting on whatever the picture happens to be — a bright ambulance
-            // on page three — so white text has no guaranteed contrast. This
-            // short gradient gives the identity bar its own ground without
-            // darkening the picture.
-            Positioned(
-              top: 0,
-              left: 0,
-              right: 0,
-              height: 160,
-              child: IgnorePointer(
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      colors: [
-                        AppColors.navy950.withValues(alpha: 0.60),
-                        AppColors.navy950.withValues(alpha: 0),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ),
-
-            // ── Interface ─────────────────────────────────────────────────
-            //
-            // A Column, NOT a full-screen scroll view.
-            //
-            // The first version wrapped this whole layer in a
-            // SingleChildScrollView so it could never overflow. A `Scrollable`
-            // hit-tests opaquely across its entire box, so it sat over the
-            // PageView and swallowed every pointer before the pager could see
-            // one — swiping between pages did nothing at all, on a device as
-            // much as in a test, and only the Next button worked. Measured:
-            // `position.pixels` stayed at exactly 0.0 through a 240px drag.
-            //
-            // The middle of the screen now belongs to an `Align` that
-            // shrink-wraps the copy to the bottom. An Align hit-tests only its
-            // child, so pointers in the empty space above it fall straight
-            // through to the photograph behind, and the swipe works.
-            //
-            // The bottom block is still not a swipe surface, and that is
-            // accepted rather than overlooked: a `Scrollable` hit-tests opaquely
-            // whatever its physics say — `NeverScrollableScrollPhysics` was
-            // tried and changes nothing — and it has to stay a scroll view so
-            // the copy survives text scale 2.0 on a short handset. So the
-            // photograph is the swipe surface, which is how every onboarding of
-            // this shape behaves, and `Next` works everywhere.
-            // `onboarding_redesign_test.dart` pins the photograph area as
-            // swipeable so a future full-screen scroll view cannot quietly take
-            // it away again.
-            SafeArea(
-              child: Center(
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 520),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      _IdentityBar(onSkip: isLast || _finishing ? null : _skip),
-                      // Only the copy scrolls; the button never does.
-                      //
-                      // A first attempt put the CTA inside the scroll view
-                      // too, and at 320x568 with text scale 2.0 it landed at
-                      // y=1437 on a 568-tall screen — reachable only by
-                      // scrolling, which is not what "keep the primary action
-                      // reachable" means.
-                      //
-                      // `Align` rather than a `Spacer`: when the copy is
-                      // shorter than the space, the scroll view shrink-wraps
-                      // and sits at the bottom, and the empty region above it
-                      // belongs to the Align — which hit-tests only its child,
-                      // so pointers there fall through to the photograph and
-                      // the swipe survives.
-                      Expanded(
-                        child: Align(
-                          alignment: Alignment.bottomCenter,
-                          child: SingleChildScrollView(
+                    Positioned(
+                      left: 0,
+                      right: 0,
+                      bottom: 0,
+                      top: headerTop + 56,
+                      child: Align(
+                        alignment: Alignment.bottomCenter,
+                        child: DecoratedBox(
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment.topCenter,
+                              end: Alignment.bottomCenter,
+                              colors: [
+                                AppColors.navy900.withValues(alpha: 0),
+                                AppColors.navy900.withValues(alpha: 0.85),
+                                AppColors.navy900,
+                              ],
+                              // 0, 34 and 64px of the panel, as a share of
+                              // a typical panel (~400).
+                              stops: const [0, 0.085, 0.16],
+                            ),
+                          ),
+                          child: Padding(
+                            padding: const EdgeInsets.only(top: 20),
                             child: Column(
                               mainAxisSize: MainAxisSize.min,
-                              crossAxisAlignment: CrossAxisAlignment.stretch,
                               children: [
-                                _FeatureChips(
-                                  scene: scene,
-                                  controller: _pageController,
-                                  pageIndex: _page,
-                                  reduceMotion: reduceMotion,
+                                // Only the copy scrolls (at very large text on
+                                // a small phone); the dots and the button stay
+                                // put at the bottom.
+                                Flexible(
+                                  child: SingleChildScrollView(
+                                    padding: const EdgeInsets.symmetric(horizontal: 24),
+                                    child: Stack(
+                                      alignment: Alignment.topCenter,
+                                      children: [
+                                        for (var i = 0; i < onboardingScenes.length; i++)
+                                          _Pane(
+                                            scene: onboardingScenes[i],
+                                            index: i,
+                                            active: _entered && i == _page,
+                                            above: i < _page,
+                                            reduce: reduce,
+                                            clock: _clock,
+                                            gap: vh(1.1, 6, 10),
+                                            listGap: vh(1, 6, 8),
+                                            topGap: vh(1.2, 6, 12),
+                                            tileHeight: vh(12.5, 96, 108),
+                                            rowHeight: vh(5.4, 42, 46),
+                                          ),
+                                      ],
+                                    ),
+                                  ),
                                 ),
-                                const SizedBox(height: AppSpacing.lg),
-                                _CopyBlock(
-                                  key: ValueKey('copy_${scene.id}'),
-                                  scene: scene,
-                                  reduceMotion: reduceMotion,
+                                Padding(
+                                  padding: EdgeInsets.only(top: math.max(0, vh(1.5, 8, 12) - 10), bottom: math.max(0, vh(1.2, 6, 10) - 10)),
+                                  child: _Dots(
+                                    key: const Key('onboarding_progress'),
+                                    page: _page,
+                                    count: onboardingScenes.length,
+                                    reduce: reduce,
+                                    onSelect: _go,
+                                  ),
+                                ),
+                                Padding(
+                                  padding: EdgeInsets.fromLTRB(22, 0, 22, vh(2.6, 16, 22) + pad.bottom),
+                                  child: GoldActionButton(
+                                    key: Key(_isLast ? 'onboarding_get_started' : 'onboarding_next'),
+                                    label: _isLast ? 'Get Started' : 'Next',
+                                    textStyle: AppTypography.onboardingAction.copyWith(color: AppColors.navy900),
+                                    arrow: !_isLast,
+                                    nudge: true,
+                                    height: vh(6.4, 50, 56),
+                                    loading: _finishing,
+                                    onPressed: _finishing ? null : _next,
+                                  ),
                                 ),
                               ],
                             ),
                           ),
                         ),
                       ),
-                      const SizedBox(height: AppSpacing.xxl),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: AppSpacing.xxl,
-                        ),
-                        child: AnimatedSwitcher(
-                          duration: reduceMotion
-                              ? Duration.zero
-                              : const Duration(milliseconds: 220),
-                          child: isLast
-                              ? AppButton(
-                                  key: const Key('onboarding_get_started'),
-                                  label: 'Get Started',
-                                  fullWidth: true,
-                                  size: AppButtonSize.lg,
-                                  loading: _finishing,
-                                  onPressed: _finishing ? null : _next,
-                                )
-                              : AppButton(
-                                  key: const Key('onboarding_next'),
-                                  label: 'Next',
-                                  icon: Icons.arrow_forward_rounded,
-                                  iconTrailing: true,
-                                  fullWidth: true,
-                                  size: AppButtonSize.lg,
-                                  onPressed: _finishing ? null : _next,
-                                ),
-                        ),
-                      ),
-                      const SizedBox(height: AppSpacing.xl),
-                      Center(
-                        child: OnboardingProgress(
-                          key: const Key('onboarding_progress'),
-                          controller: _pageController,
-                          page: _page,
-                          count: onboardingScenes.length,
-                          reduceMotion: reduceMotion,
-                        ),
-                      ),
-                      const SizedBox(height: AppSpacing.xl),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ── Ambient motion ─────────────────────────────────────────────────────────
+//
+// Each is a function of the screen's clock, in seconds, matching the
+// design's CSS keyframes. At t = 0 every one is at rest, which is all a
+// reduce-motion user or a widget test ever sees.
+
+/// 0 → 1 → 0 over [period], eased in and out (the design's `alternate`
+/// loops, and its 0%/50%/100% keyframes).
+double _swing(double t, double period, {double delay = 0}) {
+  if (t <= delay) return 0;
+  final phase = ((t - delay) % period) / period;
+  return Curves.easeInOut.transform(phase < 0.5 ? phase * 2 : 2 - phase * 2);
+}
+
+/// Piecewise keyframes ([at] as fractions of [period], [values] at each),
+/// eased in and out between neighbours.
+double _keyframes(double t, double period, List<double> at, List<double> values) {
+  if (t <= 0) return values.first;
+  final phase = (t % period) / period;
+  for (var i = 1; i < at.length; i++) {
+    if (phase <= at[i]) {
+      final local = (phase - at[i - 1]) / (at[i] - at[i - 1]);
+      return values[i - 1] + (values[i] - values[i - 1]) * Curves.easeInOut.transform(local);
+    }
+  }
+  return values.last;
+}
+
+// ── The photograph ─────────────────────────────────────────────────────────
+
+class _Photograph extends StatelessWidget {
+  const _Photograph({required this.page, required this.clock, required this.reduce});
+
+  final int page;
+  final ValueNotifier<double> clock;
+  final bool reduce;
+
+  @override
+  Widget build(BuildContext context) {
+    final fade = Duration(milliseconds: reduce ? 150 : 500);
+    return ClipRect(
+      child: ColoredBox(
+        color: AppColors.navy800,
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            for (var i = 0; i < onboardingScenes.length; i++)
+              AnimatedOpacity(
+                key: Key('onboarding_background_$i'),
+                opacity: i == page ? 1 : 0,
+                duration: fade,
+                curve: Curves.ease,
+                child: Semantics(
+                  label: i == page ? onboardingScenes[i].semanticDescription : null,
+                  image: i == page,
+                  excludeSemantics: true,
+                  child: ValueListenableBuilder<double>(
+                    valueListenable: clock,
+                    // The design's slow zoom: 4% over 10 s and back.
+                    builder: (context, t, child) => Transform.scale(
+                      scale: 1 + 0.04 * _swing(t, 20),
+                      alignment: const Alignment(0, -0.2),
+                      child: child,
+                    ),
+                    child: Image.asset(
+                      onboardingScenes[i].backgroundAsset,
+                      fit: BoxFit.cover,
+                      // object-position 50% 30%.
+                      alignment: const Alignment(0, -0.4),
+                      filterQuality: FilterQuality.medium,
+                      // A missing plate must not show a white void behind white
+                      // text. The palette's dark ink is the safe fallback.
+                      errorBuilder: (_, _, _) => const ColoredBox(color: AppColors.navy800),
+                    ),
+                  ),
+                ),
+              ),
+            IgnorePointer(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      AppColors.navy900.withValues(alpha: 0.55),
+                      AppColors.navy900.withValues(alpha: 0),
+                      AppColors.navy900.withValues(alpha: 0),
+                      AppColors.navy900.withValues(alpha: 0.75),
+                      AppColors.navy900,
                     ],
+                    stops: const [0, 0.24, 0.52, 0.80, 0.93],
+                  ),
+                ),
+              ),
+            ),
+            // Page one's ribbon along the foot of the photograph.
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: 50,
+              height: 160,
+              child: IgnorePointer(
+                child: AnimatedOpacity(
+                  opacity: page == 0 ? 1 : 0,
+                  duration: fade,
+                  curve: Curves.ease,
+                  child: ValueListenableBuilder<double>(
+                    valueListenable: clock,
+                    builder: (context, t, _) => CustomPaint(painter: OnboardingRibbonPainter(sway: -9 * _swing(t, 14))),
                   ),
                 ),
               ),
@@ -391,248 +408,281 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   }
 }
 
-/// Seal, municipality, and Skip — over the photograph, never moving with it.
-class _IdentityBar extends StatelessWidget {
-  const _IdentityBar({required this.onSkip});
+// ── The header ─────────────────────────────────────────────────────────────
+
+class _Header extends StatelessWidget {
+  const _Header({required this.onSkip});
 
   /// Null on the final page, which removes Skip from the tree entirely — not
   /// merely fades it. A control at zero opacity is still focusable and still
-  /// announced, and "Skip" offered to someone already on the last page is a
-  /// control that does nothing they want.
+  /// announced.
   final VoidCallback? onSkip;
+
+  static final _shadow = [Shadow(color: AppColors.navy950.withValues(alpha: 0.55), blurRadius: 8, offset: const Offset(0, 1))];
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      // 16, not 24: at text scale 2.0 on a 320px handset the wordmark and Skip
-      // together need every pixel of the gutter.
-      padding: const EdgeInsets.fromLTRB(
-        AppSpacing.lg,
-        AppSpacing.md,
-        AppSpacing.md,
-        AppSpacing.sm,
-      ),
+    return ConstrainedBox(
+      constraints: const BoxConstraints(minHeight: 48),
       child: Row(
         children: [
-          Container(
-            width: 30,
-            height: 30,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              border: Border.all(color: AppColors.gold300, width: 1.5),
-            ),
-            child: ClipOval(
-              child: Image.asset(
-                esperanzaSealAsset,
-                fit: BoxFit.cover,
-                cacheWidth: (30 * MediaQuery.devicePixelRatioOf(context))
-                    .round(),
-                excludeFromSemantics: true,
-              ),
-            ),
+          // Where the opening screen's seal lands (the shared hero tag).
+          const SizedBox.square(
+            dimension: 46,
+            child: Hero(tag: esperanzaSealHeroTag, flightShuttleBuilder: sealFlightShuttle, child: SealBadge()),
           ),
-          const SizedBox(width: AppSpacing.sm + 2),
-          // Flexible + ellipsis: this exact Row overflowed once already, when
-          // the wordmark's natural width exceeded what was left beside Skip on
-          // a narrow phone. At text scale 2.0 it would again. Two lines, not
-          // one: on a 320pt phone one line cut the Municipality's own name to
-          // "Municipalidad ng Esperan…".
-          Flexible(
+          const SizedBox(width: 12),
+          // Two lines, as the design sets it; capped at 1.5x text, beyond
+          // which it read "Municipalid / ad ng Espe…" on a small phone.
+          Expanded(
             child: Semantics(
               header: true,
-              // Capped at 1.5x for the same reason as the headline: at 2x
-              // it read "Municipalid / ad ng Espe…".
+              label: onboardingBrandName,
+              excludeSemantics: true,
               child: MediaQuery.withClampedTextScaling(
                 maxScaleFactor: wordmarkMaxTextScale,
                 child: Text(
-                  onboardingBrandName,
+                  onboardingBrandLines,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
-                  style: AppTypography.wordmark.copyWith(
-                    color: AppColors.surface,
-                  ),
+                  style: AppTypography.onboardingBrand.copyWith(color: AppColors.surface, shadows: _shadow),
                 ),
               ),
             ),
           ),
-          const SizedBox(width: AppSpacing.sm),
           if (onSkip != null)
-            ConstrainedBox(
-              // 48x48, which a bare TextButton does not guarantee at every
-              // text scale.
-              constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
-              child: TextButton(
-                key: const Key('onboarding_skip'),
-                onPressed: onSkip,
-                style: TextButton.styleFrom(
-                  foregroundColor: AppColors.surface,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: AppSpacing.md,
-                  ),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(AppRadius.full),
-                  ),
-                ),
-                child: Text(
-                  'Skip',
-                  style: AppTypography.label.copyWith(color: AppColors.surface),
-                ),
+            TextButton(
+              key: const Key('onboarding_skip'),
+              onPressed: onSkip,
+              style: TextButton.styleFrom(
+                foregroundColor: AppColors.surface,
+                minimumSize: const Size(48, 48),
+                padding: const EdgeInsets.symmetric(horizontal: 12),
               ),
-            )
-          else
-            // Holds the bar's height steady when Skip goes, so the seal and
-            // wordmark do not shift up on the last page.
-            const SizedBox(height: AppSpacing.page),
+              child: Text('Skip', style: AppTypography.onboardingSkip.copyWith(color: AppColors.surface, shadows: _shadow)),
+            ),
         ],
       ),
     );
   }
 }
 
-/// Headline and supporting line, low in the frame over the dark half.
-class _CopyBlock extends StatelessWidget {
-  const _CopyBlock({
-    super.key,
+// ── A page's copy ──────────────────────────────────────────────────────────
+
+/// One page's headline, sentence and capabilities. All three are laid out in
+/// one place (the design's single grid cell), so the panel keeps the height
+/// of the tallest and the headline does not jump between pages; only the
+/// active one is visible, touchable and announced.
+class _Pane extends StatelessWidget {
+  const _Pane({
     required this.scene,
-    required this.reduceMotion,
+    required this.index,
+    required this.active,
+    required this.above,
+    required this.reduce,
+    required this.clock,
+    required this.gap,
+    required this.listGap,
+    required this.topGap,
+    required this.tileHeight,
+    required this.rowHeight,
   });
 
   final OnboardingSceneSpec scene;
-  final bool reduceMotion;
+  final int index;
+  final bool active;
+
+  /// A page already passed rises out (up); one ahead waits below.
+  final bool above;
+  final bool reduce;
+  final ValueNotifier<double> clock;
+  final double gap;
+  final double listGap;
+  final double topGap;
+  final double tileHeight;
+  final double rowHeight;
+
+  static const _ease = Cubic(0.2, 0.8, 0.25, 1);
 
   @override
   Widget build(BuildContext context) {
-    // On frosted glass (2026-10 design): the photograph blurs behind it.
-    final block = Padding(
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
-      child: GlassPanel(
-        dark: true,
-        borderRadius: BorderRadius.circular(28),
-        padding: const EdgeInsets.all(AppSpacing.xl),
-        child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // Capped at 1.4x: already the largest type in the app, and at 2x
-          // a 32pt headline on a 320pt phone broke words in half
-          // ("Ang Esp / eranza,"). The body copy below still scales fully.
-          MediaQuery.withClampedTextScaling(
-            maxScaleFactor: headlineMaxTextScale,
-            child: Text(
-              scene.headline,
-              style: AppTypography.hero.copyWith(color: AppColors.surface),
+    final duration = Duration(milliseconds: reduce ? 150 : 450);
+    final offset = reduce || active ? 0.0 : (above ? -18.0 : 18.0);
+    final features = scene.features;
+
+    final content = Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        // Capped at 1.4x: at 2x a 30pt headline on a 320pt phone broke words
+        // in half. The sentence below still scales fully.
+        MediaQuery.withClampedTextScaling(
+          maxScaleFactor: headlineMaxTextScale,
+          child: Text.rich(
+            TextSpan(
+              text: '${scene.headlineLead}\n',
+              children: [TextSpan(text: scene.headlineAccent, style: const TextStyle(color: AppColors.gold400))],
             ),
+            style: AppTypography.onboardingHeadline.copyWith(color: AppColors.surface),
           ),
-          const SizedBox(height: AppSpacing.md),
-          Text(
-            scene.subtext,
-            style: AppTypography.body.copyWith(
-              color: AppColors.surface.withValues(alpha: 0.82),
-              height: 1.55,
-            ),
-          ),
-          if (scene.note != null) ...[
-            const SizedBox(height: AppSpacing.md),
-            // A limit, marked as one — icon and words, never colour alone.
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
+        ),
+        SizedBox(height: gap),
+        Text(scene.subtext, style: AppTypography.onboardingBody.copyWith(color: AppColors.slate300)),
+        SizedBox(height: gap + topGap),
+        if (index == 0)
+          IntrinsicHeight(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Icon(
-                  Icons.verified_user_outlined,
-                  size: 15,
-                  color: AppColors.gold300,
-                ),
-                const SizedBox(width: AppSpacing.sm),
-                Flexible(
-                  child: Text(
-                    scene.note!,
-                    style: AppTypography.captionSmallRegular.copyWith(
-                      color: AppColors.surface.withValues(alpha: 0.72),
-                      height: 1.35,
+                for (var i = 0; i < features.length; i++) ...[
+                  if (i > 0) const SizedBox(width: 12),
+                  Expanded(
+                    child: _RiseIn(
+                      active: active,
+                      order: i,
+                      reduce: reduce,
+                      child: _Tile(feature: features[i], order: i, minHeight: tileHeight, clock: clock),
                     ),
                   ),
-                ),
+                ],
               ],
             ),
+          )
+        else
+          for (var i = 0; i < features.length; i++) ...[
+            if (i > 0) SizedBox(height: listGap),
+            _RiseIn(
+              active: active,
+              order: i,
+              reduce: reduce,
+              child: _RowCard(feature: features[i], order: i, minHeight: rowHeight, clock: clock),
+            ),
           ],
-        ],
-      ),
-      ),
+      ],
     );
 
-    if (reduceMotion) return block;
-    return _SceneSwitcher(child: block);
+    return IgnorePointer(
+      ignoring: !active,
+      child: ExcludeSemantics(
+        excluding: !active,
+        child: AnimatedOpacity(
+          opacity: active ? 1 : 0,
+          duration: duration,
+          curve: Curves.ease,
+          child: TweenAnimationBuilder<double>(
+            tween: Tween(end: offset),
+            duration: duration,
+            curve: _ease,
+            builder: (context, dy, child) => Transform.translate(offset: Offset(0, dy), child: child),
+            child: Semantics(liveRegion: active, child: content),
+          ),
+        ),
+      ),
+    );
   }
 }
 
-/// Three capability chips, sitting just above the headline.
-class _FeatureChips extends StatelessWidget {
-  const _FeatureChips({
-    required this.scene,
-    required this.controller,
-    required this.pageIndex,
-    required this.reduceMotion,
-  });
+/// A card rising into place after its page arrives, one after another
+/// (the design's 0.12 / 0.2 / 0.28 s).
+class _RiseIn extends StatefulWidget {
+  const _RiseIn({required this.active, required this.order, required this.reduce, required this.child});
 
-  final OnboardingSceneSpec scene;
-  final PageController controller;
-  final int pageIndex;
-  final bool reduceMotion;
+  final bool active;
+  final int order;
+  final bool reduce;
+  final Widget child;
+
+  @override
+  State<_RiseIn> createState() => _RiseInState();
+}
+
+class _RiseInState extends State<_RiseIn> with SingleTickerProviderStateMixin {
+  static const _rise = 350;
+
+  int get _delay => widget.reduce ? 0 : 120 + 80 * widget.order;
+
+  late final AnimationController _c = AnimationController(
+    vsync: this,
+    duration: Duration(milliseconds: _delay + _rise),
+    value: widget.active ? 1 : 0,
+  );
+
+  @override
+  void didUpdateWidget(_RiseIn old) {
+    super.didUpdateWidget(old);
+    _c.duration = Duration(milliseconds: _delay + (widget.reduce ? 150 : _rise));
+    if (widget.active && !old.active) _c.forward(from: 0);
+    if (!widget.active && old.active) _c.value = 0;
+  }
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
-    final row = Padding(
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xxl),
-      child: Wrap(
-        spacing: AppSpacing.sm,
-        runSpacing: AppSpacing.sm,
-        children: [for (final f in scene.features) _Chip(feature: f)],
-      ),
-    );
-
-    return OnboardingParallaxLayer(
-      transformKey: const Key('onboarding_chips'),
-      controller: controller,
-      pageIndex: pageIndex,
-      factor: OnboardingParallax.chips,
-      enabled: !reduceMotion,
-      child: reduceMotion ? row : _SceneSwitcher(child: row),
+    return AnimatedBuilder(
+      animation: _c,
+      builder: (context, child) {
+        final total = _delay + (widget.reduce ? 150 : _rise);
+        final t = Interval(_delay / total, 1, curve: const Cubic(0.2, 0.8, 0.25, 1)).transform(_c.value);
+        return Opacity(
+          opacity: t,
+          child: Transform.translate(offset: Offset(0, widget.reduce ? 0 : 10 * (1 - t)), child: child),
+        );
+      },
+      child: widget.child,
     );
   }
 }
 
-/// Glass chip: translucent white over the photograph, with a hairline edge so
-/// it still reads against a bright sky.
-class _Chip extends StatelessWidget {
-  const _Chip({required this.feature});
+/// The card's own surface: translucent navy with a faint white edge.
+BoxDecoration _cardSurface(double radius) => BoxDecoration(
+      color: AppColors.navy700.withValues(alpha: 0.55),
+      borderRadius: BorderRadius.circular(radius),
+      border: Border.all(color: AppColors.surface.withValues(alpha: 0.14)),
+    );
+
+/// Page one: an icon in its own square over a centred label.
+class _Tile extends StatelessWidget {
+  const _Tile({required this.feature, required this.order, required this.minHeight, required this.clock});
 
   final OnboardingFeature feature;
+  final int order;
+  final double minHeight;
+  final ValueNotifier<double> clock;
 
   @override
   Widget build(BuildContext context) {
-    return GlassPanel(
-      dark: true,
-      blur: 12,
-      borderRadius: BorderRadius.circular(AppRadius.full),
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.md,
-        vertical: AppSpacing.sm,
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
+    return Container(
+      constraints: BoxConstraints(minHeight: minHeight),
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 12),
+      decoration: _cardSurface(18),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          // The icon is the second channel that keeps these distinguishable
-          // without relying on colour.
-          Icon(feature.icon, size: 15, color: AppColors.gold300),
-          const SizedBox(width: AppSpacing.sm - 2),
-          Flexible(
-            child: Text(
-              feature.label,
-              maxLines: 2,
-              style: AppTypography.captionSmall.copyWith(
-                color: AppColors.surface,
+          _Moving(
+            motion: feature.motion,
+            order: order,
+            clock: clock,
+            child: Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                color: AppColors.navy900.withValues(alpha: 0.7),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: AppColors.surface.withValues(alpha: 0.1)),
               ),
+              child: Icon(feature.icon, size: 26, color: AppColors.gold400),
             ),
+          ),
+          const SizedBox(height: 10),
+          Text(
+            feature.label,
+            textAlign: TextAlign.center,
+            style: AppTypography.onboardingTile.copyWith(color: AppColors.surface),
           ),
         ],
       ),
@@ -640,31 +690,150 @@ class _Chip extends StatelessWidget {
   }
 }
 
-/// Cross-fade with a short rise, keyed on the scene so a page change replays
-/// it. Finite by construction — an `AnimatedSwitcher` settles and stops, which
-/// is what keeps `pumpAndSettle` honest.
-class _SceneSwitcher extends StatelessWidget {
-  const _SceneSwitcher({required this.child});
+/// Pages two and three: an icon and a label in a row.
+class _RowCard extends StatelessWidget {
+  const _RowCard({required this.feature, required this.order, required this.minHeight, required this.clock});
 
+  final OnboardingFeature feature;
+  final int order;
+  final double minHeight;
+  final ValueNotifier<double> clock;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      constraints: BoxConstraints(minHeight: minHeight),
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
+      decoration: _cardSurface(16),
+      child: Row(
+        children: [
+          _Moving(
+            motion: feature.motion,
+            order: order,
+            clock: clock,
+            child: Icon(feature.icon, size: 24, color: AppColors.gold400),
+          ),
+          const SizedBox(width: 16),
+          Flexible(child: Text(feature.label, style: AppTypography.onboardingRow.copyWith(color: AppColors.surface))),
+        ],
+      ),
+    );
+  }
+}
+
+/// An icon's own small motion: a bob (offset by its place in the row), the
+/// bell's swing, the megaphone's wobble, or a ring pulsing out of the shield.
+class _Moving extends StatelessWidget {
+  const _Moving({required this.motion, required this.order, required this.clock, required this.child});
+
+  final FeatureMotion motion;
+  final int order;
+  final ValueNotifier<double> clock;
   final Widget child;
 
   @override
   Widget build(BuildContext context) {
-    return AnimatedSwitcher(
-      duration: const Duration(milliseconds: 420),
-      switchInCurve: Curves.easeOutCubic,
-      switchOutCurve: Curves.easeInCubic,
-      transitionBuilder: (child, animation) => FadeTransition(
-        opacity: animation,
-        child: SlideTransition(
-          position: Tween<Offset>(
-            begin: const Offset(0, 0.07),
-            end: Offset.zero,
-          ).animate(animation),
-          child: child,
-        ),
-      ),
+    return ValueListenableBuilder<double>(
+      valueListenable: clock,
       child: child,
+      builder: (context, t, child) {
+        switch (motion) {
+          case FeatureMotion.bob:
+            return Transform.translate(offset: Offset(0, -3 * _swing(t, 3.4, delay: 0.6 * order)), child: child);
+          case FeatureMotion.swing:
+            final deg = _keyframes(t, 3.2, const [0, 0.15, 0.30, 0.45, 0.60, 0.75, 1], const [0, 14, -11, 7, -4, 0, 0]);
+            return Transform.rotate(angle: deg * math.pi / 180, alignment: const Alignment(0, -0.76), child: child);
+          case FeatureMotion.wobble:
+            final deg = _keyframes(t, 3, const [0, 0.25, 0.5, 0.75, 1], const [0, -7, 0, 6, 0]);
+            return Transform.rotate(angle: deg * math.pi / 180, alignment: const Alignment(-0.4, 0.2), child: child);
+          case FeatureMotion.pulse:
+            final p = t <= 0 ? 0.0 : Curves.easeOut.transform((t % 2.2) / 2.2);
+            // The ring floats over the icon (4 beyond it all round) and takes
+            // no room of its own, so the row keeps its height.
+            return Stack(
+              clipBehavior: Clip.none,
+              alignment: Alignment.center,
+              children: [
+                if (t > 0)
+                  Positioned(
+                    left: -4,
+                    top: -4,
+                    right: -4,
+                    bottom: -4,
+                    child: Transform.scale(
+                      scale: 0.9 + p,
+                      child: Opacity(
+                        opacity: 0.75 * (1 - p),
+                        child: DecoratedBox(
+                          decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: AppColors.gold400, width: 2)),
+                        ),
+                      ),
+                    ),
+                  ),
+                child!,
+              ],
+            );
+        }
+      },
+    );
+  }
+}
+
+// ── The dots ───────────────────────────────────────────────────────────────
+
+class _Dots extends StatelessWidget {
+  const _Dots({super.key, required this.page, required this.count, required this.reduce, required this.onSelect});
+
+  final int page;
+  final int count;
+  final bool reduce;
+  final ValueChanged<int> onSelect;
+
+  @override
+  Widget build(BuildContext context) {
+    final duration = Duration(milliseconds: reduce ? 150 : 350);
+    return Semantics(
+      container: true,
+      liveRegion: true,
+      label: 'Page ${page + 1} of $count',
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          for (var i = 0; i < count; i++)
+            // 22 apart, as the design's 12px dots with 10 between; each one
+            // a 44pt-tall target.
+            Semantics(
+              button: true,
+              selected: i == page,
+              label: 'Go to page ${i + 1} of $count',
+              excludeSemantics: true,
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: () => onSelect(i),
+                child: SizedBox(
+                  width: 22,
+                  height: 44,
+                  child: Center(
+                    child: AnimatedScale(
+                      scale: i == page ? 1 : 0.84,
+                      duration: duration,
+                      curve: const Cubic(0.2, 0.8, 0.25, 1),
+                      child: AnimatedContainer(
+                        duration: duration,
+                        width: 12,
+                        height: 12,
+                        decoration: BoxDecoration(
+                          color: i == page ? AppColors.gold400 : AppColors.navy600,
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
     );
   }
 }

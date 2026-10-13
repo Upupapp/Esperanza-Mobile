@@ -295,6 +295,114 @@ class AppTypography {
     height: 1.16,
   );
 
+  // ── The opening screens (2026-10-12) ────────────────────────────────────
+  //
+  // The splash and the three welcome pages follow the owner's design
+  // ("Esperanza Onboarding Prototype"), set at its reference phone (390x844):
+  // its sizes, rounded to whole points, in Inter.
+
+  /// 30 / w700 — a welcome page's two-line headline.
+  static const TextStyle onboardingHeadline = TextStyle(
+    fontFamily: sans,
+    fontSize: 30,
+    fontWeight: FontWeight.w700,
+    letterSpacing: -0.3,
+    height: 1.15,
+  );
+
+  /// 16 / w500 — the sentence under it.
+  static const TextStyle onboardingBody = TextStyle(
+    fontFamily: sans,
+    fontSize: 16,
+    fontWeight: FontWeight.w500,
+    height: 1.45,
+  );
+
+  /// 14 / w600 — a label under an icon tile (page one).
+  static const TextStyle onboardingTile = TextStyle(
+    fontFamily: sans,
+    fontSize: 14,
+    fontWeight: FontWeight.w600,
+    height: 1.2,
+  );
+
+  /// 17 / w600 — a label in a row card (pages two and three).
+  static const TextStyle onboardingRow = TextStyle(
+    fontFamily: sans,
+    fontSize: 17,
+    fontWeight: FontWeight.w600,
+    height: 1.25,
+  );
+
+  /// 17 / w700 — "Municipalidad / ng Esperanza" beside the seal.
+  static const TextStyle onboardingBrand = TextStyle(
+    fontFamily: sans,
+    fontSize: 17,
+    fontWeight: FontWeight.w700,
+    height: 1.15,
+  );
+
+  /// 18 / w700 — Skip.
+  static const TextStyle onboardingSkip = TextStyle(
+    fontFamily: sans,
+    fontSize: 18,
+    fontWeight: FontWeight.w700,
+  );
+
+  /// 19 / w700 — Next and Get Started.
+  static const TextStyle onboardingAction = TextStyle(
+    fontFamily: sans,
+    fontSize: 19,
+    fontWeight: FontWeight.w700,
+  );
+
+  /// 15 / w500 — "Loading Esperanza..." on the splash.
+  static const TextStyle splashStatus = TextStyle(
+    fontFamily: sans,
+    fontSize: 15,
+    fontWeight: FontWeight.w500,
+  );
+
+  /// 42 / w800 — "Esperanza" on the sign-in screen.
+  static const TextStyle signInWordmark = TextStyle(
+    fontFamily: sans,
+    fontSize: 42,
+    fontWeight: FontWeight.w800,
+    letterSpacing: -0.4,
+    height: 1.05,
+  );
+
+  /// 13 / w700, widely spaced capitals — "CITIZEN PORTAL" under it.
+  static const TextStyle signInEyebrow = TextStyle(
+    fontFamily: sans,
+    fontSize: 13,
+    fontWeight: FontWeight.w700,
+    letterSpacing: 4.2,
+  );
+
+  /// 25 / w700 — "Welcome back".
+  static const TextStyle signInTitle = TextStyle(
+    fontFamily: sans,
+    fontSize: 25,
+    fontWeight: FontWeight.w700,
+    height: 1.15,
+  );
+
+  /// 15 / w500 — the sign-in screen's lines, the fields' text, Continue as
+  /// Guest.
+  static const TextStyle signInBody = TextStyle(
+    fontFamily: sans,
+    fontSize: 15,
+    fontWeight: FontWeight.w500,
+  );
+
+  /// 17 / w700 — Sign In.
+  static const TextStyle signInAction = TextStyle(
+    fontFamily: sans,
+    fontSize: 17,
+    fontWeight: FontWeight.w700,
+  );
+
   /// 13 / w600 / Lora — the municipal wordmark beside the seal.
   ///
   /// The one ceremonial role that recurs across entry screens (splash,

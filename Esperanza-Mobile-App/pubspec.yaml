@@ -128,6 +128,8 @@ flutter:
     - assets/images/esperanza-aerial.jpg
     - assets/images/rectangle_cityhall.jpg
     - assets/images/esperanza_town_hall.jpg
+    # The sign-in screen's photograph (owner, 2026-10-12): the same hall, newer.
+    - assets/images/municipal_hall.jpg
     - assets/images/Home_Banner.png
     - assets/images/Event 1.png
     - assets/images/Eventt 1.2.png

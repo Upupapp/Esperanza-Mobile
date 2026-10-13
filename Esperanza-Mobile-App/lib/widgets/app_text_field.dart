@@ -7,7 +7,11 @@ import '../theme/app_typography.dart';
 /// Mirrors `resources/views/components/ui/input.blade.php`: label above,
 /// optional leading icon, slate-50 fill, brand-colored focus ring, rose
 /// error state with helper text.
-class AppTextField extends StatelessWidget {
+///
+/// A password field ([obscureText]) carries an eye that shows and hides what
+/// was typed (owner, 2026-10-12: every password field, on the app and the
+/// web alike), unless the caller gives a [suffix] of its own.
+class AppTextField extends StatefulWidget {
   final String? label;
   final String? hint;
   final String? error;
@@ -50,33 +54,53 @@ class AppTextField extends StatelessWidget {
   });
 
   @override
+  State<AppTextField> createState() => _AppTextFieldState();
+}
+
+class _AppTextFieldState extends State<AppTextField> {
+  /// Whether a password field is showing what was typed.
+  bool _shown = false;
+
+  @override
   Widget build(BuildContext context) {
+    final w = widget;
+    final hidden = w.obscureText && !_shown;
+    final eye = w.obscureText && w.suffix == null
+        ? IconButton(
+            tooltip: _shown ? 'Hide password' : 'Show password',
+            onPressed: () => setState(() => _shown = !_shown),
+            icon: Icon(_shown ? Icons.visibility_outlined : Icons.visibility_off_outlined, size: 20, color: AppColors.slate500),
+          )
+        : null;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        if (label != null) ...[
-          FieldLabel(label!, required: required),
+        if (w.label != null) ...[
+          FieldLabel(w.label!, required: w.required),
           const SizedBox(height: AppSpacing.sm),
         ],
         TextField(
-          controller: controller,
-          maxLength: maxLength,
-          obscureText: obscureText,
-          keyboardType: keyboardType,
-          inputFormatters: inputFormatters,
-          maxLines: obscureText ? 1 : maxLines,
-          onChanged: onChanged,
+          controller: w.controller,
+          maxLength: w.maxLength,
+          obscureText: hidden,
+          // Shown, a password is still not something to autocorrect or learn.
+          autocorrect: !w.obscureText,
+          enableSuggestions: !w.obscureText,
+          keyboardType: w.obscureText && _shown ? TextInputType.visiblePassword : w.keyboardType,
+          inputFormatters: w.inputFormatters,
+          maxLines: w.obscureText ? 1 : w.maxLines,
+          onChanged: w.onChanged,
           style: const TextStyle(fontSize: AppTextSize.body, color: AppColors.textBody, height: 1.3),
           decoration: InputDecoration(
-            hintText: hintText,
-            prefixIcon: icon != null ? Icon(icon, size: 18, color: AppColors.slate400) : null,
-            suffixIcon: suffix,
-            errorText: error,
+            hintText: w.hintText,
+            prefixIcon: w.icon != null ? Icon(w.icon, size: 18, color: AppColors.slate400) : null,
+            suffixIcon: w.suffix ?? eye,
+            errorText: w.error,
           ),
         ),
-        if (hint != null && error == null) ...[
+        if (w.hint != null && w.error == null) ...[
           const SizedBox(height: AppSpacing.xs),
-          Text(hint!, style: const TextStyle(fontSize: AppTextSize.label, color: AppColors.textMuted, height: 1.35)),
+          Text(w.hint!, style: const TextStyle(fontSize: AppTextSize.label, color: AppColors.textMuted, height: 1.35)),
         ],
       ],
     );

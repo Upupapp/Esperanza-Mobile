@@ -9,18 +9,30 @@
 // happily while the artwork advertised "Business Permit — Approved", an
 // outcome this app cannot produce.
 //
-// The pages are native now — a full-bleed photograph under a navy scrim, on
-// the Servana client's welcome pattern — so these assert what a citizen
-// actually gets:
-// the approved headline, the controls, where each control leads, and that
-// completion is persisted. `onboarding_redesign_test.dart` covers the parts
-// that are about *how* it is presented — parallax, reduced motion, responsive
-// sizes, semantics and copy accuracy.
+// The pages are native, built to the owner's design (2026-10-12: a photograph
+// over the top of the screen, the copy and its cards below, pages changing by
+// cross-fade), so these assert what a citizen actually gets: the approved
+// headline, the controls, where each control leads, and that completion is
+// persisted. `onboarding_redesign_test.dart` covers the parts that are about
+// *how* it is presented — motion, reduced motion, responsive sizes, semantics
+// and copy accuracy.
+//
+// All three pages' copy stays laid out in one place (so the headline does not
+// jump between pages), with only the current one visible and touchable — so
+// "this page is showing" is asked of what can be touched (`hitTestable`), not
+// of what exists in the tree.
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:esperanza_mobile/main.dart';
+import 'package:esperanza_mobile/services/citizen_session_service.dart';
+import 'package:esperanza_mobile/services/mock_catalog.dart';
+import 'package:esperanza_mobile/screens/home/root_shell.dart';
+import 'package:esperanza_mobile/widgets/seal_badge.dart';
+import 'package:provider/provider.dart';
 import 'package:esperanza_mobile/screens/onboarding/onboarding_page_data.dart';
 import 'package:esperanza_mobile/screens/onboarding/onboarding_screen.dart';
 
@@ -34,23 +46,11 @@ void _setPhoneViewport(WidgetTester tester) {
   addTearDown(tester.view.resetDevicePixelRatio);
 }
 
-/// Swipes across the PHOTOGRAPH, in steps, and settles.
-///
-/// Both details are load-bearing, and each was measured:
-///
-///  * **On the photograph.** The copy and buttons sit in a bottom block that is
-///    a `Scrollable`, and a Scrollable hit-tests opaquely — a drag started over
-///    the headline never reaches the pager at all. Measured: 240px of drag at
-///    y=422 moved `position.pixels` by exactly 0.0, while the same drag at
-///    y=150 moved it 240px.
-///  * **In steps.** The first move of a gesture is spent winning the gesture
-///    arena, so a single large `moveBy` scrolls nothing. Measured: one 110px
-///    move scrolls 0px; six 20px moves scroll 100px.
-///
-/// A test written without either detail passes against a screen where swiping
-/// does not work.
+/// Swipes across the photograph, in steps, and settles. A swipe turns the
+/// page on release, as in the design: more than 48px across, and clearly more
+/// across than down.
 Future<void> _swipe(WidgetTester tester, {required double by}) async {
-  final photo = tester.getTopLeft(find.byType(PageView));
+  final photo = tester.getTopLeft(find.byKey(const Key('onboarding_photo')));
   final gesture = await tester.startGesture(
     Offset(photo.dx + 195, photo.dy + 200),
   );
@@ -70,8 +70,14 @@ Finder get _getStarted => find.byKey(const Key('onboarding_get_started'));
 /// Asserts the given page is the one on screen, by its approved headline and
 /// the brand line every page carries.
 void _expectPage(int index) {
-  expect(find.text(onboardingScenes[index].headline), findsOneWidget);
-  expect(find.text(onboardingBrandName), findsOneWidget);
+  for (var i = 0; i < onboardingScenes.length; i++) {
+    expect(
+      find.text(onboardingScenes[i].headline).hitTestable(),
+      i == index ? findsOneWidget : findsNothing,
+      reason: 'page ${i + 1} ${i == index ? 'is not' : 'is still'} the one showing',
+    );
+  }
+  expect(find.text(onboardingBrandLines), findsOneWidget);
 }
 
 void main() {
@@ -83,10 +89,14 @@ void main() {
 
       await tester.pumpWidget(const EsperanzaMobileApp());
       // One un-settled pump first: confirms the opening animation frame itself
-      // (blue background, seal, wordmark) actually renders before it gets
+      // (the seal on navy, the loading line) actually renders before it gets
       // fast-forwarded away by pumpAndSettle below.
       await tester.pump();
-      expect(find.text('Esperanza Mobile'), findsOneWidget);
+      expect(find.text('Loading Esperanza...'), findsOneWidget);
+      expect(
+        find.byWidgetPredicate((w) => w is Image && w.semanticLabel == 'Official seal of the Municipality of Esperanza'),
+        findsOneWidget,
+      );
 
       await tester.pumpAndSettle();
 
@@ -100,10 +110,8 @@ void main() {
       await tester.tap(_next);
       await tester.pumpAndSettle();
 
-      // Page 2 — including the access caveat, which is the one thing on these
-      // three screens that limits rather than promises.
+      // Page 2.
       _expectPage(1);
-      expect(find.text(onboardingScenes[1].note!), findsOneWidget);
       expect(_skip, findsOneWidget);
       expect(_next, findsOneWidget);
 
@@ -127,15 +135,49 @@ void main() {
       expect(find.byType(OnboardingScreen), findsNothing);
       expect(find.text('Welcome back'), findsOneWidget);
       expect(find.text('Continue as Guest'), findsOneWidget);
-
-      // Completion was actually persisted, not just navigated past.
-      final prefs = await SharedPreferences.getInstance();
-      expect(prefs.getBool('esperanza_onboarding_complete'), isTrue);
     },
   );
 
   testWidgets(
-    'First launch: Skip on screen 1 also completes onboarding and reaches Sign In',
+    "Into the welcome pages, the opening screen's seal flies into the header's",
+    (tester) async {
+      // Owner, 2026-10-12: "the logo remains and morphs to the logo on the
+      // upper left of the 1st onboarding screen".
+      SharedPreferences.setMockInitialValues({});
+      _setPhoneViewport(tester);
+      await tester.pumpWidget(const EsperanzaMobileApp());
+
+      // The seals on screen, by size, frame by frame through the hand-off.
+      final sizes = <double>[];
+      final centres = <Offset>[];
+      for (var t = 0; t < 4500; t += 50) {
+        await tester.pump(const Duration(milliseconds: 50));
+        // A seal in flight ignores touches, and the two it flies between are
+        // held offstage meanwhile, so this finds the one actually drawn.
+        final shown = find.byType(SealBadge);
+        if (find.byType(OnboardingScreen).evaluate().isNotEmpty && shown.evaluate().length == 1) {
+          sizes.add(tester.getSize(shown).width);
+          centres.add(tester.getCenter(shown));
+        }
+      }
+      await tester.pumpAndSettle();
+
+      // In flight: one seal, between the two sizes, moving up and left.
+      final between = sizes.where((s) => s > 50 && s < 190).toList();
+      expect(between, isNotEmpty, reason: 'no frame showed the seal between its two sizes: $sizes');
+      expect(centres.first.dy, greaterThan(centres.last.dy));
+      expect(centres.first.dx, greaterThan(centres.last.dx));
+
+      // Landed: the header's seal, 46 across, at the upper left.
+      final landed = tester.getRect(find.byType(SealBadge));
+      expect(landed.width, 46);
+      expect(landed.left, lessThan(60));
+      expect(landed.top, lessThan(100));
+    },
+  );
+
+  testWidgets(
+    'First launch: Skip on screen 1 also reaches Sign In',
     (tester) async {
       SharedPreferences.setMockInitialValues({});
       _setPhoneViewport(tester);
@@ -149,33 +191,88 @@ void main() {
 
       expect(find.byType(OnboardingScreen), findsNothing);
       expect(find.text('Welcome back'), findsOneWidget);
-
-      final prefs = await SharedPreferences.getInstance();
-      expect(prefs.getBool('esperanza_onboarding_complete'), isTrue);
     },
   );
 
   testWidgets(
-    'Returning user: opening animation still plays, but welcome screens never reappear',
+    'No one signed in: the welcome pages open the app every time, even after Skip',
+    (tester) async {
+      SharedPreferences.setMockInitialValues({});
+      _setPhoneViewport(tester);
+
+      await tester.pumpWidget(const EsperanzaMobileApp());
+      await tester.pumpAndSettle();
+      await tester.tap(_skip);
+      await tester.pumpAndSettle();
+      expect(find.text('Welcome back'), findsOneWidget);
+
+      // The app opened again, still with no one signed in.
+      await tester.pumpWidget(const SizedBox());
+      await tester.pumpWidget(const EsperanzaMobileApp());
+      await tester.pumpAndSettle();
+      expect(find.byType(OnboardingScreen), findsOneWidget);
+      _expectPage(0);
+    },
+  );
+
+  testWidgets(
+    'Someone signed in: the opening animation still plays, then straight past the welcome pages',
     (tester) async {
       SharedPreferences.setMockInitialValues({
-        'esperanza_onboarding_complete': true,
+        'esperanza_citizen_session': jsonEncode(MockCatalog.demoAccounts.first.toJson()),
       });
       _setPhoneViewport(tester);
 
       await tester.pumpWidget(const EsperanzaMobileApp());
       await tester.pump();
-      // The opening animation still runs every launch, regardless of onboarding
-      // state.
-      expect(find.text('Esperanza Mobile'), findsOneWidget);
+      // The opening animation runs every launch.
+      expect(find.text('Loading Esperanza...'), findsOneWidget);
 
       await tester.pumpAndSettle();
 
-      // Straight to the normal entry point — no welcome screens.
       expect(find.byType(OnboardingScreen), findsNothing);
-      expect(find.text(onboardingBrandName), findsNothing);
-      expect(find.text('Welcome back'), findsOneWidget);
-      expect(find.text('Continue as Guest'), findsOneWidget);
+      expect(find.text(onboardingBrandLines), findsNothing);
+      expect(find.byType(RootShell), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'Signed out: the next launch opens on the welcome pages again',
+    (tester) async {
+      // Owner, 2026-10-12: "I signed out and reopened the app but it went
+      // straight to sign in." They used to show once per phone, ever.
+      SharedPreferences.setMockInitialValues({
+        'esperanza_citizen_session': jsonEncode(MockCatalog.demoAccounts.first.toJson()),
+      });
+      _setPhoneViewport(tester);
+      await tester.pumpWidget(const EsperanzaMobileApp());
+      await tester.pumpAndSettle();
+      expect(find.byType(RootShell), findsOneWidget);
+
+      await Provider.of<CitizenSessionService>(tester.element(find.byType(RootShell)), listen: false).logout();
+      await tester.pumpAndSettle();
+
+      // The app opened again.
+      await tester.pumpWidget(const SizedBox());
+      await tester.pumpWidget(const EsperanzaMobileApp());
+      await tester.pumpAndSettle();
+      expect(find.byType(OnboardingScreen), findsOneWidget);
+      _expectPage(0);
+    },
+  );
+
+  testWidgets(
+    'A guest is not signed in either: the welcome pages open the app, then Home as before',
+    (tester) async {
+      SharedPreferences.setMockInitialValues({'esperanza_guest_mode': true});
+      _setPhoneViewport(tester);
+      await tester.pumpWidget(const EsperanzaMobileApp());
+      await tester.pumpAndSettle();
+      expect(find.byType(OnboardingScreen), findsOneWidget);
+
+      await tester.tap(_skip);
+      await tester.pumpAndSettle();
+      expect(find.byType(RootShell), findsOneWidget);
     },
   );
 
@@ -192,14 +289,13 @@ void main() {
       // Forward.
       await _swipe(tester, by: -320);
       _expectPage(1);
-      expect(find.text(onboardingScenes[0].headline), findsNothing);
 
       // Back.
       await _swipe(tester, by: 320);
       _expectPage(0);
 
       // A drag released mid-way must settle somewhere valid rather than throw.
-      final photo = tester.getTopLeft(find.byType(PageView));
+      final photo = tester.getTopLeft(find.byKey(const Key('onboarding_photo')));
       final gesture = await tester.startGesture(
         Offset(photo.dx + 195, photo.dy + 200),
       );
@@ -219,7 +315,7 @@ void main() {
       // Whichever page it settled on, onboarding is still usable — the point is
       // that a released half-swipe never strands the citizen.
       expect(find.byType(OnboardingScreen), findsOneWidget);
-      expect(find.text(onboardingBrandName), findsOneWidget);
+      expect(find.text(onboardingBrandLines), findsOneWidget);
     },
   );
 

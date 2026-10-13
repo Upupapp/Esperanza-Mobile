@@ -122,7 +122,6 @@ void main() {
         // A device that already holds this citizen's data, as a real one would.
         'esperanza_read_notification_ids': jsonEncode(['notif-1', 'notif-2']),
         'esperanza_duplicate_alert_resolutions': jsonEncode({'scenario-a': 'kept'}),
-        'esperanza_onboarding_complete': true,
       });
       _installFixtures();
 
@@ -204,18 +203,6 @@ void main() {
       await prefs.reload();
       expect(prefs.getString('esperanza_citizen_session'), isNull);
       expect(prefs.getBool('esperanza_guest_mode'), isNull);
-    });
-
-    testWidgets('onboarding completion survives — it is device state, not personal data', (tester) async {
-      // Erasing this would re-show the three-screen welcome flow to whoever
-      // picks the handset up next. That is noise, not privacy.
-      await setUpSignedIn(tester);
-      await signOut();
-      await tester.pump(const Duration(milliseconds: 1));
-
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.reload();
-      expect(prefs.getBool('esperanza_onboarding_complete'), isTrue);
     });
 
     testWidgets('signing out with no account signed in does not throw', (tester) async {

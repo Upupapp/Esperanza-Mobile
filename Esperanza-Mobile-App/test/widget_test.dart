@@ -5,16 +5,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'package:esperanza_mobile/main.dart';
+import 'support/start_app.dart';
 
 void main() {
   testWidgets('App boots to the citizen login screen', (WidgetTester tester) async {
     // Onboarding-complete pre-seeded: this suite exercises the normal
     // returning-user flow (Login/Guest-Home), not the first-run Onboarding
     // screens — see onboarding_flow_test.dart for that.
-    SharedPreferences.setMockInitialValues({'esperanza_onboarding_complete': true});
-    await tester.pumpWidget(const EsperanzaMobileApp());
-    await tester.pumpAndSettle();
+    SharedPreferences.setMockInitialValues({});
+    await pumpAppToSignIn(tester);
 
     expect(find.text('Welcome back'), findsOneWidget);
     expect(find.widgetWithText(ElevatedButton, 'Sign In'), findsNothing); // AppButton isn't a Material ElevatedButton

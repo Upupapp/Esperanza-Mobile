@@ -35,10 +35,8 @@ class SignOut {
   /// Clearing the session first would leave nothing to identify which account's
   /// data to erase if any step after it failed.
   ///
-  /// Deliberately **not** erased:
-  /// - `esperanza_onboarding_complete` — a device-level preference about
-  ///   whether the welcome flow has been seen, not personal data. Re-showing
-  ///   onboarding to whoever picks the phone up next would be noise.
+  /// With no one signed in, the next launch opens on the welcome pages
+  /// (owner, 2026-10-12).
   static Future<void> signOut(
     CitizenSessionService session, {
     required RequestsService requests,
