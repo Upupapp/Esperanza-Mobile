@@ -20,6 +20,7 @@ import 'package:esperanza_mobile/services/master_file_service.dart';
 import 'package:esperanza_mobile/services/support_service.dart';
 
 import 'support/fake_api.dart';
+import 'support/wallet_fixture.dart';
 
 CitizenAccount _account({String status = 'Approved'}) => CitizenAccount(
   id: 'ESP-TEST-0100',
@@ -113,16 +114,7 @@ void main() {
   });
 
   testWidgets('Digital ID renders the LGU card with its verification QR', (tester) async {
-    FakeApi.installFull((r) => {
-      'account_no': 'ESP-TEST-0100',
-      'name': 'Testa Sintetiko',
-      'barangay': 'Poblacion',
-      'purok': 'Purok 4',
-      'status': 'Approved',
-      'valid': true,
-      'issued_at': '2026-09-01',
-      'qr': 'ESPID|ESP-TEST-0100|sig',
-    });
+    FakeApi.installFull((r) => r.path == '/citizen/wallet' ? walletJson() : throw const FakeApiError());
     final session = CitizenSessionService();
     await tester.runAsync(() async {
       await pumpEventQueue();
@@ -140,9 +132,11 @@ void main() {
     expect(find.text('Valid · Verified by LGU'), findsOneWidget);
     // The Barangay row used to read "Purok 4, Poblacion".
     expect(find.text('Poblacion'), findsOneWidget);
-    expect(find.text('Purok / Sitio'), findsOneWidget);
+    expect(find.text('PUROK / SITIO'), findsOneWidget);
     expect(find.text('Purok 4'), findsOneWidget);
-    final qr = tester.widget<QrImageView>(find.byType(QrImageView, skipOffstage: false));
+    // The QR is further down, below My IDs.
+    await tester.scrollUntilVisible(find.byType(QrImageView), 300, scrollable: find.byType(Scrollable).first);
+    final qr = tester.widget<QrImageView>(find.byType(QrImageView));
     expect(qr, isNotNull);
   });
 

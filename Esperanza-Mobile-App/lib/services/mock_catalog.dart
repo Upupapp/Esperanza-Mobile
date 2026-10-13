@@ -1,7 +1,6 @@
 import '../models/announcement.dart';
 import '../models/catalog_item.dart';
 import '../models/citizen_account.dart';
-import '../models/digital_credential.dart';
 import '../models/evacuation_center.dart';
 import '../models/government_id_record.dart';
 import '../models/resident_profile.dart';
@@ -2618,49 +2617,6 @@ class MockCatalog {
     idNumber: 'PRN 100141234567 P',
     issuingOffice: 'Esperanza',
   );
-
-  /// Perlita Quiambao's Digital ID wallet — seeded demonstration data only,
-  /// for the VERIFIED Perlita account (ESP-RES-2024-9002) exclusively. Never
-  /// shown to Nicanor, Anacleto, or any other seeded account, and never
-  /// inferred/derived for a real resident. A different concept entirely
-  /// from [verifiedDemoGovernmentId] above — see DigitalCredential's own doc
-  /// comment. Order matters: the Digital ID screen opens on the first
-  /// entry (Barangay Resident ID), per this feature's spec.
-  ///
-  /// No `validUntil` is set for either — neither asset prints an expiry
-  /// date, so none is invented here (see DigitalCredential.validUntil's own
-  /// doc comment).
-  ///
-  /// Both card images also print "NOV 29, 1988" as Date of Birth (and
-  /// "Barangay Libertad" as address, a separate, pre-existing mismatch from
-  /// before this alignment pass) — now stale against the corrected Master
-  /// Profile birthdate (February 4, 2001). Neither [DigitalCredential]
-  /// itself nor this screen's own info panel has a structured DOB field
-  /// (see that class's fields), so nothing in the app's own UI text
-  /// contradicts the corrected profile — only the baked-in card artwork
-  /// does. Per this project's rule against generating new ID images, both
-  /// assets are left untouched; this is a known, reported mismatch (see
-  /// this alignment pass's own report), not an oversight.
-  static const verifiedDemoDigitalCredentials = <DigitalCredential>[
-    DigitalCredential(
-      id: 'perlita-barangay-resident-id',
-      type: 'barangay_resident_id',
-      displayName: 'Barangay Resident ID',
-      holderName: 'Perlita Quiambao',
-      frontAsset: 'assets/images/BarangayID_Front.png',
-      backAsset: 'assets/images/BarangayID_Back.png',
-      issuer: 'Municipality of Esperanza',
-    ),
-    DigitalCredential(
-      id: 'perlita-pwd-id',
-      type: 'pwd_id',
-      displayName: 'PWD ID',
-      holderName: 'Perlita Quiambao',
-      frontAsset: 'assets/images/PWD_Front.png',
-      backAsset: 'assets/images/PWD_Back.png',
-      issuer: 'Municipal Social Welfare and Development Office',
-    ),
-  ];
 
   /// Nicanor's one seeded government ID document — the asset placed at
   /// assets/images/NICANOR ID DEMO.png, a purpose-built "Esperanza Resident

@@ -1,251 +1,329 @@
-// Coverage for the Digital ID credential wallet (verified Perlita
-// Quiambao only): seeded Barangay Resident ID / PWD ID order and asset
-// pairing, tap-to-flip, vertical swipe navigation (direction, bounds,
-// position indicator), the information panel following the active
-// credential, View Full Screen preserving the currently-shown side,
-// verified/unverified gating, and that the registration-uploaded ID stays
-// out of this screen entirely.
+// The Unified Digital ID Wallet (GET /citizen/wallet): the Resident ID and
+// its QR only while active, suspended or not issued otherwise; identity,
+// residency and the Resident ID each with a status of its own; kept IDs as
+// "Uploaded — Not checked" with no identity or agency check claimed; and the
+// Add ID form, which sends the type and photos but never a status.
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
 import 'package:provider/provider.dart';
+import 'package:qr_flutter/qr_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'package:esperanza_mobile/models/access_level.dart';
 import 'package:esperanza_mobile/screens/profile/digital_id_screen.dart';
+import 'package:esperanza_mobile/services/api_client.dart';
 import 'package:esperanza_mobile/services/citizen_session_service.dart';
 import 'package:esperanza_mobile/services/mock_catalog.dart';
+import 'package:esperanza_mobile/services/wallet_service.dart';
+import 'package:esperanza_mobile/widgets/status_chip.dart';
 
-const _stackKey = ValueKey('credential-stack');
+import 'support/fake_api.dart';
+import 'support/wallet_fixture.dart';
 
-Future<CitizenSessionService> _signedInAs(WidgetTester tester, dynamic account) async {
-  SharedPreferences.setMockInitialValues({});
-  final session = CitizenSessionService();
-  var attempts = 0;
-  while (session.loading) {
-    attempts++;
-    if (attempts > 100) throw StateError('CitizenSessionService never finished loading.');
-    await tester.pump(const Duration(milliseconds: 1));
-  }
-  await session.login(account);
-  return session;
-}
-
-Future<void> _pumpWallet(WidgetTester tester, CitizenSessionService session, {Size size = const Size(390, 844)}) async {
-  tester.view.physicalSize = size;
+Future<List<String>> _pump(WidgetTester tester, Map<String, dynamic> Function() wallet) async {
+  // Tall enough that the whole page is built, timeline included.
+  tester.view.physicalSize = const Size(390, 2600);
   tester.view.devicePixelRatio = 1.0;
   addTearDown(tester.view.resetPhysicalSize);
   addTearDown(tester.view.resetDevicePixelRatio);
-
+  final calls = <String>[];
+  FakeApi.installFull((r) {
+    calls.add('${r.method} ${r.path}');
+    if (r.path == '/citizen/wallet') return wallet();
+    if (r.method == 'POST' && r.path.endsWith('/archive')) return {'id': 41};
+    throw const FakeApiError();
+  });
+  addTearDown(FakeApi.restore);
+  SharedPreferences.setMockInitialValues({});
+  final session = CitizenSessionService();
+  await tester.runAsync(() async {
+    await pumpEventQueue();
+    await session.login(MockCatalog.demoAccounts.last);
+  });
   await tester.pumpWidget(
     ChangeNotifierProvider<CitizenSessionService>.value(value: session, child: const MaterialApp(home: DigitalIdScreen())),
   );
+  await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 50)));
+  await tester.pumpAndSettle();
+  return calls;
+}
+
+/// Tap the ID on the deck, then Details in the full-size viewer.
+Future<void> _openDetails(WidgetTester tester, String name) async {
+  await tester.ensureVisible(find.text(name));
+  await tester.pumpAndSettle();
+  await tester.tap(find.text(name));
+  await tester.pumpAndSettle();
+  await tester.tap(find.text('Details'));
   await tester.pumpAndSettle();
 }
 
-bool _hasAssetImage(WidgetTester tester, String assetPath) {
-  return tester.widgetList<Image>(find.byType(Image)).any((img) {
-    // _CredentialFace now decodes at display size via cacheWidth, which
-    // wraps the AssetImage in a ResizeImage — unwrap it here so this still
-    // matches on the underlying asset name (see demo_resident_photo.dart's
-    // own doc comment for the same pattern used elsewhere in this suite).
-    var provider = img.image;
-    if (provider is ResizeImage) provider = provider.imageProvider;
-    return provider is AssetImage && provider.assetName == assetPath;
-  });
-}
+Finder _row(String title) => find.ancestor(of: find.text(title), matching: find.byType(Column)).first;
 
 void main() {
-  group('Verified Perlita — Digital ID wallet', () {
-    testWidgets('is accessible and shows Barangay Resident ID first, PWD ID second (position indicator)', (
-      tester,
-    ) async {
-      final session = await _signedInAs(tester, MockCatalog.demoAccounts.last); // Perlita — verified
-      await _pumpWallet(tester, session);
-
-      expect(session.accessLevel, AccessLevel.verified);
-      expect(find.text('Digital ID not yet available'), findsNothing);
-      expect(find.text('Barangay Resident ID'), findsOneWidget);
-      expect(find.text('1 of 2'), findsOneWidget);
-      // Exactly the two seeded credentials — nothing else.
-      expect(find.text('PWD ID'), findsNothing); // not yet active, only referenced via its own info panel
-      expect(tester.takeException(), isNull);
+  group('Resident ID', () {
+    testWidgets('identity passed, residency pending: no Resident ID and no QR yet', (tester) async {
+      await _pump(tester, () => walletJson(residency: 'Pending Review', state: 'not_issued'));
+      expect(find.text('Resident ID not issued yet'), findsOneWidget);
+      expect(find.textContaining('Your identity is verified.'), findsOneWidget);
+      expect(find.byType(QrImageView), findsNothing);
+      // On the card and in the timeline.
+      expect(find.text('Not issued yet'), findsNWidgets(2));
     });
 
-    testWidgets('Barangay front/back assets are correctly paired', (tester) async {
-      final session = await _signedInAs(tester, MockCatalog.demoAccounts.last);
-      await _pumpWallet(tester, session);
-
-      expect(_hasAssetImage(tester, 'assets/images/BarangayID_Front.png'), isTrue);
-      expect(_hasAssetImage(tester, 'assets/images/BarangayID_Back.png'), isFalse);
-
-      await tester.tap(find.byKey(_stackKey));
-      await tester.pumpAndSettle();
-
-      expect(_hasAssetImage(tester, 'assets/images/BarangayID_Back.png'), isTrue);
-      expect(_hasAssetImage(tester, 'assets/images/BarangayID_Front.png'), isFalse);
-    });
-
-    testWidgets('tap flips front -> back, second tap flips back -> front', (tester) async {
-      final session = await _signedInAs(tester, MockCatalog.demoAccounts.last);
-      await _pumpWallet(tester, session);
-
-      // Below the fold at 844pt once the "could not be loaded" notice shows.
-      expect(find.textContaining('View Full Screen (Front)', skipOffstage: false), findsOneWidget);
-
-      await tester.tap(find.byKey(_stackKey));
-      await tester.pumpAndSettle();
-      expect(find.textContaining('View Full Screen (Back)', skipOffstage: false), findsOneWidget);
-
-      await tester.tap(find.byKey(_stackKey));
-      await tester.pumpAndSettle();
-      expect(find.textContaining('View Full Screen (Front)', skipOffstage: false), findsOneWidget);
-      expect(tester.takeException(), isNull);
-    });
-
-    testWidgets('swipe up moves to PWD ID; PWD front/back assets are correctly paired; position indicator updates', (
-      tester,
-    ) async {
-      final session = await _signedInAs(tester, MockCatalog.demoAccounts.last);
-      await _pumpWallet(tester, session);
-
-      await tester.drag(find.byKey(_stackKey), const Offset(0, -150));
-      await tester.pumpAndSettle();
-
-      expect(find.text('2 of 2'), findsOneWidget);
-      expect(find.text('PWD ID'), findsOneWidget);
-      // Swiping to a new credential always resets it to front.
-      expect(_hasAssetImage(tester, 'assets/images/PWD_Front.png'), isTrue);
-      expect(_hasAssetImage(tester, 'assets/images/PWD_Back.png'), isFalse);
-
-      await tester.tap(find.byKey(_stackKey));
-      await tester.pumpAndSettle();
-      expect(_hasAssetImage(tester, 'assets/images/PWD_Back.png'), isTrue);
-      expect(_hasAssetImage(tester, 'assets/images/PWD_Front.png'), isFalse);
-    });
-
-    testWidgets('swipe down from PWD ID returns to Barangay Resident ID', (tester) async {
-      final session = await _signedInAs(tester, MockCatalog.demoAccounts.last);
-      await _pumpWallet(tester, session);
-
-      await tester.drag(find.byKey(_stackKey), const Offset(0, -150));
-      await tester.pumpAndSettle();
-      expect(find.text('2 of 2'), findsOneWidget);
-
-      await tester.drag(find.byKey(_stackKey), const Offset(0, 150));
-      await tester.pumpAndSettle();
-      expect(find.text('1 of 2'), findsOneWidget);
-      expect(find.text('Barangay Resident ID'), findsOneWidget);
-    });
-
-    testWidgets('cannot swipe above the first credential or below the last one', (tester) async {
-      final session = await _signedInAs(tester, MockCatalog.demoAccounts.last);
-      await _pumpWallet(tester, session);
-
-      // Already on Barangay (1 of 2) — swiping down (toward a nonexistent
-      // previous credential) must do nothing.
-      await tester.drag(find.byKey(_stackKey), const Offset(0, 150));
-      await tester.pumpAndSettle();
-      expect(find.text('1 of 2'), findsOneWidget);
-
-      await tester.drag(find.byKey(_stackKey), const Offset(0, -150));
-      await tester.pumpAndSettle();
-      expect(find.text('2 of 2'), findsOneWidget);
-
-      // Already on PWD (2 of 2, the last) — swiping up further must do
-      // nothing.
-      await tester.drag(find.byKey(_stackKey), const Offset(0, -150));
-      await tester.pumpAndSettle();
-      expect(find.text('2 of 2'), findsOneWidget);
-      expect(tester.takeException(), isNull);
-    });
-
-    testWidgets('a small drag well under the threshold springs back without changing credential', (tester) async {
-      final session = await _signedInAs(tester, MockCatalog.demoAccounts.last);
-      await _pumpWallet(tester, session);
-
-      await tester.drag(find.byKey(_stackKey), const Offset(0, -10));
-      await tester.pumpAndSettle();
-      expect(find.text('1 of 2'), findsOneWidget);
-      expect(find.text('Barangay Resident ID'), findsOneWidget);
-    });
-
-    testWidgets('the information panel follows the active credential', (tester) async {
-      final session = await _signedInAs(tester, MockCatalog.demoAccounts.last);
-      await _pumpWallet(tester, session);
-
-      expect(find.text('Barangay Resident ID'), findsOneWidget);
+    testWidgets('identity and residency both approved: the card and its QR', (tester) async {
+      await _pump(tester, () => walletJson());
+      expect(find.text('Valid · Verified by LGU'), findsOneWidget);
+      expect(find.byType(QrImageView), findsOneWidget);
       expect(find.text('Active'), findsOneWidget);
-      expect(find.text('Municipality of Esperanza'), findsOneWidget);
-
-      await tester.drag(find.byKey(_stackKey), const Offset(0, -150));
-      await tester.pumpAndSettle();
-
-      expect(find.text('PWD ID'), findsOneWidget);
-      expect(find.text('Municipal Social Welfare and Development Office'), findsOneWidget);
-      // The same single info-panel widget updated in place — no leftover
-      // Barangay-specific issuer text still shown.
-      expect(find.text('Municipality of Esperanza'), findsNothing);
     });
 
-    testWidgets('View Full Screen opens exactly the currently displayed side', (tester) async {
-      final session = await _signedInAs(tester, MockCatalog.demoAccounts.last);
-      await _pumpWallet(tester, session);
-
-      await tester.tap(find.byKey(_stackKey)); // flip to back
-      await tester.pumpAndSettle();
-
-      await tester.ensureVisible(find.textContaining('View Full Screen', skipOffstage: false));
-      await tester.pumpAndSettle();
-      await tester.tap(find.textContaining('View Full Screen'));
-      await tester.pumpAndSettle();
-
-      expect(find.text('Barangay Resident ID — Back'), findsOneWidget);
-      expect(_hasAssetImage(tester, 'assets/images/BarangayID_Back.png'), isTrue);
-      expect(find.byType(InteractiveViewer), findsOneWidget);
+    testWidgets('a failed check never reads as passed', (tester) async {
+      await _pump(tester, () => walletJson(identity: 'Failed', residency: 'Pending Review', state: 'not_issued'));
+      expect(find.text('Failed'), findsOneWidget);
+      expect(find.textContaining('Your identity is not verified yet.'), findsOneWidget);
+      expect(find.byType(QrImageView), findsNothing);
     });
 
-    testWidgets('no RenderFlex overflow on a narrow viewport', (tester) async {
-      final session = await _signedInAs(tester, MockCatalog.demoAccounts.last);
-      await _pumpWallet(tester, session, size: const Size(320, 640));
-      expect(tester.takeException(), isNull);
-
-      await tester.drag(find.byKey(_stackKey), const Offset(0, -150));
-      await tester.pumpAndSettle();
-      expect(tester.takeException(), isNull);
+    testWidgets('identity revoked after approval: suspended, no QR, and why', (tester) async {
+      await _pump(tester, () => walletJson(identity: 'Revoked', source: 'lgu_officer', state: 'suspended', suspendedBecause: 'identity_revoked'));
+      expect(find.text('Resident ID suspended'), findsOneWidget);
+      expect(find.textContaining('withdrew the verification of your identity'), findsOneWidget);
+      expect(find.byType(QrImageView), findsNothing);
+      expect(find.text('Revoked'), findsOneWidget);
+      // Residency stays as the LGU decided it.
+      expect(find.widgetWithText(StatusChip, 'Approved'), findsOneWidget);
     });
 
-    testWidgets('exactly the two seeded credentials — the registration ID never appears here', (tester) async {
-      final session = await _signedInAs(tester, MockCatalog.demoAccounts.last);
-      await _pumpWallet(tester, session);
-
-      expect(find.text('1 of 2'), findsOneWidget); // total is exactly 2
-      expect(find.text('Submitted Government ID'), findsNothing);
-      expect(find.text('Postal ID (PHLPost)'), findsNothing);
-      expect(_hasAssetImage(tester, 'assets/images/PERLITA DEMO ID.png'), isFalse);
+    testWidgets('residency approval revoked: suspended, identity still verified', (tester) async {
+      await _pump(
+        tester,
+        () => walletJson(residency: 'Rejected', approvalRevoked: true, state: 'suspended', suspendedBecause: 'approval_revoked'),
+      );
+      expect(find.text('Resident ID suspended'), findsOneWidget);
+      expect(find.textContaining('withdrew the approval of your residency, so'), findsOneWidget);
+      expect(find.text('The LGU withdrew the approval of your residency.'), findsOneWidget);
+      expect(find.text('Verified'), findsOneWidget);
+      expect(find.byType(QrImageView), findsNothing);
     });
   });
 
-  group('Unverified accounts — no active credentials', () {
-    testWidgets('Nicanor (unverified) sees the locked state, never the wallet', (tester) async {
-      final session = await _signedInAs(tester, MockCatalog.demoAccounts.first); // Nicanor — unverified
-      await _pumpWallet(tester, session);
+  testWidgets('identity, residency and the Resident ID each show their own status', (tester) async {
+    await _pump(tester, () => walletJson(residency: 'Pending Review', state: 'not_issued', documents: [walletDocumentJson()]));
+    expect(find.descendant(of: _row('Identity'), matching: find.text('Verified')), findsOneWidget);
+    expect(find.text('Checked by the automated ID and selfie check'), findsOneWidget);
+    expect(find.text('Checked ID: Identity Card, ending 1234'), findsOneWidget);
+    expect(find.widgetWithText(StatusChip, 'Pending Review'), findsOneWidget);
+    expect(find.text('Not issued yet'), findsNWidgets(2));
+    // The kept ID's own badge on the deck.
+    expect(find.text('Not checked'), findsOneWidget);
+  });
 
-      expect(session.accessLevel, AccessLevel.unverified);
-      expect(find.text('Digital ID not yet available'), findsOneWidget);
-      expect(find.text('Barangay Resident ID'), findsNothing);
-      expect(find.text('PWD ID'), findsNothing);
-      expect(find.byKey(_stackKey), findsNothing);
-      expect(tester.takeException(), isNull);
+  group('My IDs', () {
+    testWidgets('a kept ID claims no identity or agency check, and can be removed', (tester) async {
+      var removed = false;
+      final calls = await _pump(tester, () => walletJson(documents: removed ? const [] : [walletDocumentJson()]));
+      expect(find.text('PhilHealth ID'), findsOneWidget);
+      expect(find.text('Not checked'), findsOneWidget);
+
+      await _openDetails(tester, 'PhilHealth ID');
+      expect(find.text('Checks on this ID'), findsOneWidget);
+      expect(find.text('Uploaded — Not checked'), findsOneWidget);
+      expect(find.text('Not checked'), findsOneWidget);
+      expect(find.text('Not available'), findsOneWidget);
+
+      removed = true;
+      await tester.ensureVisible(find.text('Remove from wallet'));
+      await tester.tap(find.text('Remove from wallet'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Remove'));
+      await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 50)));
+      await tester.pumpAndSettle();
+      await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 50)));
+      await tester.pumpAndSettle();
+      expect(calls, contains('POST /citizen/papeles/41/archive'));
+      expect(find.text('No IDs added yet'), findsOneWidget);
     });
 
-    testWidgets('duplicate Perlita registration (still Pending Review) also sees the locked state', (tester) async {
-      final session = await _signedInAs(tester, MockCatalog.duplicateVerifiedDemoAccount);
-      await _pumpWallet(tester, session);
+    testWidgets('a photo that will not load is tried again, then offers Tap to try again', (tester) async {
+      // flutter_test answers every image request with a 400, like a dropped
+      // connection that never recovers.
+      await _pump(tester, () => walletJson(documents: [walletDocumentJson()..['front_url'] = 'https://test.invalid/files/front']));
+      await _openDetails(tester, 'PhilHealth ID');
+      Future<void> settle() async {
+        for (var i = 0; i < 6; i++) {
+          await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 50)));
+          await tester.pump(const Duration(seconds: 2));
+        }
+      }
 
-      expect(session.accessLevel, AccessLevel.unverified);
-      expect(find.text('Digital ID not yet available'), findsOneWidget);
-      expect(find.text('Barangay Resident ID'), findsNothing);
-      expect(find.text('PWD ID'), findsNothing);
+      await settle();
+      final retry = find.text('This image could not be loaded. Tap to try again.');
+      expect(retry, findsOneWidget);
+      await tester.tap(retry);
+      await tester.pump();
+      // Trying again: the message gives way while it does.
+      expect(retry, findsNothing);
+      await settle();
+      expect(retry, findsOneWidget);
+    });
+
+    testWidgets('the deck steps through the IDs, and a tapped ID opens full size and flips to its back', (tester) async {
+      await _pump(
+        tester,
+        () => walletJson(
+          documents: [
+            walletDocumentJson(),
+            walletDocumentJson(id: 42, idKind: 'sss', name: 'SSS ID', issuer: 'Social Security System', hasBack: true),
+          ],
+        ),
+      );
+      expect(find.text('1 of 2'), findsOneWidget);
+      await tester.ensureVisible(find.byTooltip('Next ID'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip('Next ID'));
+      await tester.pumpAndSettle();
+      expect(find.text('2 of 2'), findsOneWidget);
+
+      // The SSS ID is in front now: open it, flip it, close it.
+      await tester.tap(find.bySemanticsLabel(RegExp(r'^SSS ID, Not checked\. 2 of 2')));
+      await tester.pumpAndSettle();
+      expect(find.text('Close'), findsOneWidget);
+      await tester.tap(find.bySemanticsLabel(RegExp(r'^SSS ID, front\.')));
+      await tester.pumpAndSettle();
+      expect(find.text('SSS ID · Back'), findsOneWidget);
+      await tester.tap(find.text('Close'));
+      await tester.pumpAndSettle();
+      expect(find.text('Close'), findsNothing);
+      expect(find.text('Checks on this ID'), findsNothing);
+    });
+
+    testWidgets('an ID verified by the LGU carries the seal on the deck', (tester) async {
+      await _pump(tester, () => walletJson(documents: [walletDocumentJson(documentStatus: 'verified_by_lgu')]));
+      expect(find.byKey(const ValueKey('verified-seal')), findsOneWidget);
+      expect(find.text('Not checked'), findsNothing);
+    });
+
+    testWidgets('a returned upload says so with the reason, and nothing else changes', (tester) async {
+      await _pump(
+        tester,
+        () => walletJson(documents: [walletDocumentJson(documentStatus: 'returned_by_lgu', lguRemarks: 'The photo is too blurry to read.')]),
+      );
+      expect(find.text('Returned'), findsOneWidget);
+      expect(find.text('Active'), findsOneWidget);
+
+      await _openDetails(tester, 'PhilHealth ID');
+      expect(find.text('Reason: The photo is too blurry to read.'), findsOneWidget);
+      expect(find.text('Use Replace below to send a clearer photo.'), findsOneWidget);
+    });
+
+    testWidgets('an ID verified by the LGU says so, and claims no identity or agency check', (tester) async {
+      await _pump(tester, () => walletJson(documents: [walletDocumentJson(documentStatus: 'verified_by_lgu')]));
+      await _openDetails(tester, 'PhilHealth ID');
+      expect(find.text('Verified by the LGU'), findsOneWidget);
+      expect(find.textContaining('It carries the Esperanza seal in your wallet.'), findsOneWidget);
+      expect(find.text('Not checked'), findsOneWidget);
+      expect(find.text('Not available'), findsOneWidget);
+    });
+  });
+
+  group('Add ID', () {
+    Future<void> pumpForm(WidgetTester tester) async {
+      tester.view.physicalSize = const Size(390, 1600);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      final types = walletIdTypes.map((t) => WalletIdType.fromApi(Map<String, dynamic>.from(t))!).toList();
+      await tester.pumpWidget(MaterialApp(home: AddWalletIdScreen(types: types)));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('lists every ID type, Other included', (tester) async {
+      await pumpForm(tester);
+      await tester.tap(find.text('Choose the type of ID'));
+      await tester.pumpAndSettle();
+      for (final name in ['Philippine National ID (PhilSys)', 'PhilHealth ID', 'SSS ID', 'OWWA ID', "Driver's License", 'Other']) {
+        expect(find.text(name), findsWidgets, reason: name);
+      }
+    });
+
+    testWidgets('Other needs its own name and issuer, and every ID needs a front', (tester) async {
+      final sent = <String>[];
+      FakeApi.installFull((r) {
+        sent.add(r.path);
+        return walletDocumentJson();
+      });
+      addTearDown(FakeApi.restore);
+      await pumpForm(tester);
+
+      await tester.tap(find.text('Add to wallet'));
+      await tester.pumpAndSettle();
+      expect(find.text('Choose the type of ID.'), findsOneWidget);
+
+      await tester.tap(find.text('Choose the type of ID'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Other').last);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Add to wallet'));
+      await tester.pumpAndSettle();
+      expect(find.text('Enter the name of the ID.'), findsWidgets);
+      expect(find.text('Enter who issued the ID.'), findsOneWidget);
+
+      await tester.enterText(find.byType(TextField).at(0), 'Barangay Health Worker ID');
+      await tester.enterText(find.byType(TextField).at(1), 'Municipal Health Office');
+      await tester.tap(find.text('Add to wallet'));
+      await tester.pumpAndSettle();
+      expect(find.text('Add a photo of the front of the ID.'), findsOneWidget);
+      expect(sent, isEmpty);
+    });
+  });
+
+  group('WalletService.addId', () {
+    late String body;
+    setUp(() {
+      api = ApiClient(
+        baseUrl: 'https://test.invalid',
+        httpClient: MockClient((request) async {
+          body = request.body;
+          return http.Response(
+            '{"data": {"id": 7, "id_kind": "philhealth", "name": "PhilHealth ID", "document_status": "uploaded_not_checked"}}',
+            201,
+            headers: {'content-type': 'application/json'},
+          );
+        }),
+      );
+    });
+    tearDown(FakeApi.restore);
+
+    test('a listed ID sends its type and photos, never a name, issuer or status', () async {
+      final doc = await WalletService.addId(
+        idKind: 'philhealth',
+        front: (bytes: [1, 2, 3], filename: 'front.jpg'),
+        back: (bytes: [4, 5, 6], filename: 'back.jpg'),
+        name: 'Something else',
+        issuer: 'Someone else',
+        replaces: 3,
+      );
+      expect(doc.status, WalletDocumentStatus.uploadedNotChecked);
+      expect(body, contains('name="id_kind"'));
+      expect(body, contains('name="front"'));
+      expect(body, contains('name="back"'));
+      expect(body, contains('name="replaces"'));
+      expect(body, isNot(contains('name="name"')));
+      expect(body, isNot(contains('name="issuer"')));
+      expect(body, isNot(contains('status')));
+    });
+
+    test('Other sends the resident\'s own name and issuer, trimmed', () async {
+      await WalletService.addId(
+        idKind: 'other',
+        front: (bytes: [1], filename: 'front.jpg'),
+        name: '  Barangay Health Worker ID ',
+        issuer: 'Municipal Health Office',
+      );
+      expect(body, contains('Barangay Health Worker ID\r\n'));
+      expect(body, contains('name="issuer"'));
     });
   });
 }

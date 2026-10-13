@@ -23,6 +23,7 @@ import 'package:esperanza_mobile/widgets/app_button.dart';
 import 'package:esperanza_mobile/widgets/image_viewer_scaffold.dart';
 
 import 'support/fake_api.dart';
+import 'support/wallet_fixture.dart';
 
 void _size(WidgetTester tester, Size size) {
   tester.view.physicalSize = size;
@@ -129,22 +130,15 @@ void main() {
     });
   });
 
-  group('demo Digital ID wallet', () {
-    Future<List<String>> pump(WidgetTester tester, {required bool Function() fails}) async {
+  group('Digital ID wallet', () {
+    testWidgets('when the wallet fails it says so, shows no sample ID, and Try Again reaches it', (tester) async {
       _size(tester, const Size(390, 1100));
+      var down = true;
       final calls = <String>[];
       FakeApi.installFull((r) {
         calls.add(r.path);
-        if (fails()) throw const FakeApiError(status: 503, code: 'UNAVAILABLE');
-        return {
-          'account_no': 'ESP-2026-9002',
-          'qr': 'esperanza:v1:ESP-2026-9002:sig',
-          'name': 'Perlita Quiambao',
-          'barangay': 'Baras',
-          'status': 'Verified',
-          'valid': true,
-          'issued_at': '2026-09-01',
-        };
+        if (down) throw const FakeApiError(status: 503, code: 'UNAVAILABLE', messageEn: 'The service is unavailable.');
+        return walletJson(accountNo: 'ESP-2026-9002', name: 'Perlita Quiambao');
       });
       final session = CitizenSessionService();
       await tester.runAsync(() => session.login(MockCatalog.demoAccounts.last));
@@ -156,47 +150,16 @@ void main() {
       );
       await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 50)));
       await tester.pumpAndSettle();
-      return calls;
-    }
-
-    testWidgets('when the live card fails, the wallet says so and Try Again reaches the live card', (tester) async {
-      var down = true;
-      final calls = await pump(tester, fails: () => down);
-      expect(find.textContaining('could not be loaded, so the sample IDs'), findsOneWidget);
-      expect(find.text('Barangay Resident ID'), findsOneWidget);
+      expect(find.text('The service is unavailable.'), findsOneWidget);
+      expect(find.text('Barangay Resident ID'), findsNothing);
+      expect(find.text('PWD ID'), findsNothing);
 
       down = false;
       await tester.tap(find.text('Try Again'));
       await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 50)));
       await tester.pumpAndSettle();
-      expect(calls.where((p) => p == '/citizen/digital-id'), hasLength(2));
-      expect(find.textContaining('could not be loaded'), findsNothing);
+      expect(calls.where((p) => p == '/citizen/wallet'), hasLength(2));
       expect(find.text('ESP-2026-9002'), findsWidgets);
-    });
-
-    testWidgets('every card face is decoded before it is shown, so a flip never shows a blank card', (tester) async {
-      await pump(tester, fails: () => true);
-      // 390 wide less the 16pt gutters: the card is 358pt.
-      for (final c in MockCatalog.verifiedDemoDigitalCredentials) {
-        final key = await tester.runAsync(
-          () => ResizeImage(AssetImage(c.backAsset), width: 358).obtainKey(ImageConfiguration.empty),
-        );
-        expect(PaintingBinding.instance.imageCache.statusForKey(key!).tracked, isTrue, reason: c.backAsset);
-      }
-    });
-
-    testWidgets('a screen reader can move to the next ID without swiping', (tester) async {
-      final semantics = tester.ensureSemantics();
-      await pump(tester, fails: () => true);
-      expect(find.text('1 of 2'), findsOneWidget);
-      final card = find.bySemanticsLabel(RegExp(r'^Barangay Resident ID, front side'));
-      final node = tester.getSemantics(card);
-      final next = node.getSemanticsData().customSemanticsActionIds!.map(CustomSemanticsAction.getAction);
-      expect(next.map((a) => a!.label), ['Next ID']);
-      tester.semantics.customAction(find.semantics.byLabel(RegExp(r'^Barangay Resident ID, front side')), next.single!);
-      await tester.pumpAndSettle();
-      expect(find.text('2 of 2'), findsOneWidget);
-      semantics.dispose();
     });
   });
 

@@ -24,7 +24,9 @@ import 'package:esperanza_mobile/screens/profile/digital_id_screen.dart';
 import 'package:esperanza_mobile/services/citizen_session_service.dart';
 import 'package:esperanza_mobile/services/mock_catalog.dart';
 import 'package:esperanza_mobile/services/resident_profile_service.dart';
-import 'package:esperanza_mobile/widgets/app_button.dart';
+
+import 'support/fake_api.dart';
+import 'support/wallet_fixture.dart';
 
 /// The exact CitizenAccount snapshot a browser would have persisted before
 /// this correction — same shape login() would have jsonEncode'd.
@@ -141,6 +143,8 @@ void main() {
 
   group('Digital ID', () {
     testWidgets('Verified Perlita sees her Digital ID wallet, not the registration ID document', (tester) async {
+      FakeApi.installFull((r) => walletJson(accountNo: 'ESP-RES-2024-9002', name: 'Perlita Quiambao'));
+      addTearDown(FakeApi.restore);
       SharedPreferences.setMockInitialValues({});
       final session = CitizenSessionService();
       var attempts = 0;
@@ -162,10 +166,10 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      // The seeded wallet — Barangay Resident ID first, PWD ID second.
-      expect(find.text('Barangay Resident ID'), findsOneWidget);
+      // The LGU-issued Resident ID from the server; no sample PWD ID.
       expect(find.text('Perlita Quiambao'), findsOneWidget);
-      expect(find.text('1 of 2'), findsOneWidget);
+      expect(find.text('Valid · Verified by LGU'), findsOneWidget);
+      expect(find.text('PWD ID'), findsNothing);
       // The registration-uploaded ID document is a different concept, shown
       // only at Profile > Personal Information (see
       // submitted_government_id_test.dart) — never on this screen anymore.
@@ -175,6 +179,8 @@ void main() {
     });
 
     testWidgets('Duplicate Perlita (still Pending Review) does not get a second verified Digital ID', (tester) async {
+      FakeApi.installFull((r) => walletJson(identity: 'Pending', source: 'pending', residency: 'Pending Review', state: 'not_issued'));
+      addTearDown(FakeApi.restore);
       SharedPreferences.setMockInitialValues({});
       final session = CitizenSessionService();
       var attempts = 0;
@@ -196,9 +202,8 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('Digital ID not yet available'), findsOneWidget);
-      expect(find.text('Esperanza Digital ID'), findsNothing);
-      expect(find.byType(AppButton), findsNothing);
+      expect(find.text('Resident ID not issued yet'), findsOneWidget);
+      expect(find.text('Valid · Verified by LGU'), findsNothing);
 
       // The registration-uploaded ID document no longer appears on this
       // screen at all, regardless of Pending Review status — it lives at

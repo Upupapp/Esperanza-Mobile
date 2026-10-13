@@ -1,788 +1,180 @@
 import 'dart:math' as math;
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
-import 'package:flutter/semantics.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
-import 'package:provider/provider.dart';
 import 'package:qr_flutter/qr_flutter.dart';
-import '../../models/access_level.dart';
-import '../../models/citizen_account.dart';
-import '../../models/digital_credential.dart';
+import '../../models/identity_status.dart';
 import '../../services/api_client.dart';
-import '../../services/citizen_session_service.dart';
 import '../../services/digital_id_service.dart';
+import '../../services/wallet_service.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_shadows.dart';
 import '../../theme/app_spacing.dart';
 import '../../theme/app_status.dart';
-import '../../utils/digital_credentials.dart';
-import '../../utils/date_text.dart';
-import '../../utils/esperanza_seal.dart';
-import '../../widgets/app_card.dart';
 import '../../theme/app_typography.dart';
+import '../../utils/ambient_motion.dart';
+import '../../utils/esperanza_seal.dart';
+import '../../utils/protected_action.dart';
+import '../../widgets/app_button.dart';
+import '../../widgets/app_card.dart';
+import '../../widgets/app_date_field.dart';
+import '../../widgets/app_dialogs.dart';
+import '../../widgets/app_text_field.dart';
 import '../../widgets/image_viewer_scaffold.dart';
-import '../../widgets/esperanza_art.dart';
+import '../../widgets/status_chip.dart';
 
-/// Esperanza Digital ID — a resident's own wallet for *official,
-/// already-issued* digital government/LGU credentials (Barangay Resident
-/// ID, PWD ID today; National ID, PhilHealth, Senior Citizen, and other
-/// future LGU credentials simply by adding another DigitalCredential
-/// record — see utils/digital_credentials.dart). Interaction inspired by
-/// eGovPH's own credential-wallet UX in concept only — no eGovPH branding,
-/// and this project has no real integration with eGovPH, PhilSys,
-/// PhilHealth, or any other government database.
+/// The Unified Digital ID Wallet (owner decisions, 2026-10-13), from
+/// GET /citizen/wallet, laid out after the owner's design (2026-10-13,
+/// "Esperanza Digital ID" canvas):
 ///
-/// The physical ID a resident uploads during registration is a *different*
-/// concept entirely — that's evidence submitted for LGU verification, shown
-/// at Profile > Personal Information > Submitted Government ID (see
-/// resident_profile/personal_information_screen.dart), never here. Only a
-/// verified account's wallet is shown; an unverified account (including a
-/// duplicate registration still Pending Review) sees an explanatory state
-/// instead.
+/// - the Resident ID card the LGU issues: navy header with the seal, a gold
+///   rule, the photo, name and validity, and the record's details; plainly
+///   marked suspended or not issued when it is not a credential;
+/// - My IDs: the resident's own government IDs as a stacked deck of their
+///   uploaded photos, swiped or stepped through, each tapped open full size
+///   and flipped to its back. "Not checked" unless LGU staff verified that
+///   very upload (then it carries the seal) or returned it;
+/// - the signed QR, only while the Resident ID is active;
+/// - where things stand: identity, residency and the Resident ID, each with
+///   a status of its own, never merged.
+///
+/// Every status comes from the server; nothing here sets one. There is no
+/// sample wallet: when the wallet cannot be loaded, the screen says so and
+/// offers Try Again.
 class DigitalIdScreen extends StatelessWidget {
   const DigitalIdScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final session = context.watch<CitizenSessionService>();
-    final account = session.account!;
-    final isVerified = session.accessLevel == AccessLevel.verified;
-
     return Scaffold(
-      appBar: AppBar(title: const Text('Digital ID')),
-      body: isVerified
-          ? _LiveOrWallet(account: account)
-          : ListView(
-              padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.md, AppSpacing.lg, AppSpacing.xxxl),
-              children: [_NotYetVerifiedCard(account: account)],
-            ),
-    );
-  }
-}
-
-/// The credential-stack wallet itself — entirely data-driven off
-/// [credentials]; nothing here branches on a specific credential's type.
-/// Tap the active card to flip it front/back; swipe up/down to move
-/// between credentials. See this file's own inline comments per gesture.
-class _DigitalIdWallet extends StatefulWidget {
-  final List<DigitalCredential> credentials;
-
-  /// Shown above the wallet; says why the live card is not here.
-  final Widget? notice;
-  const _DigitalIdWallet({required this.credentials, this.notice});
-
-  @override
-  State<_DigitalIdWallet> createState() => _DigitalIdWalletState();
-}
-
-class _DigitalIdWalletState extends State<_DigitalIdWallet> with TickerProviderStateMixin {
-  static const _aspectRatio = 1.58; // matches the seeded ID assets' own ~1573x1000 proportions
-  static const _peekVisible = 20.0;
-
-  // A resting stacked-behind credential renders at this fraction of the
-  // active card's size/opacity — a compact wallet-deck edge, never a
-  // second full-size, fully-readable ID directly behind the active one.
-  // Both interpolate up to 1.0 as a drag brings that card toward becoming
-  // active, so it visibly "rises and grows" into place rather than
-  // popping in at full size the instant it's committed.
-  static const _peekRestScale = 0.90;
-  static const _peekRestOpacity = 0.5;
-
-  int _activeIndex = 0;
-  double _dragOffset = 0;
-  bool _dragging = false;
-  double _swipeFrom = 0;
-  double _swipeTo = 0;
-
-  late final AnimationController _flipController = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 420),
-  )..addListener(() => setState(() {}));
-
-  late final AnimationController _swipeController = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 260),
-  )..addListener(() => setState(() {}));
-
-  @override
-  void dispose() {
-    _flipController.dispose();
-    _swipeController.dispose();
-    super.dispose();
-  }
-
-  DigitalCredential get _active => widget.credentials[_activeIndex];
-  DigitalCredential? get _next =>
-      _activeIndex + 1 < widget.credentials.length ? widget.credentials[_activeIndex + 1] : null;
-  DigitalCredential? get _previous => _activeIndex > 0 ? widget.credentials[_activeIndex - 1] : null;
-  bool get _showingBack => _flipController.value > 0.5;
-
-  /// The active card's current vertical offset — live-tracks the finger
-  /// while dragging, or eases toward its settle target once released
-  /// (either committing to the neighboring credential or springing back).
-  double get _currentOffset {
-    if (_swipeController.isAnimating) {
-      final t = Curves.easeOutCubic.transform(_swipeController.value);
-      return _swipeFrom + (_swipeTo - _swipeFrom) * t;
-    }
-    return _dragOffset;
-  }
-
-  void _toggleFlip() {
-    // Guards against the tap firing mid-drag/mid-settle — the gesture
-    // arena already disambiguates tap vs. drag on movement, but this is a
-    // cheap extra guarantee a swipe can never also flip the card.
-    if (_dragging || _swipeController.isAnimating) return;
-    if (_flipController.value > 0.5) {
-      _flipController.reverse();
-    } else {
-      _flipController.forward();
-    }
-  }
-
-  void _onDragStart(DragStartDetails _) {
-    if (_swipeController.isAnimating) return;
-    setState(() => _dragging = true);
-  }
-
-  void _onDragUpdate(DragUpdateDetails details, double step) {
-    if (!_dragging) return;
-    setState(() {
-      _dragOffset += details.delta.dy;
-      if (_previous == null) _dragOffset = _dragOffset.clamp(-step, 0.0);
-      if (_next == null) _dragOffset = _dragOffset.clamp(0.0, step);
-      _dragOffset = _dragOffset.clamp(-step, step);
-    });
-  }
-
-  void _onDragEnd(DragEndDetails details, double step) {
-    setState(() => _dragging = false);
-    final velocity = details.primaryVelocity ?? 0;
-    const distanceFraction = 0.32;
-    const velocityThreshold = 700.0;
-
-    final wantsNext = (_dragOffset <= -step * distanceFraction || velocity <= -velocityThreshold) && _next != null;
-    final wantsPrev = (_dragOffset >= step * distanceFraction || velocity >= velocityThreshold) && _previous != null;
-
-    if (wantsNext) {
-      _settle(target: -step, nextIndex: _activeIndex + 1);
-    } else if (wantsPrev) {
-      _settle(target: step, nextIndex: _activeIndex - 1);
-    } else {
-      _settle(target: 0, nextIndex: _activeIndex);
-    }
-  }
-
-  void _settle({required double target, required int nextIndex}) {
-    _swipeFrom = _dragOffset;
-    _swipeTo = target;
-    _swipeController.forward(from: 0).whenComplete(() {
-      if (!mounted) return;
-      setState(() {
-        _activeIndex = nextIndex;
-        _dragOffset = 0;
-        // Predictable demo behavior: every newly-active credential opens on
-        // its front side, regardless of how the previous one was left.
-        _flipController.value = 0;
-      });
-    });
-  }
-
-  double? _precachedWidth;
-
-  /// Decodes every face at the card's size up front. Without it the first
-  /// flip turned the card blank white until the back had decoded, and the
-  /// first swipe did the same to the next card.
-  void _precacheFaces(double cardWidth) {
-    if (_precachedWidth == cardWidth) return;
-    _precachedWidth = cardWidth;
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      final px = (cardWidth * MediaQuery.devicePixelRatioOf(context)).round().clamp(1, 4000);
-      for (final c in widget.credentials) {
-        for (final asset in [c.frontAsset, c.backAsset]) {
-          precacheImage(ResizeImage(AssetImage(asset), width: px), context, onError: (_, _) {});
-        }
-      }
-    });
-  }
-
-  void _jumpTo(int index) {
-    if (_dragging || _swipeController.isAnimating) return;
-    setState(() {
-      _activeIndex = index;
-      _dragOffset = 0;
-      _flipController.value = 0;
-    });
-  }
-
-  void _openFullScreen(BuildContext context) {
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        fullscreenDialog: true,
-        builder: (_) => _CredentialFullScreenViewer(
-          credential: _active,
-          front: !_showingBack,
-        ),
-      ),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    if (widget.credentials.isEmpty) {
-      return ListView(
-        padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.md, AppSpacing.lg, AppSpacing.xxxl),
-        children: const [_EmptyWalletCard()],
-      );
-    }
-
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.md, AppSpacing.lg, AppSpacing.xxxl),
-      children: [
-        if (widget.notice != null) ...[widget.notice!, const SizedBox(height: AppSpacing.lg)],
-        _PositionIndicator(activeIndex: _activeIndex, total: widget.credentials.length),
-        const SizedBox(height: AppSpacing.md),
-        LayoutBuilder(
-          builder: (context, constraints) {
-            // Capped, not just full-width: on a wide viewport (tablet,
-            // desktop/wide Flutter Web) an uncapped card grows tall enough
-            // to push the info panel and View Full Screen button off the
-            // bottom of the screen. A resident-card-sized max keeps the
-            // wallet looking like a wallet on every screen size, centered
-            // when the available width exceeds it.
-            final cardWidth = math.min(constraints.maxWidth, 420.0);
-            final cardHeight = cardWidth / _aspectRatio;
-            final step = cardHeight - _peekVisible;
-            final stackHeight = cardHeight + _peekVisible;
-            _precacheFaces(cardWidth);
-
-            return Center(
-              child: SizedBox(
-                width: cardWidth,
-                height: stackHeight,
-                child: GestureDetector(
-                  key: const ValueKey('credential-stack'),
-                  behavior: HitTestBehavior.opaque,
-                  onVerticalDragStart: _onDragStart,
-                  onVerticalDragUpdate: (d) => _onDragUpdate(d, step),
-                  onVerticalDragEnd: (d) => _onDragEnd(d, step),
-                  child: Stack(
-                    children: [
-                      if (_previous != null) _peekCard(_previous!, cardWidth, cardHeight, step, isNext: false),
-                      if (_next != null) _peekCard(_next!, cardWidth, cardHeight, step, isNext: true),
-                      _activeCard(cardWidth, cardHeight),
-                    ],
-                  ),
-                ),
-              ),
-            );
-          },
-        ),
-        const SizedBox(height: AppSpacing.lg),
-        _GestureHint(canSwipe: widget.credentials.length > 1),
-        const SizedBox(height: AppSpacing.xl),
-        _InformationPanel(credential: _active),
-        const SizedBox(height: AppSpacing.lg),
-        AppCard(
-          onTap: () => _openFullScreen(context),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(Icons.fullscreen_rounded, size: 18, color: AppColors.brand600),
-              const SizedBox(width: AppSpacing.sm),
-              Flexible(
-                child: Text(
-                  'View Full Screen (${_showingBack ? 'Back' : 'Front'})',
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontSize: AppTextSize.helper, fontWeight: FontWeight.w700, color: AppColors.brand600),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  /// A stacked-behind credential — rendered small and dim at rest (a
-  /// compact deck edge, per this feature's own "never a second full-size
-  /// readable ID" requirement), growing/rising toward full size and
-  /// opacity as a drag brings it toward becoming the active card. [isNext]
-  /// selects which half of the drag range (up vs. down) drives it.
-  Widget _peekCard(DigitalCredential credential, double width, double height, double step, {required bool isNext}) {
-    final rawProgress = isNext ? (-_currentOffset / step) : (_currentOffset / step);
-    final progress = rawProgress.clamp(0.0, 1.0);
-    final scale = _peekRestScale + (1 - _peekRestScale) * progress;
-    final opacity = _peekRestOpacity + (1 - _peekRestOpacity) * progress;
-    // At rest (progress 0) this sits just below/above the active card,
-    // showing only its own top/bottom `_peekVisible` px; as progress -> 1
-    // it rises/descends toward y=0, arriving exactly as the active card
-    // finishes departing so the handoff reads as one continuous motion.
-    final restY = height - _peekVisible;
-    final y = isNext ? restY * (1 - progress) : -restY * (1 - progress);
-    final scaledWidth = width * scale;
-    final scaledHeight = height * scale;
-
-    return Positioned(
-      top: y,
-      left: (width - scaledWidth) / 2,
-      child: Opacity(
-        opacity: opacity,
-        child: _CredentialFace(
-          credential: credential,
-          width: scaledWidth,
-          height: scaledHeight,
-          front: true,
-          elevated: false,
-        ),
-      ),
-    );
-  }
-
-  Widget _activeCard(double width, double height) {
-    return Positioned(
-      top: 0,
-      left: 0,
-      child: Transform.translate(
-        offset: Offset(0, _currentOffset),
-        child: Semantics(
-          label:
-              '${_active.displayName}, ${_showingBack ? 'back' : 'front'} side. '
-              'Double tap to flip.',
-          button: true,
-          // A screen reader cannot make the swipe, so the other credentials
-          // are also reachable as actions.
-          customSemanticsActions: {
-            if (_next != null) const CustomSemanticsAction(label: 'Next ID'): () => _jumpTo(_activeIndex + 1),
-            if (_previous != null) const CustomSemanticsAction(label: 'Previous ID'): () => _jumpTo(_activeIndex - 1),
-          },
-          child: GestureDetector(
-            behavior: HitTestBehavior.opaque,
-            onTap: _toggleFlip,
-            child: AnimatedBuilder(
-              animation: _flipController,
-              builder: (context, child) {
-                final t = _flipController.value;
-                final isBack = t >= 0.5;
-                // Standard card-flip recipe: on the back half, subtract pi
-                // so the back face lands right-way-round instead of
-                // mirrored — text on the back must read normally, never
-                // backwards.
-                final angle = isBack ? (t - 1) * math.pi : t * math.pi;
-                final matrix = Matrix4.identity()
-                  ..setEntry(3, 2, 0.0012)
-                  ..rotateY(angle);
-                return Transform(
-                  alignment: Alignment.center,
-                  transform: matrix,
-                  child: _CredentialFace(credential: _active, width: width, height: height, front: !isBack),
-                );
-              },
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// Renders one face (front or back) of a credential inside a fixed-size,
-/// rounded, shadowed card — `BoxFit.contain` so the ID's own printed
-/// information is never cropped, stretched, or otherwise distorted
-/// regardless of a given asset's exact pixel aspect ratio. Decodes at the
-/// size it's actually displayed at (`cacheWidth`, DPR-aware) rather than
-/// the source's full ~1.6-2MB resolution — these seeded ID assets are
-/// large enough that decoding every one at native resolution just to show
-/// it at wallet/peek size is a real memory cost, multiplied by however
-/// many credentials a resident's wallet eventually holds. Only
-/// [_CredentialFullScreenViewer] intentionally skips this, since reading
-/// the ID full-quality is the entire point there.
-class _CredentialFace extends StatelessWidget {
-  final DigitalCredential credential;
-  final double width;
-  final double height;
-  final bool front;
-
-  /// False for a stacked-behind peek card — a visibly lighter shadow than
-  /// the active card's, reinforcing the depth cue without an expensive
-  /// blur difference (both are the same cheap BoxShadow list, just a
-  /// smaller one).
-  final bool elevated;
-
-  const _CredentialFace({
-    required this.credential,
-    required this.width,
-    required this.height,
-    required this.front,
-    this.elevated = true,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final asset = front ? credential.frontAsset : credential.backAsset;
-    final dpr = MediaQuery.devicePixelRatioOf(context);
-    return Container(
-      width: width,
-      height: height,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(AppRadius.lg),
-        boxShadow: elevated ? AppShadows.float : AppShadows.card,
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(AppRadius.lg),
-        child: Container(
-          color: Colors.white,
-          child: Image.asset(
-            asset,
-            width: width,
-            height: height,
-            fit: BoxFit.contain,
-            // Only the width is capped — contain already preserves the
-            // source's own aspect ratio, so letting height follow from
-            // that (rather than also pinning cacheHeight, which could
-            // mismatch the true aspect ratio and force a second resize)
-            // is what actually keeps this sharp.
-            cacheWidth: (width * dpr).round().clamp(1, 4000),
-            errorBuilder: (context, error, stack) => Container(
-              color: AppColors.slate100,
-              alignment: Alignment.center,
-              child: const Icon(Icons.broken_image_outlined, size: 32, color: AppColors.slate400),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _PositionIndicator extends StatelessWidget {
-  final int activeIndex;
-  final int total;
-  const _PositionIndicator({required this.activeIndex, required this.total});
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        Text(
-          '${activeIndex + 1} of $total',
-          style: const TextStyle(fontSize: AppTextSize.label, fontWeight: FontWeight.w700, color: AppColors.slate500),
-        ),
-        const SizedBox(width: AppSpacing.sm),
-        Row(
-          mainAxisSize: MainAxisSize.min,
+      backgroundColor: AppColors.slate100,
+      appBar: AppBar(
+        backgroundColor: AppColors.slate100,
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            for (int i = 0; i < total; i++)
-              Container(
-                margin: const EdgeInsets.symmetric(horizontal: AppSpacing.xs),
-                width: i == activeIndex ? 16 : 6,
-                height: 6,
-                decoration: BoxDecoration(
-                  color: i == activeIndex ? AppColors.brand600 : AppColors.slate200,
-                  borderRadius: BorderRadius.circular(AppRadius.full),
-                ),
-              ),
+            const Text('Digital ID'),
+            Text('Resident ID · Esperanza LGU', style: AppTypography.label.copyWith(color: AppColors.slate600, fontWeight: FontWeight.w400)),
           ],
         ),
-      ],
-    );
-  }
-}
-
-class _GestureHint extends StatelessWidget {
-  const _GestureHint({required this.canSwipe});
-
-  /// False with a single credential: there is nothing to swipe to.
-  final bool canSwipe;
-
-  @override
-  Widget build(BuildContext context) {
-    // Wrap, not Row — on a narrow viewport both hints no longer fit on one
-    // line side by side, so this drops to two lines instead of overflowing.
-    return Wrap(
-      alignment: WrapAlignment.center,
-      crossAxisAlignment: WrapCrossAlignment.center,
-      spacing: AppSpacing.md,
-      runSpacing: AppSpacing.xs,
-      children: [
-        const _HintChip(icon: Icons.touch_app_outlined, label: 'Tap to flip'),
-        if (canSwipe) const _HintChip(icon: Icons.swap_vert_rounded, label: 'Swipe for other IDs'),
-      ],
-    );
-  }
-}
-
-class _HintChip extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  const _HintChip({required this.icon, required this.label});
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(icon, size: 13, color: AppColors.slate400),
-        const SizedBox(width: AppSpacing.xs),
-        Text(label, style: const TextStyle(fontSize: AppTextSize.fine, color: AppColors.slate500)),
-      ],
-    );
-  }
-}
-
-/// Bound entirely to the active credential — swiping to a different one
-/// updates this same widget's content, never a second per-credential copy.
-class _InformationPanel extends StatelessWidget {
-  final DigitalCredential credential;
-  const _InformationPanel({required this.credential});
-
-  @override
-  Widget build(BuildContext context) {
-    final statusColor = switch (credential.status) {
-      CredentialStatus.active => AppColors.emerald700,
-      CredentialStatus.inactive => AppColors.slate500,
-      CredentialStatus.expired => AppColors.rose600,
-    };
-    final statusBg = switch (credential.status) {
-      CredentialStatus.active => AppColors.emerald50,
-      CredentialStatus.inactive => AppColors.slate100,
-      CredentialStatus.expired => AppColors.rose50,
-    };
-
-    return AppCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            credential.displayName,
-            style: const TextStyle(fontSize: AppTextSize.card, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
-          ),
-          const SizedBox(height: AppSpacing.xs),
-          Text(credential.holderName, style: const TextStyle(fontSize: AppTextSize.helper, color: AppColors.textMuted)),
-          const SizedBox(height: AppSpacing.md),
-          const Divider(height: 1),
-          const SizedBox(height: AppSpacing.md),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: _infoField(
-                  'Status',
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: AppSpacing.xs),
-                    decoration: BoxDecoration(color: statusBg, borderRadius: BorderRadius.circular(AppRadius.full)),
-                    child: Text(
-                      credential.status.label,
-                      style: TextStyle(fontSize: AppTextSize.label, fontWeight: FontWeight.w700, color: statusColor),
-                    ),
-                  ),
-                ),
-              ),
-              Expanded(
-                child: _infoField(
-                  'Valid Until',
-                  child: Text(
-                    credential.validUntil == null ? 'No Expiry' : shortDate(credential.validUntil!),
-                    style: const TextStyle(fontSize: AppTextSize.helper, fontWeight: FontWeight.w600, color: AppColors.slate700),
-                  ),
-                ),
-              ),
-            ],
-          ),
-          if (credential.issuer != null) ...[
-            const SizedBox(height: AppSpacing.md),
-            _infoField(
-              'Issued By',
-              child: Text(
-                credential.issuer!,
-                style: const TextStyle(fontSize: AppTextSize.helper, fontWeight: FontWeight.w600, color: AppColors.slate700),
-              ),
-            ),
-          ],
-          const SizedBox(height: AppSpacing.md),
-          const Text(
-            'This is a frontend simulation. No real government ID system issued this credential.',
-            style: TextStyle(fontSize: AppTextSize.fine, color: AppColors.textMuted, height: 1.4),
-          ),
-        ],
       ),
+      body: const _WalletView(),
     );
   }
-
-  Widget _infoField(String label, {required Widget child}) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(label, style: const TextStyle(fontSize: AppTextSize.fine, color: AppColors.textMuted, fontWeight: FontWeight.w600)),
-        const SizedBox(height: AppSpacing.xs),
-        child,
-      ],
-    );
-  }
-
 }
 
-class _EmptyWalletCard extends StatelessWidget {
-  const _EmptyWalletCard();
+class _WalletView extends StatefulWidget {
+  const _WalletView();
 
   @override
-  Widget build(BuildContext context) {
-    return AppCard(
-      child: Column(
-        children: [
-          Container(
-            width: 56,
-            height: 56,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(color: AppColors.slate100, borderRadius: BorderRadius.circular(AppRadius.lg)),
-            child: const Icon(Icons.badge_outlined, size: 26, color: AppColors.slate400),
-          ),
-          const SizedBox(height: AppSpacing.md),
-          const Text(
-            'No digital credentials yet',
-            style: TextStyle(fontSize: AppTextSize.body, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
-          ),
-          const SizedBox(height: AppSpacing.xs),
-          const Text(
-            'Digital government/LGU credentials will appear here as they become available.',
-            textAlign: TextAlign.center,
-            style: TextStyle(fontSize: AppTextSize.helper, color: AppColors.textMuted, height: 1.45),
-          ),
-        ],
-      ),
-    );
-  }
+  State<_WalletView> createState() => _WalletViewState();
 }
 
-class _NotYetVerifiedCard extends StatelessWidget {
-  final CitizenAccount account;
-  const _NotYetVerifiedCard({required this.account});
-
-  @override
-  Widget build(BuildContext context) {
-    return AppCard(
-      child: Column(
-        children: [
-          Container(
-            width: 56,
-            height: 56,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(color: AppColors.amber50, borderRadius: BorderRadius.circular(AppRadius.lg)),
-            child: const Icon(Icons.hourglass_top_rounded, size: 26, color: AppColors.amber700),
-          ),
-          const SizedBox(height: AppSpacing.md),
-          const Text(
-            'Digital ID not yet available',
-            style: TextStyle(fontSize: AppTextSize.body, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
-          ),
-          const SizedBox(height: AppSpacing.xs),
-          Text(
-            'Your Digital IDs will become available after your resident account has been verified. '
-            'Current status: ${AppStatusX.fromLabel(account.status).label}.',
-            textAlign: TextAlign.center,
-            style: const TextStyle(fontSize: AppTextSize.helper, color: AppColors.textMuted, height: 1.45),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// Full-screen viewer for exactly the side the wallet card was showing when
-/// "View Full Screen" was tapped — same simple InteractiveViewer pattern as
-/// GovernmentIdViewer/EventPosterViewer, not a new/elaborate image viewer.
-class _CredentialFullScreenViewer extends StatelessWidget {
-  final DigitalCredential credential;
-  final bool front;
-  const _CredentialFullScreenViewer({required this.credential, required this.front});
-
-  @override
-  Widget build(BuildContext context) {
-    final side = front ? 'Front' : 'Back';
-    return ImageViewerScaffold(
-      title: '${credential.displayName} — $side',
-      image: AssetImage(front ? credential.frontAsset : credential.backAsset),
-      semanticLabel: '${credential.displayName}, ${side.toLowerCase()} side',
-    );
-  }
-}
-
-/// The LGU-issued card from GET /citizen/digital-id. If the server cannot be
-/// reached and this device holds the bundled demo credential art (the three
-/// synthetic demo accounts), that wallet is shown instead; otherwise the error
-/// with a retry, never an invented card.
-class _LiveOrWallet extends StatefulWidget {
-  const _LiveOrWallet({required this.account});
-
-  final CitizenAccount account;
-
-  @override
-  State<_LiveOrWallet> createState() => _LiveOrWalletState();
-}
-
-class _LiveOrWalletState extends State<_LiveOrWallet> {
-  late Future<DigitalIdCard> _future = DigitalIdService.fetch();
+class _WalletViewState extends State<_WalletView> {
+  late Future<CitizenWallet> _future = WalletService.fetch();
 
   // A block body: an arrow here hands setState the Future, which throws in a
-  // debug build, so Try Again used to fail there.
-  void _retry() {
+  // debug build.
+  void _reload() {
     setState(() {
-      _future = DigitalIdService.fetch();
+      _future = WalletService.fetch();
     });
+  }
+
+  Future<void> _openAdd(CitizenWallet wallet, {WalletDocument? replacing}) async {
+    final added = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(builder: (_) => AddWalletIdScreen(types: wallet.idTypes, replacing: replacing)),
+    );
+    if (added == true && mounted) _reload();
+  }
+
+  Future<void> _openDocument(CitizenWallet wallet, WalletDocument doc) async {
+    final result = await Navigator.of(context).push<_DocumentAction>(
+      MaterialPageRoute(builder: (_) => _WalletIdDetailScreen(document: doc)),
+    );
+    if (!mounted) return;
+    if (result == _DocumentAction.replace) {
+      await _openAdd(wallet, replacing: doc);
+    } else if (result == _DocumentAction.removed) {
+      _reload();
+    }
+  }
+
+  /// The tapped ID, full size: flip it, close it, or go to its details.
+  Future<void> _view(CitizenWallet wallet, WalletDocument doc) async {
+    final details = await showGeneralDialog<bool>(
+      context: context,
+      barrierDismissible: true,
+      barrierLabel: 'Close ID',
+      barrierColor: AppColors.navy950.withValues(alpha: 0.6),
+      transitionDuration: const Duration(milliseconds: 520),
+      pageBuilder: (context, animation, _) => Material(
+        type: MaterialType.transparency,
+        child: _IdViewer(document: doc, animation: animation),
+      ),
+    );
+    if (details == true && mounted) await _openDocument(wallet, doc);
   }
 
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder<DigitalIdCard>(
+    return FutureBuilder<CitizenWallet>(
       future: _future,
       builder: (context, snap) {
         if (snap.connectionState != ConnectionState.done) {
           return const Center(child: CircularProgressIndicator());
         }
-        final card = snap.data;
-        if (card != null) {
-          return RefreshIndicator(
-            onRefresh: () async {
-              final next = DigitalIdService.fetch();
-              setState(() => _future = next);
-              await next.catchError((Object _) => card);
-            },
-            child: ListView(
-              physics: const AlwaysScrollableScrollPhysics(),
-              padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.md, AppSpacing.lg, AppSpacing.xxxl),
-              children: [_LiveIdCard(card: card)],
+        final wallet = snap.data;
+        if (wallet == null) {
+          final err = snap.error;
+          return Center(
+            child: Padding(
+              padding: const EdgeInsets.all(AppSpacing.xxl),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.badge_outlined, size: AppSizes.iconHero, color: AppColors.textDisabled),
+                  const SizedBox(height: AppSpacing.md),
+                  Text(
+                    err is ApiException ? err.message() : 'Your Digital ID could not be loaded.',
+                    textAlign: TextAlign.center,
+                    style: AppTypography.helper,
+                  ),
+                  const SizedBox(height: AppSpacing.lg),
+                  OutlinedButton(onPressed: _reload, child: const Text('Try Again')),
+                ],
+              ),
             ),
           );
         }
-        final demo = digitalCredentialsFor(widget.account);
-        if (demo.isNotEmpty) {
-          return _DigitalIdWallet(
-            credentials: demo,
-            notice: _OfflineNotice(onRetry: _retry),
-          );
-        }
-        final err = snap.error;
-        return Center(
-          child: Padding(
-            padding: const EdgeInsets.all(AppSpacing.xxl),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(Icons.badge_outlined, size: AppSizes.iconHero, color: AppColors.textDisabled),
-                const SizedBox(height: AppSpacing.md),
-                Text(
-                  err is ApiException ? err.message() : 'Your Digital ID could not be loaded.',
-                  textAlign: TextAlign.center,
-                  style: AppTypography.helper,
-                ),
-                const SizedBox(height: AppSpacing.lg),
-                OutlinedButton(
-                  onPressed: _retry,
-                  child: const Text('Try Again'),
-                ),
+        final card = wallet.residentId.card;
+        final active = wallet.residentId.state == ResidentIdState.active && card != null && card.qr != null;
+        return RefreshIndicator(
+          onRefresh: () async {
+            final next = WalletService.fetch();
+            setState(() => _future = next);
+            await next.catchError((Object _) => wallet);
+          },
+          child: ListView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.fromLTRB(AppSpacing.xl, AppSpacing.sm, AppSpacing.xl, AppSpacing.page),
+            children: [
+              _ResidentIdCard(wallet: wallet),
+              const SizedBox(height: AppSpacing.xl),
+              _MyIds(
+                wallet: wallet,
+                onAdd: wallet.idTypes.isEmpty ? null : () => _openAdd(wallet),
+                onOpen: (doc) => _view(wallet, doc),
+              ),
+              if (active) ...[
+                const SizedBox(height: AppSpacing.xl),
+                _QrPanel(card: card),
               ],
-            ),
+              const SizedBox(height: AppSpacing.xl),
+              _WhereThingsStand(wallet: wallet),
+            ],
           ),
         );
       },
@@ -790,32 +182,238 @@ class _LiveOrWalletState extends State<_LiveOrWallet> {
   }
 }
 
-/// Over the demo wallet when GET /citizen/digital-id fails. It used to
-/// replace the live card silently, with no sign anything had failed and no
-/// way to try again short of leaving the screen.
-class _OfflineNotice extends StatelessWidget {
-  const _OfflineNotice({required this.onRetry});
+String _date(DateTime d) => DateFormat('MMM d, yyyy').format(d);
 
-  final VoidCallback onRetry;
+/// The eyebrow over a field on the card: NAME, BARANGAY, ISSUED.
+Widget _fieldLabel(String text) => Text(text, style: AppTypography.eyebrow.copyWith(color: AppColors.slate600));
 
-  static const text = 'Your Digital ID could not be loaded, so the sample IDs saved on this phone are shown.';
+// ─────────────────────────────────────────────────────────── Resident ID
+
+class _ResidentIdCard extends StatelessWidget {
+  const _ResidentIdCard({required this.wallet});
+
+  final CitizenWallet wallet;
 
   @override
   Widget build(BuildContext context) {
-    return GlassSurface(
-      radius: AppRadius.xl,
-      padding: const EdgeInsets.fromLTRB(AppSpacing.md, AppSpacing.sm, AppSpacing.xs, AppSpacing.sm),
-      tint: AppColors.amber50,
-      tintEnd: AppColors.amber50,
-      rim: AppColors.amber500,
-      child: Row(
-        children: [
-          const Icon(Icons.cloud_off_rounded, size: AppSizes.iconBase, color: AppColors.amber700),
-          const SizedBox(width: AppSpacing.sm),
-          const Expanded(child: Text(text, style: AppTypography.helper)),
-          TextButton(onPressed: onRetry, child: const Text('Try Again')),
-        ],
+    final rid = wallet.residentId;
+    final card = rid.card;
+    final active = rid.state == ResidentIdState.active && card != null && card.qr != null;
+    return Semantics(
+      container: true,
+      label: 'Resident ID card',
+      child: Container(
+        clipBehavior: Clip.antiAlias,
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(AppRadius.lg + 2),
+          border: Border.all(color: AppColors.slate200),
+          boxShadow: AppShadows.float,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const _CardHeader(),
+            Container(height: 4, color: AppColors.gold500),
+            CustomPaint(
+              painter: const _WatermarkPainter(),
+              child: Padding(
+                padding: const EdgeInsets.all(18),
+                child: active ? _ActiveCardBody(card: card) : _InactiveCardBody(wallet: wallet),
+              ),
+            ),
+          ],
+        ),
       ),
+    );
+  }
+}
+
+/// Navy, with a fine guilloche like a printed ID, the seal ringed in gold.
+class _CardHeader extends StatelessWidget {
+  const _CardHeader();
+
+  @override
+  Widget build(BuildContext context) {
+    return CustomPaint(
+      painter: const _GuillochePainter(),
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(18, AppSpacing.lg, 18, 14),
+        child: Row(
+          children: [
+            Container(
+              width: 46,
+              height: 46,
+              decoration: const BoxDecoration(
+                shape: BoxShape.circle,
+                boxShadow: [BoxShadow(color: AppColors.gold500, spreadRadius: 2)],
+              ),
+              child: ClipOval(child: Image.asset(esperanzaSealAsset, fit: BoxFit.cover, semanticLabel: 'Municipality of Esperanza official seal')),
+            ),
+            const SizedBox(width: AppSpacing.md),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('MUNICIPALITY OF ESPERANZA · MASBATE', style: AppTypography.eyebrow.copyWith(color: AppColors.brand200)),
+                  const SizedBox(height: 2),
+                  Text('Resident ID', style: AppTypography.cardHeading.copyWith(color: Colors.white, fontWeight: FontWeight.w800)),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ActiveCardBody extends StatelessWidget {
+  const _ActiveCardBody({required this.card});
+
+  final DigitalIdCard card;
+
+  @override
+  Widget build(BuildContext context) {
+    final date = DateFormat('MMM d, yyyy');
+    final fields = <(String, String)>[
+      ('BARANGAY', card.barangay),
+      if (card.purok != null) ('PUROK / SITIO', card.purok!),
+      if (card.birthdate != null) ('DATE OF BIRTH', date.format(card.birthdate!)),
+      if (card.sex != null) ('SEX', card.sex!),
+      if (card.civilStatus != null) ('CIVIL STATUS', card.civilStatus!),
+      if (card.issuedAt != null) ('ISSUED', date.format(card.issuedAt!)),
+    ];
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _CardPhoto(url: card.photoUrl),
+            const SizedBox(width: AppSpacing.lg),
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.only(top: 2),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _fieldLabel('NAME'),
+                    const SizedBox(height: 2),
+                    Text(card.name, style: AppTypography.sectionTitle.copyWith(height: 1.15)),
+                    const SizedBox(height: 10),
+                    _ValidityChip(valid: card.valid),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: AppSpacing.lg),
+        const _DashedRule(),
+        const SizedBox(height: 14),
+        _fieldLabel('RESIDENT ID NO.'),
+        const SizedBox(height: 3),
+        Text(
+          card.accountNo,
+          style: AppTypography.cardHeading.copyWith(
+            letterSpacing: 0.7,
+            fontFeatures: const [FontFeature.tabularFigures()],
+          ),
+        ),
+        const SizedBox(height: 14),
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final half = (constraints.maxWidth - AppSpacing.lg) / 2;
+            return Wrap(
+              spacing: AppSpacing.lg,
+              runSpacing: 14,
+              children: [
+                for (final (label, value) in fields)
+                  SizedBox(
+                    width: half,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _fieldLabel(label),
+                        const SizedBox(height: 3),
+                        Text(value, style: AppTypography.bodyText.copyWith(fontWeight: FontWeight.w600, color: AppColors.textPrimary)),
+                      ],
+                    ),
+                  ),
+              ],
+            );
+          },
+        ),
+      ],
+    );
+  }
+}
+
+/// The card when it is not a credential: suspended, or not issued yet. No
+/// record details and no QR, so a screenshot of it proves nothing.
+class _InactiveCardBody extends StatelessWidget {
+  const _InactiveCardBody({required this.wallet});
+
+  final CitizenWallet wallet;
+
+  @override
+  Widget build(BuildContext context) {
+    final rid = wallet.residentId;
+    final suspended = rid.state == ResidentIdState.suspended;
+    final name = rid.card?.name;
+    final String title;
+    final String message;
+    if (suspended) {
+      title = 'Resident ID suspended';
+      message = rid.suspendedBecause == 'identity_revoked'
+          ? 'The LGU withdrew the verification of your identity, so your Resident ID is not valid and its QR code '
+                'no longer verifies. Send a new valid ID and selfie from your profile, or visit your barangay office.'
+          : 'The LGU withdrew the approval of your residency, so your Resident ID is not valid and its QR code '
+                'no longer verifies. Please visit your barangay office.';
+    } else {
+      title = 'Resident ID not issued yet';
+      message = wallet.identity.status == IdentityStatus.verified
+          ? 'Your identity is verified. Your Resident ID is issued once the LGU approves your residency.'
+          : 'Your Resident ID is issued once your identity is verified and the LGU approves your residency. '
+                'Your identity is not verified yet.';
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const _CardPhoto(url: null),
+            const SizedBox(width: AppSpacing.lg),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (name != null && name.isNotEmpty) ...[
+                    _fieldLabel('NAME'),
+                    const SizedBox(height: 2),
+                    Text(name, style: AppTypography.sectionTitle.copyWith(height: 1.15)),
+                    const SizedBox(height: 10),
+                  ],
+                  _Pill(
+                    label: suspended ? 'Suspended' : 'Not issued yet',
+                    icon: suspended ? Icons.block_rounded : Icons.hourglass_top_rounded,
+                    foreground: suspended ? AppColors.rose700 : AppColors.amber700,
+                    background: suspended ? AppColors.rose50 : AppColors.amber50,
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: AppSpacing.lg),
+        const _DashedRule(),
+        const SizedBox(height: 14),
+        Text(title, style: AppTypography.cardHeading),
+        const SizedBox(height: AppSpacing.xs),
+        Text(message, style: AppTypography.helper.copyWith(color: AppColors.slate600, height: 1.45)),
+      ],
     );
   }
 }
@@ -829,144 +427,22 @@ class _CardPhoto extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const size = 72.0;
+    const w = 88.0;
+    const h = 108.0;
     final placeholder = Container(
-      width: size,
-      height: size,
-      color: AppColors.slate100,
-      child: const Icon(Icons.person_rounded, color: AppColors.slate400, size: 36),
+      width: w,
+      height: h,
+      decoration: BoxDecoration(
+        color: AppColors.slate100,
+        border: Border.all(color: AppColors.slate300),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: const Icon(Icons.person_outline_rounded, color: AppColors.slate400, size: 40),
     );
+    if (url == null) return placeholder;
     return ClipRRect(
-      borderRadius: BorderRadius.circular(AppRadius.md),
-      child: url == null
-          ? placeholder
-          : Image.network(
-              url!,
-              width: size,
-              height: size,
-              fit: BoxFit.cover,
-              semanticLabel: 'Resident photo',
-              errorBuilder: (_, _, _) => placeholder,
-            ),
-    );
-  }
-}
-
-class _LiveIdCard extends StatelessWidget {
-  const _LiveIdCard({required this.card});
-
-  final DigitalIdCard card;
-
-  @override
-  Widget build(BuildContext context) {
-    final date = DateFormat('MMM d, yyyy');
-    final rows = <(String, String)>[
-      ('Resident ID no.', card.accountNo),
-      ('Barangay', card.barangay),
-      if (card.purok != null) ('Purok / Sitio', card.purok!),
-      if (card.birthdate != null) ('Date of birth', date.format(card.birthdate!)),
-      if (card.sex != null) ('Sex', card.sex!),
-      if (card.civilStatus != null) ('Civil status', card.civilStatus!),
-      if (card.issuedAt != null) ('Issued', date.format(card.issuedAt!)),
-    ];
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        ClipRRect(
-          borderRadius: BorderRadius.circular(AppRadius.xl),
-          child: DecoratedBox(
-            decoration: const BoxDecoration(color: AppColors.surface, boxShadow: AppShadows.card),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(AppSpacing.lg),
-                  decoration: const BoxDecoration(
-                    gradient: LinearGradient(colors: [AppColors.navy900, AppColors.brand700]),
-                  ),
-                  child: Row(
-                    children: [
-                      Image.asset(esperanzaSealAsset, width: AppSizes.avatarMd, height: AppSizes.avatarMd),
-                      const SizedBox(width: AppSpacing.md),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'MUNICIPALITY OF ESPERANZA, MASBATE',
-                              style: AppTypography.eyebrow.copyWith(color: AppColors.brand200),
-                            ),
-                            const SizedBox(height: AppSpacing.xs),
-                            Text('Resident ID', style: AppTypography.cardHeading.copyWith(color: Colors.white)),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.all(AppSpacing.lg),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          _CardPhoto(url: card.photoUrl),
-                          const SizedBox(width: AppSpacing.md),
-                          Expanded(child: Text(card.name, style: AppTypography.sectionTitle)),
-                        ],
-                      ),
-                      const SizedBox(height: AppSpacing.sm),
-                      _ValidityChip(valid: card.valid),
-                      const SizedBox(height: AppSpacing.lg),
-                      for (final (label, value) in rows)
-                        Padding(
-                          padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-                          child: Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              SizedBox(width: 120, child: Text(label, style: AppTypography.helper)),
-                              Expanded(
-                                child: Text(
-                                  value,
-                                  style: AppTypography.bodyText.copyWith(fontWeight: FontWeight.w600, color: AppColors.textPrimary),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-        const SizedBox(height: AppSpacing.lg),
-        AppCard(
-          child: Column(
-            children: [
-              Semantics(
-                label: 'QR code for verifying this ID',
-                image: true,
-                child: QrImageView(
-                  data: card.qr,
-                  size: 180,
-                  backgroundColor: Colors.white,
-                  eyeStyle: const QrEyeStyle(eyeShape: QrEyeShape.square, color: AppColors.navy900),
-                  dataModuleStyle: const QrDataModuleStyle(dataModuleShape: QrDataModuleShape.square, color: AppColors.navy900),
-                ),
-              ),
-              const SizedBox(height: AppSpacing.sm),
-              Text(
-                'LGU staff scan this code to confirm your ID is genuine and current.',
-                textAlign: TextAlign.center,
-                style: AppTypography.helper,
-              ),
-            ],
-          ),
-        ),
-      ],
+      borderRadius: BorderRadius.circular(10),
+      child: Image.network(url!, width: w, height: h, fit: BoxFit.cover, semanticLabel: 'Resident photo', errorBuilder: (_, _, _) => placeholder),
     );
   }
 }
@@ -978,21 +454,1819 @@ class _ValidityChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final fg = valid ? AppColors.emerald700 : AppColors.amber700;
-    final bg = valid ? AppColors.emerald50 : AppColors.amber50;
-    return Align(
-      alignment: Alignment.centerLeft,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: AppSpacing.xs),
-        decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(AppRadius.full)),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
+    return _Pill(
+      label: valid ? 'Valid · Verified by LGU' : 'Not yet valid',
+      icon: valid ? Icons.verified_user_outlined : Icons.hourglass_top_rounded,
+      foreground: valid ? AppColors.emerald700 : AppColors.amber700,
+      background: valid ? AppColors.emerald50 : AppColors.amber50,
+    );
+  }
+}
+
+/// A small rounded status pill with an optional leading icon.
+class _Pill extends StatelessWidget {
+  const _Pill({required this.label, required this.foreground, required this.background, this.icon, this.border});
+
+  final String label;
+  final IconData? icon;
+  final Color foreground;
+  final Color background;
+  final Color? border;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: EdgeInsets.fromLTRB(icon == null ? 9 : 7, 4, 10, 4),
+      decoration: BoxDecoration(
+        color: background,
+        borderRadius: BorderRadius.circular(AppRadius.full),
+        border: border == null ? null : Border.all(color: border!),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (icon != null) ...[
+            Icon(icon, size: 15, color: foreground),
+            const SizedBox(width: 6),
+          ],
+          Flexible(child: Text(label, style: AppTypography.labelText.copyWith(color: foreground, fontWeight: FontWeight.w700))),
+        ],
+      ),
+    );
+  }
+}
+
+class _DashedRule extends StatelessWidget {
+  const _DashedRule();
+
+  @override
+  Widget build(BuildContext context) => const SizedBox(height: 1, width: double.infinity, child: CustomPaint(painter: _DashPainter()));
+}
+
+class _DashPainter extends CustomPainter {
+  const _DashPainter();
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = AppColors.slate300
+      ..strokeWidth = 1;
+    for (double x = 0; x < size.width; x += 7) {
+      canvas.drawLine(Offset(x, 0.5), Offset(math.min(x + 4, size.width), 0.5), paint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+/// Two crossing sets of hairlines over navy, like the guilloche on a printed ID.
+class _GuillochePainter extends CustomPainter {
+  const _GuillochePainter();
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    canvas.drawRect(Offset.zero & size, Paint()..color = AppColors.navy900);
+    void hatch(double step, double alpha, bool rising) {
+      final paint = Paint()
+        ..color = Colors.white.withValues(alpha: alpha)
+        ..strokeWidth = 1;
+      for (double d = -size.height; d < size.width + size.height; d += step) {
+        if (rising) {
+          canvas.drawLine(Offset(d, size.height), Offset(d + size.height, 0), paint);
+        } else {
+          canvas.drawLine(Offset(d, 0), Offset(d + size.height, size.height), paint);
+        }
+      }
+    }
+
+    hatch(7, 0.045, false);
+    hatch(9, 0.03, true);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+/// A faint quarter disc in the card's bottom corner.
+class _WatermarkPainter extends CustomPainter {
+  const _WatermarkPainter();
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    canvas.drawCircle(Offset(size.width, size.height), 90, Paint()..color = AppColors.brand800.withValues(alpha: 0.06));
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+// ─────────────────────────────────────────────────────────────── My IDs
+
+class _MyIds extends StatelessWidget {
+  const _MyIds({required this.wallet, required this.onAdd, required this.onOpen});
+
+  final CitizenWallet wallet;
+  final VoidCallback? onAdd;
+  final ValueChanged<WalletDocument> onOpen;
+
+  @override
+  Widget build(BuildContext context) {
+    final docs = wallet.documents;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const SizedBox(height: AppSpacing.sm),
+        Row(
           children: [
-            Icon(valid ? Icons.verified_rounded : Icons.hourglass_top_rounded, size: AppSizes.iconSm, color: fg),
-            const SizedBox(width: AppSpacing.xs),
-            Text(valid ? 'Valid · Verified by LGU' : 'Not yet valid', style: AppTypography.labelText.copyWith(color: fg)),
+            Expanded(child: Text('My IDs', style: AppTypography.sectionTitle.copyWith(fontWeight: FontWeight.w800))),
+            OutlinedButton.icon(
+              onPressed: onAdd,
+              icon: const Icon(Icons.add_rounded, size: 18),
+              label: const Text('Add ID'),
+              style: OutlinedButton.styleFrom(
+                minimumSize: const Size(0, AppSizes.minTouchTarget),
+                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+                foregroundColor: AppColors.brand800,
+                backgroundColor: AppColors.surface,
+                side: const BorderSide(color: AppColors.brand800, width: 1.5),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
+                textStyle: AppTypography.bodyText.copyWith(fontWeight: FontWeight.w700),
+              ),
+            ),
           ],
         ),
+        const SizedBox(height: AppSpacing.md),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: AppSpacing.md),
+          decoration: BoxDecoration(color: AppColors.brand50, borderRadius: BorderRadius.circular(AppRadius.md)),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Padding(
+                padding: EdgeInsets.only(top: 1),
+                child: Icon(Icons.info_outline_rounded, size: 18, color: AppColors.slate700),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text.rich(
+                  const TextSpan(
+                    children: [
+                      TextSpan(text: 'Keep copies of your government IDs here for reference. '),
+                      TextSpan(text: 'Adding an ID does not verify it:', style: TextStyle(fontWeight: FontWeight.w700)),
+                      TextSpan(
+                        text: ' it is not checked by the LGU, by the identity check, or by the agency that issued it. '
+                            'IDs verified by the LGU have the Esperanza seal on them.',
+                      ),
+                    ],
+                  ),
+                  style: AppTypography.helper.copyWith(color: AppColors.slate700, height: 1.5),
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 6),
+        if (docs.isEmpty) const _EmptyDeck() else _IdDeck(documents: docs, onOpen: onOpen),
+      ],
+    );
+  }
+}
+
+class _EmptyDeck extends StatelessWidget {
+  const _EmptyDeck();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(top: AppSpacing.md),
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl, vertical: AppSpacing.xl),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+        border: Border.all(color: AppColors.slate300),
+      ),
+      child: Column(
+        children: [
+          const Icon(Icons.wallet_rounded, size: AppSizes.iconLg, color: AppColors.textDisabled),
+          const SizedBox(height: AppSpacing.sm),
+          const Text('No IDs added yet', style: AppTypography.cardHeading),
+          const SizedBox(height: AppSpacing.xs),
+          Text(
+            'Add your PhilSys National ID, PhilHealth, SSS, driver\'s license or any other ID to keep a copy here.',
+            textAlign: TextAlign.center,
+            style: AppTypography.helper.copyWith(color: AppColors.slate600),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Each kind of ID gets its own pale tint, so the deck reads at a glance.
+Color _tintFor(String idKind) => switch (idKind) {
+  'philippine_national_id' => AppColors.gold50,
+  'drivers_license' => AppColors.brand50,
+  'philhealth' => AppColors.emerald50,
+  'sss' => AppColors.sky50,
+  'umid' => AppColors.cyan50,
+  'gsis' => AppColors.teal50,
+  'owwa' => AppColors.orange50,
+  'passport' => AppColors.indigo50,
+  'prc' => AppColors.blue50,
+  'postal' => AppColors.amber50,
+  'voters' => AppColors.green50,
+  'other' => AppColors.purple50,
+  _ => AppColors.slate100,
+};
+
+/// Where one card of the deck sits: lifted, tilted, shrunk, faded.
+@immutable
+class _Pose {
+  const _Pose({this.dy = 0, this.turn = 0, this.scale = 1, this.opacity = 1, this.dim = 0});
+
+  final double dy;
+
+  /// Degrees.
+  final double turn;
+  final double scale;
+  final double opacity;
+
+  /// 0 is full brightness; a card further back is dimmed a little.
+  final double dim;
+
+  static _Pose lerp(_Pose a, _Pose b, double t) => _Pose(
+    dy: a.dy + (b.dy - a.dy) * t,
+    turn: a.turn + (b.turn - a.turn) * t,
+    scale: a.scale + (b.scale - a.scale) * t,
+    opacity: a.opacity + (b.opacity - a.opacity) * t,
+    dim: a.dim + (b.dim - a.dim) * t,
+  );
+}
+
+class _PoseTween extends Tween<_Pose> {
+  _PoseTween({super.begin});
+
+  @override
+  _Pose lerp(double t) => _Pose.lerp(begin!, end!, t);
+}
+
+/// A deck card that eases to its new [pose], or follows a finger at once
+/// when [duration] is zero.
+class _PosedCard extends ImplicitlyAnimatedWidget {
+  const _PosedCard({required this.pose, required this.child, required super.duration})
+    : super(curve: const Cubic(0.2, 0.8, 0.2, 1));
+
+  final _Pose pose;
+  final Widget child;
+
+  @override
+  AnimatedWidgetBaseState<_PosedCard> createState() => _PosedCardState();
+}
+
+class _PosedCardState extends AnimatedWidgetBaseState<_PosedCard> {
+  _PoseTween? _pose;
+
+  @override
+  void forEachTween(TweenVisitor<dynamic> visitor) {
+    _pose = visitor(_pose, widget.pose, (v) => _PoseTween(begin: v as _Pose)) as _PoseTween?;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final p = _pose!.evaluate(animation);
+    final transform = Matrix4.translationValues(0, p.dy, 0)
+      ..multiply(Matrix4.rotationZ(p.turn * math.pi / 180))
+      ..multiply(Matrix4.diagonal3Values(p.scale, p.scale, 1));
+    return Opacity(
+      opacity: p.opacity.clamp(0.0, 1.0),
+      child: Transform(
+        alignment: Alignment.topCenter,
+        transform: transform,
+        child: Stack(
+          children: [
+            widget.child,
+            if (p.dim > 0.001)
+              Positioned.fill(
+                child: IgnorePointer(
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      color: AppColors.navy950.withValues(alpha: p.dim),
+                      borderRadius: BorderRadius.circular(AppRadius.lg),
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// The resident's IDs as a stacked deck: the front card on top, the next two
+/// peeking out above it. Swipe up for the next, down for the one before, or
+/// use the arrows; tap the front card to open it.
+class _IdDeck extends StatefulWidget {
+  const _IdDeck({required this.documents, required this.onOpen});
+
+  final List<WalletDocument> documents;
+  final ValueChanged<WalletDocument> onOpen;
+
+  @override
+  State<_IdDeck> createState() => _IdDeckState();
+}
+
+class _IdDeckState extends State<_IdDeck> {
+  static const cardHeight = 216.0;
+  static const ease = Duration(milliseconds: 520);
+
+  int _a = 0;
+  double _drag = 0;
+  bool _dragging = false;
+  int? _leave;
+  int? _enter;
+
+  int get _n => widget.documents.length;
+
+  @override
+  void didUpdateWidget(_IdDeck old) {
+    super.didUpdateWidget(old);
+    if (_a >= _n) _a = 0;
+  }
+
+  void _go(int dir, {bool fromDrag = false}) {
+    if (_n < 2) return;
+    final cur = _a;
+    final next = (cur + dir + _n) % _n;
+    if (dir > 0) {
+      setState(() {
+        _a = next;
+        _leave = cur;
+        _enter = null;
+        _dragging = false;
+        _drag = 0;
+      });
+      Future<void>.delayed(const Duration(milliseconds: 560), () {
+        if (mounted && _leave == cur) setState(() => _leave = null);
+      });
+    } else if (fromDrag) {
+      setState(() {
+        _a = next;
+        _leave = null;
+        _enter = null;
+        _dragging = false;
+        _drag = 0;
+      });
+    } else {
+      // The card before drops in from above: placed there first, then let go.
+      setState(() {
+        _enter = next;
+        _leave = null;
+      });
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          setState(() {
+            _a = next;
+            _enter = null;
+          });
+        }
+      });
+    }
+  }
+
+  (_Pose, int, bool) _poseOf(int i) {
+    final rel = (i - _a + _n) % _n;
+    const lift = -(cardHeight + 70);
+    final pullingBack = rel == _n - 1 && _n > 1 && _dragging && _drag > 0;
+    if ((i == _leave && i != _a) || i == _enter || pullingBack) {
+      if (pullingBack) {
+        return (
+          _Pose(
+            dy: lift + math.min(_drag * 1.6, cardHeight + 70),
+            turn: -5 + math.min(5.0, _drag / 30),
+            scale: 0.97,
+            opacity: math.min(1.0, _drag / 110),
+          ),
+          60,
+          true,
+        );
+      }
+      return (const _Pose(dy: lift, turn: -5, scale: 0.97, opacity: 0), 60, i == _enter);
+    }
+    if (rel == 0) {
+      if (_dragging) {
+        return (_Pose(dy: _drag < 0 ? _drag : _drag * 0.25, turn: _drag < 0 ? _drag * 0.025 : 0), 50, true);
+      }
+      return (const _Pose(), 50, false);
+    }
+    final k = math.min(rel, 3);
+    final step = math.min(k, 2);
+    return (
+      _Pose(
+        dy: -15.0 * step,
+        scale: 1 - 0.055 * step,
+        turn: k.isOdd ? 2 : -1.6,
+        dim: 0.04 * k,
+        opacity: rel > 2 ? 0 : 1,
+      ),
+      50 - k,
+      false,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final docs = widget.documents;
+    final current = docs[_a];
+    final cards = [
+      for (var i = 0; i < _n; i++) (i, _poseOf(i)),
+    ]..sort((x, y) => x.$2.$2.compareTo(y.$2.$2));
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Semantics(
+          button: true,
+          label: '${current.name}, ${_badgeText(current.status)}. ${_a + 1} of $_n. Double tap to view it.',
+          onTap: () => widget.onOpen(current),
+          excludeSemantics: true,
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: () => widget.onOpen(current),
+            onVerticalDragStart: (_) => setState(() {
+              _dragging = true;
+              _drag = 0;
+            }),
+            onVerticalDragUpdate: (d) => setState(() => _drag += d.delta.dy),
+            onVerticalDragEnd: (_) {
+              if (_drag < -60) {
+                _go(1, fromDrag: true);
+              } else if (_drag > 60) {
+                _go(-1, fromDrag: true);
+              } else {
+                setState(() {
+                  _dragging = false;
+                  _drag = 0;
+                });
+              }
+            },
+            child: SizedBox(
+              height: 262,
+              child: Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  for (final (i, (pose, _, live)) in cards)
+                    Positioned(
+                      key: ValueKey(docs[i].id),
+                      top: 40,
+                      left: 0,
+                      right: 0,
+                      height: cardHeight,
+                      child: _PosedCard(
+                        pose: pose,
+                        duration: live ? Duration.zero : ease,
+                        child: _IdCardFace(document: docs[i], back: false),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: AppSpacing.md),
+        Row(
+          children: [
+            for (var i = 0; i < _n; i++)
+              AnimatedContainer(
+                duration: const Duration(milliseconds: 300),
+                margin: const EdgeInsets.only(right: 5),
+                width: i == _a ? 18 : 6,
+                height: 6,
+                decoration: BoxDecoration(
+                  color: i == _a ? AppColors.brand800 : AppColors.slate300,
+                  borderRadius: BorderRadius.circular(3),
+                ),
+              ),
+            const SizedBox(width: 5),
+            Expanded(
+              child: Semantics(
+                liveRegion: true,
+                child: Text('${_a + 1} of $_n', style: AppTypography.helper.copyWith(color: AppColors.slate600, fontWeight: FontWeight.w600)),
+              ),
+            ),
+            _RoundIconButton(icon: Icons.keyboard_arrow_up_rounded, label: 'Previous ID', onPressed: _n < 2 ? null : () => _go(-1)),
+            const SizedBox(width: AppSpacing.sm),
+            _RoundIconButton(icon: Icons.keyboard_arrow_down_rounded, label: 'Next ID', onPressed: _n < 2 ? null : () => _go(1)),
+          ],
+        ),
+        const SizedBox(height: AppSpacing.md),
+        Text('Swipe up or down to browse. Tap a card to view it.', style: AppTypography.label.copyWith(color: AppColors.slate600, fontWeight: FontWeight.w400)),
+      ],
+    );
+  }
+}
+
+String _badgeText(WalletDocumentStatus s) => switch (s) {
+  WalletDocumentStatus.uploadedNotChecked => 'Not checked',
+  WalletDocumentStatus.verifiedByLgu => 'Verified by the LGU',
+  WalletDocumentStatus.returnedByLgu => 'Returned by the LGU',
+};
+
+class _RoundIconButton extends StatelessWidget {
+  const _RoundIconButton({required this.icon, required this.label, required this.onPressed});
+
+  final IconData icon;
+  final String label;
+  final VoidCallback? onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: label,
+      child: Material(
+        color: AppColors.surface,
+        shape: const CircleBorder(side: BorderSide(color: AppColors.slate300)),
+        child: InkWell(
+          customBorder: const CircleBorder(),
+          onTap: onPressed,
+          child: SizedBox(
+            width: AppSizes.minTouchTarget,
+            height: AppSizes.minTouchTarget,
+            child: Icon(icon, size: 22, color: onPressed == null ? AppColors.textDisabled : AppColors.navy900),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// One side of a kept ID, card-shaped: the resident's own photo of it, its
+/// kind in the corner, and what has been done with it: not checked,
+/// returned, or verified by the LGU (the seal).
+class _IdCardFace extends StatelessWidget {
+  const _IdCardFace({required this.document, required this.back});
+
+  final WalletDocument document;
+  final bool back;
+
+  @override
+  Widget build(BuildContext context) {
+    final d = document;
+    final url = back ? d.backUrl : d.frontUrl;
+    final missing = _PhotoMissing(text: back ? (d.hasBack ? 'The back cannot be shown right now' : 'No back side added') : 'The photo cannot be shown right now');
+    return Container(
+      clipBehavior: Clip.antiAlias,
+      decoration: BoxDecoration(
+        color: _tintFor(d.idKind),
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+        border: Border.all(color: AppColors.navy900.withValues(alpha: 0.12)),
+        boxShadow: AppShadows.float,
+      ),
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          if (url == null) missing else _RetryingImage(url: url, fit: BoxFit.cover, waiting: const SizedBox.shrink(), failed: missing),
+          Positioned(top: 10, right: 10, child: _CornerBadge(status: d.status)),
+          Positioned(
+            left: 10,
+            bottom: 10,
+            right: 90,
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: AppColors.navy900.withValues(alpha: 0.8),
+                  borderRadius: BorderRadius.circular(AppRadius.full),
+                ),
+                child: Text(
+                  back ? '${d.name} · Back' : d.name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppTypography.label.copyWith(color: Colors.white, fontWeight: FontWeight.w700),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PhotoMissing extends StatelessWidget {
+  const _PhotoMissing({required this.text});
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return CustomPaint(
+      painter: const _FineHatchPainter(),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 48),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.image_outlined, size: 30, color: AppColors.slate600),
+            const SizedBox(height: 6),
+            Text(text, textAlign: TextAlign.center, style: AppTypography.helper.copyWith(color: AppColors.navy900, fontWeight: FontWeight.w700)),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _FineHatchPainter extends CustomPainter {
+  const _FineHatchPainter();
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = AppColors.navy900.withValues(alpha: 0.035)
+      ..strokeWidth = 1;
+    for (double d = -size.height; d < size.width + size.height; d += 8) {
+      canvas.drawLine(Offset(d, 0), Offset(d + size.height, size.height), paint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+class _CornerBadge extends StatelessWidget {
+  const _CornerBadge({required this.status});
+
+  final WalletDocumentStatus status;
+
+  @override
+  Widget build(BuildContext context) {
+    return switch (status) {
+      WalletDocumentStatus.verifiedByLgu => const _HoloSeal(key: ValueKey('verified-seal'), size: 62),
+      WalletDocumentStatus.returnedByLgu => const _Pill(
+        label: 'Returned',
+        icon: Icons.undo_rounded,
+        foreground: AppColors.rose700,
+        background: AppColors.rose50,
+        border: AppColors.rose500,
+      ),
+      WalletDocumentStatus.uploadedNotChecked => const _Pill(
+        label: 'Not checked',
+        icon: Icons.arrow_upward_rounded,
+        foreground: AppColors.amber700,
+        background: AppColors.amber50,
+        border: AppColors.gold200,
+      ),
+    };
+  }
+}
+
+/// The Esperanza seal as a silver hologram, on an ID the LGU verified. Its
+/// sheen turns slowly unless motion is off.
+class _HoloSeal extends StatefulWidget {
+  const _HoloSeal({super.key, required this.size});
+
+  final double size;
+
+  @override
+  State<_HoloSeal> createState() => _HoloSealState();
+}
+
+class _HoloSealState extends State<_HoloSeal> with SingleTickerProviderStateMixin {
+  late final AnimationController _spin = AnimationController(vsync: this, duration: const Duration(seconds: 8));
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (AmbientMotion.of(context)) {
+      if (!_spin.isAnimating) _spin.repeat();
+    } else {
+      _spin.stop();
+    }
+  }
+
+  @override
+  void dispose() {
+    _spin.dispose();
+    super.dispose();
+  }
+
+  static const _grey = ColorFilter.matrix([
+    0.3, 0.59, 0.11, 0, 60, //
+    0.3, 0.59, 0.11, 0, 60,
+    0.3, 0.59, 0.11, 0, 60,
+    0, 0, 0, 1, 0,
+  ]);
+
+  @override
+  Widget build(BuildContext context) {
+    final s = widget.size;
+    return Semantics(
+      label: 'Esperanza seal: verified by the LGU',
+      child: Opacity(
+        opacity: 0.8,
+        child: Container(
+          width: s,
+          height: s,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            boxShadow: [
+              const BoxShadow(color: Colors.white, spreadRadius: 1),
+              BoxShadow(color: AppColors.navy900.withValues(alpha: 0.25), blurRadius: 6, offset: const Offset(0, 1)),
+            ],
+          ),
+          child: ClipOval(
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                ColorFiltered(colorFilter: _grey, child: Image.asset(esperanzaSealAsset, fit: BoxFit.cover)),
+                AnimatedBuilder(
+                  animation: _spin,
+                  builder: (context, _) => Opacity(
+                    opacity: 0.45,
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        gradient: SweepGradient(
+                          transform: GradientRotation(_spin.value * 2 * math.pi),
+                          colors: const [
+                            AppColors.slate50,
+                            AppColors.slate400,
+                            AppColors.brand100,
+                            AppColors.slate300,
+                            AppColors.gold100,
+                            AppColors.slate400,
+                            AppColors.slate50,
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [
+                        Colors.white.withValues(alpha: 0),
+                        Colors.white.withValues(alpha: 0.55),
+                        Colors.white.withValues(alpha: 0),
+                      ],
+                      stops: const [0.32, 0.47, 0.6],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// One ID full size: turned to fill the screen, tap to flip it to its back,
+/// then Close, or Details for what is known about it and Replace / Remove.
+class _IdViewer extends StatefulWidget {
+  const _IdViewer({required this.document, required this.animation});
+
+  final WalletDocument document;
+  final Animation<double> animation;
+
+  @override
+  State<_IdViewer> createState() => _IdViewerState();
+}
+
+class _IdViewerState extends State<_IdViewer> with SingleTickerProviderStateMixin {
+  late final AnimationController _flip = AnimationController(vsync: this, duration: const Duration(milliseconds: 640));
+  bool _back = false;
+
+  @override
+  void dispose() {
+    _flip.dispose();
+    super.dispose();
+  }
+
+  void _toggle() {
+    setState(() => _back = !_back);
+    if (_back) {
+      _flip.forward();
+    } else {
+      _flip.reverse();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final d = widget.document;
+    final size = MediaQuery.sizeOf(context);
+    final padding = MediaQuery.paddingOf(context);
+    // The card is the deck's card, turned a quarter and grown to fit.
+    final cardW = math.min(size.width - 40, 350.0);
+    final cardH = cardW / 1.62;
+    final roomH = size.height - padding.vertical - 140;
+    final scale = math.min(1.55, math.min((size.width - 32) / cardH, roomH / cardW));
+    final pop = CurvedAnimation(parent: widget.animation, curve: const Cubic(0.2, 0.8, 0.2, 1));
+
+    Widget face(bool back) => SizedBox(width: cardW, height: cardH, child: _IdCardFace(document: d, back: back));
+
+    return SafeArea(
+      child: Column(
+        children: [
+          Expanded(
+            child: Center(
+              child: AnimatedBuilder(
+                animation: Listenable.merge([pop, _flip]),
+                builder: (context, _) {
+                  final t = pop.value;
+                  final f = Curves.easeInOut.transform(_flip.value);
+                  final angle = f * math.pi;
+                  final showingBack = angle > math.pi / 2;
+                  final flip = Matrix4.identity()
+                    ..setEntry(3, 2, 0.0007)
+                    ..rotateX(angle);
+                  return Opacity(
+                    opacity: 0.4 + 0.6 * t.clamp(0.0, 1.0),
+                    child: Transform.rotate(
+                      angle: t * math.pi / 2,
+                      child: Transform.scale(
+                        scale: 1 + (scale - 1) * t,
+                        child: Semantics(
+                          button: true,
+                          label: '${d.name}, ${showingBack ? 'back' : 'front'}. Double tap to show the ${showingBack ? 'front' : 'back'}.',
+                          child: GestureDetector(
+                            onTap: _toggle,
+                            child: Transform(
+                              alignment: Alignment.center,
+                              transform: flip,
+                              child: showingBack
+                                  ? Transform(alignment: Alignment.center, transform: Matrix4.rotationX(math.pi), child: face(true))
+                                  : face(false),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ),
+          FadeTransition(
+            opacity: widget.animation,
+            child: Padding(
+              padding: const EdgeInsets.only(bottom: AppSpacing.lg),
+              child: Wrap(
+                spacing: AppSpacing.md,
+                runSpacing: AppSpacing.sm,
+                alignment: WrapAlignment.center,
+                children: [
+                  _ViewerButton(icon: Icons.close_rounded, label: 'Close', onPressed: () => Navigator.of(context).pop(false)),
+                  _ViewerButton(icon: Icons.info_outline_rounded, label: 'Details', onPressed: () => Navigator.of(context).pop(true)),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ViewerButton extends StatelessWidget {
+  const _ViewerButton({required this.icon, required this.label, required this.onPressed});
+
+  final IconData icon;
+  final String label;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: AppColors.surface,
+      shape: const StadiumBorder(),
+      elevation: 6,
+      shadowColor: AppColors.navy950,
+      child: InkWell(
+        customBorder: const StadiumBorder(),
+        onTap: onPressed,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 28),
+          child: SizedBox(
+            height: AppSizes.buttonHeightLg,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(icon, size: 16, color: AppColors.navy900),
+                const SizedBox(width: AppSpacing.sm),
+                Text(label, style: AppTypography.bodyText.copyWith(color: AppColors.navy900, fontWeight: FontWeight.w700)),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ────────────────────────────────────────────────────────────────── QR
+
+class _QrPanel extends StatelessWidget {
+  const _QrPanel({required this.card});
+
+  final DigitalIdCard card;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.xl),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(AppRadius.lg + 2),
+        border: Border.all(color: AppColors.slate200),
+      ),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.qr_code_scanner_rounded, size: 18, color: AppColors.brand800),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(child: Text('Show this to LGU staff', style: AppTypography.cardHeading.copyWith(fontWeight: FontWeight.w700))),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(AppRadius.md),
+              border: Border.all(color: AppColors.slate200),
+            ),
+            child: Semantics(
+              label: 'QR code for Resident ID ${card.accountNo}',
+              image: true,
+              child: QrImageView(
+                data: card.qr!,
+                size: 200,
+                padding: EdgeInsets.zero,
+                backgroundColor: Colors.white,
+                eyeStyle: const QrEyeStyle(eyeShape: QrEyeShape.square, color: AppColors.navy900),
+                dataModuleStyle: const QrDataModuleStyle(dataModuleShape: QrDataModuleShape.square, color: AppColors.navy900),
+              ),
+            ),
+          ),
+          const SizedBox(height: 14),
+          Text(
+            card.accountNo,
+            style: AppTypography.helper.copyWith(
+              color: AppColors.navy900,
+              fontWeight: FontWeight.w600,
+              letterSpacing: 0.8,
+              fontFeatures: const [FontFeature.tabularFigures()],
+            ),
+          ),
+          const SizedBox(height: 14),
+          Text(
+            'LGU staff scan this code to confirm your ID is genuine and current.',
+            textAlign: TextAlign.center,
+            style: AppTypography.helper.copyWith(color: AppColors.slate600, height: 1.5),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────── where things stand
+
+/// The three statuses as a short timeline, each with its own pill.
+class _WhereThingsStand extends StatelessWidget {
+  const _WhereThingsStand({required this.wallet});
+
+  final CitizenWallet wallet;
+
+  @override
+  Widget build(BuildContext context) {
+    final identity = wallet.identity;
+    final idStatus = identity.status;
+    final doc = identity.checkedDocument;
+    final residency = AppStatus.values.where((s) => s.label == wallet.residencyStatus).firstOrNull;
+    final rid = wallet.residentId;
+
+    final identityStep = _Step(
+      title: 'Identity',
+      color: idStatus?.foreground ?? AppColors.slate500,
+      icon: switch (idStatus) {
+        IdentityStatus.verified => Icons.check_rounded,
+        IdentityStatus.failed || IdentityStatus.revoked => Icons.close_rounded,
+        null => Icons.remove_rounded,
+        _ => Icons.schedule_rounded,
+      },
+      pill: idStatus == null
+          ? const _Pill(label: 'Not started', foreground: AppColors.slate600, background: AppColors.slate100)
+          : _Pill(label: idStatus.label, foreground: idStatus.foreground, background: idStatus.background),
+      lines: [
+        ?identity.sourceLabel,
+        if (doc != null) ['Checked ID: ${doc.type ?? 'ID document'}', if (doc.numberLast4 != null) 'ending ${doc.numberLast4}'].join(', '),
+      ],
+    );
+
+    final residencyStep = _Step(
+      title: 'Residency',
+      color: switch (residency) {
+        AppStatus.approved => AppColors.emerald700,
+        AppStatus.rejected => AppColors.rose700,
+        AppStatus.pendingReview => AppColors.amber700,
+        _ => AppColors.slate500,
+      },
+      icon: switch (residency) {
+        AppStatus.approved => Icons.check_rounded,
+        AppStatus.rejected => Icons.close_rounded,
+        _ => Icons.schedule_rounded,
+      },
+      pill: residency == null
+          ? _Pill(label: wallet.residencyStatus, foreground: AppColors.slate600, background: AppColors.slate100)
+          : StatusChip(status: residency, small: true),
+      lines: [
+        wallet.approvalRevoked ? 'The LGU withdrew the approval of your residency.' : 'Decided by the LGU, separately from your identity.',
+      ],
+    );
+
+    final issued = rid.card?.issuedAt;
+    final ridStep = _Step(
+      title: 'Resident ID',
+      color: switch (rid.state) {
+        ResidentIdState.active => AppColors.navy900,
+        ResidentIdState.suspended => AppColors.rose700,
+        ResidentIdState.notIssued => AppColors.slate500,
+      },
+      icon: switch (rid.state) {
+        ResidentIdState.suspended => Icons.block_rounded,
+        _ => Icons.badge_outlined,
+      },
+      pill: switch (rid.state) {
+        ResidentIdState.active => const _Pill(label: 'Active', foreground: Colors.white, background: AppColors.navy900),
+        ResidentIdState.suspended => const _Pill(label: 'Suspended', foreground: AppColors.rose700, background: AppColors.rose50),
+        ResidentIdState.notIssued => const _Pill(label: 'Not issued yet', foreground: AppColors.amber700, background: AppColors.amber50),
+      },
+      lines: [
+        switch (rid.state) {
+          ResidentIdState.active => issued == null ? 'Valid while your identity and residency stand.' : 'Issued ${_date(issued)}',
+          ResidentIdState.suspended => 'Not valid until the LGU restores it.',
+          ResidentIdState.notIssued => 'Issued once your identity is verified and your residency approved.',
+        },
+      ],
+    );
+
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.xl),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(AppRadius.lg + 2),
+        border: Border.all(color: AppColors.slate200),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Where things stand', style: AppTypography.cardHeading.copyWith(fontWeight: FontWeight.w700)),
+          const SizedBox(height: AppSpacing.lg),
+          _TimelineRow(step: identityStep, last: false),
+          _TimelineRow(step: residencyStep, last: false),
+          _TimelineRow(step: ridStep, last: true),
+        ],
+      ),
+    );
+  }
+}
+
+class _Step {
+  const _Step({required this.title, required this.color, required this.icon, required this.pill, required this.lines});
+
+  final String title;
+  final Color color;
+  final IconData icon;
+  final Widget pill;
+  final List<String> lines;
+}
+
+class _TimelineRow extends StatelessWidget {
+  const _TimelineRow({required this.step, required this.last});
+
+  final _Step step;
+  final bool last;
+
+  @override
+  Widget build(BuildContext context) {
+    return IntrinsicHeight(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          SizedBox(
+            width: 28,
+            child: Column(
+              children: [
+                Container(
+                  width: 28,
+                  height: 28,
+                  decoration: BoxDecoration(color: step.color, shape: BoxShape.circle),
+                  child: Icon(step.icon, size: 15, color: Colors.white),
+                ),
+                if (!last)
+                  Expanded(
+                    child: Container(width: 2, constraints: const BoxConstraints(minHeight: 20), color: step.color.withValues(alpha: 0.3)),
+                  ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Padding(
+              padding: EdgeInsets.only(top: 3, bottom: last ? 0 : 18),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(child: Text(step.title, style: AppTypography.bodyText.copyWith(fontWeight: FontWeight.w700, color: AppColors.textPrimary))),
+                      step.pill,
+                    ],
+                  ),
+                  for (final line in step.lines) ...[
+                    const SizedBox(height: 3),
+                    Text(line, style: AppTypography.helper.copyWith(color: AppColors.slate600, height: 1.45)),
+                  ],
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ───────────────────────────────────── shared by the details and Add ID
+
+class _StatusRow extends StatelessWidget {
+  const _StatusRow({required this.title, required this.status, required this.details});
+
+  final String title;
+  final Widget status;
+  final List<String> details;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Expanded(child: Text(title, style: AppTypography.labelText.copyWith(color: AppColors.textPrimary))),
+            status,
+          ],
+        ),
+        for (final d in details) ...[
+          const SizedBox(height: AppSpacing.xs),
+          Text(d, style: AppTypography.helper),
+        ],
+      ],
+    );
+  }
+}
+
+/// A small pill for the wallet's own states, which are not badge statuses.
+class _PlainChip extends StatelessWidget {
+  const _PlainChip({required this.label, required this.foreground, required this.background, this.icon});
+
+  final String label;
+  final IconData? icon;
+  final Color foreground;
+  final Color background;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: AppSpacing.xs),
+      decoration: BoxDecoration(color: background, borderRadius: BorderRadius.circular(AppRadius.full)),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (icon != null) ...[
+            Icon(icon, size: AppSizes.iconSm, color: foreground),
+            const SizedBox(width: AppSpacing.xs),
+          ],
+          Flexible(child: Text(label, style: AppTypography.labelText.copyWith(color: foreground))),
+        ],
+      ),
+    );
+  }
+}
+
+class _DocumentStatusChip extends StatelessWidget {
+  const _DocumentStatusChip({required this.status});
+
+  final WalletDocumentStatus status;
+
+  @override
+  Widget build(BuildContext context) {
+    return switch (status) {
+      WalletDocumentStatus.uploadedNotChecked => _PlainChip(
+        label: status.label,
+        icon: Icons.upload_file_rounded,
+        foreground: AppColors.slate700,
+        background: AppColors.slate100,
+      ),
+      WalletDocumentStatus.verifiedByLgu => _PlainChip(
+        label: status.label,
+        icon: Icons.fact_check_rounded,
+        foreground: AppColors.emerald700,
+        background: AppColors.emerald50,
+      ),
+      WalletDocumentStatus.returnedByLgu => _PlainChip(
+        label: status.label,
+        icon: Icons.undo_rounded,
+        foreground: AppColors.rose700,
+        background: AppColors.rose50,
+      ),
+    };
+  }
+}
+
+/// A signed link to one side of a kept ID. A photo that fails to arrive
+/// (a dropped connection on a weak signal) is tried again twice on its own;
+/// after that, with [tapToRetry], the resident can tap to try once more.
+class _RetryingImage extends StatefulWidget {
+  const _RetryingImage({
+    required this.url,
+    required this.waiting,
+    required this.failed,
+    this.fit = BoxFit.contain,
+    this.tapToRetry = false,
+  });
+
+  final String url;
+
+  /// Shown between tries.
+  final Widget waiting;
+
+  /// Shown once the tries are used up.
+  final Widget failed;
+  final BoxFit fit;
+  final bool tapToRetry;
+
+  @override
+  State<_RetryingImage> createState() => _RetryingImageState();
+}
+
+class _RetryingImageState extends State<_RetryingImage> {
+  static const automaticTries = 2;
+
+  int _attempt = 0;
+  int _triesLeft = automaticTries;
+  bool _scheduled = false;
+
+  void _again() {
+    if (!mounted) return;
+    NetworkImage(widget.url).evict();
+    setState(() {
+      _attempt++;
+      _scheduled = false;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Image.network(
+      widget.url,
+      key: ValueKey(_attempt),
+      fit: widget.fit,
+      errorBuilder: (context, _, _) {
+        if (_triesLeft > 0) {
+          if (!_scheduled) {
+            _scheduled = true;
+            _triesLeft--;
+            Future<void>.delayed(Duration(milliseconds: 700 * (automaticTries - _triesLeft)), _again);
+          }
+          return widget.waiting;
+        }
+        if (!widget.tapToRetry) return widget.failed;
+        return Semantics(
+          button: true,
+          label: 'Try loading the image again',
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: () {
+              _triesLeft = automaticTries;
+              _again();
+            },
+            child: widget.failed,
+          ),
+        );
+      },
+    );
+  }
+}
+
+enum _DocumentAction { replace, removed }
+
+/// One kept ID: both sides, what is known about it, Replace and Remove.
+class _WalletIdDetailScreen extends StatefulWidget {
+  const _WalletIdDetailScreen({required this.document});
+
+  final WalletDocument document;
+
+  @override
+  State<_WalletIdDetailScreen> createState() => _WalletIdDetailScreenState();
+}
+
+class _WalletIdDetailScreenState extends State<_WalletIdDetailScreen> {
+  bool _removing = false;
+
+  Future<void> _remove() async {
+    final ok = await AppDialogs.confirm(
+      context,
+      title: 'Remove this ID?',
+      message: 'It leaves your wallet. The LGU keeps its record of the upload, as with every document you send.',
+      confirmLabel: 'Remove',
+      danger: true,
+    );
+    if (!ok || !mounted) return;
+    setState(() => _removing = true);
+    try {
+      await WalletService.remove(widget.document.id);
+      if (mounted) Navigator.of(context).pop(_DocumentAction.removed);
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      setState(() => _removing = false);
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message())));
+    }
+  }
+
+  void _view(String side, String url) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        fullscreenDialog: true,
+        builder: (_) => ImageViewerScaffold(
+          title: '${widget.document.name} — $side',
+          image: NetworkImage(url),
+          semanticLabel: '${widget.document.name}, ${side.toLowerCase()} side',
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final d = widget.document;
+    return Scaffold(
+      appBar: AppBar(title: Text(d.name)),
+      body: ListView(
+        padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.md, AppSpacing.lg, AppSpacing.xxxl),
+        children: [
+          _SideImage(label: 'Front', url: d.frontUrl, onView: d.frontUrl == null ? null : () => _view('Front', d.frontUrl!)),
+          const SizedBox(height: AppSpacing.md),
+          if (d.hasBack)
+            _SideImage(label: 'Back', url: d.backUrl, onView: d.backUrl == null ? null : () => _view('Back', d.backUrl!))
+          else
+            const Text('No back side added.', style: AppTypography.helper),
+          const SizedBox(height: AppSpacing.lg),
+          AppCard(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _Field('ID', d.name),
+                _Field('Issued by', d.issuer ?? 'Not given'),
+                _Field('Expires', d.expiresOn == null ? 'No expiry date given' : _date(d.expiresOn!)),
+                if (d.uploadedAt != null) _Field('Added', _date(d.uploadedAt!.toLocal())),
+              ],
+            ),
+          ),
+          const SizedBox(height: AppSpacing.lg),
+          AppCard(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('Checks on this ID', style: AppTypography.cardHeading),
+                const SizedBox(height: AppSpacing.md),
+                _StatusRow(
+                  title: 'This upload',
+                  status: _DocumentStatusChip(status: d.status),
+                  details: [
+                    if (d.status == WalletDocumentStatus.verifiedByLgu)
+                      'LGU staff verified this ID${d.verifiedAt == null ? '' : ' on ${_date(d.verifiedAt!.toLocal())}'}. '
+                          'It carries the Esperanza seal in your wallet.',
+                    if (d.status == WalletDocumentStatus.returnedByLgu) ...[
+                      'Reason: ${d.lguRemarks ?? 'No reason given.'}',
+                      'Use Replace below to send a clearer photo.',
+                    ],
+                  ],
+                ),
+                const Divider(height: AppSpacing.xl),
+                const _StatusRow(
+                  title: 'Identity check',
+                  status: _PlainChip(label: 'Not checked', foreground: AppColors.slate600, background: AppColors.slate100),
+                  details: ['The identity check ran on the ID you sent to verify your account, not on this upload.'],
+                ),
+                const Divider(height: AppSpacing.xl),
+                const _StatusRow(
+                  title: 'Issuing agency',
+                  status: _PlainChip(label: 'Not available', foreground: AppColors.slate600, background: AppColors.slate100),
+                  details: ['Esperanza is not connected to the agency that issued this ID.'],
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: AppSpacing.xl),
+          AppButton(
+            label: 'Replace',
+            icon: Icons.sync_rounded,
+            variant: AppButtonVariant.secondary,
+            fullWidth: true,
+            onPressed: _removing ? null : () => Navigator.of(context).pop(_DocumentAction.replace),
+          ),
+          const SizedBox(height: AppSpacing.md),
+          AppButton(
+            label: 'Remove from wallet',
+            icon: Icons.delete_outline_rounded,
+            variant: AppButtonVariant.danger,
+            fullWidth: true,
+            loading: _removing,
+            onPressed: _remove,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SideImage extends StatelessWidget {
+  const _SideImage({required this.label, required this.url, required this.onView});
+
+  final String label;
+  final String? url;
+  final VoidCallback? onView;
+
+  @override
+  Widget build(BuildContext context) {
+    final missing = Container(
+      color: AppColors.slate100,
+      alignment: Alignment.center,
+      child: const Text('This image cannot be shown right now.', style: AppTypography.helper),
+    );
+    final waiting = Container(color: AppColors.slate100);
+    final failed = Container(
+      color: AppColors.slate100,
+      alignment: Alignment.center,
+      padding: const EdgeInsets.all(AppSpacing.md),
+      child: const Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.refresh_rounded, size: AppSizes.iconBase, color: AppColors.textMuted),
+          SizedBox(height: AppSpacing.xs),
+          Text('This image could not be loaded. Tap to try again.', textAlign: TextAlign.center, style: AppTypography.helper),
+        ],
+      ),
+    );
+    return Semantics(
+      button: onView != null,
+      label: '$label side. ${onView == null ? '' : 'Double tap to view full screen.'}',
+      child: GestureDetector(
+        onTap: onView,
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(AppRadius.lg),
+          child: AspectRatio(
+            aspectRatio: 1.58,
+            child: url == null
+                ? missing
+                : _RetryingImage(url: url!, waiting: waiting, failed: failed, tapToRetry: true),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _Field extends StatelessWidget {
+  const _Field(this.label, this.value);
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(width: 100, child: Text(label, style: AppTypography.helper)),
+          Expanded(
+            child: Text(value, style: AppTypography.bodyText.copyWith(fontWeight: FontWeight.w600, color: AppColors.textPrimary)),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────── Add ID
+
+/// Add an ID to the wallet, or replace one ([replacing]): the type (a listed
+/// one, or Other with its own name and issuer), an optional expiry date, the
+/// front (required) and the back. Nothing chosen here sets a status.
+class AddWalletIdScreen extends StatefulWidget {
+  const AddWalletIdScreen({super.key, required this.types, this.replacing});
+
+  final List<WalletIdType> types;
+  final WalletDocument? replacing;
+
+  @override
+  State<AddWalletIdScreen> createState() => _AddWalletIdScreenState();
+}
+
+class _AddWalletIdScreenState extends State<AddWalletIdScreen> {
+  /// Over this the image is refused before sending (the server checks too).
+  static const maxBytes = 10 * 1024 * 1024;
+
+  WalletIdType? _type;
+  final _name = TextEditingController();
+  final _issuer = TextEditingController();
+  DateTime? _expires;
+  PickedImage? _front;
+  PickedImage? _back;
+  bool _sending = false;
+  String? _error;
+  bool _tried = false;
+
+  @override
+  void initState() {
+    super.initState();
+    final r = widget.replacing;
+    if (r != null) {
+      _type = widget.types.where((t) => t.key == r.idKind).firstOrNull;
+      if (r.idKind == 'other') {
+        _name.text = r.name;
+        _issuer.text = r.issuer ?? '';
+      }
+      _expires = r.expiresOn;
+    }
+  }
+
+  @override
+  void dispose() {
+    _name.dispose();
+    _issuer.dispose();
+    super.dispose();
+  }
+
+  bool get _isOther => _type?.isOther ?? false;
+
+  String? get _problem {
+    if (_type == null) return 'Choose the type of ID.';
+    if (_isOther && _name.text.trim().isEmpty) return 'Enter the name of the ID.';
+    if (_isOther && _issuer.text.trim().isEmpty) return 'Enter who issued the ID.';
+    if (_front == null) return 'Add a photo of the front of the ID.';
+    return null;
+  }
+
+  Future<void> _pick({required bool front, required ImageSource source}) async {
+    final file = await pickImageProtected(
+      context,
+      source: source,
+      maxDimension: 2000,
+      explanation: 'Esperanza needs this to add a photo of your ID to your wallet.',
+    );
+    if (file == null || !mounted) return;
+    final bytes = await file.readAsBytes();
+    if (!mounted) return;
+    if (bytes.length > maxBytes) {
+      setState(() => _error = 'That image is larger than 10 MB. Please choose a smaller one.');
+      return;
+    }
+    final picked = (bytes: bytes, filename: file.name);
+    setState(() {
+      _error = null;
+      if (front) {
+        _front = picked;
+      } else {
+        _back = picked;
+      }
+    });
+  }
+
+  Future<void> _submit() async {
+    setState(() => _tried = true);
+    final problem = _problem;
+    if (problem != null) {
+      setState(() => _error = problem);
+      return;
+    }
+    setState(() {
+      _sending = true;
+      _error = null;
+    });
+    try {
+      await WalletService.addId(
+        idKind: _type!.key,
+        front: _front!,
+        back: _back,
+        name: _isOther ? _name.text : null,
+        issuer: _isOther ? _issuer.text : null,
+        expiresOn: _expires,
+        replaces: widget.replacing?.id,
+      );
+      if (mounted) Navigator.of(context).pop(true);
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _sending = false;
+        _error = e.message();
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final replacing = widget.replacing;
+    return Scaffold(
+      appBar: AppBar(title: Text(replacing == null ? 'Add ID' : 'Replace ID')),
+      body: ListView(
+        padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.md, AppSpacing.lg, AppSpacing.xxxl),
+        children: [
+          if (replacing != null) ...[
+            Text('The new photos take the place of your ${replacing.name}.', style: AppTypography.helper),
+            const SizedBox(height: AppSpacing.lg),
+          ],
+          AppSelectField<WalletIdType>(
+            label: 'Type of ID',
+            required: true,
+            value: _type,
+            options: widget.types,
+            labelBuilder: (t) => t.name,
+            hintText: 'Choose the type of ID',
+            onChanged: replacing != null ? (_) {} : (t) => setState(() => _type = t),
+          ),
+          if (_type != null && !_isOther && _type!.issuer != null) ...[
+            const SizedBox(height: AppSpacing.xs),
+            Text('Issued by ${_type!.issuer}', style: AppTypography.helper),
+          ],
+          if (_isOther) ...[
+            const SizedBox(height: AppSpacing.md),
+            AppTextField(
+              label: 'Name of the ID',
+              required: true,
+              controller: _name,
+              maxLength: 80,
+              hintText: 'e.g. Barangay Health Worker ID',
+              error: _tried && _name.text.trim().isEmpty ? 'Enter the name of the ID.' : null,
+              onChanged: (_) => setState(() {}),
+            ),
+            const SizedBox(height: AppSpacing.md),
+            AppTextField(
+              label: 'Issued by',
+              required: true,
+              controller: _issuer,
+              maxLength: 120,
+              hintText: 'The office or organization that issued it',
+              error: _tried && _issuer.text.trim().isEmpty ? 'Enter who issued the ID.' : null,
+              onChanged: (_) => setState(() {}),
+            ),
+          ],
+          const SizedBox(height: AppSpacing.md),
+          AppDateField(
+            label: 'Expiry date (if printed on the ID)',
+            value: _expires,
+            hintText: 'No expiry date',
+            firstDate: DateTime(2000),
+            lastDate: DateTime(DateTime.now().year + 30),
+            onChanged: (d) => setState(() => _expires = d),
+          ),
+          if (_expires != null)
+            Align(
+              alignment: Alignment.centerLeft,
+              child: TextButton(onPressed: () => setState(() => _expires = null), child: const Text('Clear expiry date')),
+            ),
+          const SizedBox(height: AppSpacing.lg),
+          _ImageSlot(
+            title: 'Front',
+            required: true,
+            image: _front,
+            missing: _tried && _front == null,
+            onPick: (source) => _pick(front: true, source: source),
+            onRemove: () => setState(() => _front = null),
+          ),
+          const SizedBox(height: AppSpacing.lg),
+          _ImageSlot(
+            title: 'Back',
+            image: _back,
+            onPick: (source) => _pick(front: false, source: source),
+            onRemove: () => setState(() => _back = null),
+          ),
+          const SizedBox(height: AppSpacing.lg),
+          const Text(
+            'Your ID is kept as uploaded and is not checked. JPG, PNG or WebP, up to 10 MB per side.',
+            style: AppTypography.helper,
+          ),
+          if (_error != null) ...[
+            const SizedBox(height: AppSpacing.md),
+            Text(_error!, style: AppTypography.helper.copyWith(color: AppColors.rose700)),
+          ],
+          const SizedBox(height: AppSpacing.xl),
+          AppButton(
+            label: replacing == null ? 'Add to wallet' : 'Replace',
+            fullWidth: true,
+            loading: _sending,
+            onPressed: _submit,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ImageSlot extends StatelessWidget {
+  const _ImageSlot({
+    required this.title,
+    required this.image,
+    required this.onPick,
+    required this.onRemove,
+    this.required = false,
+    this.missing = false,
+  });
+
+  final String title;
+  final PickedImage? image;
+  final bool required;
+  final bool missing;
+  final void Function(ImageSource source) onPick;
+  final VoidCallback onRemove;
+
+  @override
+  Widget build(BuildContext context) {
+    final img = image;
+    return AppCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(required ? '$title (required)' : '$title (optional)', style: AppTypography.labelText.copyWith(color: AppColors.textPrimary)),
+          const SizedBox(height: AppSpacing.sm),
+          if (img != null)
+            ClipRRect(
+              borderRadius: BorderRadius.circular(AppRadius.md),
+              child: AspectRatio(
+                aspectRatio: 1.58,
+                child: Image.memory(
+                  img.bytes is Uint8List ? img.bytes as Uint8List : Uint8List.fromList(img.bytes),
+                  fit: BoxFit.contain,
+                  semanticLabel: '$title of the ID',
+                ),
+              ),
+            )
+          else
+            Container(
+              height: 96,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: missing ? AppColors.rose50 : AppColors.slate50,
+                borderRadius: BorderRadius.circular(AppRadius.md),
+              ),
+              child: Text(
+                missing ? 'Add a photo of the $title.' : 'No photo yet',
+                style: AppTypography.helper.copyWith(color: missing ? AppColors.rose700 : null),
+              ),
+            ),
+          const SizedBox(height: AppSpacing.sm),
+          Wrap(
+            spacing: AppSpacing.sm,
+            runSpacing: AppSpacing.sm,
+            children: [
+              AppButton(
+                label: img == null ? 'Take photo' : 'Retake',
+                icon: Icons.photo_camera_outlined,
+                size: AppButtonSize.sm,
+                variant: AppButtonVariant.secondary,
+                onPressed: () => onPick(ImageSource.camera),
+              ),
+              AppButton(
+                label: img == null ? 'Choose photo' : 'Choose another',
+                icon: Icons.photo_library_outlined,
+                size: AppButtonSize.sm,
+                variant: AppButtonVariant.secondary,
+                onPressed: () => onPick(ImageSource.gallery),
+              ),
+              if (img != null)
+                AppButton(
+                  label: 'Remove',
+                  icon: Icons.close_rounded,
+                  size: AppButtonSize.sm,
+                  variant: AppButtonVariant.ghost,
+                  onPressed: onRemove,
+                ),
+            ],
+          ),
+        ],
       ),
     );
   }

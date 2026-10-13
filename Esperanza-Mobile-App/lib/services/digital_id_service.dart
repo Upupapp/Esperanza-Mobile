@@ -12,7 +12,7 @@ class DigitalIdCard {
     required this.barangay,
     required this.status,
     required this.valid,
-    required this.qr,
+    this.qr,
     this.purok,
     this.address,
     this.birthdate,
@@ -36,16 +36,19 @@ class DigitalIdCard {
   /// says plainly that it is not yet valid.
   final bool valid;
   final DateTime? issuedAt;
-  final String qr;
+
+  /// Null when the card is not a valid credential: the wallet sends a QR
+  /// only while the Resident ID is active.
+  final String? qr;
 
   /// The LGU-approved profile photo (a signed, short-lived link); a photo
   /// still waiting for an officer is not on the card.
   final String? photoUrl;
 
-  static DigitalIdCard? fromApi(Map<String, dynamic> json) {
+  static DigitalIdCard? fromApi(Map<String, dynamic> json, {bool requireQr = true}) {
     final accountNo = JsonRead.nonEmpty(json['account_no']);
     final qr = JsonRead.nonEmpty(json['qr']);
-    if (accountNo == null || qr == null) return null;
+    if (accountNo == null || (requireQr && qr == null)) return null;
     return DigitalIdCard(
       accountNo: accountNo,
       name: JsonRead.nonEmpty(json['name']) ?? '',

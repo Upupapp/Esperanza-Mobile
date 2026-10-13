@@ -14,7 +14,9 @@ import 'package:esperanza_mobile/services/citizen_session_service.dart';
 import 'package:esperanza_mobile/services/mock_catalog.dart';
 import 'package:esperanza_mobile/utils/demo_resident_photo.dart';
 import 'package:esperanza_mobile/utils/government_id.dart';
-import 'package:esperanza_mobile/widgets/app_button.dart';
+
+import 'support/fake_api.dart';
+import 'support/wallet_fixture.dart';
 
 /// demoProfileImageFor now wraps every portrait in a `ResizeImage` (decode
 /// at avatar size, not the source's full multi-megapixel resolution — see
@@ -37,7 +39,10 @@ Future<CitizenSessionService> _signedInAs(WidgetTester tester, CitizenAccount ac
   return session;
 }
 
+/// As the server answers for an account still waiting for its review.
 Future<void> _pumpDigitalId(WidgetTester tester, CitizenSessionService session) async {
+  FakeApi.installFull((r) => walletJson(identity: 'Pending', source: 'pending', residency: 'Pending Review', state: 'not_issued'));
+  addTearDown(FakeApi.restore);
   await tester.pumpWidget(
     ChangeNotifierProvider<CitizenSessionService>.value(value: session, child: const MaterialApp(home: DigitalIdScreen())),
   );
@@ -98,11 +103,10 @@ void main() {
 
       await _pumpDigitalId(tester, session);
 
-      expect(find.text('Esperanza Digital ID'), findsNothing);
-      expect(find.text('Digital ID not yet available'), findsOneWidget);
+      expect(find.text('Resident ID not issued yet'), findsOneWidget);
+      expect(find.text('Valid · Verified by LGU'), findsNothing);
       expect(find.text('Submitted ID Document'), findsNothing);
       expect(find.text('Esperanza Resident ID'), findsNothing);
-      expect(find.byType(AppButton), findsNothing);
 
       // Nicanor remains Unverified — an uploaded/submitted ID never
       // implies verification on its own.
