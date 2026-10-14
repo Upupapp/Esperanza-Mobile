@@ -19,6 +19,8 @@ Map<String, dynamic> walletDocumentJson({
   bool hasBack = false,
   String? lguRemarks,
   Map<String, dynamic> details = const {},
+  String? checkSource,
+  String? numberLast4,
 }) => {
   'id': id,
   'id_kind': idKind,
@@ -30,7 +32,10 @@ Map<String, dynamic> walletDocumentJson({
   'back_url': null,
   'has_back': hasBack,
   'document_status': documentStatus,
-  'identity_check': 'not_checked',
+  'identity_check': checkSource == null ? 'not_checked' : 'checked',
+  'checked_at': checkSource == null ? null : '2026-10-14T09:00:00+08:00',
+  'check_source': checkSource,
+  'number_last4': numberLast4,
   'agency_verification': 'not_available',
   'verified_at': documentStatus == 'uploaded_not_checked' ? null : '2026-10-13T10:00:00+08:00',
   'lgu_remarks': lguRemarks,
@@ -48,6 +53,7 @@ Map<String, dynamic> walletJson({
   String state = 'active',
   String? suspendedBecause,
   List<Map<String, dynamic>> documents = const [],
+  List<String> diditKinds = const [],
 }) => {
   'identity': {
     'status': identity,
@@ -75,4 +81,5 @@ Map<String, dynamic> walletJson({
   },
   'documents': documents,
   'id_types': walletIdTypes,
+  'didit_check': {'kinds': diditKinds},
 };

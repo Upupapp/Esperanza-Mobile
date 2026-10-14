@@ -1,5 +1,13 @@
+import 'dart:io';
+
+import 'package:flutter/foundation.dart';
+import 'package:http/http.dart' as http;
+import 'package:path_provider/path_provider.dart';
+
 import '../models/identity_status.dart';
 import 'api_client.dart';
+import 'id_portrait.dart';
+import 'identity_capture.dart';
 import 'digital_id_service.dart';
 import 'json_read.dart';
 
@@ -11,13 +19,15 @@ enum IdentitySource { didit, lguOfficer, lguBeforeChecks, testCheck, pending }
 /// revoked; otherwise not issued yet.
 enum ResidentIdState { active, suspended, notIssued }
 
-/// Whether anyone checked one uploaded ID. Never a verification of the ID
-/// itself: an upload is kept as a reference document.
-enum WalletDocumentStatus { uploadedNotChecked, verifiedByLgu, returnedByLgu }
+/// Whether anyone checked one kept ID, and who. Only the LGU's verification
+/// gives it the seal; Didit's check (2026-10-14: the ID verified at
+/// registration, or one scanned on Didit's screen) is not the LGU's.
+enum WalletDocumentStatus { uploadedNotChecked, checkedByDidit, verifiedByLgu, returnedByLgu }
 
 extension WalletDocumentStatusX on WalletDocumentStatus {
   String get label => switch (this) {
     WalletDocumentStatus.uploadedNotChecked => 'Uploaded — Not checked',
+    WalletDocumentStatus.checkedByDidit => 'Checked by Didit',
     WalletDocumentStatus.verifiedByLgu => 'Verified by the LGU',
     WalletDocumentStatus.returnedByLgu => 'Returned by the LGU',
   };
@@ -185,6 +195,9 @@ class WalletDocument {
     this.lguRemarks,
     this.details = const IdDetails(),
     this.portraitBox,
+    this.checkedAt,
+    this.checkSource,
+    this.numberLast4,
   });
 
   final int id;
@@ -210,6 +223,21 @@ class WalletDocument {
   /// Where the face is on the front photo ("x,y,w,h" fractions), or null.
   final String? portraitBox;
 
+  /// When Didit checked it, and where: 'registration' (the ID verified at
+  /// sign-up) or 'wallet' (scanned on Didit's screen). Null when it did not.
+  final DateTime? checkedAt;
+  final String? checkSource;
+
+  /// The last four of the number, on a card made from a registration check
+  /// that kept only those; the resident can type the rest.
+  final String? numberLast4;
+
+  /// Made from what Didit read: its photos carry no face position yet.
+  bool get fromDidit => checkSource != null;
+
+  /// The number as the card shows it: in full, or its last four.
+  String? get shownNumber => details.idNumber ?? (numberLast4 == null ? null : '•••• $numberLast4');
+
   static WalletDocument? fromApi(Map<String, dynamic> json) {
     final id = JsonRead.integer(json['id']);
     final name = JsonRead.nonEmpty(json['name']);
@@ -228,7 +256,11 @@ class WalletDocument {
       lguRemarks: JsonRead.nonEmpty(json['lgu_remarks']),
       details: IdDetails.fromApi(json),
       portraitBox: JsonRead.nonEmpty(json['portrait_box']),
+      checkedAt: JsonRead.date(json['checked_at']),
+      checkSource: JsonRead.nonEmpty(json['check_source']),
+      numberLast4: JsonRead.nonEmpty(json['number_last4']),
       status: switch (JsonRead.nonEmpty(json['document_status'])) {
+        'checked_by_didit' => WalletDocumentStatus.checkedByDidit,
         'verified_by_lgu' => WalletDocumentStatus.verifiedByLgu,
         'returned_by_lgu' => WalletDocumentStatus.returnedByLgu,
         _ => WalletDocumentStatus.uploadedNotChecked,
@@ -267,6 +299,7 @@ class CitizenWallet {
     required this.residentId,
     required this.documents,
     required this.idTypes,
+    this.diditKinds = const [],
   });
 
   final WalletIdentity identity;
@@ -275,6 +308,10 @@ class CitizenWallet {
   final WalletResidentId residentId;
   final List<WalletDocument> documents;
   final List<WalletIdType> idTypes;
+
+  /// The kinds the resident can scan on Didit's screen instead of uploading;
+  /// empty while the LGU has not set it up.
+  final List<String> diditKinds;
 
   static CitizenWallet fromApi(Map<String, dynamic> json) {
     Map<String, dynamic> map(Object? v) => v is Map<String, dynamic> ? v : const {};
@@ -286,7 +323,63 @@ class CitizenWallet {
       residentId: WalletResidentId.fromApi(map(json['resident_id'])),
       documents: JsonRead.rows(json['documents'], WalletDocument.fromApi),
       idTypes: JsonRead.rows(json['id_types'], WalletIdType.fromApi),
+      diditKinds: [
+        for (final k in (map(json['didit_check'])['kinds'] as List?) ?? const [])
+          ?JsonRead.nonEmpty(k),
+      ],
     );
+  }
+}
+
+/// How a scan on Didit's screen ended (esperanza-backend WalletIdChecks).
+enum WalletScanOutcome {
+  /// Didit approved it: a card was made, "Checked by Didit".
+  checked,
+
+  /// A card was made, but Didit did not finish checking it.
+  notChecked,
+
+  /// Didit could not confirm the ID: no card. See [WalletScanResult.reasons].
+  declined,
+
+  /// Nothing was made (abandoned, expired, or no image came back).
+  closed,
+
+  /// Didit has not finished yet; the card appears when it does.
+  pending,
+
+  /// The resident closed Didit's screen before finishing.
+  cancelled,
+}
+
+class WalletScanResult {
+  const WalletScanResult(this.outcome, {this.reasons = const [], this.document});
+
+  final WalletScanOutcome outcome;
+
+  /// Didit's codes for why it declined (SCREEN_CAPTURE_DETECTED ...).
+  final List<String> reasons;
+  final WalletDocument? document;
+
+  /// Didit's reasons, in words a resident can act on.
+  String get explanation {
+    final words = {
+      for (final r in reasons)
+        switch (r) {
+          'SCREEN_CAPTURE_DETECTED' || 'PRINTED_COPY_DETECTED' || 'PORTRAIT_IMAGE_ALTERED' =>
+            'Scan the ID itself, not a photo, screen or photocopy of it.',
+          'DOCUMENT_EXPIRED' => 'The ID has expired.',
+          'DOCUMENT_NOT_SUPPORTED_FOR_APPLICATION' || 'DOCUMENT_NOT_SUPPORTED' || 'UNSUPPORTED_DOCUMENT' =>
+            'Didit does not check this kind of ID.',
+          'NAME_NOT_DETECTED' ||
+          'DOCUMENT_NUMBER_NOT_DETECTED' ||
+          'MRZ_NOT_DETECTED' ||
+          'BLURRY_IMAGE' ||
+          'LOW_QUALITY_IMAGE' => 'Parts of the ID could not be read. Try again in good light, holding it steady.',
+          _ => 'Didit could not confirm this ID.',
+        },
+    };
+    return words.isEmpty ? 'Didit could not confirm this ID.' : words.join(' ');
   }
 }
 
@@ -354,6 +447,91 @@ class WalletService {
       );
     }
     return doc;
+  }
+
+  /// Scans an ID on Didit's screen (2026-10-14; only the kinds in
+  /// [CitizenWallet.diditKinds]). Didit's screen opens on the same launcher as
+  /// the registration check; the result is the one the server READS from
+  /// Didit afterwards, never what the screen reported.
+  static Future<WalletScanResult> scanWithDidit(String idKind, {int? replaces}) async {
+    final opened = await api.post(
+      '/citizen/wallet/ids/check',
+      body: {'id_kind': idKind, 'platform': 'app', 'replaces': ?replaces},
+    );
+    final token = JsonRead.nonEmpty(opened.map['session_token']);
+    final sessionId = JsonRead.nonEmpty(opened.map['session_id']);
+    if (token == null || sessionId == null) {
+      throw const ApiException(
+        messageEn: 'The scan could not be started. Please try again, or upload photos instead.',
+        messageFil: 'Hindi masimulan ang pag-scan. Pakisubukang muli, o i-upload ang mga larawan.',
+      );
+    }
+    final launch = await IdentityCapture.launcher(token);
+    if (launch.outcome == DiditLaunchOutcome.cancelled) return const WalletScanResult(WalletScanOutcome.cancelled);
+
+    final synced = await api.post('/citizen/wallet/ids/check/${ApiClient.segment(sessionId)}/sync');
+    final data = synced.map;
+    final doc = data['document'];
+    return WalletScanResult(
+      switch (JsonRead.nonEmpty(data['outcome'])) {
+        'checked' => WalletScanOutcome.checked,
+        'not_checked' => WalletScanOutcome.notChecked,
+        'declined' => WalletScanOutcome.declined,
+        'closed' => WalletScanOutcome.closed,
+        _ => WalletScanOutcome.pending,
+      },
+      reasons: [
+        for (final r in (data['reasons'] as List?) ?? const [])
+          ?JsonRead.nonEmpty(r),
+      ],
+      document: doc is Map<String, dynamic> ? WalletDocument.fromApi(doc) : null,
+    );
+  }
+
+  /// Where the face is on the front photo of a card Didit made, found on
+  /// the phone afterwards. Placing the face does not end Didit's check.
+  static Future<void> setPortrait(int id, String portraitBox) =>
+      api.patch('/citizen/wallet/ids/${ApiClient.segment(id)}', body: {'portrait_box': portraitBox});
+
+  /// The front photo's bytes, by its signed link. Replaced in tests.
+  @visibleForTesting
+  static Future<Uint8List?> Function(String url) fetchImage = _fetchImage;
+
+  static Future<Uint8List?> _fetchImage(String url) async {
+    final res = await http.get(Uri.parse(url)).timeout(const Duration(seconds: 20));
+    return res.statusCode == 200 && res.bodyBytes.isNotEmpty ? res.bodyBytes : null;
+  }
+
+  /// Ids already tried this session, found or not: a photo with no face is
+  /// not fetched again on every visit.
+  static final _facesTried = <int>{};
+
+  /// A card Didit made carries Didit's photos, with no face found on them
+  /// yet: the face is found on the phone, as for an upload, and saved.
+  /// Returns whether it was. Never throws: the card simply shows no picture.
+  static Future<bool> placeFace(WalletDocument doc) async {
+    final url = doc.frontUrl;
+    if (kIsWeb || !doc.fromDidit || doc.portraitBox != null || url == null || !_facesTried.add(doc.id)) return false;
+    File? file;
+    try {
+      final bytes = await fetchImage(url);
+      if (bytes == null) return false;
+      // The app's own cache: Dart's default temp folder is not always one an
+      // Android app may write to.
+      final dir = await (await getTemporaryDirectory()).createTemp('esperanza-id');
+      file = File('${dir.path}/front.jpg');
+      await file.writeAsBytes(bytes, flush: true);
+      final box = await IdPortraitFinder.find(file.path, bytes);
+      if (box == null) return false;
+      await setPortrait(doc.id, box.encode());
+      return true;
+    } catch (_) {
+      return false;
+    } finally {
+      try {
+        await file?.parent.delete(recursive: true);
+      } catch (_) {}
+    }
   }
 
   /// Removes it from the wallet: archived, never deleted (Papeles rule).

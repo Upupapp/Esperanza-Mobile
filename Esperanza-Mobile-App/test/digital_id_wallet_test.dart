@@ -14,6 +14,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:esperanza_mobile/screens/profile/digital_id_screen.dart';
 import 'package:esperanza_mobile/services/api_client.dart';
 import 'package:esperanza_mobile/services/citizen_session_service.dart';
+import 'package:esperanza_mobile/services/identity_capture.dart';
 import 'package:esperanza_mobile/services/mock_catalog.dart';
 import 'package:esperanza_mobile/services/wallet_service.dart';
 import 'package:esperanza_mobile/widgets/app_text_field.dart';
@@ -338,6 +339,136 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('Add a photo of the front of the ID.'), findsOneWidget);
       expect(sent, isEmpty);
+    });
+  });
+
+  // Owner decisions, 2026-10-14: Didit's check is a mark of its own, never
+  // the LGU's seal; the kinds Didit reads are scanned on its screen.
+  group('Checked by Didit', () {
+    testWidgets('a card Didit checked says so, without the seal', (tester) async {
+      await _pump(
+        tester,
+        () => walletJson(
+          documents: [
+            walletDocumentJson(
+              idKind: 'philippine_national_id',
+              name: 'Philippine National ID (PhilSys)',
+              documentStatus: 'checked_by_didit',
+              checkSource: 'registration',
+              numberLast4: '3456',
+            ),
+          ],
+        ),
+      );
+      expect(find.text('Checked'), findsOneWidget);
+      expect(find.byKey(const ValueKey('verified-seal')), findsNothing);
+      // A card from a check that kept only the last four shows those.
+      expect(find.text('•••• 3456'), findsOneWidget);
+
+      await _openDetails(tester, 'Philippine National ID (PhilSys)');
+      expect(find.text('Checked by Didit'), findsOneWidget);
+      expect(find.text('Only LGU staff can verify it for the Esperanza seal.'), findsOneWidget);
+      expect(find.textContaining('Didit checked this ID when you verified your account'), findsOneWidget);
+      expect(find.text('Only the last four digits were kept. Use Edit details to add the full number.'), findsOneWidget);
+    });
+
+    Future<Future<bool?>> pushForm(WidgetTester tester, {List<String> diditKinds = const ['philippine_national_id']}) async {
+      tester.view.physicalSize = const Size(390, 3200);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      final types = walletIdTypes.map((t) => WalletIdType.fromApi(Map<String, dynamic>.from(t))!).toList();
+      await tester.pumpWidget(const MaterialApp(home: Scaffold(body: SizedBox())));
+      final pushed = Navigator.of(tester.element(find.byType(SizedBox))).push<bool>(
+        MaterialPageRoute(builder: (_) => AddWalletIdScreen(types: types, diditKinds: diditKinds)),
+      );
+      await tester.pumpAndSettle();
+      return pushed;
+    }
+
+    Future<void> choose(WidgetTester tester, String name) async {
+      await tester.tap(find.text('Choose the type of ID'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text(name).last);
+      await tester.pumpAndSettle();
+    }
+
+    void fakeScan(List<String> calls, Map<String, dynamic> result) {
+      FakeApi.installFull((r) {
+        calls.add('${r.method} ${r.path}');
+        if (r.path == '/citizen/wallet/ids/check') return {'session_id': 'sess-1', 'session_token': 'token-1', 'url': null};
+        if (r.path == '/citizen/wallet/ids/check/sess-1/sync') return result;
+        throw const FakeApiError();
+      });
+      addTearDown(FakeApi.restore);
+      IdentityCapture.launcher = (token) async {
+        calls.add('didit $token');
+        return const DiditLaunchResult(DiditLaunchOutcome.completed);
+      };
+      addTearDown(() => IdentityCapture.launcher = (_) async => const DiditLaunchResult(DiditLaunchOutcome.cancelled));
+    }
+
+    testWidgets('a kind Didit reads is scanned on its screen; the card comes from what the server read', (tester) async {
+      final calls = <String>[];
+      fakeScan(calls, {
+        'session_id': 'sess-1',
+        'outcome': 'checked',
+        'reasons': <String>[],
+        'document': walletDocumentJson(
+          idKind: 'philippine_national_id',
+          name: 'Philippine National ID (PhilSys)',
+          documentStatus: 'checked_by_didit',
+          checkSource: 'wallet',
+        ),
+      });
+      final pushed = await pushForm(tester);
+      await choose(tester, 'Philippine National ID (PhilSys)');
+
+      expect(find.text('Scan with Didit'), findsOneWidget);
+      expect(find.text('Front (required)'), findsNothing, reason: 'No photo upload while Didit scans it.');
+
+      await tester.tap(find.text('Scan with Didit'));
+      await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 50)));
+      await tester.pumpAndSettle();
+
+      expect(calls, ['POST /citizen/wallet/ids/check', 'didit token-1', 'POST /citizen/wallet/ids/check/sess-1/sync']);
+      expect(await pushed, isTrue);
+      expect(find.text('Added to your wallet, checked by Didit.'), findsOneWidget);
+    });
+
+    testWidgets('a declined scan says why in plain words and offers the upload instead', (tester) async {
+      fakeScan([], {'session_id': 'sess-1', 'outcome': 'declined', 'reasons': ['SCREEN_CAPTURE_DETECTED'], 'document': null});
+      await pushForm(tester);
+      await choose(tester, 'Philippine National ID (PhilSys)');
+      await tester.tap(find.text('Scan with Didit'));
+      await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 50)));
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('Scan the ID itself, not a photo, screen or photocopy of it.'), findsOneWidget);
+      await tester.tap(find.text('Upload photos instead'));
+      await tester.pumpAndSettle();
+      expect(find.text('Front (required)'), findsOneWidget);
+      expect(find.text('Scan with Didit'), findsNothing);
+    });
+
+    testWidgets('a kind Didit does not read, or Didit not set up, stays an upload', (tester) async {
+      await pushForm(tester);
+      await choose(tester, 'PhilHealth ID');
+      expect(find.text('Front (required)'), findsOneWidget);
+      expect(find.text('Scan with Didit'), findsNothing);
+    });
+
+    test('the wallet reads checked_by_didit and the kinds Didit can scan', () {
+      final wallet = CitizenWallet.fromApi(
+        walletJson(
+          diditKinds: ['passport', 'umid'],
+          documents: [walletDocumentJson(documentStatus: 'checked_by_didit', checkSource: 'wallet')],
+        ),
+      );
+      expect(wallet.diditKinds, ['passport', 'umid']);
+      expect(wallet.documents.single.status, WalletDocumentStatus.checkedByDidit);
+      expect(wallet.documents.single.fromDidit, isTrue);
+      expect(wallet.documents.single.checkedAt, isNotNull);
     });
   });
 
