@@ -1,9 +1,21 @@
 import 'api_client.dart';
 import 'json_read.dart';
 
+/// One message in a ticket's conversation: the resident's, or the office's
+/// (staff appear as their office, never by name).
+class TicketMessage {
+  const TicketMessage({required this.fromStaff, required this.name, required this.body, this.at});
+
+  final bool fromStaff;
+  final String name;
+  final String body;
+  final DateTime? at;
+}
+
 /// One of the resident's support tickets, as GET /citizen/support/tickets
 /// lists it (CitizenPortalController::ticketRow()), with the office's reply
-/// once it has answered.
+/// once it has answered; GET /citizen/support/tickets/{ref} adds the whole
+/// conversation ([replies]).
 class SupportTicket {
   final String ref;
   final String category;
@@ -14,6 +26,25 @@ class SupportTicket {
   final DateTime? respondedAt;
   final DateTime? createdAt;
   final String? attachmentName;
+  final String? office;
+  final int messagesCount;
+
+  /// The conversation after the first message, oldest first; empty on a list
+  /// row (the detail carries it).
+  final List<TicketMessage> replies;
+
+  /// Closed by the office: it takes no more replies.
+  bool get closed => status == 'Cancelled';
+
+  /// The whole conversation as the website shows it: the ticket itself is
+  /// the resident's first message; a ticket answered before conversations
+  /// existed has its one reply in [response].
+  List<TicketMessage> get conversation => [
+    TicketMessage(fromStaff: false, name: 'You', body: body, at: createdAt),
+    ...replies,
+    if (response != null && !replies.any((m) => m.fromStaff))
+      TicketMessage(fromStaff: true, name: 'LGU Esperanza', body: response!, at: respondedAt),
+  ];
 
   const SupportTicket({
     required this.ref,
@@ -25,6 +56,9 @@ class SupportTicket {
     this.respondedAt,
     this.createdAt,
     this.attachmentName,
+    this.office,
+    this.messagesCount = 0,
+    this.replies = const [],
   });
 
   static SupportTicket? fromJson(Map<String, dynamic> row) {
@@ -40,6 +74,19 @@ class SupportTicket {
       respondedAt: JsonRead.date(row['responded_at']),
       createdAt: JsonRead.date(row['created_at']),
       attachmentName: JsonRead.nonEmpty(JsonRead.map(row['attachment'])?['name']),
+      office: JsonRead.nonEmpty(row['office']),
+      messagesCount: JsonRead.integer(row['messages_count']) ?? 0,
+      replies: JsonRead.rows(row['messages'], (m) {
+        final body = JsonRead.nonEmpty(m['body']);
+        if (body == null) return null;
+        final staff = JsonRead.nonEmpty(m['from']) == 'staff';
+        return TicketMessage(
+          fromStaff: staff,
+          name: staff ? (JsonRead.nonEmpty(m['name']) ?? 'LGU Esperanza') : 'You',
+          body: body,
+          at: JsonRead.date(m['at']),
+        );
+      }),
     );
   }
 }
@@ -74,6 +121,19 @@ class SupportService {
       );
     }
     return ref;
+  }
+
+  /// GET /citizen/support/tickets/{ref}: the ticket with its conversation.
+  static Future<SupportTicket> ticket(String ref) async {
+    final res = await api.get('/citizen/support/tickets/${ApiClient.segment(ref)}');
+    return SupportTicket.fromJson(res.map) ?? (throw const ApiException(messageEn: 'The conversation could not be read.', messageFil: 'Hindi mabasa ang usapan.'));
+  }
+
+  /// POST /citizen/support/tickets/{ref}/reply: answers the office. A ticket
+  /// the office closed refuses with 409 TICKET_CLOSED.
+  static Future<SupportTicket> reply(String ref, String message) async {
+    final res = await api.post('/citizen/support/tickets/${ApiClient.segment(ref)}/reply', body: {'message': message.trim()});
+    return SupportTicket.fromJson(res.map) ?? (throw const ApiException(messageEn: 'Your reply was sent, but the answer could not be read. Pull down to refresh.', messageFil: 'Naipadala ang tugon, ngunit hindi mabasa ang sagot. Hilahin pababa para i-refresh.'));
   }
 
   /// GET /citizen/support/tickets, newest first.

@@ -9,6 +9,8 @@ import '../../services/master_file_service.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_spacing.dart';
 import '../../utils/cross_platform_image.dart';
+import '../../utils/protected_action.dart';
+import '../../widgets/app_button.dart';
 import '../../widgets/app_card.dart';
 import '../../widgets/empty_state.dart';
 import '../../widgets/segmented_tabs.dart';
@@ -43,7 +45,61 @@ class DocumentsUploadedScreen extends StatefulWidget {
 }
 
 class _DocumentsUploadedScreenState extends State<DocumentsUploadedScreen> {
-  int _tab = 0; // 0 = All, 1 = Dokyu, 2 = Tulong
+  int _tab = 0; // 0 = All, 1 = Dokyu, 2 = Tulong, 3 = Papeles
+  bool _adding = false;
+
+  /// Adds a file to the Papeles wallet, outside any request (parity with the
+  /// website's My Documents, 2026-10-15).
+  Future<void> _add() async {
+    final accountId = context.read<CitizenSessionService>().account?.id;
+    if (accountId == null || _adding) return;
+    final picked = await pickDocumentProtected(
+      context,
+      allowedExtensions: const ['jpg', 'jpeg', 'png', 'pdf', 'docx'],
+      withData: false,
+      explanation: 'Esperanza needs access to your files so you can keep a document in your Papeles.',
+    );
+    final file = picked?.files.singleOrNull;
+    if (file == null || file.path == null || !mounted) return;
+    final dot = file.name.lastIndexOf('.');
+    final name = await _askName(dot > 0 ? file.name.substring(0, dot) : file.name);
+    if (name == null || !mounted) return;
+    setState(() => _adding = true);
+    try {
+      await context.read<MasterFileService>().addToWallet(accountId: accountId, name: name, filePath: file.path!);
+      if (mounted) AppDialogs.toast(context, 'Added to your Papeles.');
+    } on ApiException catch (e) {
+      if (mounted) AppDialogs.toast(context, e.message(), success: false);
+    } finally {
+      if (mounted) setState(() => _adding = false);
+    }
+  }
+
+  Future<String?> _askName(String initial) {
+    final controller = TextEditingController(text: initial);
+    return showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Name this document'),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          maxLength: 120,
+          decoration: const InputDecoration(hintText: 'e.g. Barangay clearance 2026'),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Cancel')),
+          FilledButton(
+            onPressed: () {
+              final v = controller.text.trim();
+              if (v.isNotEmpty) Navigator.of(context).pop(v);
+            },
+            child: const Text('Add'),
+          ),
+        ],
+      ),
+    ).whenComplete(controller.dispose);
+  }
 
   /// Null until the server answers; then the list this screen shows.
   List<UploadedDocument>? _uploads;
@@ -95,6 +151,7 @@ class _DocumentsUploadedScreenState extends State<DocumentsUploadedScreen> {
     final filtered = switch (_tab) {
       1 => documents.where((d) => d.origin == 'Dokyu').toList(),
       2 => documents.where((d) => d.origin == 'Tulong').toList(),
+      3 => documents.toList(),
       // documentsFor() returns an unmodifiable list — .toList() here makes
       // a fresh, sortable copy, same as the two branches above already do.
       _ => documents.toList(),
@@ -102,7 +159,7 @@ class _DocumentsUploadedScreenState extends State<DocumentsUploadedScreen> {
 
     // The server's list, newest first, when it has answered.
     final uploads = _uploads;
-    final serverRows = uploads == null
+    final serverRows = uploads == null || _tab == 3
         ? null
         : switch (_tab) {
             1 => uploads.where((d) => d.isDokyu).toList(),
@@ -119,17 +176,29 @@ class _DocumentsUploadedScreenState extends State<DocumentsUploadedScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const Text(
-                'Documents you’ve uploaded through Dokyu and Tulong requests.',
-                style: TextStyle(fontSize: AppTextSize.helper, color: AppColors.textMuted, height: 1.4),
+              Text(
+                _tab == 3
+                    ? 'Your Papeles: documents kept on your account, ready to attach to any request.'
+                    : 'Documents you’ve uploaded through Dokyu and Tulong requests.',
+                style: const TextStyle(fontSize: AppTextSize.helper, color: AppColors.textMuted, height: 1.4),
               ),
               const SizedBox(height: AppSpacing.lg),
               SegmentedTabs(
-                labels: const ['All', 'Dokyu', 'Tulong'],
+                labels: const ['All', 'Dokyu', 'Tulong', 'Papeles'],
                 selectedIndex: _tab,
                 onChanged: (i) => setState(() => _tab = i),
               ),
-              if (serverRows == null && _uploadsFailed) ...[
+              if (_tab == 3) ...[
+                const SizedBox(height: AppSpacing.md),
+                AppButton(
+                  label: 'Add a document',
+                  icon: Icons.add_rounded,
+                  variant: AppButtonVariant.secondary,
+                  fullWidth: true,
+                  loading: _adding,
+                  onPressed: _adding ? null : _add,
+                ),
+              ] else if (serverRows == null && _uploadsFailed) ...[
                 const SizedBox(height: AppSpacing.md),
                 const Text(
                   'Showing the documents saved on this phone. Pull down to load everything you uploaded, from the '
@@ -144,14 +213,22 @@ class _DocumentsUploadedScreenState extends State<DocumentsUploadedScreen> {
                   child: isEmpty
                       ? ListView(
                           physics: const AlwaysScrollableScrollPhysics(),
-                          children: const [
-                            EmptyState(
-                              icon: Icons.folder_open_outlined,
-                              title: 'No documents uploaded yet',
-                              description:
-                                  'Documents you upload while submitting a Dokyu or Tulong request will '
-                                  'appear here.',
-                            ),
+                          children: [
+                            _tab == 3
+                                ? const EmptyState(
+                                    icon: Icons.folder_open_outlined,
+                                    title: 'No documents in your Papeles yet',
+                                    description:
+                                        'Add an ID, a certificate or any document to keep it here and attach it to '
+                                        'a request later.',
+                                  )
+                                : const EmptyState(
+                                    icon: Icons.folder_open_outlined,
+                                    title: 'No documents uploaded yet',
+                                    description:
+                                        'Documents you upload while submitting a Dokyu or Tulong request will '
+                                        'appear here.',
+                                  ),
                           ],
                         )
                       : serverRows != null

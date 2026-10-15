@@ -57,6 +57,7 @@ dependencies:
   google_mlkit_barcode_scanning: ^0.16.1
   path_provider: ^2.1.6
   flutter_secure_storage: ^10.3.4
+  pdf: ^3.13.1
 
 # Launcher icons are GENERATED, never hand-edited. Regenerate on either lane with:
 #

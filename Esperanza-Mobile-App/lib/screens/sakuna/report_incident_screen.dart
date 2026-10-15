@@ -8,7 +8,7 @@ import 'package:provider/provider.dart';
 import '../../models/catalog_item.dart';
 import '../../services/api_client.dart';
 import '../../services/citizen_session_service.dart';
-import '../../services/mock_catalog.dart';
+import '../../services/barangay_service.dart';
 import '../../services/requests_service.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_spacing.dart';
@@ -67,7 +67,7 @@ class _ReportIncidentScreenState extends State<ReportIncidentScreen> {
   void initState() {
     super.initState();
     final home = context.read<CitizenSessionService>().account?.barangay;
-    if (home != null && MockCatalog.barangays.contains(home)) _barangay = home;
+    if (home != null && BarangayService.names.contains(home)) _barangay = home;
   }
 
   @override
@@ -173,7 +173,7 @@ class _ReportIncidentScreenState extends State<ReportIncidentScreen> {
             AppSelectField<String>(
               label: 'Barangay',
               value: _barangay,
-              options: MockCatalog.barangays,
+              options: BarangayService.names,
               labelBuilder: (b) => b,
               hintText: 'Choose the barangay',
               onChanged: (v) => setState(() => _barangay = v),

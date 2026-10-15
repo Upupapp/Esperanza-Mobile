@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
 import '../../models/announcement.dart';
+import '../../services/citizen_session_service.dart';
 import '../../services/api_client.dart';
 import '../../services/json_read.dart';
 import '../../widgets/event_card.dart';
@@ -58,16 +61,25 @@ class _EventsBody extends StatefulWidget {
   State<_EventsBody> createState() => _EventsBodyState();
 }
 
-enum _Period { upcoming, past }
+enum _Period { upcoming, past, calendar }
 
 class _EventsBodyState extends State<_EventsBody> {
   _Period _period = _Period.upcoming;
 
+  /// Only the resident's own barangay's events, with the municipality-wide
+  /// ones (parity with the website's events calendar, 2026-10-15).
+  bool _mine = false;
+
   @override
   Widget build(BuildContext context) {
     final today = DateTime.now();
-    final list = [
+    final home = context.watch<CitizenSessionService>().account?.barangay;
+    final events = [
       for (final e in widget.events)
+        if (!_mine || e.barangay == null || e.barangay == home) e,
+    ];
+    final list = [
+      for (final e in events)
         if (e.isPast(today) == (_period == _Period.past)) e,
     ];
     return RefreshIndicator(
@@ -87,14 +99,31 @@ class _EventsBodyState extends State<_EventsBody> {
             children: [
               for (final p in _Period.values)
                 _PeriodPill(
-                  label: p == _Period.upcoming ? 'Upcoming' : 'Past',
+                  label: switch (p) {
+                    _Period.upcoming => 'Upcoming',
+                    _Period.past => 'Past',
+                    _Period.calendar => 'Calendar',
+                  },
                   selected: _period == p,
                   onTap: () => setState(() => _period = p),
                 ),
             ],
           ),
+          if (home != null) ...[
+            const SizedBox(height: AppSpacing.sm),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: FilterChip(
+                label: Text('Brgy. $home only'),
+                selected: _mine,
+                onSelected: (v) => setState(() => _mine = v),
+              ),
+            ),
+          ],
           const SizedBox(height: AppSpacing.lg),
-          if (list.isEmpty)
+          if (_period == _Period.calendar)
+            _MonthCalendar(events: events)
+          else if (list.isEmpty)
             EmptyState(
               glyph: ClayGlyph.calendar,
               title: 'No ${_period == _Period.upcoming ? 'upcoming' : 'past'} events right now.',
@@ -107,6 +136,145 @@ class _EventsBodyState extends State<_EventsBody> {
               EventCard(event: list[i]),
             ],
         ],
+      ),
+    );
+  }
+}
+
+/// The events as a month (parity with the website's events calendar,
+/// 2026-10-15): a dot on each day that has one; a tapped day lists them.
+class _MonthCalendar extends StatefulWidget {
+  const _MonthCalendar({required this.events});
+
+  final List<EventItem> events;
+
+  @override
+  State<_MonthCalendar> createState() => _MonthCalendarState();
+}
+
+class _MonthCalendarState extends State<_MonthCalendar> {
+  late DateTime _month = DateTime(DateTime.now().year, DateTime.now().month);
+  late DateTime _day = DateUtils.dateOnly(DateTime.now());
+
+  List<EventItem> _on(DateTime day) => [
+    for (final e in widget.events)
+      if (e.startsAt != null && DateUtils.isSameDay(e.startsAt, day)) e,
+  ];
+
+  void _shift(int months) => setState(() {
+    _month = DateTime(_month.year, _month.month + months);
+    _day = _month;
+  });
+
+  String _dayLabel(DateTime day, int count) {
+    final events = count == 0 ? 'no events' : (count == 1 ? '1 event' : '$count events');
+    return '${DateFormat('MMMM d').format(day)}, $events';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final first = _month;
+    final days = DateUtils.getDaysInMonth(first.year, first.month);
+    final lead = first.weekday % 7; // Sunday first
+    final today = DateUtils.dateOnly(DateTime.now());
+    final dayEvents = _on(_day);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Row(
+          children: [
+            IconButton(
+              tooltip: 'Previous month',
+              onPressed: () => _shift(-1),
+              icon: const Icon(Icons.chevron_left_rounded),
+            ),
+            Expanded(
+              child: Text(
+                DateFormat('MMMM yyyy').format(first),
+                textAlign: TextAlign.center,
+                style: AppTypography.cardHeading,
+              ),
+            ),
+            IconButton(
+              tooltip: 'Next month',
+              onPressed: () => _shift(1),
+              icon: const Icon(Icons.chevron_right_rounded),
+            ),
+          ],
+        ),
+        Row(
+          children: [
+            for (final d in const ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'])
+              Expanded(
+                child: Text(d, textAlign: TextAlign.center, style: AppTypography.fine),
+              ),
+          ],
+        ),
+        const SizedBox(height: AppSpacing.xs),
+        GridView.count(
+          crossAxisCount: 7,
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          children: [
+            for (var i = 0; i < lead; i++) const SizedBox.shrink(),
+            for (var d = 1; d <= days; d++) _dayCell(DateTime(first.year, first.month, d), today),
+          ],
+        ),
+        const SizedBox(height: AppSpacing.lg),
+        Text(DateFormat('EEEE, MMMM d').format(_day), style: AppTypography.subsectionLabel),
+        const SizedBox(height: AppSpacing.sm),
+        if (dayEvents.isEmpty)
+          Text('No events on this day.', style: AppTypography.helper)
+        else
+          for (var i = 0; i < dayEvents.length; i++) ...[
+            if (i > 0) const SizedBox(height: AppSpacing.itemGap),
+            EventCard(event: dayEvents[i]),
+          ],
+      ],
+    );
+  }
+
+  Widget _dayCell(DateTime day, DateTime today) {
+    final count = _on(day).length;
+    final picked = DateUtils.isSameDay(day, _day);
+    final isToday = DateUtils.isSameDay(day, today);
+    return Semantics(
+      button: true,
+      selected: picked,
+      label: _dayLabel(day, count),
+      excludeSemantics: true,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(AppRadius.md),
+        onTap: () => setState(() => _day = day),
+        child: Container(
+          margin: const EdgeInsets.all(2),
+          decoration: BoxDecoration(
+            color: picked ? AppColors.navy900 : null,
+            border: isToday && !picked ? Border.all(color: AppColors.brand400) : null,
+            borderRadius: BorderRadius.circular(AppRadius.md),
+          ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(
+                '${day.day}',
+                style: AppTypography.helper.copyWith(
+                  color: picked ? AppColors.surface : AppColors.textPrimary,
+                  fontWeight: count > 0 ? FontWeight.w700 : FontWeight.w400,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Container(
+                width: 6,
+                height: 6,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: count == 0 ? AppColors.clear : (picked ? AppColors.gold400 : AppColors.brand500),
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

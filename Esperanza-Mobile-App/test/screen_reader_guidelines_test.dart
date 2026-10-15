@@ -11,6 +11,12 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:esperanza_mobile/models/request_release.dart';
 import 'package:esperanza_mobile/screens/appointments/appointments_screen.dart';
+import 'package:esperanza_mobile/screens/directory/barangay_profile_screen.dart';
+import 'package:esperanza_mobile/screens/support/ticket_thread_screen.dart';
+import 'package:esperanza_mobile/screens/verify/verify_document_screen.dart';
+import 'package:esperanza_mobile/services/barangay_service.dart';
+import 'package:esperanza_mobile/services/support_service.dart';
+import 'package:esperanza_mobile/widgets/request_survey_card.dart';
 import 'package:esperanza_mobile/screens/sakuna/report_incident_screen.dart';
 import 'package:esperanza_mobile/screens/support/report_problem_screen.dart';
 import 'package:esperanza_mobile/services/citizen_session_service.dart';
@@ -18,7 +24,6 @@ import 'package:esperanza_mobile/services/mock_catalog.dart';
 import 'package:esperanza_mobile/services/requests_service.dart';
 import 'package:esperanza_mobile/theme/app_colors.dart';
 import 'package:esperanza_mobile/theme/app_spacing.dart';
-import 'package:esperanza_mobile/widgets/offline_copy_note.dart';
 import 'package:esperanza_mobile/widgets/request_release_cards.dart';
 
 import 'support/fake_api.dart';
@@ -78,14 +83,13 @@ void main() {
     await _meetsGuidelines(tester);
   });
 
-  testWidgets('Ready to claim, the issued document, and the offline note', (tester) async {
+  testWidgets('Ready to claim and the issued document', (tester) async {
     await _pump(
       tester,
       Scaffold(
         body: SingleChildScrollView(
           child: Column(
             children: [
-              OfflineCopyNote(savedAt: DateTime.utc(2026, 10, 15, 2)),
               PickupCard(
                 pickup: RequestPickup.fromApi({
                   'office': 'Office of the Punong Barangay',
@@ -111,6 +115,50 @@ void main() {
             ],
           ),
         ),
+      ),
+    );
+    await _meetsGuidelines(tester);
+  });
+
+  testWidgets('Verify a Document', (tester) async {
+    await _pump(tester, const VerifyDocumentScreen());
+    await _meetsGuidelines(tester);
+  });
+
+  testWidgets('A support ticket conversation', (tester) async {
+    final row = {
+      'ref': 'TKT-2026-0042',
+      'category': 'Dokyu',
+      'subject': 'My clearance is late',
+      'body': 'It has been two weeks.',
+      'status': 'Under Review',
+      'created_at': '2026-10-14T01:00:00Z',
+    };
+    FakeApi.installFull((_) => row);
+    await _pump(tester, TicketThreadScreen(ticket: SupportTicket.fromJson(row)!));
+    await _meetsGuidelines(tester);
+  });
+
+  testWidgets('A barangay profile', (tester) async {
+    await _pump(
+      tester,
+      BarangayProfileScreen(
+        barangay: BarangayInfo.fromApi({
+          'name': 'Labangtaytay',
+          'punong_barangay': 'Hon. Synthetic Captain',
+          'contact': '0917 000 0000',
+          'history': {'founding': 'Founded by synthetic settlers.'},
+        })!,
+      ),
+    );
+    await _meetsGuidelines(tester);
+  });
+
+  testWidgets('How was the service', (tester) async {
+    await _pump(
+      tester,
+      const Scaffold(
+        body: RequestSurveyCard(reference: 'DOK-2026-000123', status: 'Released'),
       ),
     );
     await _meetsGuidelines(tester);

@@ -24,6 +24,7 @@ import '../../widgets/async_state_view.dart';
 import '../../widgets/image_viewer_scaffold.dart';
 import '../../widgets/request_milestone_timeline.dart';
 import '../../widgets/request_release_cards.dart';
+import '../../widgets/request_survey_card.dart';
 import '../appointments/appointments_screen.dart';
 import '../../widgets/requirement_uploader.dart';
 import '../../widgets/server_requirement_uploader.dart';
@@ -33,6 +34,7 @@ import 'new_request_screen.dart';
 import 'service_request_wizard_screen.dart';
 import '../../utils/date_text.dart';
 import '../../utils/peso_text.dart';
+import '../../utils/request_sheets.dart';
 import '../../widgets/esperanza_art.dart';
 
 /// Full request detail + real status history, against
@@ -185,6 +187,17 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
 
   /// The resident takes back a Tulong request the office has not
   /// recommended yet (end-to-end test 2026-10-07: there was no way to).
+  Future<void> _sheet(ServiceRequest request, RequestSheet sheet) {
+    final account = context.read<CitizenSessionService>().account;
+    return RequestSheets.share(
+      context,
+      request,
+      sheet,
+      applicant: account?.fullName ?? request.applicantName,
+      barangay: account?.barangay ?? '',
+    );
+  }
+
   Future<void> _withdraw(RequestsService service, ServiceRequest request) async {
     final ok = await AppDialogs.confirm(
       context,
@@ -389,6 +402,27 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
           const SizedBox(height: AppSpacing.xl),
           _FeeCard(payment: request.payment!),
         ],
+        // To print, save or send, as on the website (parity, 2026-10-15).
+        if (usesMilestones) ...[
+          const SizedBox(height: AppSpacing.lg),
+          Wrap(
+            spacing: AppSpacing.sm,
+            runSpacing: AppSpacing.xs,
+            children: [
+              OutlinedButton.icon(
+                onPressed: () => _sheet(request, RequestSheet.slip),
+                icon: const Icon(Icons.print_outlined, size: 18),
+                label: const Text('Print request slip'),
+              ),
+              if (RequestSheets.noticeReady(request))
+                OutlinedButton.icon(
+                  onPressed: () => _sheet(request, RequestSheet.notice),
+                  icon: const Icon(Icons.task_alt_rounded, size: 18),
+                  label: const Text('Approval notice'),
+                ),
+            ],
+          ),
+        ],
         // Ready: where and how to claim it (2026-10-15).
         if (request.pickup != null) ...[
           const SizedBox(height: AppSpacing.xl),
@@ -414,6 +448,13 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
           const SizedBox(height: AppSpacing.xl),
           _ReleaseProofCard(proof: request.releaseProof!, accent: accent),
         ],
+        // How was the service: once, when it is done (parity, 2026-10-15).
+        if (usesMilestones && RequestSurveyCard.dueAt(request.status))
+          RequestSurveyCard(
+            key: ValueKey('survey-${request.referenceNumber}'),
+            reference: request.referenceNumber,
+            status: request.status,
+          ),
         if (request.canWithdraw) ...[
           const SizedBox(height: AppSpacing.xl),
           AppButton(

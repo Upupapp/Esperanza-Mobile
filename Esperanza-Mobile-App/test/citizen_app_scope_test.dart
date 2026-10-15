@@ -1,7 +1,7 @@
 // The citizen app's remaining scope (owner decisions, 2026-10-15): where and
 // how to claim a ready request, the issued document with its verification QR
-// and the scan of the signed paper, the encrypted sign-in token, and the
-// offline copy of requests. Synthetic data.
+// and the scan of the signed paper, and the encrypted sign-in token.
+// Synthetic data.
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:qr_flutter/qr_flutter.dart';
@@ -9,11 +9,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:esperanza_mobile/models/request_release.dart';
 import 'package:esperanza_mobile/services/api_client.dart';
-import 'package:esperanza_mobile/services/requests_service.dart';
 import 'package:esperanza_mobile/theme/app_colors.dart';
 import 'package:esperanza_mobile/widgets/request_release_cards.dart';
 
-import 'support/fake_api.dart';
 
 Future<void> _pump(WidgetTester tester, Widget child) async {
   tester.view.physicalSize = const Size(390, 1600);
@@ -160,67 +158,6 @@ void main() {
       keystore.broken = true;
       await ApiClient().setToken('t0k3n-synthetic');
       expect(await ApiClient().getToken(), 't0k3n-synthetic');
-    });
-  });
-
-  group('Offline copy', () {
-    final row = {
-      'ref': 'DOK-2026-000123',
-      'type': 'dokyu',
-      'service': 'Barangay Clearance',
-      'status': 'Processing',
-      'submitted': '2026-10-14T01:00:00Z',
-    };
-    var down = false;
-    setUp(() {
-      down = false;
-      FakeApi.installFull((r) {
-        if (down) throw const FakeApiError(status: 503, code: 'UNAVAILABLE', messageEn: 'Unavailable');
-        return r.path == '/citizen/requests' ? [row] : <dynamic>[];
-      });
-    });
-    tearDown(FakeApi.restore);
-
-    test('without a connection the last list is shown, marked with when it was saved', () async {
-      final service = RequestsService();
-      addTearDown(service.dispose);
-      await service.loadRequests();
-      expect(service.requestsSavedAt, isNull);
-      await Future<void>.delayed(Duration.zero);
-
-      down = true;
-      final offline = RequestsService();
-      addTearDown(offline.dispose);
-      await offline.loadRequests();
-      expect(offline.all.single.referenceNumber, 'DOK-2026-000123');
-      expect(offline.all.single.status, 'Processing');
-      expect(offline.requestsSavedAt, isNotNull);
-
-      down = false;
-      await offline.loadRequests();
-      expect(offline.requestsSavedAt, isNull, reason: 'Live again once the server answers.');
-    });
-
-    test('signing out erases the copy, so the next person sees nothing of it', () async {
-      final service = RequestsService();
-      addTearDown(service.dispose);
-      await service.loadRequests();
-      await Future<void>.delayed(Duration.zero);
-      service.clear();
-      await Future<void>.delayed(Duration.zero);
-
-      down = true;
-      await expectLater(service.loadRequests(), throwsA(isA<ApiException>()));
-      expect(service.all, isEmpty);
-    });
-
-    test('a refusal is not hidden behind the copy', () async {
-      final service = RequestsService();
-      addTearDown(service.dispose);
-      await service.loadRequests();
-      await Future<void>.delayed(Duration.zero);
-      FakeApi.installFull((r) => throw const FakeApiError(status: 403, code: 'FORBIDDEN', messageEn: 'No.'));
-      await expectLater(service.loadRequests(), throwsA(isA<ApiException>()));
     });
   });
 }

@@ -5,7 +5,6 @@ import '../../services/api_client.dart';
 import '../../services/requests_service.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_spacing.dart';
-import '../../widgets/offline_copy_note.dart';
 import '../../widgets/app_card.dart';
 import '../../widgets/app_dialogs.dart';
 import '../../widgets/empty_state.dart';
@@ -82,11 +81,6 @@ class _MyRequestsScreenState extends State<MyRequestsScreen> {
               onChanged: (i) => setState(() => _tab = i),
             ),
           ),
-          if (requests.requestsSavedAt != null)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.xs, AppSpacing.lg, 0),
-              child: OfflineCopyNote(savedAt: requests.requestsSavedAt!),
-            ),
           Expanded(
             child: RefreshIndicator(
               onRefresh: _reload,

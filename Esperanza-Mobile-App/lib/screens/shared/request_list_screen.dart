@@ -10,7 +10,6 @@ import '../../services/requests_service.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_spacing.dart';
 import '../../theme/tulong_status.dart';
-import '../../widgets/offline_copy_note.dart';
 import '../../widgets/active_filter_chip.dart';
 import '../../widgets/app_card.dart';
 import '../../widgets/app_dialogs.dart';
@@ -202,12 +201,6 @@ class _RequestListScreenState extends State<RequestListScreen> {
               accent: widget.accent,
             ),
           ),
-          if ((widget.category == ServiceCategory.sakunaIncident ? requests.incidentsSavedAt : requests.requestsSavedAt)
-              case final savedAt?)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.xs, AppSpacing.lg, 0),
-              child: OfflineCopyNote(savedAt: savedAt),
-            ),
           Padding(
             padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.sm, AppSpacing.lg, 0),
             child: Row(

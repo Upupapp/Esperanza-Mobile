@@ -11,10 +11,12 @@ import '../../widgets/app_button.dart';
 import '../../widgets/app_card.dart';
 import '../../widgets/status_chip.dart';
 import 'report_problem_screen.dart';
+import 'ticket_thread_screen.dart';
 
 /// The resident's support tickets: what they reported, where it stands and
 /// the office's reply. The web portal's Help > Support lists the same
 /// tickets; on the phone a ticket could be filed but never seen again.
+/// Each opens as a conversation the resident can answer (parity, 2026-10-15).
 class SupportTicketsScreen extends StatefulWidget {
   const SupportTicketsScreen({super.key});
 
@@ -75,7 +77,16 @@ class _SupportTicketsScreenState extends State<SupportTicketsScreen> {
                 child: Text('You have not reported a problem yet.', style: AppTypography.helper),
               )
             else
-              for (final t in tickets) _TicketCard(ticket: t),
+              for (final t in tickets)
+                _TicketCard(
+                  ticket: t,
+                  onOpen: () async {
+                    await Navigator.of(
+                      context,
+                    ).push(MaterialPageRoute(builder: (_) => TicketThreadScreen(ticket: t)));
+                    if (mounted) await _load();
+                  },
+                ),
             const SizedBox(height: AppSpacing.lg),
             AppButton(label: 'Report a Problem', icon: Icons.flag_outlined, variant: AppButtonVariant.secondary, fullWidth: true, onPressed: _report),
           ],
@@ -87,7 +98,8 @@ class _SupportTicketsScreenState extends State<SupportTicketsScreen> {
 
 class _TicketCard extends StatelessWidget {
   final SupportTicket ticket;
-  const _TicketCard({required this.ticket});
+  final VoidCallback onOpen;
+  const _TicketCard({required this.ticket, required this.onOpen});
 
   @override
   Widget build(BuildContext context) {
@@ -95,6 +107,7 @@ class _TicketCard extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(bottom: AppSpacing.md),
       child: AppCard(
+        onTap: onOpen,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -119,27 +132,22 @@ class _TicketCard extends StatelessWidget {
               const SizedBox(height: AppSpacing.xs),
               Text('Attached: ${ticket.attachmentName}', style: AppTypography.fine),
             ],
-            if (ticket.response != null) ...[
-              const SizedBox(height: AppSpacing.md),
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(AppSpacing.md),
-                decoration: BoxDecoration(color: AppColors.brand50, borderRadius: BorderRadius.circular(AppRadius.md)),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      ticket.respondedAt != null
-                          ? 'Reply from the LGU · ${date.format(ticket.respondedAt!.toLocal())}'
-                          : 'Reply from the LGU',
-                      style: AppTypography.labelText,
-                    ),
-                    const SizedBox(height: AppSpacing.xs),
-                    Text(ticket.response!, style: AppTypography.helper.copyWith(color: AppColors.textPrimary)),
-                  ],
+            const SizedBox(height: AppSpacing.md),
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    ticketStatusNote(ticket.status),
+                    style: AppTypography.labelText.copyWith(color: AppColors.slate600),
+                  ),
                 ),
-              ),
-            ],
+                Text(
+                  ticket.closed ? 'View conversation' : 'Open conversation',
+                  style: AppTypography.labelText.copyWith(color: AppColors.brand600),
+                ),
+                const Icon(Icons.chevron_right_rounded, size: AppSizes.iconBase, color: AppColors.brand600),
+              ],
+            ),
           ],
         ),
       ),

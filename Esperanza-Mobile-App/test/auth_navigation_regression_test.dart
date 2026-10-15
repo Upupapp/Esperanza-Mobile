@@ -173,6 +173,12 @@ void main() {
     // dead screen, and no crash from a duplicated/collided RootShell.
     await tester.tap(find.byIcon(Icons.menu_rounded));
     await tester.pumpAndSettle();
+    // The menu scrolls: Sign Out is its last item.
+    await tester.scrollUntilVisible(
+      find.widgetWithText(ListTile, 'Sign Out'),
+      100,
+      scrollable: find.descendant(of: find.byType(Drawer), matching: find.byType(Scrollable)).first,
+    );
     await _tapVisible(tester, find.widgetWithText(ListTile, 'Sign Out'));
     await _tapVisible(tester, find.widgetWithText(AppButton, 'Sign Out')); // confirm-dialog button
     expect(tester.takeException(), isNull);

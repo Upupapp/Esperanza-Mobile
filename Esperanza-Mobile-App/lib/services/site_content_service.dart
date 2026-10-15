@@ -75,13 +75,22 @@ class HelpFaq {
   final String question;
   final String answer;
   final String? category;
-  const HelpFaq({required this.question, required this.answer, this.category});
+
+  /// The question as the LGU wrote it in English: the key "Was this
+  /// helpful?" answers are counted under, the same one the website sends.
+  final String key;
+  const HelpFaq({required this.question, required this.answer, this.category, required this.key});
 
   static HelpFaq? fromJson(Map<String, dynamic> row) {
     final q = MessageLanguage.pick(fil: JsonRead.nonEmpty(row['q_fil']), en: JsonRead.nonEmpty(row['q']));
     final a = MessageLanguage.pick(fil: JsonRead.nonEmpty(row['a_fil']), en: JsonRead.nonEmpty(row['a']));
     if (q == null || a == null) return null;
-    return HelpFaq(question: q, answer: a, category: JsonRead.nonEmpty(row['category']));
+    return HelpFaq(
+      question: q,
+      answer: a,
+      category: JsonRead.nonEmpty(row['category']),
+      key: JsonRead.nonEmpty(row['q']) ?? q,
+    );
   }
 }
 

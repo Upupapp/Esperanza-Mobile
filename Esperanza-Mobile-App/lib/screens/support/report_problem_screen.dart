@@ -22,15 +22,19 @@ const _categories = SupportService.categories;
 /// [SupportService]); the confirmation shows the ticket reference staff
 /// will use. It replaced a simulation that discarded every report.
 class ReportProblemScreen extends StatefulWidget {
-  const ReportProblemScreen({super.key});
+  const ReportProblemScreen({super.key, this.initialSubject, this.initialCategory});
+
+  /// Prefilled when a closed ticket is followed up with a new one.
+  final String? initialSubject;
+  final String? initialCategory;
 
   @override
   State<ReportProblemScreen> createState() => _ReportProblemScreenState();
 }
 
 class _ReportProblemScreenState extends State<ReportProblemScreen> {
-  String _category = _categories.first;
-  final _subject = TextEditingController();
+  late String _category = _categories.contains(widget.initialCategory) ? widget.initialCategory! : _categories.first;
+  late final _subject = TextEditingController(text: widget.initialSubject);
   final _description = TextEditingController();
   Uint8List? _screenshotBytes;
   String? _screenshotName;

@@ -17,6 +17,7 @@ import '../screens/profile/settings_screen.dart';
 import '../screens/shared/documents_uploaded_screen.dart';
 import '../screens/shared/my_requests_screen.dart';
 import '../screens/support/help_support_screen.dart';
+import '../screens/verify/verify_document_screen.dart';
 import '../services/citizen_session_service.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
@@ -102,6 +103,12 @@ class EsperanzaDrawer extends StatelessWidget {
                     icon: Icons.apartment_outlined,
                     label: 'Government Directory',
                     onTap: () => _push(context, const DirectoryScreen()),
+                  ),
+                  // Public, as on the website: anyone can check a document.
+                  _DrawerTile(
+                    icon: Icons.qr_code_scanner_rounded,
+                    label: 'Verify a Document',
+                    onTap: () => _push(context, const VerifyDocumentScreen()),
                   ),
                   _DrawerTile(
                     icon: Icons.help_outline_rounded,

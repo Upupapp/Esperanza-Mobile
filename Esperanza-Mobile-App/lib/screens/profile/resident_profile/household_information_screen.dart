@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../models/resident_profile.dart';
 import '../../../services/citizen_session_service.dart';
-import '../../../services/mock_catalog.dart';
+import '../../../services/barangay_service.dart';
 import '../../../services/resident_profile_service.dart';
 import '../../../theme/app_colors.dart';
 import '../../../theme/app_spacing.dart';
@@ -162,7 +162,7 @@ class _HouseholdInformationScreenState extends State<HouseholdInformationScreen>
                   AppSelectField<String>(
                     label: 'Barangay',
                     value: _barangay,
-                    options: MockCatalog.barangays,
+                    options: BarangayService.names,
                     labelBuilder: (v) => v,
                     onChanged: (v) => setState(() => _barangay = v),
                   ),

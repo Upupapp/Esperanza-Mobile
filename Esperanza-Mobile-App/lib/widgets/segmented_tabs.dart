@@ -69,6 +69,9 @@ class _Segment extends StatelessWidget {
           duration: const Duration(milliseconds: 160),
           curve: Curves.easeOut,
           padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
+          // One line of text plus the padding came to 43 pt: a whole touch
+          // target, as the design standard asks (found 2026-10-15).
+          constraints: const BoxConstraints(minHeight: AppSizes.minTouchTarget),
           alignment: Alignment.center,
           decoration: BoxDecoration(
             color: selected ? AppColors.surface : AppColors.clear,

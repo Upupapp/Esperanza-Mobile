@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart' show ValueNotifier, kIsWeb;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
@@ -113,6 +113,12 @@ class ApiClient {
   static void addSessionExpiredListener(void Function() listener) => _sessionExpiredListeners.add(listener);
 
   static void removeSessionExpiredListener(void Function() listener) => _sessionExpiredListeners.remove(listener);
+
+  /// True while the phone cannot reach the server at all (no connection, or
+  /// no route): the app shows an offline notice, as the website does
+  /// (parity, 2026-10-15). Any answer from the server - even an error -
+  /// clears it. A slow answer (a timeout) does not set it.
+  static final ValueNotifier<bool> unreachable = ValueNotifier(false);
 
   /// Encodes one path segment (a reference number, a requirement key) so a
   /// value containing `/`, `?`, `#` or a space addresses the resource it
@@ -287,8 +293,10 @@ class ApiClient {
     } on TimeoutException {
       throw const ApiException(retryable: true, messageEn: 'The upload timed out.', messageFil: 'Nag-timeout ang pag-upload.');
     } on SocketException {
+      unreachable.value = true;
       throw const ApiException(retryable: true, messageEn: 'No internet connection.', messageFil: 'Walang koneksyon sa internet.');
     } on http.ClientException {
+      unreachable.value = true;
       throw const ApiException(retryable: true, messageEn: 'Could not reach the server.', messageFil: 'Hindi maabot ang server.');
     }
   }
@@ -336,13 +344,16 @@ class ApiClient {
     } on TimeoutException {
       throw const ApiException(retryable: true, messageEn: 'The request timed out.', messageFil: 'Nag-timeout ang kahilingan.');
     } on SocketException {
+      unreachable.value = true;
       throw const ApiException(retryable: true, messageEn: 'No internet connection.', messageFil: 'Walang koneksyon sa internet.');
     } on http.ClientException {
+      unreachable.value = true;
       throw const ApiException(retryable: true, messageEn: 'Could not reach the server.', messageFil: 'Hindi maabot ang server.');
     }
   }
 
   ApiResult _handle(http.Response response, {required String path}) {
+    unreachable.value = false;
     Map<String, dynamic>? decoded;
     if (response.body.isNotEmpty) {
       try {

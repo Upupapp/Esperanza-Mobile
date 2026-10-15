@@ -8,6 +8,7 @@ import '../../services/requests_service.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_spacing.dart';
 import '../../theme/app_typography.dart';
+import '../../utils/calendar_export.dart';
 import '../../utils/date_text.dart';
 import '../../widgets/app_button.dart';
 import '../../widgets/app_card.dart';
@@ -200,18 +201,42 @@ class _AppointmentCard extends StatelessWidget {
           Text('Reference ${a.ref}', style: AppTypography.helper),
           if (a.status == 'Cancelled' && a.cancelReason != null)
             Text('Cancelled: ${a.cancelReason}', style: AppTypography.helper.copyWith(color: AppColors.rose700)),
-          if (onCancel != null || busy) ...[
+          if (a.upcoming || onCancel != null || busy) ...[
             const SizedBox(height: AppSpacing.sm),
-            Align(
-              alignment: Alignment.centerLeft,
-              child: TextButton.icon(
-                onPressed: busy ? null : onCancel,
-                icon: busy
-                    ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
-                    : const Icon(Icons.event_busy_rounded, size: AppSizes.iconSm),
-                label: const Text('Cancel appointment'),
-                style: TextButton.styleFrom(foregroundColor: AppColors.rose700),
-              ),
+            Wrap(
+              spacing: AppSpacing.sm,
+              children: [
+                // As on the website: onto the phone's calendar, reminded the day before.
+                if (a.upcoming)
+                  TextButton.icon(
+                    onPressed: () => CalendarExport.offer(
+                      context,
+                      CalendarEntry(
+                        uid: '${a.ref}@esperanza-lgu',
+                        title: 'Appointment: ${a.place ?? 'LGU Esperanza'}',
+                        date: a.date,
+                        time: a.startTime == null ? null : '${a.startTime}-${a.endTime ?? ''}',
+                        place: [?a.place, ?a.location].join(', '),
+                        description: [
+                          if (a.purpose != null) 'Purpose: ${a.purpose}',
+                          'Reference ${a.ref}',
+                          'Bring a valid ID.',
+                        ].join('\n'),
+                      ),
+                    ),
+                    icon: const Icon(Icons.event_available_outlined, size: AppSizes.iconSm),
+                    label: const Text('Add to calendar'),
+                  ),
+                if (onCancel != null || busy)
+                  TextButton.icon(
+                    onPressed: busy ? null : onCancel,
+                    icon: busy
+                        ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                        : const Icon(Icons.event_busy_rounded, size: AppSizes.iconSm),
+                    label: const Text('Cancel appointment'),
+                    style: TextButton.styleFrom(foregroundColor: AppColors.rose700),
+                  ),
+              ],
             ),
           ],
         ],

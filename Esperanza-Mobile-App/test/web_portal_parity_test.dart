@@ -388,13 +388,17 @@ void main() {
       expect(list.single.response, 'Fixed on our side. Please try again.');
     });
 
-    testWidgets('My Support Tickets shows the status and the reply', (tester) async {
-      FakeApi.installFull((r) => tickets);
+    testWidgets('My Support Tickets shows the status, and the reply in the conversation', (tester) async {
+      // The list, and a ticket's own detail (the conversation, 2026-10-15).
+      FakeApi.installFull((r) => r.path.endsWith('/TKT-2026-0042') ? tickets.first : tickets);
       await tester.pumpWidget(const MaterialApp(home: SupportTicketsScreen()));
       await tester.pumpAndSettle();
 
       expect(find.text('Cannot attach my cedula'), findsOneWidget);
       expect(find.text('Completed'), findsOneWidget);
+      expect(find.text('Resolved by the office'), findsOneWidget);
+      await tester.tap(find.text('Cannot attach my cedula'));
+      await tester.pumpAndSettle();
       expect(find.text('Fixed on our side. Please try again.'), findsOneWidget);
     });
   });

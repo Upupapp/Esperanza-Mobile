@@ -7,7 +7,7 @@ import '../../../models/government_id_record.dart';
 import '../../../models/resident_profile.dart';
 import '../../../models/profile_photo.dart';
 import '../../../services/citizen_session_service.dart';
-import '../../../services/mock_catalog.dart';
+import '../../../services/barangay_service.dart';
 import '../../../services/resident_profile_service.dart';
 import '../../../theme/app_colors.dart';
 import '../../../theme/app_spacing.dart';
@@ -401,7 +401,7 @@ class _PersonalInformationScreenState extends State<PersonalInformationScreen> {
                   AppSelectField<String>(
                     label: 'Barangay',
                     value: _barangay,
-                    options: MockCatalog.barangays,
+                    options: BarangayService.names,
                     labelBuilder: (v) => v,
                     onChanged: (v) => setState(() => _barangay = v),
                   ),
