@@ -6,6 +6,7 @@ import '../services/notifications_service.dart';
 import '../services/requests_service.dart';
 import '../services/resident_profile_service.dart';
 import '../services/sign_out.dart';
+import '../screens/appointments/appointments_screen.dart';
 import '../screens/auth/register_screen.dart';
 import '../screens/directory/directory_screen.dart';
 import '../screens/legal/privacy_policy_screen.dart';
@@ -69,6 +70,11 @@ class EsperanzaDrawer extends StatelessWidget {
                       icon: Icons.assignment_outlined,
                       label: 'My Requests',
                       onTap: () => _push(context, const MyRequestsScreen()),
+                    ),
+                    _DrawerTile(
+                      icon: Icons.event_available_outlined,
+                      label: 'Appointments',
+                      onTap: () => _push(context, const AppointmentsScreen()),
                     ),
                     _DrawerTile(
                       icon: Icons.badge_outlined,

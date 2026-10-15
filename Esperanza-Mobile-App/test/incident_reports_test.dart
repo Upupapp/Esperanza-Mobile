@@ -71,7 +71,13 @@ void main() {
     final service = RequestsService();
     addTearDown(service.dispose);
     for (var i = 0; i < 2; i++) {
-      await service.reportIncident(type: 'Fire', title: 't', severity: 'Critical', barangay: 'Tawad', clientUuid: 'same');
+      await service.reportIncident(
+        type: 'Fire',
+        title: 't',
+        severity: 'Critical',
+        barangay: 'Tawad',
+        clientUuid: 'same',
+      );
     }
     expect(service.byCategory(ServiceCategory.sakunaIncident), hasLength(1));
   });
@@ -157,7 +163,47 @@ void main() {
     expect(service.byCategory(ServiceCategory.sakunaIncident), hasLength(1));
   });
 
+  test('a report with photos goes as a form, and the detail reads them back', () async {
+    final sent = <FakeApiRequest>[];
+    FakeApi.installFull((r) {
+      sent.add(r);
+      if (r.method == 'GET') {
+        return {
+          ..._row('INC-2026-00011'),
+          'photos': [
+            {'name': 'flood-1.jpg', 'url': 'https://example.invalid/files/a?signature=x'},
+            {'name': 'flood-2.jpg', 'url': null},
+          ],
+        };
+      }
+      return _row('INC-2026-00011');
+    });
+    final service = RequestsService();
+    addTearDown(service.dispose);
+
+    await service.reportIncident(
+      type: 'Flooding',
+      title: 'Flooding — Poblacion',
+      severity: 'High',
+      barangay: 'Poblacion',
+      clientUuid: 'abc-456',
+      photos: [(bytes: 'synthetic-photo'.codeUnits, filename: 'flood-1.jpg')],
+    );
+    expect(sent.single.method, 'POST');
+    expect(sent.single.path, '/citizen/incidents');
+    expect(sent.single.body, isNull, reason: 'Sent as multipart, not JSON.');
+
+    final detail = await service.loadDetail('INC-2026-00011');
+    expect(detail.incidentPhotos, ['https://example.invalid/files/a?signature=x', null]);
+  });
+
   testWidgets('the form requires severity and barangay, then submits once with a stable client_uuid', (tester) async {
+    // A phone-tall screen: the form (with its photos field) is longer than
+    // the test's default 800x600 view.
+    tester.view.physicalSize = const Size(390, 1400);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
     final uuids = <String>[];
     var fail = true;
     FakeApi.installFull((r) {
@@ -165,7 +211,12 @@ void main() {
         uuids.add(r.body!['client_uuid'] as String);
         if (fail) {
           fail = false;
-          throw const FakeApiError(status: 503, code: 'UNAVAILABLE', messageEn: 'Try again', messageFil: 'Subukan muli');
+          throw const FakeApiError(
+            status: 503,
+            code: 'UNAVAILABLE',
+            messageEn: 'Try again',
+            messageFil: 'Subukan muli',
+          );
         }
         return _row('INC-2026-00009');
       }
@@ -209,7 +260,10 @@ void main() {
 
     expect(uuids, hasLength(2));
     expect(uuids.toSet(), hasLength(1));
-    expect(RegExp(r'^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$').hasMatch(uuids.first), isTrue);
+    expect(
+      RegExp(r'^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$').hasMatch(uuids.first),
+      isTrue,
+    );
     expect(find.textContaining('INC-2026-00009'), findsWidgets);
   });
 }

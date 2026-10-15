@@ -1,3 +1,4 @@
+import 'request_release.dart';
 import 'attachment.dart';
 
 enum ServiceCategory {
@@ -266,6 +267,19 @@ class ServiceRequest {
   /// detail's `proof_of_release.file`), once released; null before that.
   /// Re-fetched with every detail; its URL is signed and short-lived.
   Attachment? releaseProof;
+
+  /// Where and how to claim it while it waits to be claimed; null otherwise
+  /// (owner, 2026-10-15). Re-fetched with every detail.
+  RequestPickup? pickup;
+
+  /// The documents issued for it: control number, verification link, and the
+  /// scan of the signed paper once attached. Re-fetched with every detail.
+  List<IssuedDocumentInfo> issuedDocuments = const [];
+
+  /// An incident's photos as the resident sent them: each a short-lived
+  /// signed link, or null while the server is still checking the file.
+  /// Re-fetched with every detail; empty on a list row.
+  List<String?> incidentPhotos = const [];
 
   /// The fee, if the service has one; re-fetched with every detail, like
   /// [canResubmit]. The resident saw neither the fee nor the receipt before.
