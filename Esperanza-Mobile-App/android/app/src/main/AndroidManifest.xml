@@ -30,6 +30,17 @@
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
+        <!-- Push notifications (2026-10-15): their channel (MainActivity creates
+             it) and the small status-bar icon. -->
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_channel_id"
+            android:value="esperanza_updates" />
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_color"
+            android:resource="@color/esperanza_brand_700" />
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_icon"
+            android:resource="@drawable/ic_stat_esperanza" />
     </application>
     <!-- Camera + photo/video library access for Dokyu/Tulong attachment
          uploads (see lib/widgets/attachment_picker.dart) and the Balita

@@ -217,7 +217,7 @@ class ApiClient {
 
   Future<ApiResult> patch(String path, {Map<String, dynamic>? body}) => _send('PATCH', path, body: body);
 
-  Future<ApiResult> delete(String path) => _send('DELETE', path);
+  Future<ApiResult> delete(String path, {Map<String, dynamic>? body}) => _send('DELETE', path, body: body);
 
   /// Follows a paginated collection to its end. A single `per_page` request
   /// silently truncated anything past the first page -- a citizen's 101st
@@ -336,7 +336,7 @@ class ApiClient {
         case 'PATCH':
           response = await _http.patch(uri, headers: headers, body: encoded).timeout(const Duration(seconds: 15));
         case 'DELETE':
-          response = await _http.delete(uri, headers: headers).timeout(const Duration(seconds: 15));
+          response = await _http.delete(uri, headers: headers, body: encoded).timeout(const Duration(seconds: 15));
         default:
           throw ArgumentError('Unsupported method: $method');
       }

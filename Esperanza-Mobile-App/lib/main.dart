@@ -10,6 +10,7 @@ import 'services/balita_service.dart';
 import 'services/citizen_session_service.dart';
 import 'services/master_file_service.dart';
 import 'services/notifications_service.dart';
+import 'services/push_service.dart';
 import 'services/requests_service.dart';
 import 'services/message_language.dart';
 import 'services/resident_profile_service.dart';
@@ -22,6 +23,8 @@ Future<void> main() async {
   await MessageLanguage.load();
   // The barangay list from the server, for every picker; not awaited.
   unawaited(BarangayService.warmUp());
+  // Push notifications, when this build has its Firebase file.
+  await PushService.start();
   runApp(const EsperanzaMobileApp());
 }
 
@@ -46,6 +49,9 @@ class EsperanzaMobileApp extends StatelessWidget {
         title: 'Esperanza Mobile',
         debugShowCheckedModeBanner: false,
         theme: AppTheme.light,
+        // A tapped push opens its screen; one arriving in the app shows a banner.
+        navigatorKey: PushService.navigatorKey,
+        scaffoldMessengerKey: PushService.messengerKey,
         // "No internet connection", over every screen, as on the website.
         builder: (context, child) => OfflineNotice(child: child ?? const SizedBox.shrink()),
         // SplashScreen (every launch) hands off to either the first-run

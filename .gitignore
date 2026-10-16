@@ -52,3 +52,7 @@ app.*.map.json
 # Third-party design-reference app (Servana), kept locally for inspiration
 # only — not Esperanza's own code, never pushed.
 /Esperanza-Mobile-App/design_reference/
+
+# Firebase config for push notifications: each build lane keeps its own copy.
+Esperanza-Mobile-App/android/app/google-services.json
+Esperanza-Mobile-App/ios/Runner/GoogleService-Info.plist

@@ -1,7 +1,9 @@
 // The citizen app's remaining scope (owner decisions, 2026-10-15): where and
 // how to claim a ready request, the issued document with its verification QR
-// and the scan of the signed paper, and the encrypted sign-in token.
-// Synthetic data.
+// and the scan of the signed paper, the encrypted sign-in token, and push
+// notifications. Synthetic data; Firebase is replaced by a fake platform.
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:qr_flutter/qr_flutter.dart';
@@ -9,9 +11,11 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:esperanza_mobile/models/request_release.dart';
 import 'package:esperanza_mobile/services/api_client.dart';
+import 'package:esperanza_mobile/services/push_service.dart';
 import 'package:esperanza_mobile/theme/app_colors.dart';
 import 'package:esperanza_mobile/widgets/request_release_cards.dart';
 
+import 'support/fake_api.dart';
 
 Future<void> _pump(WidgetTester tester, Widget child) async {
   tester.view.physicalSize = const Size(390, 1600);
@@ -36,6 +40,32 @@ class _FakeKeystore implements SecureTokenStore {
   Future<void> write(String key, String value) async => broken ? throw Exception('keystore') : values[key] = value;
   @override
   Future<void> delete(String key) async => broken ? throw Exception('keystore') : values.remove(key);
+}
+
+class _FakePush implements PushPlatform {
+  bool permission = true;
+  String? currentToken = 'fcm-token-synthetic-0000000000000000000000';
+  bool deleted = false;
+  final refresh = StreamController<String>.broadcast();
+  final foreground = StreamController<PushMessage>.broadcast();
+  final opened = StreamController<PushMessage>.broadcast();
+
+  @override
+  Future<bool> init() async => true;
+  @override
+  Future<bool> requestPermission() async => permission;
+  @override
+  Future<String?> token() async => currentToken;
+  @override
+  Future<void> deleteToken() async => deleted = true;
+  @override
+  Stream<String> get onTokenRefresh => refresh.stream;
+  @override
+  Stream<PushMessage> get onForeground => foreground.stream;
+  @override
+  Stream<PushMessage> get onOpened => opened.stream;
+  @override
+  Future<PushMessage?> initialMessage() async => null;
 }
 
 void main() {
@@ -158,6 +188,62 @@ void main() {
       keystore.broken = true;
       await ApiClient().setToken('t0k3n-synthetic');
       expect(await ApiClient().getToken(), 't0k3n-synthetic');
+    });
+  });
+
+  group('Push', () {
+    late _FakePush fake;
+    final sent = <String>[];
+
+    setUp(() async {
+      sent.clear();
+      fake = _FakePush();
+      PushService.platform = fake;
+      FakeApi.installFull((r) {
+        sent.add('${r.method} ${r.path} ${r.body?['platform'] ?? ''} ${r.body?['locale'] ?? ''}'.trim());
+        return {'registered': true, 'push': true};
+      });
+      await PushService.start();
+    });
+    tearDown(() {
+      FakeApi.restore();
+      PushService.platform = null;
+    });
+
+    test('a signed-in phone registers its token once, in the app\'s language', () async {
+      await PushService.register();
+      await PushService.register();
+      expect(sent, ['POST /citizen/devices android en']);
+    });
+
+    test('no permission, no registration', () async {
+      fake.permission = false;
+      await PushService.register();
+      expect(sent, isEmpty);
+    });
+
+    test('signing out forgets the phone on the server and drops the token', () async {
+      await PushService.register();
+      await PushService.unregister();
+      expect(sent.last, 'DELETE /citizen/devices');
+      expect(fake.deleted, isTrue);
+    });
+
+    test('the Esperanza notice carries what it opens, and a garbled one opens nothing', () {
+      final m = PushNotices.decode(
+        '{"title":"Your request was approved","body":"Claim it at the office.","data":{"link":"/dokyu/DOK-2026-000123","ref":"DOK-2026-000123"}}',
+      )!;
+      expect(m.title, 'Your request was approved');
+      expect(m.data['ref'], 'DOK-2026-000123');
+      expect(PushNotices.decode('not json'), isNull);
+      expect(PushNotices.decode(null), isNull);
+    });
+
+    test('a new token from the push service is sent again', () async {
+      await PushService.register();
+      fake.refresh.add('fcm-token-rotated-000000000000000000000000');
+      await Future<void>.delayed(Duration.zero);
+      expect(sent.where((s) => s.startsWith('POST')).length, 2);
     });
   });
 }
