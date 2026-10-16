@@ -8,10 +8,12 @@ import '../../services/citizen_session_service.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_spacing.dart';
 import '../../utils/balita_post_actions.dart';
+import '../../utils/birthday.dart';
 import '../../widgets/app_dialogs.dart';
 import '../../widgets/async_state_view.dart';
 import '../../widgets/empty_state.dart';
 import '../home/root_shell.dart';
+import 'birthday_greeting_card.dart';
 import 'compose_post_screen.dart';
 import 'post_card.dart';
 import '../../theme/app_typography.dart';
@@ -88,6 +90,9 @@ class _Feed extends StatelessWidget {
   Widget build(BuildContext context) {
     final balita = context.watch<BalitaService>();
     final posts = balita.posts;
+    // On the citizen's birthday a private greeting leads the feed.
+    final account = context.watch<CitizenSessionService>().account;
+    final birthday = Birthday.isToday(account);
     return RefreshIndicator(
       onRefresh: () async {
         try {
@@ -113,8 +118,12 @@ class _Feed extends StatelessWidget {
         // full hit-testable bounding box and become untappable even
         // though it looks like ordinary scrolled content.
         padding: EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.md, AppSpacing.lg, 24 + MediaQuery.paddingOf(context).bottom),
-        itemCount: (balita.communityUnavailable ? 1 : 0) + (posts.isEmpty ? 1 : posts.length),
+        itemCount: (birthday ? 1 : 0) + (balita.communityUnavailable ? 1 : 0) + (posts.isEmpty ? 1 : posts.length),
         itemBuilder: (context, i) {
+          if (birthday) {
+            if (i == 0) return BirthdayGreetingCard(key: ValueKey('birthday-${account!.id}'), account: account);
+            i -= 1;
+          }
           if (balita.communityUnavailable) {
             if (i == 0) return const _CommunityUnavailableNotice();
             i -= 1;

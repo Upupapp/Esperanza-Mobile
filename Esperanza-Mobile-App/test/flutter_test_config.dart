@@ -5,6 +5,7 @@
 // own fake response -- see test/support/fake_api.dart for why that matters.
 import 'dart:async';
 
+import 'package:esperanza_mobile/utils/birthday.dart';
 import 'package:esperanza_mobile/services/api_client.dart';
 import 'package:esperanza_mobile/utils/ambient_motion.dart';
 
@@ -21,5 +22,9 @@ Future<void> testExecutable(FutureOr<void> Function() testMain) async {
   // Tests keep the token in the (mocked) plain store; the secure store's
   // own tests install a fake one (citizen_app_scope_test.dart).
   ApiClient.secureStore = null;
+  // The Balita birthday greeting follows the calendar; the demo accounts'
+  // birthdays (June 8, February 4, October 27) would otherwise add a card
+  // to the feed on those days only. A test that wants it picks the day.
+  Birthday.today = () => DateTime(2026, 7, 15);
   await testMain();
 }
