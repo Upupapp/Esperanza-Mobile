@@ -26,13 +26,14 @@ class PushMessage {
   final Map<String, String> data;
 }
 
-/// The notice an Android phone shows for a push (owner, 2026-10-16: "look like
-/// the app logo of Esperanza, follow the colours of the seal"): the
-/// full-colour seal beside the message, and the seal's silhouette as the
-/// small icon in the seal's gold. Android draws a small icon in one colour
-/// whatever it is given, so the seal's own colours are the large picture's.
-/// The server sends Android pushes as data (PushSender) so the app draws this
-/// notice itself; an iPhone shows the system's own.
+/// The notice an Android phone shows for a push (owner, 2026-10-16): one
+/// logo, then the title and the message under it, as Gmail's are. Which logo
+/// depends on the phone: Samsung and phones like it put the app's own icon
+/// there - the full-colour seal; stock Android (Pixel) draws the small icon in
+/// one colour whatever it is given, so there it is the seal's silhouette in
+/// the seal's gold. No second picture beside the text. The server sends
+/// Android pushes as data (PushSender) so the app draws this notice itself;
+/// an iPhone shows the system's own.
 class PushNotices {
   PushNotices._();
 
@@ -77,7 +78,6 @@ class PushNotices {
           priority: Priority.high,
           icon: 'ic_stat_esperanza',
           color: AppColors.gold500,
-          largeIcon: const DrawableResourceAndroidBitmap('esperanza_seal_notice'),
           styleInformation: BigTextStyleInformation(m.body ?? ''),
         ),
       ),
