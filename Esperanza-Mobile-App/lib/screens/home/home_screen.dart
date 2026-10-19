@@ -424,7 +424,13 @@ class _Hero extends StatelessWidget {
     ),
   );
 
-  Widget _bell() => _frosted(child: const AlertsAction(color: AppColors.surface, edgePadding: false));
+  // The circle frames the button only; the unread count sits on its rim,
+  // outside the clip (see AlertsAction.frame).
+  Widget _bell() => AlertsAction(
+    color: AppColors.surface,
+    edgePadding: false,
+    frame: (button) => _frosted(child: button),
+  );
 
   Widget _signedInContent(BuildContext context, CitizenAccount account) {
     final personal = context.watch<ResidentProfileService>().profileFor(account).personal;

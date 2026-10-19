@@ -397,7 +397,14 @@ class AlertsAction extends StatelessWidget {
   /// False where the bell sits in its own circle (Home's hero) rather than
   /// at the trailing edge of an AppBar.
   final bool edgePadding;
-  const AlertsAction({super.key, this.color, this.edgePadding = true});
+
+  /// Draws the bell's own surround (Home's frosted circle) around the button
+  /// only. The unread count sits outside it, on the circle's rim: the circle
+  /// clips to its own shape, so a count drawn inside it was cut off at the
+  /// edge (2026-10-19).
+  final Widget Function(Widget button)? frame;
+
+  const AlertsAction({super.key, this.color, this.edgePadding = true, this.frame});
 
   @override
   Widget build(BuildContext context) {
@@ -415,19 +422,22 @@ class AlertsAction extends StatelessWidget {
       child: Stack(
         clipBehavior: Clip.none,
         children: [
-          IconButton(
-            icon: Icon(Icons.notifications_outlined, color: color),
-            tooltip: unread == 0 ? 'Alerts' : 'Alerts, $unread unread',
-            onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const NotificationsScreen()),
+          (frame ?? (b) => b)(
+            IconButton(
+              icon: Icon(Icons.notifications_outlined, color: color),
+              tooltip: unread == 0 ? 'Alerts' : 'Alerts, $unread unread',
+              onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const NotificationsScreen()),
+              ),
             ),
           ),
           // How many are unread (Esperanza QA, 2026-10-07: a dot did not say
-          // how many); nothing at all when everything is read.
+          // how many); nothing at all when everything is read. On a framed
+          // bell it straddles the circle's top-right rim.
           if (unread > 0)
             Positioned(
-              top: 4,
-              right: 2,
+              top: frame != null ? -2 : 4,
+              right: frame != null ? -2 : 2,
               child: IgnorePointer(
                 child: Container(
                   constraints: const BoxConstraints(minWidth: 18, minHeight: 18),
