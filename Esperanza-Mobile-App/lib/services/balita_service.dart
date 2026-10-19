@@ -83,6 +83,31 @@ class BalitaService extends ChangeNotifier {
     }
   }
 
+  /// One of the resident's own community posts, for a notification about it
+  /// ("Your Balita post is live / was hidden", link
+  /// /citizen/announcements?community=ID, 2026-10-18). There is no single-post
+  /// route for community posts: it is found in the feed, loaded again if
+  /// needed.
+  Future<Announcement> loadCommunityPost(int id) async {
+    Announcement? find() {
+      for (final p in _posts) {
+        if (p.kind == PostKind.community && p.remoteId == id) return p;
+      }
+      return null;
+    }
+
+    final loaded = find();
+    if (loaded != null) return loaded;
+    await loadFeed(signedIn: true);
+    final reloaded = find();
+    if (reloaded != null) return reloaded;
+    throw const ApiException(
+      status: 404,
+      messageEn: 'This post is no longer available.',
+      messageFil: 'Wala na ang post na ito.',
+    );
+  }
+
   /// One announcement, for a "New in Balita" notification that opens it
   /// (Esperanza QA, 2026-10-07): the loaded feed's copy when it has one,
   /// otherwise GET /announcements/{id}, which is how an older post that is
@@ -151,6 +176,31 @@ class BalitaService extends ChangeNotifier {
     await api.post('/citizen/community-posts/${post.remoteId}/report', body: {'reason': reason});
   }
 
+  /// The author deletes their own post (DELETE /citizen/community-posts/{id},
+  /// 2026-10-18): it leaves every feed; the server keeps the record.
+  Future<void> deletePost(Announcement post) async {
+    await api.delete('/citizen/community-posts/${post.remoteId}');
+    _posts = _posts.where((p) => p.id != post.id).toList();
+    notifyListeners();
+  }
+
+  /// The author deletes their own comment (2026-10-18).
+  Future<void> deleteComment(Announcement post, PostComment comment) async {
+    await api.delete('${_commentsPath(post)}/${comment.id}');
+    if (post.commentsCount > 0) post.commentsCount -= 1;
+    notifyListeners();
+  }
+
+  /// Forgets a photo or video uploaded for a post that was not sent; the
+  /// server would sweep it after a day anyway.
+  Future<void> discardMedia(int mediaId) async {
+    try {
+      await api.delete('/citizen/balita/media/$mediaId');
+    } on ApiException {
+      // Swept by the server within a day.
+    }
+  }
+
   /// POST /community-posts -- a real citizen-posting capability (image
   /// upload, category, gated by CitizenCapabilities::COMMUNITY_POST at
   /// minimum AccessLevel.unverified) that neither this app nor the Web
@@ -161,7 +211,16 @@ class BalitaService extends ChangeNotifier {
   /// officer approves it, then everyone. Multipart only when [imageFilePath]
   /// is given -- the field is nullable server-side, so a plain JSON POST
   /// with no `image` key is a normal, valid text-only post.
-  Future<Announcement> createPost({required String body, required String category, String? imageFilePath}) async {
+  ///
+  /// [mediaIds] are photos and videos already uploaded (BalitaUploader,
+  /// 2026-10-18), in the order they show; a post may be photos and videos
+  /// alone, with no text.
+  Future<Announcement> createPost({
+    required String body,
+    required String category,
+    List<int> mediaIds = const [],
+    String? imageFilePath,
+  }) async {
     final res = imageFilePath != null
         ? await api.postMultipart(
             '/citizen/community-posts',
@@ -169,7 +228,11 @@ class BalitaService extends ChangeNotifier {
             fileField: 'image',
             fields: {'body': body, 'category': category},
           )
-        : await api.post('/citizen/community-posts', body: {'body': body, 'category': category});
+        : await api.post('/citizen/community-posts', body: {
+            'body': body,
+            'category': category,
+            if (mediaIds.isNotEmpty) 'media_ids': mediaIds,
+          });
     final Announcement post;
     try {
       post = Announcement.fromCommunityApi(res.map);

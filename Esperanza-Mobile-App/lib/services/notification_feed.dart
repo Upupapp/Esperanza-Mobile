@@ -437,6 +437,9 @@ Widget? serverNotificationDestination(ServerNotification n) {
   // A new Balita post ("New in Balita: ..."): opens that post.
   final post = RegExp(r'^/citizen/announcements\?post=(\d+)$').firstMatch(link);
   if (post != null) return BalitaPostScreen(announcementId: int.parse(post.group(1)!));
+  // About the resident's own community post or comment (2026-10-18).
+  final community = RegExp(r'^/citizen/announcements\?community=(\d+)$').firstMatch(link);
+  if (community != null) return BalitaPostScreen(communityPostId: int.parse(community.group(1)!));
   final incident = RegExp(r'^/citizen/incidents/([^/?#]+)$').firstMatch(link);
   if (incident != null) return RequestDetailScreen(requestId: Uri.decodeComponent(incident.group(1)!));
   final request = RegExp(r'^/citizen/(?:document|assistance)-requests/([^/?#]+)$').firstMatch(link);

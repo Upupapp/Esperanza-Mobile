@@ -8,6 +8,7 @@ import '../../theme/app_spacing.dart';
 import '../../utils/balita_post_actions.dart';
 import '../../widgets/app_dialogs.dart';
 import '../../widgets/app_card.dart';
+import '../../widgets/balita_media_gallery.dart';
 import '../../widgets/balita_share_sheet.dart';
 import 'comments_sheet.dart';
 import 'post_image_viewer.dart';
@@ -34,7 +35,16 @@ class PostCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final isOfficial = post.isOfficial;
     final balita = context.read<BalitaService>();
-    final pendingReview = post.mine && post.status == 'Pending Review';
+    // The author's own post that is not live: where it stands, and why
+    // (2026-10-18; a hidden post read "Pending review" before).
+    final held = post.heldBack;
+    final stateLine = !held
+        ? null
+        : switch (post.reviewState) {
+            'hidden' => 'Hidden by Esperanza LGU',
+            'removed' => 'Removed by Esperanza LGU',
+            _ => 'Pending review — only visible to you',
+          };
 
     return Padding(
       padding: const EdgeInsets.only(bottom: AppSpacing.md),
@@ -86,23 +96,24 @@ class PostCard extends StatelessWidget {
                         [
                           if (post.barangay != null) 'Brgy. ${post.barangay}' else if (isOfficial) 'Official account',
                           post.timeLabel,
-                          if (pendingReview) 'Pending review — only visible to you',
+                          ?stateLine,
                         ].where((s) => s.isNotEmpty).join(' · '),
                         style: TextStyle(
                           fontSize: AppTextSize.label,
-                          color: pendingReview ? AppColors.amber700 : AppColors.textMuted,
-                          fontWeight: pendingReview ? FontWeight.w600 : FontWeight.w400,
+                          color: !held
+                              ? AppColors.textMuted
+                              : (post.reviewState == 'pending' ? AppColors.amber700 : AppColors.rose600),
+                          fontWeight: held ? FontWeight.w600 : FontWeight.w400,
                         ),
                       ),
                     ],
                   ),
                 ),
-                // Report is a real, per-post citizen action now, but only
-                // for someone else's community post -- there's no report
-                // endpoint for official announcements (nothing to flag
-                // about the LGU's own content), and reporting your own
-                // post makes no sense either.
-                if (post.kind == PostKind.community && !post.mine)
+                // Someone else's community post: Report. The resident's
+                // own: Delete (2026-10-18). There is no report endpoint for
+                // official announcements (nothing to flag about the LGU's
+                // own content).
+                if (post.kind == PostKind.community && (post.mine || post.engageable))
                   InkWell(
                     borderRadius: BorderRadius.circular(AppRadius.xl),
                     onTap: () => _showPostMenu(context, balita),
@@ -113,6 +124,18 @@ class PostCard extends StatelessWidget {
                   ),
               ],
             ),
+            if (held && post.moderationReason != null) ...[
+              const SizedBox(height: AppSpacing.sm),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(AppSpacing.sm),
+                decoration: BoxDecoration(color: AppColors.rose50, borderRadius: BorderRadius.circular(AppRadius.sm)),
+                child: Text(
+                  'Reason: ${post.moderationReason}',
+                  style: const TextStyle(fontSize: AppTextSize.label, color: AppColors.rose700, height: 1.35),
+                ),
+              ),
+            ],
             const SizedBox(height: AppSpacing.sm),
             if (_headline(post) case final headline?) ...[
               Text(headline, style: AppTypography.cardHeading),
@@ -123,17 +146,11 @@ class PostCard extends StatelessWidget {
                 _bodyAfterHeadline(post),
                 style: const TextStyle(fontSize: AppTextSize.body, color: AppColors.slate700, height: 1.45),
               ),
-            if (post.imageUrl != null) ...[
+            if (post.media.isNotEmpty) ...[
               if (post.body.trim().isNotEmpty) const SizedBox(height: AppSpacing.md),
-              ClipRRect(
-                borderRadius: BorderRadius.circular(AppRadius.md),
-                child: AspectRatio(
-                  aspectRatio: 16 / 10,
-                  child: InkWell(
-                    onTap: () => PostImageViewer.open(context, post.id),
-                    child: PostMediaView(imageUrl: post.imageUrl!),
-                  ),
-                ),
+              BalitaMediaGallery(
+                media: post.media,
+                onOpen: (i) => PostImageViewer.open(context, post.id, initialIndex: i),
               ),
             ],
             // No action row to close the card: give the text its own room.
@@ -212,17 +229,30 @@ class PostCard extends StatelessWidget {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  ListTile(
-                    leading: const Icon(Icons.flag_outlined, color: AppColors.slate600),
-                    title: const Text(
-                      'Report post',
-                      style: TextStyle(fontSize: AppTextSize.body, fontWeight: FontWeight.w500),
+                  if (post.mine)
+                    ListTile(
+                      leading: const Icon(Icons.delete_outline_rounded, color: AppColors.rose600),
+                      title: const Text(
+                        'Delete post',
+                        style: TextStyle(fontSize: AppTextSize.body, fontWeight: FontWeight.w500, color: AppColors.rose600),
+                      ),
+                      onTap: () {
+                        Navigator.of(ctx).pop();
+                        _delete(context, balita);
+                      },
+                    )
+                  else
+                    ListTile(
+                      leading: const Icon(Icons.flag_outlined, color: AppColors.slate600),
+                      title: const Text(
+                        'Report post',
+                        style: TextStyle(fontSize: AppTextSize.body, fontWeight: FontWeight.w500),
+                      ),
+                      onTap: () {
+                        Navigator.of(ctx).pop();
+                        requireAccountForBalita(context, 'Reporting Balita posts', () => _report(context, balita));
+                      },
                     ),
-                    onTap: () {
-                      Navigator.of(ctx).pop();
-                      requireAccountForBalita(context, 'Reporting Balita posts', () => _report(context, balita));
-                    },
-                  ),
                 ],
               ),
             ),
@@ -230,6 +260,23 @@ class PostCard extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  Future<void> _delete(BuildContext context, BalitaService balita) async {
+    final sure = await AppDialogs.confirm(
+      context,
+      title: 'Delete this post?',
+      message: 'It is removed for everyone, with its photos and videos.',
+      confirmLabel: 'Delete',
+      danger: true,
+    );
+    if (!sure || !context.mounted) return;
+    try {
+      await balita.deletePost(post);
+      if (context.mounted) AppDialogs.toast(context, 'Your post was deleted.');
+    } on ApiException catch (e) {
+      if (context.mounted) AppDialogs.toast(context, e.message(), success: false);
+    }
   }
 
   Future<void> _report(BuildContext context, BalitaService balita) async {
@@ -294,14 +341,10 @@ void openBalitaComments(BuildContext context, Announcement post) {
   );
 }
 
-/// Renders a post's real, single remote image (GET .../image_url) — never
-/// a local asset or video: the real schema attaches at most one image per
-/// post (confirmed against the backend directly), unlike MockCatalog's own
-/// seed posts, which included bundled local assets and a video-attachment
-/// card for a feature the backend never had. Public (not `PostCard`-
-/// private) so [PostImageViewer] renders the exact same image — including
-/// the same loading/error handling — at a different [fit] rather than
-/// duplicating that logic.
+/// Renders one remote photo of a post, with its loading and error states.
+/// Public so [PostImageViewer] renders the exact same image at a different
+/// [fit] rather than duplicating that logic. (A post's photos and videos are
+/// laid out by [BalitaMediaGallery], 2026-10-18.)
 class PostMediaView extends StatelessWidget {
   final String imageUrl;
   final BoxFit fit;

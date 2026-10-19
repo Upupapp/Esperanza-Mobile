@@ -7,6 +7,7 @@ import '../../theme/app_colors.dart';
 import '../../theme/app_spacing.dart';
 import '../../theme/app_typography.dart';
 import '../../utils/date_text.dart';
+import '../../widgets/app_dialogs.dart';
 
 /// Bottom sheet for viewing a post's real comments (GET .../comments) and
 /// posting a new one (POST .../comments) as the signed-in citizen.
@@ -60,6 +61,25 @@ class _CommentsSheetState extends State<CommentsSheet> {
         _sending = false;
         _error = e.message();
       });
+    }
+  }
+
+  /// The resident deletes their own comment (2026-10-18).
+  Future<void> _delete(PostComment comment) async {
+    final sure = await AppDialogs.confirm(
+      context,
+      title: 'Delete your comment?',
+      message: 'It is removed for everyone.',
+      confirmLabel: 'Delete',
+      danger: true,
+    );
+    if (!sure || !mounted) return;
+    try {
+      await context.read<BalitaService>().deleteComment(widget.post, comment);
+      if (!mounted) return;
+      setState(() => _future = _future.then((list) => list.where((c) => c.id != comment.id).toList()));
+    } on ApiException catch (e) {
+      if (mounted) setState(() => _error = e.message());
     }
   }
 
@@ -196,6 +216,12 @@ class _CommentsSheetState extends State<CommentsSheet> {
                                   ),
                                 ),
                               ),
+                              if (c.mine)
+                                IconButton(
+                                  tooltip: 'Delete comment',
+                                  onPressed: () => _delete(c),
+                                  icon: const Icon(Icons.delete_outline_rounded, size: 18, color: AppColors.slate400),
+                                ),
                             ],
                           ),
                         );

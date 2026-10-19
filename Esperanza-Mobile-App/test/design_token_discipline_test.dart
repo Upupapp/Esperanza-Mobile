@@ -52,7 +52,9 @@ const _fontSizeCeiling = 0;
 /// draws its own surfaces, so it can use palette tokens instead. 103 on
 /// 2026-09-28: the five full-screen image viewers now share one scaffold.
 /// 102 on 2026-10-04: request detail cards use the `surface` token.
-const _materialColorCeiling = 68;
+/// 59 on 2026-10-18: the Balita viewer and its new photo/video widgets draw
+/// with the media tokens (`mediaBackdrop`, `mediaScrim`, `onMedia`).
+const _materialColorCeiling = 59;
 
 final _fontSizeLiteral = RegExp(r'fontSize:\s*[0-9]');
 

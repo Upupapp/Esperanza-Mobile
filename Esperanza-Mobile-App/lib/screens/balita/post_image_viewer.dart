@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../models/announcement.dart';
+import '../../models/balita_media.dart';
 import '../../services/api_client.dart';
 import '../../services/balita_service.dart';
 import '../../widgets/app_dialogs.dart';
@@ -8,10 +9,12 @@ import '../../theme/app_colors.dart';
 import '../../theme/app_spacing.dart';
 import '../../utils/balita_post_actions.dart';
 import '../../widgets/balita_share_sheet.dart';
+import '../../widgets/balita_video_player.dart';
 import 'post_card.dart';
 import '../../theme/app_typography.dart';
 
-/// A lightweight full-screen overlay for a single Balita post's image —
+/// A lightweight full-screen overlay for a single Balita post's photos and
+/// videos (2026-10-18: up to ten, swiped through, a video playing in place) —
 /// opened by tapping the image in [PostCard], not a separate post-detail
 /// page. Reads the post by [postId] live from [BalitaService] (rather than
 /// taking a snapshot [Announcement]) so like/comment state is always the
@@ -19,18 +22,39 @@ import '../../theme/app_typography.dart';
 /// ChangeNotifier the feed listens to, so there is nothing to keep in sync
 /// by hand, and closing this viewer returns to the feed at whatever scroll
 /// position it was already at (this is a push on top of it, not a replace).
-class PostImageViewer extends StatelessWidget {
+class PostImageViewer extends StatefulWidget {
   final String postId;
-  const PostImageViewer({super.key, required this.postId});
 
-  static void open(BuildContext context, String postId) {
-    Navigator.of(
-      context,
-    ).push(MaterialPageRoute(fullscreenDialog: true, builder: (_) => PostImageViewer(postId: postId)));
+  /// The photo or video tapped in the card.
+  final int initialIndex;
+  const PostImageViewer({super.key, required this.postId, this.initialIndex = 0});
+
+  static void open(BuildContext context, String postId, {int initialIndex = 0}) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        fullscreenDialog: true,
+        builder: (_) => PostImageViewer(postId: postId, initialIndex: initialIndex),
+      ),
+    );
+  }
+
+  @override
+  State<PostImageViewer> createState() => _PostImageViewerState();
+}
+
+class _PostImageViewerState extends State<PostImageViewer> {
+  late final PageController _pages = PageController(initialPage: widget.initialIndex);
+  late int _index = widget.initialIndex;
+
+  @override
+  void dispose() {
+    _pages.dispose();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    final postId = widget.postId;
     final balita = context.watch<BalitaService>();
     Announcement? post;
     for (final p in balita.posts) {
@@ -43,7 +67,7 @@ class PostImageViewer extends StatelessWidget {
     // The post could in principle disappear from under the viewer (e.g.
     // Web Admin content sync); bail out to the feed rather than show a
     // broken screen.
-    if (post == null || post.imageUrl == null) {
+    if (post == null || post.media.isEmpty) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (Navigator.of(context).canPop()) Navigator.of(context).pop();
       });
@@ -78,10 +102,31 @@ class PostImageViewer extends StatelessWidget {
                   Container(
                     width: double.infinity,
                     height: MediaQuery.of(context).size.height * 0.52,
-                    color: Colors.black,
-                    child: PostMediaView(imageUrl: post.imageUrl!, fit: BoxFit.contain),
+                    color: AppColors.mediaBackdrop,
+                    child: PageView.builder(
+                      controller: _pages,
+                      itemCount: post.media.length,
+                      onPageChanged: (i) => setState(() => _index = i),
+                      itemBuilder: (context, i) => _MediaPage(media: post!.media[i], active: i == _index),
+                    ),
                   ),
                   Positioned(top: 10, right: 12, child: _CloseButton(onTap: () => Navigator.of(context).pop())),
+                  if (post.media.length > 1)
+                    Positioned(
+                      top: 14,
+                      left: 14,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: AppSpacing.xs),
+                        decoration: BoxDecoration(
+                          color: AppColors.mediaScrim,
+                          borderRadius: BorderRadius.circular(AppRadius.full),
+                        ),
+                        child: Text(
+                          '${_index + 1} / ${post.media.length}',
+                          style: const TextStyle(fontSize: AppTextSize.label, fontWeight: FontWeight.w600, color: AppColors.onMedia),
+                        ),
+                      ),
+                    ),
                 ],
               ),
               Padding(
@@ -200,6 +245,34 @@ class PostImageViewer extends StatelessWidget {
   }
 }
 
+/// One photo (pinch to zoom) or video (playing while it is the page shown).
+class _MediaPage extends StatelessWidget {
+  final BalitaMedia media;
+  final bool active;
+  const _MediaPage({required this.media, required this.active});
+
+  @override
+  Widget build(BuildContext context) {
+    final url = media.url;
+    if (url == null) {
+      return const Center(
+        child: Text('Being checked', style: TextStyle(fontSize: AppTextSize.helper, color: AppColors.onMediaMuted)),
+      );
+    }
+    if (media.isVideo) {
+      return Semantics(
+        label: 'Video${media.durationLabel != null ? ', ${media.durationLabel}' : ''}',
+        child: BalitaVideoPlayer(url: url, posterUrl: media.posterUrl, active: active),
+      );
+    }
+    return InteractiveViewer(
+      minScale: 1,
+      maxScale: 4,
+      child: PostMediaView(imageUrl: url, fit: BoxFit.contain),
+    );
+  }
+}
+
 class _CloseButton extends StatelessWidget {
   final VoidCallback onTap;
   const _CloseButton({required this.onTap});
@@ -207,14 +280,14 @@ class _CloseButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: Colors.black.withValues(alpha: 0.45),
+      color: AppColors.mediaScrim,
       shape: const CircleBorder(),
       child: InkWell(
         customBorder: const CircleBorder(),
         onTap: onTap,
         child: const Padding(
           padding: EdgeInsets.all(AppSpacing.sm),
-          child: Icon(Icons.close_rounded, color: Colors.white, size: 22),
+          child: Icon(Icons.close_rounded, color: AppColors.onMedia, size: 22),
         ),
       ),
     );

@@ -187,6 +187,48 @@ Future<XFile?> pickImageProtected(
   return null;
 }
 
+/// Photos and videos from the gallery, several at once (Balita,
+/// 2026-10-18). Photos come back resized to [maxDimension] on their longest
+/// side at JPEG quality 85, which keeps a phone photo well under the upload
+/// limit and spares mobile data; videos come back as they are (the server
+/// checks them). Same explanation and permission handling as
+/// [pickImageProtected]. An empty list when nothing was chosen.
+Future<List<XFile>> pickMediaProtected(
+  BuildContext context, {
+  int limit = 10,
+  double maxDimension = 2048,
+  String? explanation,
+}) async {
+  if (!await _confirmExplanation(context, ProtectedResource.photos, explanation: explanation)) return const [];
+  if (!context.mounted) return const [];
+
+  Future<List<XFile>> pick() => ImagePicker().pickMultipleMedia(
+        maxWidth: maxDimension,
+        maxHeight: maxDimension,
+        imageQuality: 85,
+        // The platform needs at least 2 to allow more than one.
+        limit: limit < 2 ? null : limit,
+      );
+
+  if (kIsWeb) return pick();
+
+  final preStatus = await Permission.photos.status;
+  if (preStatus.isPermanentlyDenied) {
+    if (context.mounted) await _showPermanentlyDeniedDialog(context);
+    return const [];
+  }
+  final files = await pick();
+  if (files.isNotEmpty || !context.mounted) return files;
+
+  final postStatus = await Permission.photos.status;
+  if (postStatus.isPermanentlyDenied) {
+    if (context.mounted) await _showPermanentlyDeniedDialog(context);
+  } else if (postStatus.isDenied) {
+    if (context.mounted) await _showDeniedDialog(context, ProtectedResource.photos);
+  }
+  return const [];
+}
+
 /// Document/PDF/DOCX picker, gated only by the explanation dialog — the
 /// OS's own secure document picker (Storage Access Framework on Android,
 /// UIDocumentPickerViewController on iOS, a native `<input type=file>` on

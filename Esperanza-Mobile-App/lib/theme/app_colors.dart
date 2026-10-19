@@ -103,6 +103,15 @@ class AppColors {
   /// (the tab screens over RootShell's glass backdrop).
   static const clear = Color(0x00000000);
 
+  /// Balita photos and videos (2026-10-18): the full-screen viewer's ground,
+  /// the scrims over a video's tile and controls, and what is drawn on them.
+  static const mediaBackdrop = Color(0xFF000000);
+  static const mediaScrim = Color(0x8C000000);
+  static const mediaScrimStrong = Color(0xAA000000);
+  static const onMedia = Color(0xFFFFFFFF);
+  static const onMediaMuted = Color(0x66FFFFFF);
+  static const onMediaFaint = Color(0x33FFFFFF);
+
   static const background = slate50;
   static const surface = Colors.white;
   static const border = slate100;

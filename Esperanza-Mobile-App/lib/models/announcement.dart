@@ -1,6 +1,7 @@
 import 'package:intl/intl.dart';
 import '../services/json_read.dart';
 import '../utils/date_text.dart';
+import 'balita_media.dart';
 
 /// Which real table a [Announcement] came from — GET /announcements
 /// (admin-published, read-only from mobile) or GET /community-posts
@@ -31,7 +32,13 @@ class Announcement {
   /// the feed card uses this to draw it as a headline instead of as one more
   /// line of body text.
   final String? title;
+
+  /// The first photo, for the screens that show one (Home's preview); the
+  /// post's photos and videos are [media].
   final String? imageUrl;
+
+  /// Every photo and video, in order (2026-10-18): up to ten.
+  final List<BalitaMedia> media;
   final DateTime? at;
   int likes;
 
@@ -75,6 +82,14 @@ class Announcement {
   /// `x-show="post.kind === 'community' && !post.mine"`).
   final bool mine;
 
+  /// Community posts only: where the post stands, as the server words it
+  /// (2026-10-18) - 'pending' (waiting for an officer), 'published',
+  /// 'hidden' or 'removed' by an officer. Announcements are 'published'.
+  final String reviewState;
+
+  /// To its author only: why an officer hid or removed the post.
+  final String? moderationReason;
+
   Announcement({
     required this.id,
     required this.remoteId,
@@ -85,6 +100,7 @@ class Announcement {
     required this.body,
     this.title,
     this.imageUrl,
+    this.media = const [],
     this.at,
     required this.likes,
     this.likedByMe,
@@ -93,6 +109,8 @@ class Announcement {
     this.status,
     this.visible = true,
     this.mine = false,
+    this.reviewState = 'published',
+    this.moderationReason,
   });
 
   bool get isOfficial => kind == PostKind.announcement;
@@ -101,7 +119,10 @@ class Announcement {
   /// a like or comment on a community post that is not yet approved (404,
   /// CitizenPortalController `visible()` scope), and sharing one would spread
   /// it past the moderation it is waiting on.
-  bool get engageable => kind == PostKind.announcement || (visible && status != 'Pending Review');
+  bool get engageable => kind == PostKind.announcement || (visible && reviewState == 'published');
+
+  /// The author's own post, not live: waiting, hidden or removed.
+  bool get heldBack => mine && reviewState != 'published';
 
   /// "Just now" / "12 mins ago" / "3 hrs ago" / an absolute date beyond a
   /// day old — same thresholds as the Web Admin's own `fmtTime`.
@@ -127,6 +148,7 @@ class Announcement {
       body: _withTitle(JsonRead.nonEmpty(json['title']), JsonRead.string(json['body']) ?? ''),
       title: JsonRead.nonEmpty(json['title']),
       imageUrl: JsonRead.mediaUrl(json['image_url']),
+      media: BalitaMedia.listFrom(json, JsonRead.mediaUrl(json['image_url'])),
       at: JsonRead.date(json['published_at']) ?? JsonRead.date(json['created_at']),
       likes: JsonRead.integer(json['likes']) ?? 0,
       // GET /announcements is public, but given the citizen's bearer token
@@ -151,6 +173,8 @@ class Announcement {
   factory Announcement.fromCommunityApi(Map<String, dynamic> json) {
     final id = JsonRead.integer(json['id']);
     if (id == null) throw const FormatException('community post without an id');
+    final visible = JsonRead.boolean(json['visible']) ?? true;
+    final status = JsonRead.nonEmpty(json['status']);
     return Announcement(
       id: 'cp-$id',
       remoteId: id,
@@ -160,13 +184,19 @@ class Announcement {
       category: JsonRead.nonEmpty(json['category']),
       body: JsonRead.string(json['body']) ?? '',
       imageUrl: JsonRead.mediaUrl(json['image_url']),
+      media: BalitaMedia.listFrom(json, JsonRead.mediaUrl(json['image_url'])),
       at: JsonRead.date(json['created_at']),
       likes: JsonRead.integer(json['likes']) ?? 0,
       likedByMe: JsonRead.boolean(json['liked_by_me']) ?? false,
       commentsCount: JsonRead.integer(json['comments_count']) ?? 0,
-      status: JsonRead.nonEmpty(json['status']),
-      visible: JsonRead.boolean(json['visible']) ?? true,
+      status: status,
+      visible: visible,
       mine: JsonRead.boolean(json['mine']) ?? false,
+      // A server older than 2026-10-18 sends no review_state: read it from
+      // visible/status as before.
+      reviewState: JsonRead.nonEmpty(json['review_state']) ??
+          (visible && status != 'Pending Review' ? 'published' : 'pending'),
+      moderationReason: JsonRead.nonEmpty(json['moderation_reason']),
     );
   }
 }
