@@ -22,15 +22,19 @@ const _categories = SupportService.categories;
 /// [SupportService]); the confirmation shows the ticket reference staff
 /// will use. It replaced a simulation that discarded every report.
 class ReportProblemScreen extends StatefulWidget {
-  const ReportProblemScreen({super.key});
+  const ReportProblemScreen({super.key, this.initialSubject, this.initialCategory});
+
+  /// Prefilled when a closed ticket is followed up with a new one.
+  final String? initialSubject;
+  final String? initialCategory;
 
   @override
   State<ReportProblemScreen> createState() => _ReportProblemScreenState();
 }
 
 class _ReportProblemScreenState extends State<ReportProblemScreen> {
-  String _category = _categories.first;
-  final _subject = TextEditingController();
+  late String _category = _categories.contains(widget.initialCategory) ? widget.initialCategory! : _categories.first;
+  late final _subject = TextEditingController(text: widget.initialSubject);
   final _description = TextEditingController();
   Uint8List? _screenshotBytes;
   String? _screenshotName;
@@ -45,11 +49,14 @@ class _ReportProblemScreenState extends State<ReportProblemScreen> {
     super.dispose();
   }
 
-  Future<void> _pickScreenshot() async {
+  Future<void> _pickScreenshot(ImageSource source) async {
     final file = await pickImageProtected(
       context,
-      source: ImageSource.gallery,
-      explanation: 'Esperanza needs access to your photos so you can attach a screenshot to your report.',
+      source: source,
+      maxDimension: 1600,
+      explanation: source == ImageSource.camera
+          ? 'Esperanza needs the camera so you can take a photo of the problem for your report.'
+          : 'Esperanza needs access to your photos so you can attach a photo or screenshot to your report.',
     );
     if (file == null || !mounted) return;
     final bytes = await file.readAsBytes();
@@ -155,7 +162,10 @@ class _ReportProblemScreenState extends State<ReportProblemScreen> {
           ),
           if (_error != null) ...[
             const SizedBox(height: AppSpacing.md),
-            Text(_error!, style: const TextStyle(fontSize: AppTextSize.helper, color: AppColors.rose600)),
+            Text(
+              _error!,
+              style: const TextStyle(fontSize: AppTextSize.helper, color: AppColors.rose600),
+            ),
           ],
           const SizedBox(height: AppSpacing.xl),
           AppButton(
@@ -174,7 +184,7 @@ class _ReportProblemScreenState extends State<ReportProblemScreen> {
 class _ScreenshotField extends StatelessWidget {
   final Uint8List? bytes;
   final String? fileName;
-  final VoidCallback onPick;
+  final void Function(ImageSource source) onPick;
   final VoidCallback onRemove;
 
   const _ScreenshotField({required this.bytes, required this.fileName, required this.onPick, required this.onRemove});
@@ -185,7 +195,7 @@ class _ScreenshotField extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text(
-          'Screenshot (optional)',
+          'Photo or screenshot (optional)',
           style: TextStyle(fontSize: AppTextSize.helper, fontWeight: FontWeight.w500, color: AppColors.slate700),
         ),
         const SizedBox(height: AppSpacing.sm),
@@ -213,7 +223,11 @@ class _ScreenshotField extends StatelessWidget {
                     fileName ?? 'Screenshot attached',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontSize: AppTextSize.helper, fontWeight: FontWeight.w500, color: AppColors.slate700),
+                    style: const TextStyle(
+                      fontSize: AppTextSize.helper,
+                      fontWeight: FontWeight.w500,
+                      color: AppColors.slate700,
+                    ),
                   ),
                 ),
                 IconButton(
@@ -227,10 +241,24 @@ class _ScreenshotField extends StatelessWidget {
             ),
           )
         else
-          OutlinedButton.icon(
-            onPressed: onPick,
-            icon: const Icon(Icons.add_photo_alternate_outlined, size: 17),
-            label: const Text('Attach a screenshot'),
+          // A photo of the problem itself (a broken streetlight, a blocked
+          // canal) is as useful as a screenshot of the app (scope round
+          // 2026-10-15: feedback with photos).
+          Wrap(
+            spacing: AppSpacing.sm,
+            runSpacing: AppSpacing.sm,
+            children: [
+              OutlinedButton.icon(
+                onPressed: () => onPick(ImageSource.camera),
+                icon: const Icon(Icons.photo_camera_outlined, size: 17),
+                label: const Text('Take a photo'),
+              ),
+              OutlinedButton.icon(
+                onPressed: () => onPick(ImageSource.gallery),
+                icon: const Icon(Icons.add_photo_alternate_outlined, size: 17),
+                label: const Text('Attach a screenshot'),
+              ),
+            ],
           ),
       ],
     );

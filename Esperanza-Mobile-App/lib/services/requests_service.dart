@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 
 import 'api_client.dart';
 import 'json_read.dart';
+import '../models/request_release.dart';
 import '../models/attachment.dart';
 import '../models/catalog_item.dart';
 import '../models/resident_record.dart';
@@ -194,7 +195,8 @@ class RequestsService extends ChangeNotifier {
   /// a dropped connection return the incident already filed (200) instead of
   /// filing a second one (201), so the caller must reuse it across retries of
   /// the same report. [barangay] must be one of the backend's canonical
-  /// barangays (validated with `exists:barangays,name`).
+  /// barangays (validated with `exists:barangays,name`). [photos], up to
+  /// three, go with it as a form (scope round 2026-10-15).
   Future<ServiceRequest> reportIncident({
     required String type,
     required String title,
@@ -203,19 +205,24 @@ class RequestsService extends ChangeNotifier {
     String? sitio,
     String? description,
     required String clientUuid,
+    List<({List<int> bytes, String filename})> photos = const [],
   }) async {
-    final res = await api.post(
-      '/citizen/incidents',
-      body: {
-        'type': type,
-        'title': title,
-        'severity': severity,
-        'barangay': barangay,
-        if (sitio != null && sitio.trim().isNotEmpty) 'sitio': sitio.trim(),
-        if (description != null && description.trim().isNotEmpty) 'description': description.trim(),
-        'client_uuid': clientUuid,
-      },
-    );
+    final fields = {
+      'type': type,
+      'title': title,
+      'severity': severity,
+      'barangay': barangay,
+      if (sitio != null && sitio.trim().isNotEmpty) 'sitio': sitio.trim(),
+      if (description != null && description.trim().isNotEmpty) 'description': description.trim(),
+      'client_uuid': clientUuid,
+    };
+    final res = photos.isEmpty
+        ? await api.post('/citizen/incidents', body: fields)
+        : await api.postMultipart(
+            '/citizen/incidents',
+            fields: fields,
+            bytesFiles: {for (var i = 0; i < photos.length; i++) 'photos[$i]': photos[i]},
+          );
     _requireRef(res);
     final incident = _incidentFrom(res.map);
     _incidents = [incident, ..._incidents.where((i) => i.referenceNumber != incident.referenceNumber)];
@@ -265,7 +272,10 @@ class RequestsService extends ChangeNotifier {
       }),
       attachments: const [],
       expectedDays: base.expectedDays,
-    );
+    )..incidentPhotos = [
+        for (final photo in JsonRead.list(json['photos']))
+          if (photo is Map) JsonRead.nonEmpty(photo['url']),
+      ];
   }
 
   /// incident(): ref/title/type/severity/barangay/status/source/reported.
@@ -434,7 +444,9 @@ class RequestsService extends ChangeNotifier {
       ..requirementRows = requirementRows
       ..releaseProof = _releaseProofFrom(JsonRead.map(JsonRead.map(json['proof_of_release'])?['file']))
       ..assistance = _assistanceFrom(JsonRead.map(json['assistance']), JsonRead.nonEmpty(json['office']))
-      ..payment = _paymentFrom(JsonRead.map(json['payment']));
+      ..payment = _paymentFrom(JsonRead.map(json['payment']))
+      ..pickup = RequestPickup.fromApi(JsonRead.map(json['pickup']))
+      ..issuedDocuments = JsonRead.rows(json['issued_documents'], IssuedDocumentInfo.fromApi);
   }
 
   /// A detail's `payment` (DescribesPayment): amount, status, receipt_no.

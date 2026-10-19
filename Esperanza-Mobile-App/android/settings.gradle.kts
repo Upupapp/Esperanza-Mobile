@@ -33,6 +33,9 @@ plugins {
     // pin once file_picker ships a Built-in-Kotlin-compatible release.
     id("com.android.application") version "8.11.1" apply false
     id("org.jetbrains.kotlin.android") version "2.2.20" apply false
+    // Push notifications (2026-10-15): applied by the app only when its
+    // Firebase file is present - see android/app/build.gradle.kts.
+    id("com.google.gms.google-services") version "4.4.2" apply false
 }
 
 include(":app")

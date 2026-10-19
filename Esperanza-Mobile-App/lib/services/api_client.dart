@@ -2,6 +2,8 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter/foundation.dart' show ValueNotifier, kIsWeb;
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'message_language.dart';
@@ -112,6 +114,12 @@ class ApiClient {
 
   static void removeSessionExpiredListener(void Function() listener) => _sessionExpiredListeners.remove(listener);
 
+  /// True while the phone cannot reach the server at all (no connection, or
+  /// no route): the app shows an offline notice, as the website does
+  /// (parity, 2026-10-15). Any answer from the server - even an error -
+  /// clears it. A slow answer (a timeout) does not set it.
+  static final ValueNotifier<bool> unreachable = ValueNotifier(false);
+
   /// Encodes one path segment (a reference number, a requirement key) so a
   /// value containing `/`, `?`, `#` or a space addresses the resource it
   /// names instead of a different route.
@@ -122,22 +130,72 @@ class ApiClient {
 
   static const _tokenKey = 'esperanza_api_token';
 
+  /// Where the sign-in token is kept between launches (scope round
+  /// 2026-10-15, "secure sign-in"): the Android Keystore or the iOS Keychain,
+  /// encrypted and out of reach of a backup or another app. Null where there
+  /// is no such store (Flutter Web) - tests replace it, or set it to null to
+  /// use the plain store.
+  static SecureTokenStore? secureStore = kIsWeb ? null : const KeystoreTokenStore();
+
   String? _cachedToken;
 
   Future<String?> getToken() async {
     if (_cachedToken != null) return _cachedToken;
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      _cachedToken = prefs.getString(_tokenKey);
-    } catch (_) {
-      // Storage unavailable — the request just goes unauthenticated and the
-      // server rejects it, same reasoning as the web client's own catch.
+    final secure = secureStore;
+    if (secure != null) {
+      try {
+        _cachedToken = await secure.read(_tokenKey);
+        if (_cachedToken != null) return _cachedToken;
+        // A token an older version kept in plain storage moves into the
+        // secure store once, so an update does not sign the resident out.
+        final legacy = await _plainRead();
+        if (legacy != null) {
+          await secure.write(_tokenKey, legacy);
+          await _plainWrite(null);
+          _cachedToken = legacy;
+        }
+        return _cachedToken;
+      } catch (_) {
+        // The secure store failed (a Keystore that lost its key after a
+        // restore, say): fall back to the plain store rather than fail.
+      }
     }
+    _cachedToken = await _plainRead();
     return _cachedToken;
   }
 
   Future<void> setToken(String? token) async {
     _cachedToken = token;
+    final secure = secureStore;
+    if (secure != null) {
+      try {
+        if (token == null) {
+          await secure.delete(_tokenKey);
+        } else {
+          await secure.write(_tokenKey, token);
+        }
+        // Never leave a copy in plain storage.
+        await _plainWrite(null);
+        return;
+      } catch (_) {
+        // As in getToken: the plain store is the fallback.
+      }
+    }
+    await _plainWrite(token);
+  }
+
+  Future<String?> _plainRead() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      return prefs.getString(_tokenKey);
+    } catch (_) {
+      // Storage unavailable — the request just goes unauthenticated and the
+      // server rejects it, same reasoning as the web client's own catch.
+      return null;
+    }
+  }
+
+  Future<void> _plainWrite(String? token) async {
     try {
       final prefs = await SharedPreferences.getInstance();
       if (token == null) {
@@ -159,7 +217,7 @@ class ApiClient {
 
   Future<ApiResult> patch(String path, {Map<String, dynamic>? body}) => _send('PATCH', path, body: body);
 
-  Future<ApiResult> delete(String path) => _send('DELETE', path);
+  Future<ApiResult> delete(String path, {Map<String, dynamic>? body}) => _send('DELETE', path, body: body);
 
   /// Follows a paginated collection to its end. A single `per_page` request
   /// silently truncated anything past the first page -- a citizen's 101st
@@ -235,8 +293,10 @@ class ApiClient {
     } on TimeoutException {
       throw const ApiException(retryable: true, messageEn: 'The upload timed out.', messageFil: 'Nag-timeout ang pag-upload.');
     } on SocketException {
+      unreachable.value = true;
       throw const ApiException(retryable: true, messageEn: 'No internet connection.', messageFil: 'Walang koneksyon sa internet.');
     } on http.ClientException {
+      unreachable.value = true;
       throw const ApiException(retryable: true, messageEn: 'Could not reach the server.', messageFil: 'Hindi maabot ang server.');
     }
   }
@@ -276,7 +336,7 @@ class ApiClient {
         case 'PATCH':
           response = await _http.patch(uri, headers: headers, body: encoded).timeout(const Duration(seconds: 15));
         case 'DELETE':
-          response = await _http.delete(uri, headers: headers).timeout(const Duration(seconds: 15));
+          response = await _http.delete(uri, headers: headers, body: encoded).timeout(const Duration(seconds: 15));
         default:
           throw ArgumentError('Unsupported method: $method');
       }
@@ -284,13 +344,16 @@ class ApiClient {
     } on TimeoutException {
       throw const ApiException(retryable: true, messageEn: 'The request timed out.', messageFil: 'Nag-timeout ang kahilingan.');
     } on SocketException {
+      unreachable.value = true;
       throw const ApiException(retryable: true, messageEn: 'No internet connection.', messageFil: 'Walang koneksyon sa internet.');
     } on http.ClientException {
+      unreachable.value = true;
       throw const ApiException(retryable: true, messageEn: 'Could not reach the server.', messageFil: 'Hindi maabot ang server.');
     }
   }
 
   ApiResult _handle(http.Response response, {required String path}) {
+    unreachable.value = false;
     Map<String, dynamic>? decoded;
     if (response.body.isNotEmpty) {
       try {
@@ -347,3 +410,30 @@ class ApiClient {
 /// network, then restore the real instance in `tearDown` — see
 /// `test/support/fake_api.dart`. Production code never reassigns this.
 ApiClient api = ApiClient();
+
+/// A key-value store for secrets (see [ApiClient.secureStore]).
+abstract class SecureTokenStore {
+  Future<String?> read(String key);
+  Future<void> write(String key, String value);
+  Future<void> delete(String key);
+}
+
+/// The phone's own secure storage: the Android Keystore, the iOS Keychain
+/// (readable from the phone's first unlock after a restart, so the app can
+/// still sign in when the system starts it in the background).
+class KeystoreTokenStore implements SecureTokenStore {
+  const KeystoreTokenStore();
+
+  static const _storage = FlutterSecureStorage(
+    iOptions: IOSOptions(accessibility: KeychainAccessibility.first_unlock_this_device),
+  );
+
+  @override
+  Future<String?> read(String key) => _storage.read(key: key);
+
+  @override
+  Future<void> write(String key, String value) => _storage.write(key: key, value: value);
+
+  @override
+  Future<void> delete(String key) => _storage.delete(key: key);
+}

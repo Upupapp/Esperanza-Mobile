@@ -259,6 +259,7 @@ void main() {
       expect(find.text('Reason: Expired — The enrollment is for last semester.'), findsOneWidget);
       expect(find.textContaining('Upload a replacement'), findsOneWidget);
       expect(find.textContaining('replace it below'), findsOneWidget);
+      await tester.scrollUntilVisible(find.text('Proof of release'), 200, scrollable: find.byType(Scrollable).first);
       expect(find.text('Proof of release'), findsOneWidget);
       expect(find.text('handover.jpg'), findsOneWidget);
       expect(tester.takeException(), isNull);

@@ -23,6 +23,9 @@ import '../../widgets/app_dialogs.dart';
 import '../../widgets/async_state_view.dart';
 import '../../widgets/image_viewer_scaffold.dart';
 import '../../widgets/request_milestone_timeline.dart';
+import '../../widgets/request_release_cards.dart';
+import '../../widgets/request_survey_card.dart';
+import '../appointments/appointments_screen.dart';
 import '../../widgets/requirement_uploader.dart';
 import '../../widgets/server_requirement_uploader.dart';
 import '../../widgets/status_chip.dart';
@@ -31,6 +34,7 @@ import 'new_request_screen.dart';
 import 'service_request_wizard_screen.dart';
 import '../../utils/date_text.dart';
 import '../../utils/peso_text.dart';
+import '../../utils/request_sheets.dart';
 import '../../widgets/esperanza_art.dart';
 
 /// Full request detail + real status history, against
@@ -183,6 +187,17 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
 
   /// The resident takes back a Tulong request the office has not
   /// recommended yet (end-to-end test 2026-10-07: there was no way to).
+  Future<void> _sheet(ServiceRequest request, RequestSheet sheet) {
+    final account = context.read<CitizenSessionService>().account;
+    return RequestSheets.share(
+      context,
+      request,
+      sheet,
+      applicant: account?.fullName ?? request.applicantName,
+      barangay: account?.barangay ?? '',
+    );
+  }
+
   Future<void> _withdraw(RequestsService service, ServiceRequest request) async {
     final ok = await AppDialogs.confirm(
       context,
@@ -320,6 +335,10 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
                 const SizedBox(height: AppSpacing.md),
                 Text(request.purpose, style: AppTypography.bodySmallRegular.copyWith(color: AppColors.textPrimary)),
               ],
+              if (request.incidentPhotos.isNotEmpty) ...[
+                const SizedBox(height: AppSpacing.md),
+                _IncidentPhotos(urls: request.incidentPhotos),
+              ],
               const Divider(height: AppSpacing.xxl),
               _infoRow('Submitted', dateAndTime(request.submittedAt)),
               if (!usesMilestones && request.adminRemarks != null) _infoRow('Admin remarks', request.adminRemarks!),
@@ -377,17 +396,65 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
         // received. The office's assessment stays on the staff side.
         if (request.assistance != null && TulongStatus.approved.contains(request.status)) ...[
           const SizedBox(height: AppSpacing.xl),
-          _AssistanceCard(status: request.status, assistance: request.assistance!),
+          _AssistanceCard(status: request.status, assistance: request.assistance!, claimHint: request.pickup == null),
         ],
         if (request.payment != null && request.payment!.amount > 0) ...[
           const SizedBox(height: AppSpacing.xl),
           _FeeCard(payment: request.payment!),
+        ],
+        // To print, save or send, as on the website (parity, 2026-10-15).
+        if (usesMilestones) ...[
+          const SizedBox(height: AppSpacing.lg),
+          Wrap(
+            spacing: AppSpacing.sm,
+            runSpacing: AppSpacing.xs,
+            children: [
+              OutlinedButton.icon(
+                onPressed: () => _sheet(request, RequestSheet.slip),
+                icon: const Icon(Icons.print_outlined, size: 18),
+                label: const Text('Print request slip'),
+              ),
+              if (RequestSheets.noticeReady(request))
+                OutlinedButton.icon(
+                  onPressed: () => _sheet(request, RequestSheet.notice),
+                  icon: const Icon(Icons.task_alt_rounded, size: 18),
+                  label: const Text('Approval notice'),
+                ),
+            ],
+          ),
+        ],
+        // Ready: where and how to claim it (2026-10-15).
+        if (request.pickup != null) ...[
+          const SizedBox(height: AppSpacing.xl),
+          PickupCard(pickup: request.pickup!, reference: request.referenceNumber, accent: accent),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: TextButton.icon(
+              onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => BookAppointmentScreen(requestRef: request.referenceNumber)),
+              ),
+              icon: const Icon(Icons.event_available_outlined, size: 18),
+              label: const Text('Book a time to claim it'),
+            ),
+          ),
+        ],
+        // Issued: control number, verification QR and the signed copy (2026-10-15).
+        if (request.issuedDocuments.isNotEmpty) ...[
+          const SizedBox(height: AppSpacing.xl),
+          IssuedDocumentsCard(documents: request.issuedDocuments, accent: accent),
         ],
         // Once released: the photo or scan the office took at release.
         if (request.releaseProof != null) ...[
           const SizedBox(height: AppSpacing.xl),
           _ReleaseProofCard(proof: request.releaseProof!, accent: accent),
         ],
+        // How was the service: once, when it is done (parity, 2026-10-15).
+        if (usesMilestones && RequestSurveyCard.dueAt(request.status))
+          RequestSurveyCard(
+            key: ValueKey('survey-${request.referenceNumber}'),
+            reference: request.referenceNumber,
+            status: request.status,
+          ),
         if (request.canWithdraw) ...[
           const SizedBox(height: AppSpacing.xl),
           AppButton(
@@ -1013,7 +1080,10 @@ class _FeeCard extends StatelessWidget {
 class _AssistanceCard extends StatelessWidget {
   final String status;
   final TulongAssistance assistance;
-  const _AssistanceCard({required this.status, required this.assistance});
+  const _AssistanceCard({required this.status, required this.assistance, this.claimHint = true});
+
+  /// The one-line claim hint, when the server sent no pickup details.
+  final bool claimHint;
 
   @override
   Widget build(BuildContext context) {
@@ -1058,7 +1128,7 @@ class _AssistanceCard extends StatelessWidget {
             const SizedBox(height: AppSpacing.xs),
             Text(dateAndTime(assistance.releasedAt!), style: AppTypography.captionSmallRegular.copyWith(color: AppColors.slate600)),
           ],
-          if (status == TulongStatus.readyForRelease) ...[
+          if (claimHint && status == TulongStatus.readyForRelease) ...[
             const SizedBox(height: AppSpacing.sm),
             Text(
               'Bring a valid ID to ${assistance.office ?? 'the office'} to claim it.',
@@ -1179,6 +1249,67 @@ class _TimelineRow extends StatelessWidget {
 /// opens in the app's viewer; any other file opens outside the app. The link
 /// is the server's signed, short-lived one, issued only on the resident's own
 /// request detail.
+/// The photos the resident sent with an incident report. One the server is
+/// still checking has no link yet and says so.
+class _IncidentPhotos extends StatelessWidget {
+  final List<String?> urls;
+  const _IncidentPhotos({required this.urls});
+
+  @override
+  Widget build(BuildContext context) {
+    return Wrap(
+      spacing: AppSpacing.sm,
+      runSpacing: AppSpacing.sm,
+      children: [
+        for (var i = 0; i < urls.length; i++)
+          ClipRRect(
+            borderRadius: BorderRadius.circular(AppRadius.sm),
+            child: SizedBox(
+              width: 88,
+              height: 88,
+              child: urls[i] == null
+                  ? Container(
+                      color: AppColors.slate100,
+                      padding: const EdgeInsets.all(AppSpacing.xs),
+                      alignment: Alignment.center,
+                      child: Text(
+                        'Being checked',
+                        textAlign: TextAlign.center,
+                        style: AppTypography.captionSmallRegular.copyWith(color: AppColors.textMuted),
+                      ),
+                    )
+                  : Semantics(
+                      button: true,
+                      label: 'Open photo ${i + 1} of ${urls.length}',
+                      child: InkWell(
+                        onTap: () => Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => ImageViewerScaffold(
+                              title: 'Photo ${i + 1} of ${urls.length}',
+                              image: NetworkImage(urls[i]!),
+                              semanticLabel: 'Photo ${i + 1} you sent with the report',
+                            ),
+                          ),
+                        ),
+                        child: Image.network(
+                          urls[i]!,
+                          fit: BoxFit.cover,
+                          excludeFromSemantics: true,
+                          errorBuilder: (_, _, _) => Container(
+                            color: AppColors.slate100,
+                            alignment: Alignment.center,
+                            child: const Icon(Icons.image_not_supported_outlined, color: AppColors.slate500),
+                          ),
+                        ),
+                      ),
+                    ),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
 class _ReleaseProofCard extends StatelessWidget {
   final Attachment proof;
   final Color accent;

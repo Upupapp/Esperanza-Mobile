@@ -6,5 +6,8 @@
          colour on every cold start. Keep this in step with
          lib/theme/app_colors.dart. -->
     <color name="esperanza_navy_900">#FF0B1730</color>
+    <!-- AppColors.brand700: the tint Android gives the push notification's
+         seal icon (2026-10-16). -->
+    <color name="esperanza_brand_700">#FF1836A8</color>
 	<color name="ic_launcher_background">#FFFFFF</color>
 </resources>

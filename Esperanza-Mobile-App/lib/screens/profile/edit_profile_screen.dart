@@ -3,7 +3,7 @@ import 'package:provider/provider.dart';
 import '../../models/citizen_account.dart';
 import '../../services/api_client.dart';
 import '../../services/citizen_session_service.dart';
-import '../../services/mock_catalog.dart';
+import '../../services/barangay_service.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_spacing.dart';
 import '../../utils/ph_mobile.dart';
@@ -195,7 +195,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 AppSelectField<String>(
                   label: 'Barangay',
                   value: _barangay,
-                  options: MockCatalog.barangays,
+                  options: BarangayService.names,
                   labelBuilder: (b) => b,
                   onChanged: (v) => setState(() => _barangay = v ?? _barangay),
                 ),

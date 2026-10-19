@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../../models/announcement.dart';
 import '../../theme/app_spacing.dart';
+import '../../utils/calendar_export.dart';
+import '../../widgets/app_button.dart';
 import '../../widgets/event_card.dart';
 import '../shared/event_poster_viewer.dart';
 
@@ -47,6 +49,28 @@ class EventDetailScreen extends StatelessWidget {
           const SizedBox(height: AppSpacing.md),
           EventMeta(event: event),
           if (event.description != null) ...[const SizedBox(height: AppSpacing.lg), EventDescription(event: event)],
+          // As on the website: onto the phone's calendar, reminded the day
+          // before; not offered once the event is over.
+          if (event.startsAt != null && !event.isPast(DateTime.now())) ...[
+            const SizedBox(height: AppSpacing.lg),
+            AppButton(
+              label: 'Add to calendar',
+              icon: Icons.event_available_outlined,
+              variant: AppButtonVariant.secondary,
+              fullWidth: true,
+              onPressed: () => CalendarExport.offer(
+                context,
+                CalendarEntry(
+                  uid: 'event-${event.title.hashCode}-${event.startsAt!.toIso8601String()}@esperanza-lgu',
+                  title: event.title,
+                  date: event.startsAt!,
+                  time: event.time,
+                  place: event.venue,
+                  description: event.description,
+                ),
+              ),
+            ),
+          ],
         ],
       ),
     );

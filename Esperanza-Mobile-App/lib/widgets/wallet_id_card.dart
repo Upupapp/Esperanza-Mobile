@@ -348,14 +348,14 @@ class _FrontBody extends StatelessWidget {
                   const SizedBox(height: AppSpacing.xs),
                   _Label(design.numberLabel),
                   Text(
-                    d.idNumber ?? 'Not entered',
+                    document.shownNumber ?? 'Not entered',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: AppTypography.bodyText.copyWith(
                       fontWeight: FontWeight.w700,
                       letterSpacing: 0.6,
                       fontFeatures: const [FontFeature.tabularFigures()],
-                      color: d.idNumber == null ? AppColors.textMuted : design.top,
+                      color: document.shownNumber == null ? AppColors.textMuted : design.top,
                     ),
                   ),
                   const SizedBox(height: AppSpacing.xs),

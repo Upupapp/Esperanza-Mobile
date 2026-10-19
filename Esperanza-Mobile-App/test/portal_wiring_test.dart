@@ -128,16 +128,20 @@ void main() {
     );
     await tester.pumpAndSettle();
     expect(find.text('Testa Sintetiko'), findsOneWidget);
-    expect(find.text('ESP-TEST-0100'), findsOneWidget);
+    // The number is on both faces of the card; the QR side says it is verified.
+    expect(find.text('ESP-TEST-0100'), findsNWidgets(2));
+    expect(find.text('Valid'), findsOneWidget);
     expect(find.text('Valid · Verified by LGU'), findsOneWidget);
     // The Barangay row used to read "Purok 4, Poblacion".
     expect(find.text('Poblacion'), findsOneWidget);
     expect(find.text('PUROK / SITIO'), findsOneWidget);
     expect(find.text('Purok 4'), findsOneWidget);
-    // The QR is further down, below My IDs.
-    await tester.scrollUntilVisible(find.byType(QrImageView), 300, scrollable: find.byType(Scrollable).first);
-    final qr = tester.widget<QrImageView>(find.byType(QrImageView));
-    expect(qr, isNotNull);
+    // The QR is on the back of the card: tapping the card turns it over.
+    expect(find.byType(QrImageView).hitTestable(), findsNothing);
+    await tester.tap(find.text('Testa Sintetiko'));
+    await tester.pumpAndSettle();
+    expect(find.byType(QrImageView).hitTestable(), findsOneWidget);
+    expect(find.text('Tap the card to see your details'), findsOneWidget);
   });
 
   group('Master File (Papeles)', () {

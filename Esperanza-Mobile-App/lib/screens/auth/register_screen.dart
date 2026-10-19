@@ -8,7 +8,7 @@ import 'package:provider/provider.dart';
 import '../../services/api_client.dart';
 import '../../services/citizen_session_service.dart';
 import '../../services/json_read.dart';
-import '../../services/mock_catalog.dart';
+import '../../services/barangay_service.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_spacing.dart';
 import '../../theme/app_status.dart';
@@ -698,7 +698,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         AppSelectField<String>(
           label: 'Barangay',
           value: _barangay,
-          options: MockCatalog.barangays,
+          options: BarangayService.names,
           labelBuilder: (b) => b,
           onChanged: (v) => setState(() => _barangay = v),
           hintText: 'Select your barangay',

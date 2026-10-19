@@ -27,6 +27,7 @@ import '../../widgets/empty_state.dart';
 import '../../widgets/esperanza_art.dart';
 import '../../widgets/event_card.dart';
 import '../../utils/banner_memory.dart';
+import '../../widgets/birthday_popup.dart';
 import '../../widgets/home_welcome_banner.dart';
 import '../../widgets/live_banners.dart';
 import '../../widgets/sakuna_alerts_ui.dart';
@@ -114,13 +115,19 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     // over-engineered banner-impression backend needed for this demo.
     // addPostFrameCallback defers to after the first real frame, which is
     // the standard safe point to open a dialog from initState.
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!_bannerOffered && mounted) {
-        _bannerOffered = true;
-        BannerMemory.showOnce(HomeWelcomeBanner.assetPath, () {
-          if (mounted) HomeWelcomeBanner.show(context);
-        });
-      }
+    //
+    // On the citizen's birthday the birthday pop-up comes first - this is
+    // the first frame after signing in, or after the opening animation for
+    // someone already signed in - and the welcome poster waits until it is
+    // closed, so the two never stack.
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (_bannerOffered || !mounted) return;
+      _bannerOffered = true;
+      await BirthdayPopup.showIfDue(context, context.read<CitizenSessionService>().account);
+      if (!mounted) return;
+      BannerMemory.showOnce(HomeWelcomeBanner.assetPath, () {
+        if (mounted) HomeWelcomeBanner.show(context);
+      });
     });
   }
 

@@ -1,15 +1,19 @@
 import 'dart:math';
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 
 import '../../models/catalog_item.dart';
 import '../../services/api_client.dart';
 import '../../services/citizen_session_service.dart';
-import '../../services/mock_catalog.dart';
+import '../../services/barangay_service.dart';
 import '../../services/requests_service.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_spacing.dart';
+import '../../utils/cross_platform_image.dart';
+import '../../utils/protected_action.dart';
 import '../../widgets/app_button.dart';
 import '../../widgets/app_text_field.dart';
 import '../shared/request_submitted_screen.dart';
@@ -39,6 +43,9 @@ class ReportIncidentScreen extends StatefulWidget {
 /// The severities the backend and the Web Admin's Sakuna module use.
 const incidentSeverities = ['Low', 'Moderate', 'High', 'Critical'];
 
+/// How many photos a report may carry (the backend's own limit).
+const maxIncidentPhotos = 3;
+
 class _ReportIncidentScreenState extends State<ReportIncidentScreen> {
   final _sitio = TextEditingController();
   final _description = TextEditingController();
@@ -46,6 +53,10 @@ class _ReportIncidentScreenState extends State<ReportIncidentScreen> {
   String? _barangay;
   bool _submitting = false;
   String? _error;
+
+  /// Photos of what is happening, so responders see it before they set out
+  /// (scope round 2026-10-15). Optional: a report must never wait on one.
+  final List<({Uint8List bytes, String name})> _photos = [];
 
   /// One id per report, reused on every retry of it: the backend treats a
   /// repeated `client_uuid` as the same incident, so a tap on Submit after a
@@ -56,7 +67,7 @@ class _ReportIncidentScreenState extends State<ReportIncidentScreen> {
   void initState() {
     super.initState();
     final home = context.read<CitizenSessionService>().account?.barangay;
-    if (home != null && MockCatalog.barangays.contains(home)) _barangay = home;
+    if (home != null && BarangayService.names.contains(home)) _barangay = home;
   }
 
   @override
@@ -64,6 +75,23 @@ class _ReportIncidentScreenState extends State<ReportIncidentScreen> {
     _sitio.dispose();
     _description.dispose();
     super.dispose();
+  }
+
+  Future<void> _addPhoto(ImageSource source) async {
+    final file = await pickImageProtected(
+      context,
+      source: source,
+      // Big enough to read a water line or a street sign, small enough to
+      // upload on a weak signal.
+      maxDimension: 1600,
+      explanation: source == ImageSource.camera
+          ? 'Esperanza needs the camera so you can take a photo of the incident for the responders.'
+          : 'Esperanza needs access to your photos so you can attach a photo of the incident for the responders.',
+    );
+    if (file == null || !mounted) return;
+    final bytes = await file.readAsBytes();
+    if (!mounted || _photos.length >= maxIncidentPhotos) return;
+    setState(() => _photos.add((bytes: bytes, name: file.name.isEmpty ? 'incident-photo.jpg' : file.name)));
   }
 
   Future<void> _submit() async {
@@ -85,6 +113,7 @@ class _ReportIncidentScreenState extends State<ReportIncidentScreen> {
         sitio: sitio,
         description: _description.text,
         clientUuid: _clientUuid,
+        photos: [for (final p in _photos) (bytes: p.bytes, filename: p.name)],
       );
       if (!mounted) return;
       Navigator.of(context).pushReplacement(
@@ -119,7 +148,10 @@ class _ReportIncidentScreenState extends State<ReportIncidentScreen> {
               style: TextStyle(fontSize: AppTextSize.helper, color: AppColors.rose600, fontWeight: FontWeight.w600),
             ),
             const SizedBox(height: AppSpacing.lg),
-            const Text('How serious is it?', style: TextStyle(fontSize: AppTextSize.body, fontWeight: FontWeight.w600)),
+            const Text(
+              'How serious is it?',
+              style: TextStyle(fontSize: AppTextSize.body, fontWeight: FontWeight.w600),
+            ),
             const SizedBox(height: AppSpacing.sm),
             Wrap(
               spacing: 8,
@@ -141,7 +173,7 @@ class _ReportIncidentScreenState extends State<ReportIncidentScreen> {
             AppSelectField<String>(
               label: 'Barangay',
               value: _barangay,
-              options: MockCatalog.barangays,
+              options: BarangayService.names,
               labelBuilder: (b) => b,
               hintText: 'Choose the barangay',
               onChanged: (v) => setState(() => _barangay = v),
@@ -155,9 +187,18 @@ class _ReportIncidentScreenState extends State<ReportIncidentScreen> {
               controller: _description,
               maxLines: 4,
             ),
+            const SizedBox(height: AppSpacing.lg),
+            _IncidentPhotosField(
+              photos: _photos,
+              onAdd: _submitting ? null : _addPhoto,
+              onRemove: (i) => setState(() => _photos.removeAt(i)),
+            ),
             if (_error != null) ...[
               const SizedBox(height: AppSpacing.md),
-              Text(_error!, style: const TextStyle(fontSize: AppTextSize.helper, color: AppColors.rose600)),
+              Text(
+                _error!,
+                style: const TextStyle(fontSize: AppTextSize.helper, color: AppColors.rose600),
+              ),
             ],
             const SizedBox(height: AppSpacing.xl),
             AppButton(
@@ -171,6 +212,92 @@ class _ReportIncidentScreenState extends State<ReportIncidentScreen> {
           ],
         ),
       ),
+    );
+  }
+}
+
+class _IncidentPhotosField extends StatelessWidget {
+  const _IncidentPhotosField({required this.photos, required this.onAdd, required this.onRemove});
+
+  final List<({Uint8List bytes, String name})> photos;
+  final void Function(ImageSource source)? onAdd;
+  final void Function(int index) onRemove;
+
+  @override
+  Widget build(BuildContext context) {
+    final full = photos.length >= maxIncidentPhotos;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Photos (optional)',
+          style: TextStyle(fontSize: AppTextSize.body, fontWeight: FontWeight.w600),
+        ),
+        const SizedBox(height: AppSpacing.xs),
+        Text(
+          'Up to $maxIncidentPhotos. A photo helps responders see what is happening. Do not stop to take one if you are in danger.',
+          style: AppTypography.captionSmallRegular.copyWith(color: AppColors.textMuted),
+        ),
+        if (photos.isNotEmpty) ...[
+          const SizedBox(height: AppSpacing.sm),
+          Wrap(
+            spacing: AppSpacing.sm,
+            runSpacing: AppSpacing.sm,
+            children: [
+              for (var i = 0; i < photos.length; i++)
+                Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(AppRadius.sm),
+                      child: Image(
+                        image: pickedFileImageProvider(bytes: photos[i].bytes)!,
+                        width: 88,
+                        height: 88,
+                        fit: BoxFit.cover,
+                        semanticLabel: 'Photo ${i + 1} of the incident',
+                      ),
+                    ),
+                    Positioned(
+                      top: -6,
+                      right: -6,
+                      child: Material(
+                        color: AppColors.surface,
+                        shape: const CircleBorder(side: BorderSide(color: AppColors.border)),
+                        child: IconButton(
+                          tooltip: 'Remove photo ${i + 1}',
+                          onPressed: () => onRemove(i),
+                          icon: const Icon(Icons.close_rounded, size: 16, color: AppColors.slate600),
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+            ],
+          ),
+        ],
+        if (!full) ...[
+          const SizedBox(height: AppSpacing.sm),
+          Wrap(
+            spacing: AppSpacing.sm,
+            runSpacing: AppSpacing.sm,
+            children: [
+              OutlinedButton.icon(
+                onPressed: onAdd == null ? null : () => onAdd!(ImageSource.camera),
+                icon: const Icon(Icons.photo_camera_outlined, size: 17),
+                label: const Text('Take a photo'),
+              ),
+              OutlinedButton.icon(
+                onPressed: onAdd == null ? null : () => onAdd!(ImageSource.gallery),
+                icon: const Icon(Icons.add_photo_alternate_outlined, size: 17),
+                label: const Text('Choose a photo'),
+              ),
+            ],
+          ),
+        ],
+      ],
     );
   }
 }

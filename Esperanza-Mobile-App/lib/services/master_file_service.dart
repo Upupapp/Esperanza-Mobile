@@ -186,6 +186,19 @@ class MasterFileService extends ChangeNotifier {
     await _persist();
   }
 
+  /// Adds a file straight to the Papeles wallet, outside any request, as the
+  /// website's My Documents does (parity, 2026-10-15; POST /citizen/papeles
+  /// with the same type and category), then reads the wallet again.
+  Future<void> addToWallet({required String accountId, required String name, required String filePath}) async {
+    await api.postMultipart(
+      '/citizen/papeles',
+      filePath: filePath,
+      fileField: 'file',
+      fields: {'name': name.trim(), 'type': 'Supporting document', 'category': 'Supporting Documents'},
+    );
+    await syncFromServer(accountId);
+  }
+
   /// A short-lived signed link to a server copy (GET .../{id}/download).
   Future<String?> downloadUrl(MasterFileDocument doc) async {
     final id = _remoteId(doc);

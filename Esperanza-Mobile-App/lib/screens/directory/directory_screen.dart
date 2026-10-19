@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../services/api_client.dart';
+import '../../services/barangay_service.dart';
 import '../../services/citizen_session_service.dart';
 import '../../services/json_read.dart';
 import '../../theme/app_colors.dart';
@@ -12,6 +13,7 @@ import '../../widgets/app_card.dart';
 import '../../widgets/async_state_view.dart';
 import '../../widgets/segmented_tabs.dart';
 import '../../widgets/esperanza_art.dart';
+import 'barangay_profile_screen.dart';
 
 /// The Government Directory: municipal offices (public GET /directory,
 /// CommunicationsController::directory) and barangays (public GET
@@ -20,7 +22,8 @@ import '../../widgets/esperanza_art.dart';
 ///
 /// Until 2026-09-28 mobile showed the offices only, dropped each office's
 /// position and email, and had no search; the barangay halls (the office a
-/// resident deals with most) were missing entirely.
+/// resident deals with most) were missing entirely. Since 2026-10-15 a
+/// barangay opens its profile - history and officials - as on the website.
 class DirectoryScreen extends StatelessWidget {
   const DirectoryScreen({super.key});
 
@@ -39,26 +42,13 @@ class DirectoryScreen extends StatelessWidget {
     });
   }
 
-  static Future<List<_Barangay>> _loadBarangays() async {
-    final res = await api.get('/barangays');
-    final rows = JsonRead.rows(res.list, (m) {
-      final name = JsonRead.nonEmpty(m['name']);
-      if (name == null) return null;
-      return _Barangay(
-        name: name,
-        captain: JsonRead.nonEmpty(m['punong_barangay']),
-        secretary: JsonRead.nonEmpty(m['barangay_secretary']),
-        contact: JsonRead.nonEmpty(m['contact']),
-      );
-    });
-    return rows..sort((a, b) => a.name.compareTo(b.name));
-  }
-
   /// The barangays half may fail on its own (null) without taking the
   /// offices with it.
   static Future<_DirectoryData> _load() async {
     final offices = _loadOffices();
-    final barangays = _loadBarangays().then<List<_Barangay>?>((b) => b).catchError((Object _) => null);
+    final barangays = BarangayService.load(
+      refresh: true,
+    ).then<List<BarangayInfo>?>((b) => b).catchError((Object _) => null);
     return (offices: await offices, barangays: await barangays);
   }
 
@@ -74,7 +64,7 @@ class DirectoryScreen extends StatelessWidget {
   }
 }
 
-typedef _DirectoryData = ({List<_Office> offices, List<_Barangay>? barangays});
+typedef _DirectoryData = ({List<_Office> offices, List<BarangayInfo>? barangays});
 
 class _Office {
   const _Office({required this.name, this.head, this.position, this.contact, this.email});
@@ -86,17 +76,6 @@ class _Office {
   final String? email;
 
   bool matches(String q) => [name, head, position].any((s) => s != null && s.toLowerCase().contains(q));
-}
-
-class _Barangay {
-  const _Barangay({required this.name, this.captain, this.secretary, this.contact});
-
-  final String name;
-  final String? captain;
-  final String? secretary;
-  final String? contact;
-
-  bool matches(String q) => [name, captain].any((s) => s != null && s.toLowerCase().contains(q));
 }
 
 class _DirectoryBody extends StatefulWidget {
@@ -123,7 +102,7 @@ class _DirectoryBodyState extends State<_DirectoryBody> {
     ];
     final barangays = widget.data.barangays;
     final shownBarangays = [
-      for (final b in barangays ?? const <_Barangay>[])
+      for (final b in barangays ?? const <BarangayInfo>[])
         if (q.isEmpty || b.matches(q)) b,
     ];
     final myBarangay = q.isEmpty ? shownBarangays.where((b) => b.name == mine).firstOrNull : null;
@@ -239,21 +218,29 @@ class _OfficeTile extends StatelessWidget {
 class _BarangayTile extends StatelessWidget {
   const _BarangayTile({required this.barangay, this.highlighted = false});
 
-  final _Barangay barangay;
+  final BarangayInfo barangay;
   final bool highlighted;
 
   @override
   Widget build(BuildContext context) {
     final card = Row(
       children: [
-        Container(
-          width: 42,
-          height: 42,
-          decoration: BoxDecoration(
-            color: highlighted ? AppColors.brand500 : AppColors.brand50,
-            borderRadius: BorderRadius.circular(AppRadius.md),
+        BarangaySeal(
+          url: barangay.sealUrl,
+          size: 42,
+          fallback: Container(
+            width: 42,
+            height: 42,
+            decoration: BoxDecoration(
+              color: highlighted ? AppColors.brand500 : AppColors.brand50,
+              borderRadius: BorderRadius.circular(AppRadius.md),
+            ),
+            child: Icon(
+              Icons.holiday_village_outlined,
+              size: 18,
+              color: highlighted ? AppColors.surface : AppColors.brand600,
+            ),
           ),
-          child: Icon(Icons.holiday_village_outlined, size: 18, color: highlighted ? Colors.white : AppColors.brand600),
         ),
         const SizedBox(width: AppSpacing.md),
         Expanded(
@@ -282,19 +269,29 @@ class _BarangayTile extends StatelessWidget {
         _ContactButtons(label: 'Barangay ${barangay.name}', contact: barangay.contact),
       ],
     );
+    void open() => Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (_) => BarangayProfileScreen(barangay: barangay)));
     return Padding(
       padding: const EdgeInsets.only(bottom: AppSpacing.itemGap),
-      child: highlighted
-          ? Container(
-              padding: const EdgeInsets.all(AppSpacing.lg),
-              decoration: BoxDecoration(
+      child: Semantics(
+        button: true,
+        hint: 'Opens the barangay profile',
+        child: highlighted
+            ? Material(
                 color: AppColors.brand50,
-                borderRadius: BorderRadius.circular(AppRadius.lg),
-                border: Border.all(color: AppColors.brand200),
-              ),
-              child: card,
-            )
-          : AppCard(child: card),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(AppRadius.lg),
+                  side: const BorderSide(color: AppColors.brand200),
+                ),
+                clipBehavior: Clip.antiAlias,
+                child: InkWell(
+                  onTap: open,
+                  child: Padding(padding: const EdgeInsets.all(AppSpacing.lg), child: card),
+                ),
+              )
+            : AppCard(onTap: open, child: card),
+      ),
     );
   }
 }

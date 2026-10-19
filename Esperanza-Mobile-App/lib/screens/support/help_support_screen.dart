@@ -10,6 +10,7 @@ import '../../theme/app_spacing.dart';
 import '../../theme/app_typography.dart';
 import '../../widgets/app_card.dart';
 import '../../widgets/expandable_panel.dart';
+import '../../widgets/helpful_vote.dart';
 import '../../widgets/section_header.dart';
 import '../legal/privacy_policy_screen.dart';
 import '../legal/terms_screen.dart';
@@ -96,7 +97,18 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
           if (_content?.faqs.isNotEmpty ?? false) ...[
             const SectionHeader(title: 'Frequently Asked Questions'),
             for (final faq in _content!.faqs)
-              ExpandablePanel(title: faq.question, child: Text(faq.answer, style: AppTypography.body)),
+              ExpandablePanel(
+                title: faq.question,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(faq.answer, style: AppTypography.body),
+                    // Signed in only: the server counts one answer per resident.
+                    if (context.watch<CitizenSessionService>().account != null)
+                      HelpfulVote(docKey: 'faqs', item: faq.key),
+                  ],
+                ),
+              ),
             const SizedBox(height: AppSpacing.lg),
           ],
           if (_content?.tutorials.isNotEmpty ?? false) ...[

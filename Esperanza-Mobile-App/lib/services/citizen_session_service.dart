@@ -11,6 +11,7 @@ import 'api_client.dart';
 import 'json_read.dart';
 import 'mock_catalog.dart';
 import 'persistence_recovery.dart';
+import 'push_service.dart';
 
 /// The real citizen session, backed by the backend's Sanctum bearer tokens
 /// (production-readiness programme, 2026-09-25) — the mobile equivalent of
@@ -106,6 +107,8 @@ class CitizenSessionService extends ChangeNotifier {
     _isGuest = false;
     _endedByServer = true;
     await api.setToken(null);
+    // No sign-out call can reach the server now: drop the push token instead.
+    unawaited(PushService.forget());
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove(_key);
@@ -314,6 +317,8 @@ class CitizenSessionService extends ChangeNotifier {
   Future<void> refresh() async {
     final result = await api.get('/citizen/profile');
     await _applyProfile(result.map);
+    // A confirmed session: this phone gets the resident's pushes (2026-10-15).
+    if (!_isGuest && _account != null) unawaited(PushService.register());
   }
 
   /// PUT /citizen/profile (CitizenPortalController::updateProfile()) --
@@ -402,6 +407,8 @@ class CitizenSessionService extends ChangeNotifier {
   }
 
   Future<void> logout() async {
+    // While still signed in: the server forgets this phone for push.
+    await PushService.unregister();
     try {
       await api.post('/auth/logout');
     } catch (_) {
