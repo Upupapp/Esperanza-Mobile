@@ -160,6 +160,9 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byType(OccasionGreetingPopup), findsNothing);
     expect(find.byType(BalitaPostScreen), findsOneWidget);
+    // The welcome poster waits for next time rather than opening over the
+    // post the resident chose (seen on the emulator, 2026-10-19).
+    expect(find.byType(HomeWelcomeBanner), findsNothing);
     expect(find.descendant(of: find.byType(PostCard), matching: find.text('Greeting')), findsOneWidget);
     expect(
       find.byWidgetPredicate((w) => w is Semantics && w.properties.label == 'Greeting: Holiday'),

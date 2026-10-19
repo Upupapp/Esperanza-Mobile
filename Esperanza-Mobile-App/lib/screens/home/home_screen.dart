@@ -128,8 +128,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       await BirthdayPopup.showIfDue(context, account);
       if (!mounted) return;
       // Then an occasion greeting from the LGU, when one is due (2026-10-19).
-      await OccasionGreetingPopup.showIfAny(context, account);
-      if (!mounted) return;
+      // A resident who followed it to its post is on that page now: the
+      // poster waits for next time instead of opening over it.
+      final wentOn = await OccasionGreetingPopup.showIfAny(context, account);
+      if (!mounted || wentOn) return;
       BannerMemory.showOnce(HomeWelcomeBanner.assetPath, () {
         if (mounted) HomeWelcomeBanner.show(context);
       });

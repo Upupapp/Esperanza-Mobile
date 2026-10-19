@@ -29,16 +29,18 @@ class OccasionGreetingPopup extends StatelessWidget {
   final OccasionGreeting greeting;
 
   /// Shows the greeting due for [account] now, if any; completes when it is
-  /// closed. A guest has none: greetings follow a resident's barangay.
-  static Future<void> showIfAny(BuildContext context, CitizenAccount? account) async {
-    if (account == null) return;
+  /// closed, with true when the resident went on to its post or link - Home
+  /// then leaves the welcome poster for next time rather than opening it over
+  /// the page they chose. A guest has none: greetings follow a barangay.
+  static Future<bool> showIfAny(BuildContext context, CitizenAccount? account) async {
+    if (account == null) return false;
     final greeting = await GreetingService.active();
-    if (greeting == null || !context.mounted) return;
-    if (context.read<NotificationsService>().pendingAlert != null) return;
+    if (greeting == null || !context.mounted) return false;
+    if (context.read<NotificationsService>().pendingAlert != null) return false;
     // Counted as shown now, as the website does: an app closed with the
     // pop-up still open has still shown it.
     GreetingService.markSeen(greeting.id);
-    await showGeneralDialog<void>(
+    final wentOn = await showGeneralDialog<bool>(
       context: context,
       barrierDismissible: true,
       barrierLabel: 'Close greeting',
@@ -53,20 +55,21 @@ class OccasionGreetingPopup extends StatelessWidget {
         );
       },
     );
+    return wentOn ?? false;
   }
 
   void _openPost(BuildContext context) {
     final postId = greeting.postId;
     if (postId == null) return;
     final navigator = Navigator.of(context);
-    navigator.pop();
+    navigator.pop(true);
     navigator.push(MaterialPageRoute(builder: (_) => BalitaPostScreen(announcementId: postId)));
   }
 
   Future<void> _openLink(BuildContext context) async {
     final url = greeting.buttonUrl;
     if (url == null) return;
-    Navigator.of(context).pop();
+    Navigator.of(context).pop(true);
     await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
   }
 
