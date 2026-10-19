@@ -28,6 +28,7 @@ import '../../widgets/esperanza_art.dart';
 import '../../widgets/event_card.dart';
 import '../../utils/banner_memory.dart';
 import '../../widgets/birthday_popup.dart';
+import '../../widgets/occasion_greeting_popup.dart';
 import '../../widgets/home_welcome_banner.dart';
 import '../../widgets/live_banners.dart';
 import '../../widgets/sakuna_alerts_ui.dart';
@@ -123,7 +124,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (_bannerOffered || !mounted) return;
       _bannerOffered = true;
-      await BirthdayPopup.showIfDue(context, context.read<CitizenSessionService>().account);
+      final account = context.read<CitizenSessionService>().account;
+      await BirthdayPopup.showIfDue(context, account);
+      if (!mounted) return;
+      // Then an occasion greeting from the LGU, when one is due (2026-10-19).
+      await OccasionGreetingPopup.showIfAny(context, account);
       if (!mounted) return;
       BannerMemory.showOnce(HomeWelcomeBanner.assetPath, () {
         if (mounted) HomeWelcomeBanner.show(context);

@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../models/announcement.dart';
+import '../../models/occasion_greeting.dart';
 import '../../services/api_client.dart';
 import '../../services/balita_service.dart';
+import '../../services/message_language.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_spacing.dart';
 import '../../utils/balita_post_actions.dart';
@@ -88,6 +90,10 @@ class PostCard extends StatelessWidget {
                           if (isOfficial) ...[
                             const SizedBox(width: AppSpacing.xs),
                             const Icon(Icons.verified_rounded, size: 14, color: AppColors.brand500),
+                          ],
+                          if (post.greeting case final occasion?) ...[
+                            const SizedBox(width: AppSpacing.xs),
+                            _GreetingChip(occasion: occasion),
                           ],
                         ],
                       ),
@@ -495,4 +501,37 @@ String _bodyAfterHeadline(Announcement post) {
   final headline = _headline(post);
   final body = headline == null ? post.body : post.body.substring(headline.length);
   return body.trim();
+}
+
+/// "Pagbati" on an occasion greeting from the LGU (2026-10-19), so a
+/// festival or holiday greeting reads as one in the feed; the occasion is
+/// in its spoken label.
+class _GreetingChip extends StatelessWidget {
+  const _GreetingChip({required this.occasion});
+
+  final GreetingOccasion occasion;
+
+  @override
+  Widget build(BuildContext context) {
+    final filipino = MessageLanguage.filipino.value;
+    return Semantics(
+      label: '${filipino ? 'Pagbati' : 'Greeting'}: ${occasion.label(filipino: filipino)}',
+      excludeSemantics: true,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: 1),
+        decoration: BoxDecoration(color: AppColors.gold50, borderRadius: BorderRadius.circular(AppRadius.full)),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.celebration_rounded, size: 12, color: AppColors.gold700),
+            const SizedBox(width: 3),
+            Text(
+              filipino ? 'Pagbati' : 'Greeting',
+              style: const TextStyle(fontSize: AppTextSize.fine, fontWeight: FontWeight.w700, color: AppColors.gold700),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }

@@ -2,6 +2,7 @@ import 'package:intl/intl.dart';
 import '../services/json_read.dart';
 import '../utils/date_text.dart';
 import 'balita_media.dart';
+import 'occasion_greeting.dart';
 
 /// Which real table a [Announcement] came from — GET /announcements
 /// (admin-published, read-only from mobile) or GET /community-posts
@@ -39,6 +40,10 @@ class Announcement {
 
   /// Every photo and video, in order (2026-10-18): up to ten.
   final List<BalitaMedia> media;
+
+  /// Announcements only: the occasion an occasion greeting is for
+  /// (2026-10-19) - the feed marks it "Pagbati". Null on a regular post.
+  final GreetingOccasion? greeting;
   final DateTime? at;
   int likes;
 
@@ -101,6 +106,7 @@ class Announcement {
     this.title,
     this.imageUrl,
     this.media = const [],
+    this.greeting,
     this.at,
     required this.likes,
     this.likedByMe,
@@ -149,6 +155,7 @@ class Announcement {
       title: JsonRead.nonEmpty(json['title']),
       imageUrl: JsonRead.mediaUrl(json['image_url']),
       media: BalitaMedia.listFrom(json, JsonRead.mediaUrl(json['image_url'])),
+      greeting: JsonRead.string(json['post_type']) == 'greeting' ? GreetingOccasion.fromApi(json['greeting']) : null,
       at: JsonRead.date(json['published_at']) ?? JsonRead.date(json['created_at']),
       likes: JsonRead.integer(json['likes']) ?? 0,
       // GET /announcements is public, but given the citizen's bearer token
