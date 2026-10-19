@@ -72,7 +72,11 @@ Map<String, dynamic> _detail({String status = 'Initial Screening', Map<String, d
   'proof_of_release': proof,
 };
 
-Future<(NotificationsService, List<String>)> _pumpBell(WidgetTester tester, List<Map<String, dynamic>> rows) async {
+Future<(NotificationsService, List<String>)> _pumpBell(
+  WidgetTester tester,
+  List<Map<String, dynamic>> rows, {
+  Widget bell = const AlertsAction(),
+}) async {
   SharedPreferences.setMockInitialValues({});
   final posts = <String>[];
   FakeApi.installFull((r) {
@@ -125,7 +129,7 @@ Future<(NotificationsService, List<String>)> _pumpBell(WidgetTester tester, List
         ChangeNotifierProvider<NotificationsService>.value(value: notifications),
       ],
       child: MaterialApp(
-        home: Scaffold(appBar: AppBar(actions: const [AlertsAction()])),
+        home: Scaffold(appBar: AppBar(actions: [bell])),
       ),
     ),
   );
@@ -140,6 +144,28 @@ void main() {
       await _pumpBell(tester, [_notice(1, unread: true), _notice(2, unread: true), _notice(3, unread: false)]);
       expect(find.text('2'), findsOneWidget);
       expect(find.byTooltip('Alerts, 2 unread'), findsOneWidget);
+    });
+
+    testWidgets("on Home's round bell the count sits on the rim, not cut off by the circle", (tester) async {
+      // Home frames the bell in a frosted circle that clips to its shape; the
+      // count used to be drawn inside it, so its top-right was cut away
+      // (2026-10-19).
+      await _pumpBell(
+        tester,
+        [_notice(1, unread: true)],
+        bell: AlertsAction(frame: (button) => ClipOval(child: button)),
+      );
+      final count = find.text('1');
+      expect(count, findsOneWidget);
+      expect(find.ancestor(of: count, matching: find.byType(ClipOval)), findsNothing);
+      final circle = tester.getRect(find.byType(ClipOval));
+      final badge = tester.getRect(find.ancestor(of: count, matching: find.byType(Container)).first);
+      // On the top-right rim: reaching past the circle's box, centred near
+      // the point where the rim crosses that corner's diagonal.
+      expect(badge.top, lessThan(circle.top));
+      expect(badge.right, greaterThan(circle.right));
+      expect(badge.center.dx, greaterThan(circle.center.dx));
+      expect(badge.center.dy, lessThan(circle.center.dy));
     });
 
     testWidgets('with nothing unread there is no badge at all', (tester) async {
