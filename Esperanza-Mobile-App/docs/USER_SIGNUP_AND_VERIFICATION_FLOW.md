@@ -66,7 +66,7 @@ On the Sign-In screen (`login_screen.dart`), directly below the **Sign In** butt
 |---|---|
 | **Home** | ✅ Full (reduced/guest layout) |
 | **Balita** (news feed, reading posts) | ✅ Full |
-| **Balita — posting/composing** | ❌ Blocked — tapping compose shows `RestrictedFeatureNotice` (guest-only reason), even though the Balita tab itself is open |
+| **Balita — posting/composing** | ❌ Not offered to anyone — only the LGU posts to Balita (owner, 2026-10-20); the app has no compose entry point |
 
 ### Restricted as Guest
 | Tab / Feature | `AccessGuard` requirement | Result for Guest |
@@ -221,7 +221,7 @@ Via the drawer → Profile: avatar/initials, full name, account ID + barangay, a
 |---|:---:|:---:|:---:|
 | Home | ✅ (reduced layout) | ✅ (full layout) | ✅ (full layout) |
 | Balita — read | ✅ | ✅ | ✅ |
-| Balita — post/compose | ❌ (guest notice) | ✅ | ✅ |
+| Balita — post/compose | ❌ (not offered; LGU only since 2026-10-20) | ❌ | ❌ |
 | Emergency (Sakuna) | ❌ (guest notice) | ✅ | ✅ |
 | Dokyu (Document Requests) | ❌ (guest notice) | ❌ (verification notice) | ✅ |
 | Tulong (Assistance Requests) | ❌ (guest notice) | ❌ (verification notice) | ✅ |

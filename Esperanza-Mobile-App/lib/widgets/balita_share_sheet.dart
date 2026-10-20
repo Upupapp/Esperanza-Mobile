@@ -11,8 +11,8 @@ import '../theme/app_typography.dart';
 
 /// Social-share chooser opened from Balita's Share action — a small sheet
 /// of practical destinations rather than jumping straight to the OS share
-/// sheet. There's no real share-count endpoint (a citizen's own like/
-/// comment/report are all real now, but nothing increments `shares` server-
+/// sheet. There's no real share-count endpoint (a citizen's own like and
+/// comment are real now, but nothing increments `shares` server-
 /// side — confirmed against the backend directly, not assumed), so every
 /// destination shares the same plain-text summary [_shareText]; app-
 /// specific entries just pre-target that text at each app's own share
@@ -36,10 +36,12 @@ class BalitaShareSheet {
   }
 }
 
+/// Every Balita post is the LGU's own (owner, 2026-10-20).
+const _who = 'Esperanza LGU';
+
 String _shareText(Announcement post) {
-  final who = post.isOfficial ? 'Esperanza LGU' : post.author;
   final excerpt = post.body.trim();
-  return ['$who — Balita, Esperanza', if (excerpt.isNotEmpty) excerpt].join('\n\n');
+  return ['$_who — Balita, Esperanza', if (excerpt.isNotEmpty) excerpt].join('\n\n');
 }
 
 class _ShareSheet extends StatelessWidget {
@@ -58,9 +60,8 @@ class _ShareSheet extends StatelessWidget {
   Future<void> _nativeShare(BuildContext context) async {
     final box = context.findRenderObject() as RenderBox?;
     final origin = box != null ? box.localToGlobal(Offset.zero) & box.size : null;
-    final who = post.isOfficial ? 'Esperanza LGU' : post.author;
     await SharePlus.instance.share(
-      ShareParams(text: _shareText(post), subject: 'Balita: $who', sharePositionOrigin: origin),
+      ShareParams(text: _shareText(post), subject: 'Balita: $_who', sharePositionOrigin: origin),
     );
   }
 

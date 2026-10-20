@@ -1,7 +1,7 @@
-// A post the citizen just created must appear in the Balita feed without a
-// reload. The feed used to render the loader's one-time snapshot, which
-// never contained a post created afterwards, so it only showed up after the
-// next sign-in.
+// Only the LGU posts to Balita (owner, 2026-10-20): a resident reads, likes,
+// comments and shares, and nothing on the Balita tab lets them write a post,
+// report one or delete one. The feed is GET /announcements alone; the
+// residents' community-post routes are gone from the server.
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
@@ -22,11 +22,10 @@ void main() {
   setUp(() => SharedPreferences.setMockInitialValues({}));
   tearDown(FakeApi.restore);
 
-  testWidgets('a newly created post shows in the feed immediately', (tester) async {
+  testWidgets('a signed-in resident sees the LGU posts and no way to write, report or delete one', (tester) async {
+    final paths = <String>[];
     FakeApi.installFull((r) {
-      if (r.method == 'POST' && r.path == '/citizen/community-posts') {
-        return {'id': 77, 'body': 'Brand-new synthetic post', 'mine': true, 'status': 'Pending Review', 'visible': false};
-      }
+      paths.add('${r.method} ${r.path}');
       if (r.path == '/announcements') {
         return [
           {'id': 1, 'body': 'Existing announcement', 'published_at': '2026-09-01T00:00:00Z'},
@@ -35,40 +34,6 @@ void main() {
       return <dynamic>[];
     });
 
-    final balita = BalitaService();
-    await tester.pumpWidget(
-      MultiProvider(
-        providers: [
-          ChangeNotifierProvider(create: (_) => CitizenSessionService()),
-          ChangeNotifierProvider(create: (_) => RequestsService()),
-          ChangeNotifierProvider.value(value: balita),
-          ChangeNotifierProvider(create: (_) => ResidentProfileService()),
-          ChangeNotifierProvider(create: (_) => MasterFileService()),
-          ChangeNotifierProvider(create: (_) => NotificationsService()),
-        ],
-        child: const MaterialApp(home: BalitaScreen()),
-      ),
-    );
-    await tester.pumpAndSettle();
-    expect(find.textContaining('Existing announcement'), findsOneWidget);
-    expect(find.textContaining('Brand-new synthetic post'), findsNothing);
-
-    await tester.runAsync(() => balita.createPost(body: 'Brand-new synthetic post', category: 'General'));
-    await tester.pumpAndSettle();
-    expect(find.textContaining('Brand-new synthetic post'), findsOneWidget);
-  });
-
-  testWidgets("a community post's menu opens without ListTile's hidden-ink assertion", (tester) async {
-    // The sheet used to wrap its ListTile in a white DecoratedBox, which
-    // hid the tap ripple and threw a debug assertion on open.
-    FakeApi.installFull((r) {
-      if (r.path == '/citizen/community-posts') {
-        return [
-          {'id': 7, 'author': 'Testa Sintetiko', 'body': 'Clean-up salamat!', 'visible': true, 'mine': false},
-        ];
-      }
-      return <dynamic>[];
-    });
     await tester.pumpWidget(
       MultiProvider(
         providers: [
@@ -85,9 +50,19 @@ void main() {
     await tester.pumpAndSettle();
     await tester.element(find.byType(BalitaScreen)).read<CitizenSessionService>().login(MockCatalog.demoAccounts.last);
     await tester.pumpAndSettle();
-    await tester.tap(find.byIcon(Icons.more_horiz_rounded).first);
-    await tester.pumpAndSettle();
-    expect(tester.takeException(), isNull);
-    expect(find.text('Report post'), findsOneWidget);
+
+    expect(find.textContaining('Existing announcement'), findsOneWidget);
+    expect(find.text('Like'), findsOneWidget);
+    expect(find.text('Comment'), findsOneWidget);
+    expect(find.text('Share'), findsOneWidget);
+
+    // No composer entry point of any kind, and no post menu.
+    expect(find.byTooltip('New Post'), findsNothing);
+    expect(find.byIcon(Icons.add_circle_outline_rounded), findsNothing);
+    expect(find.byType(FloatingActionButton), findsNothing);
+    expect(find.byIcon(Icons.more_horiz_rounded), findsNothing);
+    expect(find.text('Report post'), findsNothing);
+    expect(find.text('Delete post'), findsNothing);
+    expect(paths.where((p) => p.contains('community-posts')), isEmpty);
   });
 }

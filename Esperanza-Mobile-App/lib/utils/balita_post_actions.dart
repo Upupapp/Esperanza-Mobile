@@ -15,13 +15,11 @@ import '../widgets/restricted_feature_notice.dart';
 /// quietly drifting apart.
 ///
 /// [minLevel] defaults to [AccessLevel.verified] (react/comment/share's own
-/// long-standing rule) but is overridable — posting a community post is a
-/// real, separately-gated capability on the backend
-/// (`CitizenCapabilities::COMMUNITY_POST`, minimum `AccessLevel.unverified`,
-/// confirmed against the backend directly), looser than the mobile app's
-/// own react/comment/share gate. Callers pass [AccessLevel.unverified] for
-/// that, not [AccessLevel.verified] — loosening the default here would
-/// change react/comment/share's own policy, which is not this change.
+/// long-standing rule) but is overridable — reporting a Sakuna incident is
+/// open to an unverified citizen (the backend's own rule), so its caller
+/// passes [AccessLevel.unverified]. Loosening the default here would change
+/// react/comment/share's own policy. (Residents no longer post to Balita at
+/// all, owner 2026-10-20: only the LGU does.)
 void requireAccountForBalita(
   BuildContext context,
   String featureName,

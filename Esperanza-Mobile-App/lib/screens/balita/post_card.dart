@@ -17,10 +17,11 @@ import 'post_image_viewer.dart';
 import '../../theme/app_typography.dart';
 
 /// A single Balita feed post — header (avatar/author/verified badge/
-/// barangay/timestamp/overflow menu), body text, optional image, an
-/// engagement summary row, and a Like / Comment / Share action row. Real
-/// data and real interactions now (production-readiness programme,
-/// 2026-09-25) -- see [BalitaService]'s own doc comment.
+/// barangay/timestamp), body text, optional image, an engagement summary
+/// row, and a Like / Comment / Share action row. Real data and real
+/// interactions now (production-readiness programme, 2026-09-25) -- see
+/// [BalitaService]'s own doc comment. Every post is the LGU's own (owner,
+/// 2026-10-20), so there is nothing to report or delete here.
 ///
 /// Tapping the image opens [PostImageViewer] by `post.id` only (not a
 /// snapshot of this [post]) so the viewer always reads the *live* post
@@ -35,18 +36,7 @@ class PostCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isOfficial = post.isOfficial;
     final balita = context.read<BalitaService>();
-    // The author's own post that is not live: where it stands, and why
-    // (2026-10-18; a hidden post read "Pending review" before).
-    final held = post.heldBack;
-    final stateLine = !held
-        ? null
-        : switch (post.reviewState) {
-            'hidden' => 'Hidden by Esperanza LGU',
-            'removed' => 'Removed by Esperanza LGU',
-            _ => 'Pending review — only visible to you',
-          };
 
     return Padding(
       padding: const EdgeInsets.only(bottom: AppSpacing.md),
@@ -61,16 +51,12 @@ class PostCard extends StatelessWidget {
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                CircleAvatar(
+                const CircleAvatar(
                   radius: 19,
-                  backgroundColor: isOfficial ? AppColors.gold50 : AppColors.brand50,
+                  backgroundColor: AppColors.gold50,
                   child: Text(
-                    isOfficial ? 'LGU' : (post.author.isNotEmpty ? post.author.substring(0, 1).toUpperCase() : '?'),
-                    style: TextStyle(
-                      fontSize: AppTextSize.label,
-                      fontWeight: FontWeight.w700,
-                      color: isOfficial ? AppColors.gold700 : AppColors.brand600,
-                    ),
+                    'LGU',
+                    style: TextStyle(fontSize: AppTextSize.label, fontWeight: FontWeight.w700, color: AppColors.gold700),
                   ),
                 ),
                 const SizedBox(width: AppSpacing.sm),
@@ -87,10 +73,8 @@ class PostCard extends StatelessWidget {
                               overflow: TextOverflow.ellipsis,
                             ),
                           ),
-                          if (isOfficial) ...[
-                            const SizedBox(width: AppSpacing.xs),
-                            const Icon(Icons.verified_rounded, size: 14, color: AppColors.brand500),
-                          ],
+                          const SizedBox(width: AppSpacing.xs),
+                          const Icon(Icons.verified_rounded, size: 14, color: AppColors.brand500),
                           if (post.greeting case final occasion?) ...[
                             const SizedBox(width: AppSpacing.xs),
                             _GreetingChip(occasion: occasion),
@@ -100,48 +84,16 @@ class PostCard extends StatelessWidget {
                       const SizedBox(height: AppSpacing.xs),
                       Text(
                         [
-                          if (post.barangay != null) 'Brgy. ${post.barangay}' else if (isOfficial) 'Official account',
+                          post.barangay != null ? 'Brgy. ${post.barangay}' : 'Official account',
                           post.timeLabel,
-                          ?stateLine,
                         ].where((s) => s.isNotEmpty).join(' · '),
-                        style: TextStyle(
-                          fontSize: AppTextSize.label,
-                          color: !held
-                              ? AppColors.textMuted
-                              : (post.reviewState == 'pending' ? AppColors.amber700 : AppColors.rose600),
-                          fontWeight: held ? FontWeight.w600 : FontWeight.w400,
-                        ),
+                        style: const TextStyle(fontSize: AppTextSize.label, color: AppColors.textMuted),
                       ),
                     ],
                   ),
                 ),
-                // Someone else's community post: Report. The resident's
-                // own: Delete (2026-10-18). There is no report endpoint for
-                // official announcements (nothing to flag about the LGU's
-                // own content).
-                if (post.kind == PostKind.community && (post.mine || post.engageable))
-                  InkWell(
-                    borderRadius: BorderRadius.circular(AppRadius.xl),
-                    onTap: () => _showPostMenu(context, balita),
-                    child: const Padding(
-                      padding: EdgeInsets.all(AppSpacing.sm),
-                      child: Icon(Icons.more_horiz_rounded, size: 19, color: AppColors.slate400),
-                    ),
-                  ),
               ],
             ),
-            if (held && post.moderationReason != null) ...[
-              const SizedBox(height: AppSpacing.sm),
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(AppSpacing.sm),
-                decoration: BoxDecoration(color: AppColors.rose50, borderRadius: BorderRadius.circular(AppRadius.sm)),
-                child: Text(
-                  'Reason: ${post.moderationReason}',
-                  style: const TextStyle(fontSize: AppTextSize.label, color: AppColors.rose700, height: 1.35),
-                ),
-              ),
-            ],
             const SizedBox(height: AppSpacing.sm),
             if (_headline(post) case final headline?) ...[
               Text(headline, style: AppTypography.cardHeading),
@@ -159,49 +111,45 @@ class PostCard extends StatelessWidget {
                 onOpen: (i) => PostImageViewer.open(context, post.id, initialIndex: i),
               ),
             ],
-            // No action row to close the card: give the text its own room.
-            if (!post.engageable) const SizedBox(height: AppSpacing.md),
-            if (post.engageable) ...[
-              const SizedBox(height: AppSpacing.md),
-              BalitaEngagementRow(post: post),
-              Row(
-                children: [
-                  Expanded(
-                    child: PostActionButton(
-                      icon: post.likedByMe == true ? Icons.favorite_rounded : Icons.favorite_border_rounded,
-                      label: 'Like',
-                      color: post.likedByMe == true ? AppColors.rose500 : AppColors.slate500,
-                      onTap: () =>
-                          requireAccountForBalita(context, 'Reacting to Balita posts', () => _like(context, balita)),
+            const SizedBox(height: AppSpacing.md),
+            BalitaEngagementRow(post: post),
+            Row(
+              children: [
+                Expanded(
+                  child: PostActionButton(
+                    icon: post.likedByMe == true ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+                    label: 'Like',
+                    color: post.likedByMe == true ? AppColors.rose500 : AppColors.slate500,
+                    onTap: () =>
+                        requireAccountForBalita(context, 'Reacting to Balita posts', () => _like(context, balita)),
+                  ),
+                ),
+                Expanded(
+                  child: PostActionButton(
+                    icon: Icons.mode_comment_outlined,
+                    label: 'Comment',
+                    color: AppColors.slate500,
+                    onTap: () => requireAccountForBalita(
+                      context,
+                      'Commenting on Balita posts',
+                      () => openBalitaComments(context, post),
                     ),
                   ),
-                  Expanded(
-                    child: PostActionButton(
-                      icon: Icons.mode_comment_outlined,
-                      label: 'Comment',
-                      color: AppColors.slate500,
-                      onTap: () => requireAccountForBalita(
-                        context,
-                        'Commenting on Balita posts',
-                        () => openBalitaComments(context, post),
-                      ),
+                ),
+                Expanded(
+                  child: PostActionButton(
+                    icon: Icons.share_outlined,
+                    label: 'Share',
+                    color: AppColors.slate500,
+                    onTap: () => requireAccountForBalita(
+                      context,
+                      'Sharing Balita posts',
+                      () => BalitaShareSheet.show(context, post),
                     ),
                   ),
-                  Expanded(
-                    child: PostActionButton(
-                      icon: Icons.share_outlined,
-                      label: 'Share',
-                      color: AppColors.slate500,
-                      onTap: () => requireAccountForBalita(
-                        context,
-                        'Sharing Balita posts',
-                        () => BalitaShareSheet.show(context, post),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ],
+                ),
+              ],
+            ),
           ],
         ),
       ),
@@ -214,123 +162,6 @@ class PostCard extends StatelessWidget {
     } on ApiException catch (e) {
       if (context.mounted) AppDialogs.toast(context, e.message(), success: false);
     }
-  }
-
-  void _showPostMenu(BuildContext context, BalitaService balita) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) => SafeArea(
-        // A Material, not a decorated Container: ListTile paints its ink on
-        // the nearest Material, so a white DecoratedBox in between hid the
-        // tap feedback (and tripped ListTile's debug assertion).
-        child: Padding(
-          padding: const EdgeInsets.all(AppSpacing.md),
-          child: Material(
-            color: AppColors.surface,
-            borderRadius: BorderRadius.circular(AppRadius.xl),
-            clipBehavior: Clip.antiAlias,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  if (post.mine)
-                    ListTile(
-                      leading: const Icon(Icons.delete_outline_rounded, color: AppColors.rose600),
-                      title: const Text(
-                        'Delete post',
-                        style: TextStyle(fontSize: AppTextSize.body, fontWeight: FontWeight.w500, color: AppColors.rose600),
-                      ),
-                      onTap: () {
-                        Navigator.of(ctx).pop();
-                        _delete(context, balita);
-                      },
-                    )
-                  else
-                    ListTile(
-                      leading: const Icon(Icons.flag_outlined, color: AppColors.slate600),
-                      title: const Text(
-                        'Report post',
-                        style: TextStyle(fontSize: AppTextSize.body, fontWeight: FontWeight.w500),
-                      ),
-                      onTap: () {
-                        Navigator.of(ctx).pop();
-                        requireAccountForBalita(context, 'Reporting Balita posts', () => _report(context, balita));
-                      },
-                    ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Future<void> _delete(BuildContext context, BalitaService balita) async {
-    final sure = await AppDialogs.confirm(
-      context,
-      title: 'Delete this post?',
-      message: 'It is removed for everyone, with its photos and videos.',
-      confirmLabel: 'Delete',
-      danger: true,
-    );
-    if (!sure || !context.mounted) return;
-    try {
-      await balita.deletePost(post);
-      if (context.mounted) AppDialogs.toast(context, 'Your post was deleted.');
-    } on ApiException catch (e) {
-      if (context.mounted) AppDialogs.toast(context, e.message(), success: false);
-    }
-  }
-
-  Future<void> _report(BuildContext context, BalitaService balita) async {
-    final reason = await showDialog<String>(context: context, builder: (ctx) => _ReportDialog());
-    if (reason == null || reason.trim().isEmpty || !context.mounted) return;
-    try {
-      await balita.reportPost(post, reason.trim());
-      if (context.mounted) AppDialogs.toast(context, 'Thanks — this has been flagged for review.');
-    } on ApiException catch (e) {
-      if (context.mounted) AppDialogs.toast(context, e.message(), success: false);
-    }
-  }
-}
-
-class _ReportDialog extends StatefulWidget {
-  @override
-  State<_ReportDialog> createState() => _ReportDialogState();
-}
-
-class _ReportDialogState extends State<_ReportDialog> {
-  final _controller = TextEditingController();
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AlertDialog(
-      title: const Text('Report this post'),
-      content: TextField(
-        controller: _controller,
-        autofocus: true,
-        maxLines: 3,
-        maxLength: BalitaService.reportReasonMaxLength,
-        onChanged: (_) => setState(() {}),
-        decoration: const InputDecoration(hintText: 'Why are you reporting this post?'),
-      ),
-      actions: [
-        TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Cancel')),
-        TextButton(
-          onPressed: _controller.text.trim().isEmpty ? null : () => Navigator.of(context).pop(_controller.text),
-          child: const Text('Submit'),
-        ),
-      ],
-    );
   }
 }
 

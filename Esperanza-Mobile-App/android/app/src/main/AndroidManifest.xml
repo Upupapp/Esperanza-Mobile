@@ -42,15 +42,12 @@
             android:name="com.google.firebase.messaging.default_notification_icon"
             android:resource="@drawable/ic_stat_esperanza" />
     </application>
-    <!-- Camera + photo/video library access for Dokyu/Tulong attachment
-         uploads (see lib/widgets/attachment_picker.dart) and the Balita
-         post composer's image/video picker (see
-         lib/screens/balita/post_composer_sheet.dart). READ_MEDIA_IMAGES
-         and READ_MEDIA_VIDEO are separate grants on Android 13+;
-         READ_EXTERNAL_STORAGE is the pre-13 fallback for both. -->
+    <!-- Camera + photo library access for Dokyu/Tulong attachment uploads
+         (see lib/widgets/attachment_picker.dart). No video library access:
+         residents no longer post to Balita (2026-10-20), and nothing else
+         picks videos. READ_EXTERNAL_STORAGE is the pre-13 fallback. -->
     <uses-permission android:name="android.permission.CAMERA" />
     <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
-    <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
 
     <!-- Required for lib/services/api_client.dart's real backend calls

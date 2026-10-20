@@ -48,7 +48,7 @@ class ServiceSearchScreen extends StatelessWidget {
           await Future.wait([
             requests.loadCatalog(),
             requests.loadRequests().catchError((Object _) {}),
-            if (balita.posts.isEmpty) balita.loadFeed(signedIn: true).catchError((Object _) {}),
+            if (balita.posts.isEmpty) balita.loadFeed().catchError((Object _) {}),
           ]);
           return events;
         },
@@ -56,7 +56,7 @@ class ServiceSearchScreen extends StatelessWidget {
           dokyu: requests.dokyuCatalog,
           tulong: requests.tulongCatalog,
           requests: requests.all.where((r) => r.category != ServiceCategory.sakunaIncident).toList(),
-          news: balita.posts.where((p) => p.kind == PostKind.announcement).toList(),
+          news: balita.posts,
           events: events,
         ),
       ),

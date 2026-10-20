@@ -74,8 +74,6 @@ class _PostImageViewerState extends State<PostImageViewer> {
       return const Scaffold(backgroundColor: Colors.black, body: SizedBox.shrink());
     }
 
-    final isOfficial = post.isOfficial;
-
     return Scaffold(
       backgroundColor: AppColors.surface,
       body: SafeArea(
@@ -134,16 +132,12 @@ class _PostImageViewerState extends State<PostImageViewer> {
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    CircleAvatar(
+                    const CircleAvatar(
                       radius: 19,
-                      backgroundColor: isOfficial ? AppColors.gold50 : AppColors.brand50,
+                      backgroundColor: AppColors.gold50,
                       child: Text(
-                        isOfficial ? 'LGU' : (post.author.isNotEmpty ? post.author.substring(0, 1).toUpperCase() : '?'),
-                        style: TextStyle(
-                          fontSize: AppTextSize.label,
-                          fontWeight: FontWeight.w700,
-                          color: isOfficial ? AppColors.gold700 : AppColors.brand600,
-                        ),
+                        'LGU',
+                        style: TextStyle(fontSize: AppTextSize.label, fontWeight: FontWeight.w700, color: AppColors.gold700),
                       ),
                     ),
                     const SizedBox(width: AppSpacing.sm),
@@ -160,17 +154,15 @@ class _PostImageViewerState extends State<PostImageViewer> {
                                   overflow: TextOverflow.ellipsis,
                                 ),
                               ),
-                              if (isOfficial) ...[
-                                const SizedBox(width: AppSpacing.xs),
-                                const Icon(Icons.verified_rounded, size: 14, color: AppColors.brand500),
-                              ],
+                              const SizedBox(width: AppSpacing.xs),
+                              const Icon(Icons.verified_rounded, size: 14, color: AppColors.brand500),
                             ],
                           ),
                           const SizedBox(height: AppSpacing.xs),
                           Text(
                             post.barangay != null
                                 ? 'Brgy. ${post.barangay} · ${post.timeLabel}'
-                                : (isOfficial ? 'Official account · ${post.timeLabel}' : post.timeLabel),
+                                : 'Official account · ${post.timeLabel}',
                             style: const TextStyle(fontSize: AppTextSize.label, color: AppColors.textMuted),
                           ),
                         ],
@@ -187,56 +179,54 @@ class _PostImageViewerState extends State<PostImageViewer> {
                     style: const TextStyle(fontSize: AppTextSize.body, color: AppColors.slate700, height: 1.45),
                   ),
                 ),
-              if (post.engageable) ...[
-                const SizedBox(height: AppSpacing.md),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
-                  child: BalitaEngagementRow(post: post),
+              const SizedBox(height: AppSpacing.md),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+                child: BalitaEngagementRow(post: post),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(AppSpacing.sm, AppSpacing.sm, AppSpacing.sm, AppSpacing.xs),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: PostActionButton(
+                        icon: post.likedByMe == true ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+                        label: 'Like',
+                        color: post.likedByMe == true ? AppColors.rose500 : AppColors.slate500,
+                        onTap: () => requireAccountForBalita(
+                          context,
+                          'Reacting to Balita posts',
+                          () => _like(context, balita, post!),
+                        ),
+                      ),
+                    ),
+                    Expanded(
+                      child: PostActionButton(
+                        icon: Icons.mode_comment_outlined,
+                        label: 'Comment',
+                        color: AppColors.slate500,
+                        onTap: () => requireAccountForBalita(
+                          context,
+                          'Commenting on Balita posts',
+                          () => openBalitaComments(context, post!),
+                        ),
+                      ),
+                    ),
+                    Expanded(
+                      child: PostActionButton(
+                        icon: Icons.share_outlined,
+                        label: 'Share',
+                        color: AppColors.slate500,
+                        onTap: () => requireAccountForBalita(
+                          context,
+                          'Sharing Balita posts',
+                          () => BalitaShareSheet.show(context, post!),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(AppSpacing.sm, AppSpacing.sm, AppSpacing.sm, AppSpacing.xs),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: PostActionButton(
-                          icon: post.likedByMe == true ? Icons.favorite_rounded : Icons.favorite_border_rounded,
-                          label: 'Like',
-                          color: post.likedByMe == true ? AppColors.rose500 : AppColors.slate500,
-                          onTap: () => requireAccountForBalita(
-                            context,
-                            'Reacting to Balita posts',
-                            () => _like(context, balita, post!),
-                          ),
-                        ),
-                      ),
-                      Expanded(
-                        child: PostActionButton(
-                          icon: Icons.mode_comment_outlined,
-                          label: 'Comment',
-                          color: AppColors.slate500,
-                          onTap: () => requireAccountForBalita(
-                            context,
-                            'Commenting on Balita posts',
-                            () => openBalitaComments(context, post!),
-                          ),
-                        ),
-                      ),
-                      Expanded(
-                        child: PostActionButton(
-                          icon: Icons.share_outlined,
-                          label: 'Share',
-                          color: AppColors.slate500,
-                          onTap: () => requireAccountForBalita(
-                            context,
-                            'Sharing Balita posts',
-                            () => BalitaShareSheet.show(context, post!),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
+              ),
             ],
           ),
         ),

@@ -6,23 +6,19 @@ import 'api_client.dart';
 import 'json_read.dart';
 import '../models/announcement.dart';
 
-/// Balita: announcements and the community feed, against the real backend
+/// Balita: the LGU's announcements, against the real backend
 /// (production-readiness programme, 2026-09-25). Previously a local,
 /// frontend-only "database" persisted to SharedPreferences, simulating
 /// likes/comments/shares itself -- the server is now the only source of
 /// truth, so nothing here is persisted locally anymore.
 ///
-/// Two real tables, merged into one feed exactly like the Web Admin's own
-/// citizen/announcements.blade.php does client-side (`kind: 'announcement' |
-/// 'community'`) -- that file is the contract this mirrors: GET
-/// /announcements (admin-published, public) and GET /community-posts
-/// (citizen-authored, requires sign-in). A citizen can also create a
-/// community post now (POST /community-posts) -- a real capability neither
-/// frontend used before this (see [createPost]'s own doc comment).
+/// Only the LGU posts to Balita (owner, 2026-10-20): residents read, like,
+/// comment and share. Residents' own community posts, their composer, post
+/// reports and the resident upload routes are gone from the app and the
+/// server alike, so GET /announcements is the whole feed.
 class BalitaService extends ChangeNotifier {
   List<Announcement> _posts = [];
   bool _loaded = false;
-  bool _communityUnavailable = false;
   final Set<String> _likesInFlight = {};
 
   BalitaService() {
@@ -38,74 +34,24 @@ class BalitaService extends ChangeNotifier {
   List<Announcement> get posts => List.unmodifiable(_posts);
   bool get loaded => _loaded;
 
-  /// The backend's limits (CitizenPortalController::storeCommunityPost,
-  /// commentOn*, CommunicationsController::reportCommunityPost), enforced
+  /// The backend's limit (CitizenPortalController::commentOn*), enforced
   /// where the citizen types.
-  static const postMaxLength = 2000;
   static const commentMaxLength = 1000;
-  static const reportReasonMaxLength = 255;
 
-  /// True when the last [loadFeed] got announcements but the community half
-  /// failed -- the feed is shown partial rather than not at all.
-  bool get communityUnavailable => _communityUnavailable;
-
-  /// GET /announcements + GET /citizen/community-posts, merged and sorted newest
-  /// first. The community-posts fetch needs a signed-in citizen (it's
-  /// under the `citizen` route prefix); a Guest still sees the public
-  /// announcements half of the feed rather than nothing at all.
-  Future<void> loadFeed({required bool signedIn}) async {
+  /// GET /announcements, newest first. Public, so a Guest gets the same
+  /// feed; with a signed-in citizen's token (ApiClient sends it on every
+  /// request) it also says which posts they liked.
+  Future<void> loadFeed() async {
     _loaded = false;
     scheduleMicrotask(notifyListeners);
     try {
-      // Announcements are public and are the half a citizen must always get.
-      // The two used to share one Future.wait, so a failing /community-posts
-      // (an unverified account refused, a server error on that table alone)
-      // took the official LGU announcements down with it.
-      final announcementsFuture = api.getAllPages('/announcements', query: {'per_page': 50}, maxPages: 2);
-      final communityFuture = signedIn
-          ? api.getAllPages('/citizen/community-posts', query: {'per_page': 50}, maxPages: 2).then<List<dynamic>?>((r) => r)
-          : Future<List<dynamic>?>.value(const []);
-      final communityGuarded = communityFuture.catchError((Object _) => null);
-
-      final announcements = JsonRead.rows(await announcementsFuture, Announcement.fromAnnouncementApi);
-      final communityRaw = await communityGuarded;
-      _communityUnavailable = communityRaw == null;
-      final community = JsonRead.rows(communityRaw, Announcement.fromCommunityApi)
-          // Belt and braces for [Announcement.visible]: a post still in
-          // moderation is shown only to its author.
-          .where((p) => p.visible || p.mine);
-
-      _posts = [...announcements, ...community]
+      final rows = await api.getAllPages('/announcements', query: {'per_page': 50}, maxPages: 2);
+      _posts = JsonRead.rows(rows, Announcement.fromAnnouncementApi)
         ..sort((a, b) => (b.at ?? DateTime(0)).compareTo(a.at ?? DateTime(0)));
     } finally {
       _loaded = true;
       notifyListeners();
     }
-  }
-
-  /// One of the resident's own community posts, for a notification about it
-  /// ("Your Balita post is live / was hidden", link
-  /// /citizen/announcements?community=ID, 2026-10-18). There is no single-post
-  /// route for community posts: it is found in the feed, loaded again if
-  /// needed.
-  Future<Announcement> loadCommunityPost(int id) async {
-    Announcement? find() {
-      for (final p in _posts) {
-        if (p.kind == PostKind.community && p.remoteId == id) return p;
-      }
-      return null;
-    }
-
-    final loaded = find();
-    if (loaded != null) return loaded;
-    await loadFeed(signedIn: true);
-    final reloaded = find();
-    if (reloaded != null) return reloaded;
-    throw const ApiException(
-      status: 404,
-      messageEn: 'This post is no longer available.',
-      messageFil: 'Wala na ang post na ito.',
-    );
   }
 
   /// One announcement, for a "New in Balita" notification that opens it
@@ -115,7 +61,7 @@ class BalitaService extends ChangeNotifier {
   /// comment on it updates the same object everywhere.
   Future<Announcement> loadAnnouncement(int id) async {
     for (final p in _posts) {
-      if (p.kind == PostKind.announcement && p.remoteId == id) return p;
+      if (p.remoteId == id) return p;
     }
     final res = await api.get('/announcements/$id');
     final post = Announcement.fromAnnouncementApi(res.map);
@@ -127,16 +73,12 @@ class BalitaService extends ChangeNotifier {
   // Every engagement route lives under the backend's `citizen` group
   // (esperanza-backend routes/api.php, `prefix('citizen')`); only the
   // announcements *read* is public. These used to omit the prefix, so every
-  // like, comment, community read and post answered 404.
-  String _likePath(Announcement post) => post.kind == PostKind.announcement
-      ? '/citizen/announcements/${post.remoteId}/like'
-      : '/citizen/community-posts/${post.remoteId}/like';
+  // like and comment answered 404.
+  String _likePath(Announcement post) => '/citizen/announcements/${post.remoteId}/like';
 
-  String _commentsPath(Announcement post) => post.kind == PostKind.announcement
-      ? '/citizen/announcements/${post.remoteId}/comments'
-      : '/citizen/community-posts/${post.remoteId}/comments';
+  String _commentsPath(Announcement post) => '/citizen/announcements/${post.remoteId}/comments';
 
-  /// Toggles like/unlike -- both endpoints are POST-to-toggle, returning
+  /// Toggles like/unlike -- the endpoint is POST-to-toggle, returning
   /// the server's own new `{liked, likes}` rather than the client guessing
   /// at the new count.
   ///
@@ -168,22 +110,6 @@ class BalitaService extends ChangeNotifier {
     return comment;
   }
 
-  /// Community posts only -- announcements have no report endpoint (a
-  /// citizen doesn't "report" official LGU content). Throws [ApiException]
-  /// as normal if [post] isn't a community post; callers gate the Report
-  /// menu item on `post.kind == PostKind.community` first (see PostCard).
-  Future<void> reportPost(Announcement post, String reason) async {
-    await api.post('/citizen/community-posts/${post.remoteId}/report', body: {'reason': reason});
-  }
-
-  /// The author deletes their own post (DELETE /citizen/community-posts/{id},
-  /// 2026-10-18): it leaves every feed; the server keeps the record.
-  Future<void> deletePost(Announcement post) async {
-    await api.delete('/citizen/community-posts/${post.remoteId}');
-    _posts = _posts.where((p) => p.id != post.id).toList();
-    notifyListeners();
-  }
-
   /// The author deletes their own comment (2026-10-18).
   Future<void> deleteComment(Announcement post, PostComment comment) async {
     await api.delete('${_commentsPath(post)}/${comment.id}');
@@ -191,70 +117,11 @@ class BalitaService extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Forgets a photo or video uploaded for a post that was not sent; the
-  /// server would sweep it after a day anyway.
-  Future<void> discardMedia(int mediaId) async {
-    try {
-      await api.delete('/citizen/balita/media/$mediaId');
-    } on ApiException {
-      // Swept by the server within a day.
-    }
-  }
-
-  /// POST /community-posts -- a real citizen-posting capability (image
-  /// upload, category, gated by CitizenCapabilities::COMMUNITY_POST at
-  /// minimum AccessLevel.unverified) that neither this app nor the Web
-  /// Admin's own citizen/announcements.blade.php used before this
-  /// (production-readiness programme, 2026-09-25 -- confirmed against the
-  /// backend directly, not assumed). Pre-moderated: the returned post is
-  /// visible only to its own author (`mine: true`) until an information
-  /// officer approves it, then everyone. Multipart only when [imageFilePath]
-  /// is given -- the field is nullable server-side, so a plain JSON POST
-  /// with no `image` key is a normal, valid text-only post.
-  ///
-  /// [mediaIds] are photos and videos already uploaded (BalitaUploader,
-  /// 2026-10-18), in the order they show; a post may be photos and videos
-  /// alone, with no text.
-  Future<Announcement> createPost({
-    required String body,
-    required String category,
-    List<int> mediaIds = const [],
-    String? imageFilePath,
-  }) async {
-    final res = imageFilePath != null
-        ? await api.postMultipart(
-            '/citizen/community-posts',
-            filePath: imageFilePath,
-            fileField: 'image',
-            fields: {'body': body, 'category': category},
-          )
-        : await api.post('/citizen/community-posts', body: {
-            'body': body,
-            'category': category,
-            if (mediaIds.isNotEmpty) 'media_ids': mediaIds,
-          });
-    final Announcement post;
-    try {
-      post = Announcement.fromCommunityApi(res.map);
-    } on FormatException {
-      // Created on the server but unreadable here: reported as an error so
-      // the composer does not close on a post the feed cannot show.
-      throw const ApiException(
-        messageEn: 'Your post was sent, but could not be shown. Pull down to refresh.',
-        messageFil: 'Naipadala ang iyong post pero hindi maipakita. I-refresh ang feed.',
-      );
-    }
-    _posts.insert(0, post);
-    notifyListeners();
-    return post;
-  }
-
   /// In-memory only now -- there is nothing left to erase from disk once
   /// Balita stopped persisting to SharedPreferences. Called on sign-out.
   void clear() {
     _posts = [];
     _loaded = false;
-    _communityUnavailable = false;
     notifyListeners();
   }
 }

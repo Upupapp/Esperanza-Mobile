@@ -34,7 +34,7 @@ A Flutter citizen app for the Municipality of Esperanza. **It talks to the real 
 `lib/services/api_client.dart` (`package:http`; base URL from
 `--dart-define=API_BASE_URL`, defaulting to staging). Wired to the API: citizen auth
 and profile, the Dokyu/Tulong catalogue, submission and tracking, Balita (announcements,
-community posts, likes, comments, reports), events, directory, hotlines and evacuation
+likes, comments; only the LGU posts, owner 2026-10-20), events, directory, hotlines and evacuation
 centres, Sakuna incident reports, notifications, profile edits (with verify-by-code contact
 changes), resident profile submission and status, the Digital ID (with its signed QR), Report
 a Problem (support tickets), notification preferences, change password and data-subject
@@ -49,7 +49,7 @@ Verified identity and an approved account - the app takes `access_level` from th
 must build and check iOS before the next iOS release.
 
 **Check routes against the backend, not the spec.** Citizen-only routes live under
-`/citizen/...` in esperanza-backend `routes/api.php` (Balita likes/comments/community posts
+`/citizen/...` in esperanza-backend `routes/api.php` (Balita likes and comments
 included; only the reads are public). The spec's prose has been wrong about this before.
 
 Rules for API code: parse payloads with `lib/services/json_read.dart` (never a hard

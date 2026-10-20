@@ -82,9 +82,6 @@ void _installFeedFixture() {
     if (req.method == 'GET' && req.path == '/announcements') {
       return [_mangroveAnnouncement, _fiestaAnnouncement];
     }
-    if (req.method == 'GET' && req.path == '/citizen/community-posts') {
-      return <Map<String, dynamic>>[];
-    }
     if (req.method == 'GET' && req.path.startsWith('/citizen/') && req.path.endsWith('/comments')) {
       return <Map<String, dynamic>>[];
     }

@@ -53,10 +53,10 @@ class SignOut {
       // next sign-in's own loadRequests()/loadFeed() replaces this from the
       // server. Balita specifically used to be excluded here ("public
       // municipal content, identical for everyone") -- that stopped being
-      // true once community posts carried real per-citizen `liked_by_me`/
-      // `mine` state (production-readiness programme, 2026-09-25), so a
-      // shared device's next citizen must not see the previous citizen's
-      // fetched feed before their own fresh loadFeed() runs.
+      // true once the feed carried real per-citizen `liked_by_me` state
+      // (production-readiness programme, 2026-09-25), so a shared device's
+      // next citizen must not see the previous citizen's fetched feed
+      // before their own fresh loadFeed() runs.
       requests.clear();
       balita.clear();
       await profiles.forgetAccount(accountId);

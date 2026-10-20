@@ -70,7 +70,7 @@ Copied (not linked) from the Web Admin's `public/images/esperanza/` into `assets
 - **Dokyu** (Document Requests): catalog → new request wizard (requirements checklist, purpose, **real** camera/gallery/document attachment) → confirmation → status tracking with timeline
 - **Tulong** (Assistance Requests): same flow, different catalog (7 DSWD/MSWDO programs)
 - **Sakuna** (Risk Reduction, citizen-scoped): emergency hotlines, evacuation centers, incident reporting reusing the same request pipeline
-- Balita & Events (community feed with like/comment counts, events list)
+- Balita & Events (community feed with like/comment counts, events list) — since 2026-10-20 Balita holds only the LGU's posts: residents read, react, comment and share, and do not post (owner ruling)
 - Government Directory (real municipal office names/numbers from the Web Admin, tap-to-call)
 - Notifications — **derived live** from every request's status history (see Section 3)
 - Profile (view/edit, profile-completeness bar) + Settings (notifications, language, about)

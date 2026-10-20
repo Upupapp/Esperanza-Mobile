@@ -4,25 +4,15 @@ import '../utils/date_text.dart';
 import 'balita_media.dart';
 import 'occasion_greeting.dart';
 
-/// Which real table a [Announcement] came from — GET /announcements
-/// (admin-published, read-only from mobile) or GET /community-posts
-/// (citizen-authored, real POST /community-posts exists too — see
-/// BalitaService.createPost). One merged, sorted feed either way, exactly
-/// like the Web Admin's own citizen/announcements.blade.php does client-side
-/// (`kind: 'announcement' | 'community'`) — that file is the contract this
-/// mirrors, not a guess made independently here.
-enum PostKind { announcement, community }
-
-/// One Balita feed item — an admin-published announcement or a citizen
-/// community post, both real now (production-readiness programme,
-/// 2026-09-25). [id] is source-prefixed ('ann-5' / 'cp-12') since both
-/// tables have their own independent integer id sequence; [remoteId] is
-/// the real numeric id the two engagement endpoints (like/comment/report)
-/// need.
+/// One Balita feed item — an announcement the LGU published (GET
+/// /announcements, real since the production-readiness programme,
+/// 2026-09-25). Only the LGU posts to Balita (owner, 2026-10-20); residents'
+/// community posts are gone. [id] keeps its 'ann-5' form, the key the feed
+/// and the viewer find a post by; [remoteId] is the real numeric id the
+/// like and comment endpoints need.
 class Announcement {
   final String id;
   final int remoteId;
-  final PostKind kind;
   final String author;
   final String? barangay;
   final String? category;
@@ -49,13 +39,11 @@ class Announcement {
 
   /// Whether the signed-in citizen has already liked this post.
   ///
-  /// Null for a just-loaded announcement — GET /announcements is public and
-  /// unauthenticated, so it has no way to say whether *this* citizen already
-  /// liked something, unlike GET /community-posts, which does return
-  /// `liked_by_me` for the real signed-in citizen. Starting every
-  /// announcement heart unfilled (rather than guessing) is what the Web
-  /// Admin's own client-side code does too, and stays correct for the rest
-  /// of this session the moment the citizen actually toggles one.
+  /// GET /announcements is public; given the citizen's token it says which
+  /// posts they liked (see [Announcement.fromAnnouncementApi]). Null only
+  /// for a post built without that answer, which shows as not liked and
+  /// stays correct for the rest of the session the moment the citizen
+  /// toggles it.
   bool? likedByMe;
 
   int commentsCount;
@@ -66,39 +54,9 @@ class Announcement {
   /// a server-side counter), it just never changes this number.
   final int shares;
 
-  /// Community posts only: the real EditorialWorkflow status
-  /// ('Pending Review' until an information officer approves it, then
-  /// published). Null for an announcement — nothing publishes without
-  /// already being published, by construction of the public endpoint that
-  /// serves them.
-  final String? status;
-
-  /// Community posts only: false while the post is [status] Pending Review
-  /// and not [mine] — never actually reached, since GET /community-posts
-  /// only ever returns a citizen's own posts plus everyone's *visible*
-  /// ones. Kept because the real API returns it and a UI badge is cheap
-  /// insurance against a future backend change silently starting to send
-  /// invisible posts through.
-  final bool visible;
-
-  /// Community posts only: whether the signed-in citizen authored this
-  /// post — drives the "Pending Review" badge and hides Report on a
-  /// citizen's own post (matching the Web Admin's own
-  /// `x-show="post.kind === 'community' && !post.mine"`).
-  final bool mine;
-
-  /// Community posts only: where the post stands, as the server words it
-  /// (2026-10-18) - 'pending' (waiting for an officer), 'published',
-  /// 'hidden' or 'removed' by an officer. Announcements are 'published'.
-  final String reviewState;
-
-  /// To its author only: why an officer hid or removed the post.
-  final String? moderationReason;
-
   Announcement({
     required this.id,
     required this.remoteId,
-    required this.kind,
     required this.author,
     this.barangay,
     this.category,
@@ -112,23 +70,7 @@ class Announcement {
     this.likedByMe,
     required this.commentsCount,
     this.shares = 0,
-    this.status,
-    this.visible = true,
-    this.mine = false,
-    this.reviewState = 'published',
-    this.moderationReason,
   });
-
-  bool get isOfficial => kind == PostKind.announcement;
-
-  /// Whether likes, comments and sharing are open on it. The backend refuses
-  /// a like or comment on a community post that is not yet approved (404,
-  /// CitizenPortalController `visible()` scope), and sharing one would spread
-  /// it past the moderation it is waiting on.
-  bool get engageable => kind == PostKind.announcement || (visible && reviewState == 'published');
-
-  /// The author's own post, not live: waiting, hidden or removed.
-  bool get heldBack => mine && reviewState != 'published';
 
   /// "Just now" / "12 mins ago" / "3 hrs ago" / an absolute date beyond a
   /// day old — same thresholds as the Web Admin's own `fmtTime`.
@@ -147,7 +89,6 @@ class Announcement {
     return Announcement(
       id: 'ann-$id',
       remoteId: id,
-      kind: PostKind.announcement,
       author: JsonRead.nonEmpty(json['author']) ?? 'Esperanza LGU',
       barangay: JsonRead.nonEmpty(json['barangay']),
       category: JsonRead.nonEmpty(json['category']),
@@ -175,41 +116,10 @@ class Announcement {
     if (title == null || body.trimLeft().startsWith(title)) return body;
     return body.isEmpty ? title : '$title\n\n$body';
   }
-
-  /// GET /citizen/community-posts (CitizenPortalController::postRow()).
-  factory Announcement.fromCommunityApi(Map<String, dynamic> json) {
-    final id = JsonRead.integer(json['id']);
-    if (id == null) throw const FormatException('community post without an id');
-    final visible = JsonRead.boolean(json['visible']) ?? true;
-    final status = JsonRead.nonEmpty(json['status']);
-    return Announcement(
-      id: 'cp-$id',
-      remoteId: id,
-      kind: PostKind.community,
-      author: JsonRead.string(json['author']) ?? '',
-      barangay: JsonRead.nonEmpty(json['barangay']),
-      category: JsonRead.nonEmpty(json['category']),
-      body: JsonRead.string(json['body']) ?? '',
-      imageUrl: JsonRead.mediaUrl(json['image_url']),
-      media: BalitaMedia.listFrom(json, JsonRead.mediaUrl(json['image_url'])),
-      at: JsonRead.date(json['created_at']),
-      likes: JsonRead.integer(json['likes']) ?? 0,
-      likedByMe: JsonRead.boolean(json['liked_by_me']) ?? false,
-      commentsCount: JsonRead.integer(json['comments_count']) ?? 0,
-      status: status,
-      visible: visible,
-      mine: JsonRead.boolean(json['mine']) ?? false,
-      // A server older than 2026-10-18 sends no review_state: read it from
-      // visible/status as before.
-      reviewState: JsonRead.nonEmpty(json['review_state']) ??
-          (visible && status != 'Pending Review' ? 'published' : 'pending'),
-      moderationReason: JsonRead.nonEmpty(json['moderation_reason']),
-    );
-  }
 }
 
-/// One comment on an announcement or a community post — both real now
-/// (GET/POST .../comments), same shape either way (commentRow()).
+/// One comment on an announcement (GET/POST
+/// /citizen/announcements/{id}/comments, commentRow()).
 class PostComment {
   final int id;
   final String author;

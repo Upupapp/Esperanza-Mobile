@@ -1,5 +1,6 @@
-// Balita's side-by-side review: what the feed card, comments sheet,
-// composer and report dialog showed or allowed that the backend does not.
+// Balita's side-by-side review: what the feed card and comments sheet
+// showed or allowed that the backend does not. (The composer and the report
+// dialog it also covered are gone: only the LGU posts, owner 2026-10-20.)
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
@@ -7,7 +8,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:esperanza_mobile/models/announcement.dart';
 import 'package:esperanza_mobile/screens/balita/comments_sheet.dart';
-import 'package:esperanza_mobile/screens/balita/compose_post_screen.dart';
 import 'package:esperanza_mobile/screens/balita/post_card.dart';
 import 'package:esperanza_mobile/services/balita_service.dart';
 import 'package:esperanza_mobile/services/citizen_session_service.dart';
@@ -24,17 +24,6 @@ Announcement _announcement() => Announcement.fromAnnouncementApi({
   'published_at': '2026-09-27T23:00:00Z',
   'likes': 3,
 });
-
-Announcement _community({bool mine = false, String status = 'Approved', bool visible = true}) =>
-    Announcement.fromCommunityApi({
-      'id': 31,
-      'author': 'Testa Sintetiko',
-      'body': 'Salamat sa lahat!',
-      'created_at': '2026-09-28T03:00:00Z',
-      'status': status,
-      'visible': visible,
-      'mine': mine,
-    });
 
 Future<CitizenSessionService> _pump(WidgetTester tester, Widget child, {bool signedIn = false}) async {
   SharedPreferences.setMockInitialValues({});
@@ -66,44 +55,17 @@ void main() {
     expect(find.text('Free vaccination this Saturday.'), findsOneWidget);
   });
 
-  testWidgets('your own post awaiting approval offers no like, comment or share (the backend refuses them)', (
-    tester,
-  ) async {
-    await _pump(tester, PostCard(post: _community(mine: true, status: 'Pending Review', visible: false)));
-    expect(find.textContaining('Pending review'), findsOneWidget);
-    expect(find.text('Like'), findsNothing);
-    expect(find.text('Comment'), findsNothing);
-    expect(find.text('Share'), findsNothing);
-  });
-
-  testWidgets('an approved post keeps its actions', (tester) async {
-    await _pump(tester, PostCard(post: _community()));
+  testWidgets('an LGU post keeps like, comment and share, and has no post menu', (tester) async {
+    FakeApi.installFull((r) => <dynamic>[]);
+    await _pump(tester, PostCard(post: _announcement()), signedIn: true);
     expect(find.text('Like'), findsOneWidget);
     expect(find.text('Comment'), findsOneWidget);
-  });
-
-  testWidgets('the composer holds a post to the backend limit', (tester) async {
-    await _pump(tester, const SizedBox(height: 900, child: ComposePostScreen()));
-    final field = tester.widget<TextField>(find.byType(TextField));
-    expect(field.maxLength, BalitaService.postMaxLength);
-    expect(BalitaService.postMaxLength, 2000);
-  });
-
-  testWidgets('a report cannot be sent empty and is held to 255 characters', (tester) async {
-    FakeApi.installFull((r) => <dynamic>[]);
-    await _pump(tester, PostCard(post: _community()), signedIn: true);
-    await tester.tap(find.byIcon(Icons.more_horiz_rounded));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Report post'));
-    await tester.pumpAndSettle();
-
-    final submit = find.widgetWithText(TextButton, 'Submit');
-    expect(tester.widget<TextButton>(submit).onPressed, isNull);
-    final field = find.descendant(of: find.byType(AlertDialog), matching: find.byType(TextField));
-    expect(tester.widget<TextField>(field).maxLength, BalitaService.reportReasonMaxLength);
-    await tester.enterText(field, 'Spam');
-    await tester.pump();
-    expect(tester.widget<TextButton>(submit).onPressed, isNotNull);
+    expect(find.text('Share'), findsOneWidget);
+    expect(find.text('Esperanza LGU'), findsOneWidget);
+    expect(find.byIcon(Icons.verified_rounded), findsOneWidget);
+    // Nothing to report or delete: every post is the LGU's own.
+    expect(find.byIcon(Icons.more_horiz_rounded), findsNothing);
+    expect(find.textContaining('Pending review'), findsNothing);
   });
 
   testWidgets('comments say when they were posted and are held to 1,000 characters', (tester) async {

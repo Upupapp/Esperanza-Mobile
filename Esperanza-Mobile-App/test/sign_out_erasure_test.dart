@@ -70,29 +70,25 @@ const _requestSummary = {
   'submitted': '2026-03-01T00:00:00.000',
 };
 
-// GET /community-posts' own row shape -- see
-// BalitaService.loadFeed/Announcement.fromCommunityApi.
-const _communityPost = {
+// GET /announcements' own row shape, liked by this citizen -- see
+// BalitaService.loadFeed/Announcement.fromAnnouncementApi.
+const _announcement = {
   'id': 1,
-  'author': 'Test Resident',
+  'author': 'Esperanza LGU',
   'barangay': 'Poblacion',
   'category': 'Community',
   'body': 'Sign-out erasure fixture post.',
   'image_url': null,
-  'status': 'Published',
-  'visible': true,
-  'likes': 0,
+  'likes': 1,
   'comments_count': 0,
-  'liked_by_me': false,
-  'mine': true,
-  'created_at': '2026-03-01T00:00:00.000',
+  'liked_by_me': true,
+  'published_at': '2026-03-01T00:00:00.000',
 };
 
 void _installFixtures() {
   FakeApi.installFull((req) {
     if (req.method == 'GET' && req.path == '/citizen/requests') return [_requestSummary];
-    if (req.method == 'GET' && req.path == '/announcements') return <Map<String, dynamic>>[];
-    if (req.method == 'GET' && req.path == '/citizen/community-posts') return [_communityPost];
+    if (req.method == 'GET' && req.path == '/announcements') return [_announcement];
     throw FakeApiError(messageEn: 'sign_out_erasure_test has no fixture for ${req.method} ${req.path}.');
   });
 }
@@ -167,8 +163,9 @@ void main() {
 
     testWidgets('the Balita feed is gone in memory too, not just from the screen', (tester) async {
       await setUpSignedIn(tester);
-      await balita.loadFeed(signedIn: true);
+      await balita.loadFeed();
       expect(balita.loaded, isTrue, reason: 'fixture should be loaded before we test erasure');
+      expect(balita.posts, hasLength(1), reason: 'fixture should be loaded before we test erasure');
 
       await signOut();
       await tester.pump(const Duration(milliseconds: 1));

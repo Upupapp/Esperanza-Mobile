@@ -372,7 +372,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 /// Empty where no feed is provided (a Home shown on its own).
 List<Announcement> _latestUpdates(BuildContext context) {
   try {
-    return context.watch<BalitaService>().posts.where((p) => p.kind == PostKind.announcement).take(2).toList();
+    return context.watch<BalitaService>().posts.take(2).toList();
   } on ProviderNotFoundException {
     return const [];
   }

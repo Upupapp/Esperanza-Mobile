@@ -66,6 +66,10 @@ item, move it to **Done** with its commit — do not delete it, so the arc stays
 
 ## Done this programme
 
+**Balita is the LGU's alone (2026-10-20, owner ruling):** residents read, like, comment (and delete
+their own comment) and share; the New Post composer, residents' community posts, Report/Delete post
+and the `?community=` notification link are removed from the app, as the server removes their routes.
+
 **ID, photo, contrast, office names and Tulong (2026-10-04, owner rulings):** closed PENDING 21, 26,
 27 and 30, and the backend's Tulong finding B-044, on all three sides. Sign-up sends the valid ID and
 a real camera selfie to the verification queue (`a5acd30`), with a retry if it fails; the profile photo

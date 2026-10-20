@@ -171,9 +171,9 @@ void main() {
     final file = File('${dir.path}/id.jpg')..writeAsBytesSync([1, 2, 3]);
     final seen = _install((_) async => _json({'data': {'ok': true}}));
 
-    final res = await api.postMultipart('/citizen/community-posts', filePath: file.path, fileField: 'image');
+    final res = await api.postMultipart('/citizen/support/tickets', filePath: file.path, fileField: 'attachment');
     expect(res.map['ok'], isTrue);
-    expect(seen.single.url.path, '/citizen/community-posts');
+    expect(seen.single.url.path, '/citizen/support/tickets');
   });
 
   test('path segments are encoded', () {
@@ -414,20 +414,24 @@ void main() {
       'image_url': '/storage/a$id.jpg',
     };
 
-    test('a failing community feed still shows the announcements', () async {
-      _install(
-        (r) async => r.url.path == '/announcements'
-            ? _json({
-                'data': [ann(1), ann('2')],
-                'meta': {'page': 1, 'per_page': 50, 'total': 2, 'last_page': 1},
-              })
-            : _json({'error': {'code': 'CAPABILITY_DENIED', 'message': 'no'}}, 403),
+    test('the feed is the announcements alone, newest first, skipping an unreadable row', () async {
+      // Residents' community posts are gone (owner, 2026-10-20): nothing
+      // else is fetched, signed in or not.
+      final seen = _install(
+        (r) async => _json({
+          'data': [
+            ann(1),
+            ann('2'),
+            {'body': 'no id'},
+          ],
+          'meta': {'page': 1, 'per_page': 50, 'total': 3, 'last_page': 1},
+        }),
       );
       final balita = BalitaService();
       addTearDown(balita.dispose);
-      await balita.loadFeed(signedIn: true);
+      await balita.loadFeed();
       expect(balita.posts.map((p) => p.remoteId), [2, 1]);
-      expect(balita.communityUnavailable, isTrue);
+      expect(seen.map((r) => '${r.method} ${r.url.path}'), ['GET /announcements']);
     });
 
     test('announcements keep liked_by_me and absolute image URLs', () async {
@@ -438,31 +442,11 @@ void main() {
       );
       final balita = BalitaService();
       addTearDown(balita.dispose);
-      await balita.loadFeed(signedIn: false);
+      await balita.loadFeed();
       final post = balita.posts.single;
       expect(post.likedByMe, isTrue);
       expect(post.likes, 3);
       expect(post.imageUrl, 'https://test.invalid/storage/a1.jpg');
-    });
-
-    test("a post still in moderation is shown only to its author", () async {
-      _install(
-        (r) async => r.url.path == '/announcements'
-            ? _json({'data': []})
-            : _json({
-                'data': [
-                  {'id': 1, 'body': 'mine', 'visible': false, 'mine': true, 'status': 'Pending Review'},
-                  {'id': 2, 'body': 'theirs', 'visible': false, 'mine': false},
-                  {'id': 3, 'body': 'public', 'visible': true},
-                  {'body': 'no id'},
-                ],
-              }),
-      );
-      final balita = BalitaService();
-      addTearDown(balita.dispose);
-      await balita.loadFeed(signedIn: true);
-      expect(balita.posts.map((p) => p.body), unorderedEquals(['mine', 'public']));
-      expect(balita.communityUnavailable, isFalse);
     });
 
     test('a second like tap while the first is in flight is ignored', () async {
@@ -490,25 +474,18 @@ void main() {
       final balita = BalitaService();
       addTearDown(balita.dispose);
       final announcement = Announcement.fromAnnouncementApi(ann(1));
-      final community = Announcement.fromCommunityApi({'id': 7, 'body': 'c'});
-      await balita.loadFeed(signedIn: true);
+      await balita.loadFeed();
       await balita.toggleLike(announcement);
-      await balita.toggleLike(community);
       await balita.loadComments(announcement);
-      await balita.addComment(community, 'hi');
-      await balita.reportPost(community, 'spam');
-      await balita.createPost(body: 'b', category: 'General');
-      // The two feed reads run concurrently, so order is not asserted.
-      expect(seen.map((r) => '${r.method} ${r.url.path}'), unorderedEquals([
+      final comment = await balita.addComment(announcement, 'hi');
+      await balita.deleteComment(announcement, comment);
+      expect(seen.map((r) => '${r.method} ${r.url.path}'), [
         'GET /announcements',
-        'GET /citizen/community-posts',
         'POST /citizen/announcements/1/like',
-        'POST /citizen/community-posts/7/like',
         'GET /citizen/announcements/1/comments',
-        'POST /citizen/community-posts/7/comments',
-        'POST /citizen/community-posts/7/report',
-        'POST /citizen/community-posts',
-      ]));
+        'POST /citizen/announcements/1/comments',
+        'DELETE /citizen/announcements/1/comments/5',
+      ]);
     });
 
     test('an announcement title leads its body', () {
@@ -516,14 +493,6 @@ void main() {
       expect(a.body, 'Road closure\n\nDetails here.');
       final b = Announcement.fromAnnouncementApi({'id': 2, 'title': 'Same', 'body': 'Same start of body'});
       expect(b.body, 'Same start of body');
-    });
-
-    test('a created post is in the live list the feed renders', () async {
-      _install((_) async => _json({'data': {'id': '9', 'body': 'Hello', 'mine': true, 'status': 'Pending Review'}}, 201));
-      final balita = BalitaService();
-      addTearDown(balita.dispose);
-      await balita.createPost(body: 'Hello', category: 'General');
-      expect(balita.posts.single.remoteId, 9);
     });
   });
 

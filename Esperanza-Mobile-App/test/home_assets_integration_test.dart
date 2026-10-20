@@ -240,15 +240,9 @@ void main() {
     });
     expect(newsImage.length, 1);
 
-    // A citizen can post to the community feed now (production-readiness
-    // programme, 2026-09-25 -- POST /community-posts is a real, if
-    // previously unused, backend capability); the entry point is visible
-    // even to a Guest, but tapping it gates on sign-in like every other
-    // Balita interaction, rather than opening the composer.
-    expect(find.byIcon(Icons.add_circle_outline_rounded), findsOneWidget);
-    await tester.tap(find.byIcon(Icons.add_circle_outline_rounded));
-    await tester.pumpAndSettle();
-    expect(find.text('Create Account'), findsOneWidget);
-    expect(find.text('Sign In'), findsOneWidget);
+    // Only the LGU posts to Balita (owner, 2026-10-20): the New Post entry
+    // point that a Guest used to see (and be asked to sign in from) is gone.
+    expect(find.byIcon(Icons.add_circle_outline_rounded), findsNothing);
+    expect(find.byTooltip('New Post'), findsNothing);
   });
 }
