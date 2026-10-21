@@ -2,9 +2,10 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../models/citizen_account.dart';
 
 /// The citizen's birthday, worked out on the phone from the signed-in
-/// account's own birthdate. Nothing about it is ever sent to the server: the
-/// Balita greeting card and the birthday pop-up are drawn here, for that
-/// citizen only.
+/// account's own birthdate, for the private greeting card that leads Balita
+/// on that day. Nothing about it is sent to the server. (The birthday pop-up
+/// over Home is the server's since 2026-10-21: it knows the birthdate and
+/// sends that pop-up itself.)
 class Birthday {
   Birthday._();
 
@@ -56,7 +57,7 @@ class Birthday {
     return birth != null && falls(birth, today());
   }
 
-  /// Whether [what] (the greeting card, the pop-up) was already put away on
+  /// Whether [what] (the greeting card) was already put away on
   /// this birthday, for this account, on this phone.
   static Future<bool> doneThisYear(String what, CitizenAccount account) async {
     try {

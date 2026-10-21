@@ -148,8 +148,20 @@ void main() {
         return http.Response(
           jsonEncode({
             'data': [
-              {'id': 4, 'title': 'Sample Fiesta', 'subtitle': 'Sample line', 'cta_label': 'View', 'cta_route': 'citizen.events', 'theme': 'from-purple-600 to-navy-900', 'image_url': null},
+              {
+                'id': 4,
+                'title': 'Sample Fiesta',
+                'subtitle': 'Sample line',
+                'alt_text': 'Sample plaza at dusk',
+                'cta_label': 'View',
+                'cta_route': 'citizen.events',
+                'theme': 'from-purple-600 to-navy-900',
+                'placement': 'home',
+                'order': 1,
+                'image_url': '/api/v1/media/banner-4?signature=synthetic',
+              },
               {'id': 5, 'title': '', 'theme': null},
+              {'id': '6', 'title': 'Sample Notice', 'alt_text': '', 'image_url': null},
             ],
           }),
           200,
@@ -160,9 +172,16 @@ void main() {
     );
 
     final banners = await LiveBanner.load();
-    expect(banners, hasLength(1), reason: 'a banner without a title is skipped');
-    expect(banners.single.title, 'Sample Fiesta');
-    expect(banners.single.action, isNotNull, reason: 'the events button opens the Events tab');
+    expect(banners, hasLength(2), reason: 'a banner without a title is skipped');
+    final fiesta = banners.first;
+    expect(fiesta.title, 'Sample Fiesta');
+    expect(fiesta.action, isNotNull, reason: 'the events button opens the Events tab');
+    // A signed media link, resolved against the API like a Balita photo.
+    expect(fiesta.imageUrl, 'https://test.invalid/api/v1/media/banner-4?signature=synthetic');
+    expect(fiesta.imageLabel, 'Sample plaza at dusk');
+    expect(banners.last.id, 6);
+    expect(banners.last.imageUrl, isNull);
+    expect(banners.last.imageLabel, 'Sample Notice', reason: 'no alt text: the title is said');
     expect(LiveBanner.fromApi(const {'title': 'x', 'cta_route': 'citizen.dashboard'}).action, isNull, reason: 'Home itself is the dashboard');
   });
 
@@ -186,6 +205,29 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Second sample'), findsOneWidget);
     expect(find.text('Hidden'), findsNothing, reason: 'no button where it would lead to this same screen');
+  });
+
+  testWidgets("a live banner's picture fills the card, centred, and is described by its alt text", (tester) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: LiveBannersStrip(
+            banners: [
+              LiveBanner(
+                title: 'Sample Fiesta',
+                imageUrl: 'https://test.invalid/api/v1/media/banner-4?signature=synthetic',
+                altText: 'Sample plaza at dusk',
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+    final picture = tester.widget<Image>(find.byType(Image));
+    expect(picture.fit, BoxFit.cover);
+    expect(picture.alignment, Alignment.center);
+    expect(picture.semanticLabel, 'Sample plaza at dusk');
+    expect((picture.image as NetworkImage).url, 'https://test.invalid/api/v1/media/banner-4?signature=synthetic');
   });
 
   test('a Sakuna alert in the feed is offered as a pop-up once', () async {

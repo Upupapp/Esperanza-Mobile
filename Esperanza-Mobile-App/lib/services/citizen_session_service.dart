@@ -43,6 +43,17 @@ class CitizenSessionService extends ChangeNotifier {
   bool get endedByServer => _endedByServer;
   bool _endedByServer = false;
 
+  /// Home's opening pop-ups (the server's occasion pop-up, then the welcome
+  /// poster) are offered once per launch or sign-in - not each time Home is
+  /// built again or the resident comes back to it (2026-10-21). True the
+  /// first time it is asked, false after, until someone signs in or out.
+  bool takeLaunchPopups() {
+    if (_launchPopupsOffered) return false;
+    return _launchPopupsOffered = true;
+  }
+
+  bool _launchPopupsOffered = false;
+
   /// The profile photo as the LGU holds it; refreshed with every profile read
   /// (the app re-reads it on start), never persisted on the phone.
   ProfilePhotoView? _photo;
@@ -106,6 +117,7 @@ class CitizenSessionService extends ChangeNotifier {
     _account = null;
     _isGuest = false;
     _endedByServer = true;
+    _launchPopupsOffered = false;
     await api.setToken(null);
     // No sign-out call can reach the server now: drop the push token instead.
     unawaited(PushService.forget());
@@ -188,6 +200,7 @@ class CitizenSessionService extends ChangeNotifier {
     _account = account;
     _isGuest = false;
     _endedByServer = false;
+    _launchPopupsOffered = false;
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_key, jsonEncode(account.toJson()));
     await prefs.remove(_guestKey);
@@ -391,6 +404,7 @@ class CitizenSessionService extends ChangeNotifier {
   Future<void> continueAsGuest() async {
     _account = null;
     _isGuest = true;
+    _launchPopupsOffered = false;
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_key);
     await prefs.setBool(_guestKey, true);
@@ -401,6 +415,7 @@ class CitizenSessionService extends ChangeNotifier {
   /// slate — called from RestrictedFeatureNotice before navigating away.
   Future<void> endGuestSession() async {
     _isGuest = false;
+    _launchPopupsOffered = false;
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_guestKey);
     notifyListeners();
@@ -419,6 +434,7 @@ class CitizenSessionService extends ChangeNotifier {
     _account = null;
     _photo = null;
     _isGuest = false;
+    _launchPopupsOffered = false;
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_key);
     await prefs.remove(_guestKey);

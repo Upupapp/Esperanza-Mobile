@@ -1,8 +1,9 @@
-// On the citizen's birthday a pop-up greets them over Home (the owner's
-// design, canvas "Balita Birthday Theme", artboard "Birthday pop-up (login /
-// after splash)"): right after signing in, or - already signed in - right
-// after the opening animation. Once per birthday, before the welcome poster,
-// and only for that citizen. Synthetic identities only.
+// The birthday pop-up over Home (the owner's design, canvas "Balita Birthday
+// Theme", artboard "Birthday pop-up (login / after splash)"). Since
+// 2026-10-21 the server sends it - on the resident's birthday, once a year,
+// as a pop-up marked `birthday` - and the app draws it in this design with
+// the server's words. The phone no longer triggers one itself from the
+// birthdate (owner decision). Synthetic identities only.
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -54,10 +55,35 @@ CitizenAccount _account({String birthdate = _birthday}) => CitizenAccount(
   serverAccessLevel: 'Verified',
 );
 
-void _serve({String birthdate = _birthday}) {
+Map<String, dynamic> _birthdayPopup({String? imageUrl}) => {
+  'id': 90,
+  'occurrence': '2026-10-16',
+  'type': 'birthday',
+  'type_label': {'en': 'Birthday', 'fil': 'Kaarawan'},
+  'birthday': true,
+  'title': 'Happy birthday, Testa!',
+  'message': 'Mula sa Bayan ng Esperanza: malusog at masayang taon sa iyo.',
+  'image_url': imageUrl,
+  'image_alt': 'Cake ng Bayan',
+  'frequency': 'once',
+  'dismissal': 'seen',
+  'dismissible': false,
+  'post_id': null,
+  'button': {'label': null, 'url': null},
+};
+
+/// What the app sent the server besides reads, as "METHOD path".
+final _sent = <String>[];
+
+/// The server: [popup] is what GET /citizen/popups/active answers.
+void _serve({String birthdate = _birthday, Map<String, dynamic>? popup}) {
+  _sent.clear();
   FakeApi.installFull((r) {
+    if (r.method != 'GET') _sent.add('${r.method} ${r.path}');
     if (r.path == '/auth/citizen/login') return {'token': 'synthetic-token'};
     if (r.path == '/citizen/profile') return _profile(birthdate: birthdate);
+    if (r.path == '/citizen/popups/active') return popup;
+    if (r.path == '/citizen/popups/90/seen') return {'id': 90, 'recorded': true};
     return <dynamic>[];
   });
 }
@@ -70,15 +96,10 @@ void _phone(WidgetTester tester) {
 }
 
 /// Opens the app with [account] already signed in on this phone.
-Future<void> _launchSignedIn(
-  WidgetTester tester, {
-  CitizenAccount? account,
-  Map<String, Object> more = const {},
-}) async {
+Future<void> _launchSignedIn(WidgetTester tester, {CitizenAccount? account}) async {
   SharedPreferences.setMockInitialValues({
     'esperanza_citizen_session': jsonEncode((account ?? _account()).toJson()),
     'esperanza_api_token': 'synthetic-token',
-    ...more,
   });
   await tester.pumpWidget(const EsperanzaMobileApp());
   await tester.pumpAndSettle();
@@ -92,29 +113,33 @@ void main() {
     FakeApi.restore();
   });
 
-  testWidgets('already signed in: it greets them after the opening animation, before the welcome poster', (
-    tester,
-  ) async {
+  testWidgets(
+    'already signed in: the server\'s birthday pop-up greets them in the birthday design, before the poster',
+    (tester) async {
+      _phone(tester);
+      _serve(popup: _birthdayPopup());
+      await _launchSignedIn(tester);
+
+      expect(find.byType(BirthdayPopup), findsOneWidget);
+      expect(find.text('MALIGAYANG KAARAWAN'), findsOneWidget);
+      expect(find.text('Happy birthday, Testa!'), findsOneWidget);
+      expect(find.text('Mula sa Bayan ng Esperanza: malusog at masayang taon sa iyo.'), findsOneWidget);
+      expect(find.text('Salamat!'), findsOneWidget);
+      expect(find.text('Huwag nang ipakita'), findsNothing, reason: 'not dismissible');
+      expect(find.byType(HomeWelcomeBanner), findsNothing, reason: 'the poster waits for the greeting');
+      expect(_sent, contains('POST /citizen/popups/90/seen'));
+
+      await tester.tap(find.text('Salamat!'));
+      await tester.pumpAndSettle();
+      expect(find.byType(BirthdayPopup), findsNothing);
+      expect(find.byType(HomeWelcomeBanner), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets('signing in on the birthday: the server\'s pop-up greets them on arriving Home', (tester) async {
     _phone(tester);
-    _serve();
-    await _launchSignedIn(tester);
-
-    expect(find.byType(BirthdayPopup), findsOneWidget);
-    expect(find.text('MALIGAYANG KAARAWAN'), findsOneWidget);
-    expect(find.text('Happy birthday, Testa!'), findsOneWidget);
-    expect(find.text('Salamat!'), findsOneWidget);
-    expect(find.byType(HomeWelcomeBanner), findsNothing, reason: 'the poster waits for the greeting');
-
-    await tester.tap(find.text('Salamat!'));
-    await tester.pumpAndSettle();
-    expect(find.byType(BirthdayPopup), findsNothing);
-    expect(find.byType(HomeWelcomeBanner), findsOneWidget);
-    expect(tester.takeException(), isNull);
-  });
-
-  testWidgets('signing in on the birthday: it greets them on arriving Home', (tester) async {
-    _phone(tester);
-    _serve();
+    _serve(popup: _birthdayPopup());
     SharedPreferences.setMockInitialValues({});
     await pumpAppToSignIn(tester);
     await tester.enterText(find.byType(TextField).at(0), 'testa@esperanza-test.invalid');
@@ -123,47 +148,36 @@ void main() {
     await tester.tap(find.text('Sign In'));
     await tester.pumpAndSettle();
 
+    expect(find.byType(BirthdayPopup), findsOneWidget);
     expect(find.text('Happy birthday, Testa!'), findsOneWidget);
   });
 
-  testWidgets('once per birthday: opening the app again the same day does not repeat it', (tester) async {
+  testWidgets('on the birthday, with no pop-up from the server, the phone shows none of its own', (tester) async {
     _phone(tester);
-    _serve();
+    _serve(popup: null);
     await _launchSignedIn(tester);
-    await tester.tap(find.byTooltip('Close'));
-    await tester.pumpAndSettle();
-    expect(find.byType(BirthdayPopup), findsNothing);
-
-    final prefs = await SharedPreferences.getInstance();
-    final kept = {for (final k in prefs.getKeys()) k: prefs.get(k)!};
-    await tester.pumpWidget(const SizedBox());
-    await _launchSignedIn(tester, more: kept);
-    expect(find.byType(BirthdayPopup), findsNothing);
-
-    // Next year, again.
-    Birthday.today = () => DateTime(2027, 10, 16, 8);
-    await tester.pumpWidget(const SizedBox());
-    await _launchSignedIn(tester, more: kept);
-    expect(find.byType(BirthdayPopup), findsOneWidget);
-  });
-
-  testWidgets('any other day, or someone else on this phone, gets no pop-up', (tester) async {
-    _phone(tester);
-    _serve(birthdate: '1988-03-02');
-    await _launchSignedIn(tester, account: _account(birthdate: '1988-03-02'));
+    expect(Birthday.isToday(_account()), isTrue, reason: 'it is the birthday on this phone');
     expect(find.byType(BirthdayPopup), findsNothing);
     expect(find.textContaining('Happy birthday'), findsNothing);
     expect(find.byType(HomeWelcomeBanner), findsOneWidget);
+    expect(_sent.where((s) => s.contains('/popups/')), isEmpty);
   });
 
-  testWidgets('its buttons are full-size targets, and closing it sends nothing', (tester) async {
+  testWidgets('a picture from the server takes the cake\'s place, with its alt text', (tester) async {
     _phone(tester);
-    final sent = <String>[];
-    FakeApi.installFull((r) {
-      if (r.method != 'GET') sent.add('${r.method} ${r.path}');
-      if (r.path == '/citizen/profile') return _profile();
-      return <dynamic>[];
-    });
+    _serve(popup: _birthdayPopup(imageUrl: '/api/v1/media/popup-90?signature=synthetic'));
+    await _launchSignedIn(tester);
+
+    final picture = tester.widget<Image>(find.descendant(of: find.byType(BirthdayPopup), matching: find.byType(Image)));
+    expect(picture.semanticLabel, 'Cake ng Bayan');
+    final url = (picture.image as NetworkImage).url;
+    expect(url, startsWith('http'));
+    expect(url, endsWith('/api/v1/media/popup-90?signature=synthetic'));
+  });
+
+  testWidgets('its buttons are full-size targets, and closing it sends nothing more', (tester) async {
+    _phone(tester);
+    _serve(popup: _birthdayPopup());
     await _launchSignedIn(tester);
 
     expect(tester.getSize(find.byTooltip('Close')).height, greaterThanOrEqualTo(44));
@@ -178,8 +192,10 @@ void main() {
     expect(close.center.dx, greaterThan(card.center.dx));
     expect(close.center.dy, lessThan(card.center.dy));
 
+    final before = _sent.where((s) => !s.contains('/citizen/devices')).toList();
+    expect(before, ['POST /citizen/popups/90/seen']);
     await tester.tap(find.byTooltip('Close'));
     await tester.pumpAndSettle();
-    expect(sent.where((s) => !s.contains('/citizen/devices')), isEmpty);
+    expect(_sent.where((s) => !s.contains('/citizen/devices')), before);
   });
 }

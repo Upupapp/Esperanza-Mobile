@@ -10,8 +10,9 @@ import 'service_launcher_menu.dart';
 
 /// A banner staff publish to the dashboard (Communications, Banners on the
 /// web admin), from the public `GET /banners`. The server sends only the
-/// banners that are published and inside their date window. The app showed
-/// none of them before (QA run 2026-10-05).
+/// banners that are published and inside their date window - and, given the
+/// resident's token, for their audience. The app showed none of them before
+/// (QA run 2026-10-05).
 class LiveBanner {
   final int? id;
   final String title;
@@ -19,7 +20,12 @@ class LiveBanner {
   final String? ctaLabel;
   final String? ctaRoute;
   final String? theme;
+
+  /// An inline signed `/api/v1/media/...` link, like a Balita photo's.
   final String? imageUrl;
+
+  /// What a screen reader says for the picture (2026-10-21).
+  final String? altText;
 
   const LiveBanner({
     this.id,
@@ -29,16 +35,22 @@ class LiveBanner {
     this.ctaRoute,
     this.theme,
     this.imageUrl,
+    this.altText,
   });
 
+  /// The picture's spoken label: its alt text, or the banner's title.
+  String get imageLabel => altText ?? title;
+
   static LiveBanner fromApi(Map<String, dynamic> json) => LiveBanner(
-    id: int.tryParse('${json['id']}'),
+    id: JsonRead.integer(json['id']),
     title: JsonRead.nonEmpty(json['title']) ?? '',
     subtitle: JsonRead.nonEmpty(json['subtitle']),
     ctaLabel: JsonRead.nonEmpty(json['cta_label']),
     ctaRoute: JsonRead.nonEmpty(json['cta_route']),
     theme: JsonRead.nonEmpty(json['theme']),
-    imageUrl: JsonRead.nonEmpty(json['image_url']),
+    // Resolved against the API's origin, as Balita's photos are.
+    imageUrl: JsonRead.mediaUrl(json['image_url']),
+    altText: JsonRead.nonEmpty(json['alt_text']),
   );
 
   /// The live banners; none when the list cannot be read, since Home has no
@@ -148,7 +160,14 @@ class _BannerCard extends StatelessWidget {
       child: Stack(
         fit: StackFit.expand,
         children: [
-          if (image != null) Image.network(image, fit: BoxFit.cover, errorBuilder: (_, _, _) => const SizedBox.shrink()),
+          if (image != null)
+            Image.network(
+              image,
+              fit: BoxFit.cover,
+              alignment: Alignment.center,
+              semanticLabel: banner.imageLabel,
+              errorBuilder: (_, _, _) => const SizedBox.shrink(),
+            ),
           DecoratedBox(
             decoration: BoxDecoration(
               gradient: LinearGradient(

@@ -27,7 +27,6 @@ import '../../widgets/empty_state.dart';
 import '../../widgets/esperanza_art.dart';
 import '../../widgets/event_card.dart';
 import '../../utils/banner_memory.dart';
-import '../../widgets/birthday_popup.dart';
 import '../../widgets/occasion_greeting_popup.dart';
 import '../../widgets/home_welcome_banner.dart';
 import '../../widgets/live_banners.dart';
@@ -66,12 +65,11 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   final _scrollController = ScrollController();
-  bool _bannerOffered = false;
 
-  // Fetched once per session-entry, same as _bannerOffered above (RootShell
-  // keeps this screen alive via IndexedStack) -- a plain Future, not
-  // AsyncStateView, since this is a small teaser tucked inside a much
-  // larger dashboard: a fetch failure here should just show nothing,
+  // Fetched once per session-entry (RootShell keeps this screen alive via
+  // IndexedStack) -- a plain Future, not AsyncStateView, since this is a
+  // small teaser tucked inside a much larger dashboard: a fetch failure
+  // here should just show nothing,
   // never a full-screen error/retry state that blocks everything else on
   // Home (see sakuna_screen.dart's own doc comment on this exact class of
   // mistake).
@@ -109,27 +107,22 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     // The Resident Profile card shows what the barangay decided, not what
     // this phone last knew (live test 2026-10-07, BUG-9).
     WidgetsBinding.instance.addPostFrameCallback((_) => _syncResidentProfile());
-    // RootShell mounts HomeScreen once via IndexedStack and keeps it alive
-    // across tab switches, so `initState` running exactly once per
-    // session-entry is what makes "show once, then stay closed for the
-    // rest of this session" work without any extra persisted flag — no
-    // over-engineered banner-impression backend needed for this demo.
-    // addPostFrameCallback defers to after the first real frame, which is
-    // the standard safe point to open a dialog from initState.
+    // The opening pop-ups, after the first real frame (the standard safe
+    // point to open a dialog from initState): this is the first frame after
+    // signing in, or after the opening animation for someone already signed
+    // in. Offered once per launch or sign-in - the session keeps that, not
+    // this State, so Home being built again (a sign-in from guest mode, the
+    // shell rebuilt) never asks the server twice (2026-10-21).
     //
-    // On the citizen's birthday the birthday pop-up comes first - this is
-    // the first frame after signing in, or after the opening animation for
-    // someone already signed in - and the welcome poster waits until it is
-    // closed, so the two never stack.
+    // First the server's occasion pop-up, when one is due - a fiesta, a
+    // holiday, the resident's birthday (the server's since 2026-10-21; the
+    // phone no longer works the birthday out for a pop-up). Then the welcome
+    // poster, so the two never stack. A resident who followed the pop-up to
+    // its post is on that page now: the poster waits for next time instead
+    // of opening over it.
     WidgetsBinding.instance.addPostFrameCallback((_) async {
-      if (_bannerOffered || !mounted) return;
-      _bannerOffered = true;
+      if (!mounted || !context.read<CitizenSessionService>().takeLaunchPopups()) return;
       final account = context.read<CitizenSessionService>().account;
-      await BirthdayPopup.showIfDue(context, account);
-      if (!mounted) return;
-      // Then an occasion greeting from the LGU, when one is due (2026-10-19).
-      // A resident who followed it to its post is on that page now: the
-      // poster waits for next time instead of opening over it.
       final wentOn = await OccasionGreetingPopup.showIfAny(context, account);
       if (!mounted || wentOn) return;
       BannerMemory.showOnce(HomeWelcomeBanner.assetPath, () {

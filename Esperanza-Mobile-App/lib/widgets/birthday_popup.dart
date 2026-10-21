@@ -1,66 +1,89 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
-import '../models/citizen_account.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
 import '../theme/app_typography.dart';
 import '../utils/ambient_motion.dart';
-import '../utils/birthday.dart';
 
 /// The birthday pop-up over Home, after the owner's design (canvas "Balita
 /// Birthday Theme", artboard "Birthday pop-up (login / after splash)",
 /// 2026-10-16): a cake with lit candles, confetti falling over the page, and
 /// "Happy birthday" from the Municipality.
 ///
-/// It opens on Home's first frame, which is reached right after signing in
-/// and, for a citizen already signed in, right after the opening animation.
-/// Once per birthday, per account, on this phone. Like the Balita card it is
-/// drawn here from the account's own birthdate and never sent anywhere, so
-/// only that citizen sees it.
+/// Since 2026-10-21 the server decides when it shows (owner decision): on
+/// the resident's birthday GET /citizen/popups/active sends a pop-up marked
+/// `birthday`, once a year, and [OccasionGreetingPopup] draws it in this
+/// design with the server's own title, message and picture. The phone no
+/// longer works out the birthday for the pop-up; the private Balita card
+/// still does.
 class BirthdayPopup extends StatefulWidget {
-  const BirthdayPopup({super.key, required this.firstName});
+  const BirthdayPopup({
+    super.key,
+    required this.title,
+    this.message = '',
+    this.imageUrl,
+    this.imageAlt,
+    this.onDontShowAgain,
+  });
 
-  final String firstName;
+  /// "Happy birthday, Juan!", as the server wrote it.
+  final String title;
 
-  /// Opens the pop-up when today is [account]'s birthday and it has not been
-  /// shown on this birthday yet; completes when it is closed.
-  static Future<void> showIfDue(BuildContext context, CitizenAccount? account) async {
-    if (account == null || !Birthday.isToday(account)) return;
-    if (await Birthday.doneThisYear('popup', account)) return;
-    if (!context.mounted) return;
-    await Birthday.markDone('popup', account);
-    if (!context.mounted) return;
-    await showGeneralDialog<void>(
-      context: context,
-      barrierDismissible: true,
-      barrierLabel: 'Close birthday greeting',
-      barrierColor: AppColors.navy950.withValues(alpha: 0.55),
-      transitionDuration: const Duration(milliseconds: 550),
-      pageBuilder: (_, _, _) => BirthdayPopup(firstName: account.firstName.trim()),
-      transitionBuilder: (context, animation, _, child) {
-        // The card pops up a beat after the scrim, overshooting a touch.
-        final pop = CurvedAnimation(
-          parent: animation,
-          curve: const Interval(0.18, 1, curve: Cubic(0.2, 0.9, 0.3, 1.15)),
-        );
-        return FadeTransition(
-          opacity: CurvedAnimation(parent: animation, curve: const Interval(0.18, 0.7)),
-          child: AnimatedBuilder(
-            animation: pop,
-            builder: (context, child) => Transform.translate(
-              offset: Offset(0, 24 * (1 - pop.value)),
-              child: Transform.scale(scale: 0.92 + 0.08 * pop.value, child: child),
-            ),
-            child: child,
-          ),
-        );
-      },
+  /// The server's wish; the Municipality's own when it sent none.
+  final String message;
+
+  /// A picture in place of the cake, when the server sends one.
+  final String? imageUrl;
+  final String? imageAlt;
+
+  /// Offers "Huwag nang ipakita" when set.
+  final VoidCallback? onDontShowAgain;
+
+  static const transitionDuration = Duration(milliseconds: 550);
+
+  /// The card pops up a beat after the scrim, overshooting a touch.
+  static Widget transition(BuildContext context, Animation<double> animation, Animation<double> _, Widget child) {
+    final pop = CurvedAnimation(
+      parent: animation,
+      curve: const Interval(0.18, 1, curve: Cubic(0.2, 0.9, 0.3, 1.15)),
+    );
+    return FadeTransition(
+      opacity: CurvedAnimation(parent: animation, curve: const Interval(0.18, 0.7)),
+      child: AnimatedBuilder(
+        animation: pop,
+        builder: (context, child) => Transform.translate(
+          offset: Offset(0, 24 * (1 - pop.value)),
+          child: Transform.scale(scale: 0.92 + 0.08 * pop.value, child: child),
+        ),
+        child: child,
+      ),
     );
   }
 
   @override
   State<BirthdayPopup> createState() => _BirthdayPopupState();
+}
+
+/// "Huwag nang ipakita" (don't show this again), the quiet last action of a
+/// pop-up the server marks dismissible. A full-size target.
+class DontShowAgainButton extends StatelessWidget {
+  const DontShowAgainButton({super.key, required this.onPressed});
+
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return TextButton(
+      onPressed: onPressed,
+      style: TextButton.styleFrom(
+        minimumSize: const Size(0, AppSizes.minTouchTarget),
+        foregroundColor: AppColors.textMuted,
+        textStyle: const TextStyle(fontSize: AppTextSize.helper, fontWeight: FontWeight.w600),
+      ),
+      child: const Text('Huwag nang ipakita', semanticsLabel: "Huwag nang ipakita. Don't show again"),
+    );
+  }
 }
 
 class _BirthdayPopupState extends State<BirthdayPopup> with TickerProviderStateMixin {
@@ -98,10 +121,23 @@ class _BirthdayPopupState extends State<BirthdayPopup> with TickerProviderStateM
 
   @override
   Widget build(BuildContext context) {
-    final name = widget.firstName;
-    final title = name.isEmpty ? 'Happy birthday!' : 'Happy birthday, $name!';
-    final width = math.min(296.0, MediaQuery.sizeOf(context).width - 2 * AppSpacing.xxl);
+    final title = widget.title;
+    final message = widget.message.trim().isEmpty
+        ? 'The Municipality of Esperanza wishes you good health, happiness and a wonderful year ahead.'
+        : widget.message.trim();
+    final image = widget.imageUrl;
+    final size = MediaQuery.sizeOf(context);
+    final width = math.min(296.0, size.width - 2 * AppSpacing.xxl);
     double seconds() => _loop.value * _loopLength.inMilliseconds / 1000;
+    final cake = ExcludeSemantics(
+      child: AnimatedBuilder(
+        animation: _loop,
+        builder: (context, _) => CustomPaint(
+          size: const Size(168, 148),
+          painter: _Cake(seconds: _motionStarted ? seconds() : null),
+        ),
+      ),
+    );
 
     return Stack(
       children: [
@@ -123,6 +159,7 @@ class _BirthdayPopupState extends State<BirthdayPopup> with TickerProviderStateM
               type: MaterialType.transparency,
               child: Container(
                 width: width,
+                constraints: BoxConstraints(maxHeight: size.height * 0.86),
                 clipBehavior: Clip.antiAlias,
                 decoration: BoxDecoration(
                   color: AppColors.surface,
@@ -137,91 +174,117 @@ class _BirthdayPopupState extends State<BirthdayPopup> with TickerProviderStateM
                 ),
                 child: Stack(
                   children: [
-                    Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        // The cake on a warm glow, with confetti around it.
-                        Container(
-                          padding: const EdgeInsets.fromLTRB(AppSpacing.xl, 26, AppSpacing.xl, 2),
-                          decoration: const BoxDecoration(
-                            gradient: RadialGradient(
-                              center: Alignment(0, 0.3),
-                              radius: 0.85,
-                              colors: [AppColors.gold100, AppColors.gold50, AppColors.surface],
-                              stops: [0, 0.45, 0.8],
+                    SingleChildScrollView(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          // The cake (or the server's picture) on a warm
+                          // glow, with confetti around the cake.
+                          Container(
+                            width: double.infinity,
+                            padding: EdgeInsets.fromLTRB(
+                              AppSpacing.xl,
+                              26,
+                              AppSpacing.xl,
+                              image == null ? 2 : AppSpacing.sm,
                             ),
-                          ),
-                          child: Stack(
-                            clipBehavior: Clip.none,
-                            alignment: Alignment.center,
-                            children: [
-                              Positioned.fill(
-                                left: -AppSpacing.xl,
-                                right: -AppSpacing.xl,
-                                top: -26,
-                                child: ExcludeSemantics(
-                                  child: AnimatedBuilder(
-                                    animation: Listenable.merge([_intro, _loop]),
-                                    builder: (context, _) => CustomPaint(
-                                      painter: _CardConfetti(
-                                        arrive: const Interval(0.3, 1, curve: Curves.easeOut).transform(_intro.value),
-                                        seconds: _motionStarted ? seconds() : null,
+                            decoration: const BoxDecoration(
+                              gradient: RadialGradient(
+                                center: Alignment(0, 0.3),
+                                radius: 0.85,
+                                colors: [AppColors.gold100, AppColors.gold50, AppColors.surface],
+                                stops: [0, 0.45, 0.8],
+                              ),
+                            ),
+                            child: Stack(
+                              clipBehavior: Clip.none,
+                              alignment: Alignment.center,
+                              children: [
+                                if (image == null) ...[
+                                  Positioned.fill(
+                                    left: -AppSpacing.xl,
+                                    right: -AppSpacing.xl,
+                                    top: -26,
+                                    child: ExcludeSemantics(
+                                      child: AnimatedBuilder(
+                                        animation: Listenable.merge([_intro, _loop]),
+                                        builder: (context, _) => CustomPaint(
+                                          painter: _CardConfetti(
+                                            arrive: const Interval(
+                                              0.3,
+                                              1,
+                                              curve: Curves.easeOut,
+                                            ).transform(_intro.value),
+                                            seconds: _motionStarted ? seconds() : null,
+                                          ),
+                                        ),
                                       ),
                                     ),
                                   ),
-                                ),
-                              ),
-                              ExcludeSemantics(
-                                child: AnimatedBuilder(
-                                  animation: _loop,
-                                  builder: (context, _) => CustomPaint(
-                                    size: const Size(168, 148),
-                                    painter: _Cake(seconds: _motionStarted ? seconds() : null),
+                                  cake,
+                                ] else
+                                  // The picture whole, never cropped.
+                                  ConstrainedBox(
+                                    constraints: BoxConstraints(maxHeight: size.height * 0.36),
+                                    child: ClipRRect(
+                                      borderRadius: BorderRadius.circular(AppRadius.md),
+                                      child: Image.network(
+                                        image,
+                                        fit: BoxFit.contain,
+                                        semanticLabel: widget.imageAlt ?? title,
+                                        errorBuilder: (_, _, _) => cake,
+                                      ),
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ),
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(22, AppSpacing.sm, 22, 22),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                const Text(
+                                  'MALIGAYANG KAARAWAN',
+                                  textAlign: TextAlign.center,
+                                  semanticsLabel: 'Maligayang kaarawan',
+                                  style: TextStyle(
+                                    fontSize: AppTextSize.label,
+                                    fontWeight: FontWeight.w700,
+                                    letterSpacing: 1,
+                                    color: AppColors.gold700,
                                   ),
                                 ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        Padding(
-                          padding: const EdgeInsets.fromLTRB(22, AppSpacing.sm, 22, 22),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              const Text(
-                                'MALIGAYANG KAARAWAN',
-                                textAlign: TextAlign.center,
-                                semanticsLabel: 'Maligayang kaarawan',
-                                style: TextStyle(
-                                  fontSize: AppTextSize.label,
-                                  fontWeight: FontWeight.w700,
-                                  letterSpacing: 1,
-                                  color: AppColors.gold700,
+                                const SizedBox(height: 6),
+                                Text(
+                                  title,
+                                  textAlign: TextAlign.center,
+                                  style: const TextStyle(
+                                    fontSize: AppTextSize.section,
+                                    height: 1.25,
+                                    fontWeight: FontWeight.w800,
+                                    color: AppColors.navy900,
+                                  ),
                                 ),
-                              ),
-                              const SizedBox(height: 6),
-                              Text(
-                                title,
-                                textAlign: TextAlign.center,
-                                style: const TextStyle(
-                                  fontSize: AppTextSize.section,
-                                  height: 1.25,
-                                  fontWeight: FontWeight.w800,
-                                  color: AppColors.navy900,
+                                const SizedBox(height: AppSpacing.sm),
+                                Text(
+                                  message,
+                                  textAlign: TextAlign.center,
+                                  style: const TextStyle(
+                                    fontSize: AppTextSize.body,
+                                    height: 1.5,
+                                    color: AppColors.slate600,
+                                  ),
                                 ),
-                              ),
-                              const SizedBox(height: AppSpacing.sm),
-                              const Text(
-                                'The Municipality of Esperanza wishes you good health, happiness and a wonderful year ahead.',
-                                textAlign: TextAlign.center,
-                                style: TextStyle(fontSize: AppTextSize.body, height: 1.5, color: AppColors.slate600),
-                              ),
-                              const SizedBox(height: 18),
-                              _SalamatButton(onPressed: _close),
-                            ],
+                                const SizedBox(height: 18),
+                                _SalamatButton(onPressed: _close),
+                                if (widget.onDontShowAgain case final dontShowAgain?)
+                                  DontShowAgainButton(onPressed: dontShowAgain),
+                              ],
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                     Positioned(
                       top: AppSpacing.sm,

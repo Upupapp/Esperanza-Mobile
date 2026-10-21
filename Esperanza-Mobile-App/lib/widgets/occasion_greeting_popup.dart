@@ -13,25 +13,28 @@ import '../services/notifications_service.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
 import '../theme/app_typography.dart';
+import 'birthday_popup.dart';
 
-/// An occasion greeting from the LGU (2026-10-19) - a festival, a holiday,
-/// the town's foundation day - popping up when the resident opens the app,
-/// as an officer wrote, scheduled and had approved it in Balita.
+/// An occasion pop-up from the LGU (2026-10-19; its own server feature since
+/// 2026-10-21) - a fiesta, a holiday, an LGU event, the resident's birthday -
+/// popping up when the resident opens the app, as an officer wrote,
+/// scheduled and had approved it.
 ///
-/// It opens on Home's first frame, after the birthday pop-up and before the
-/// welcome poster, so pop-ups never stack, and not at all while a Sakuna
-/// alert is waiting: an emergency comes first. The server decides whether
-/// one is due and how often; closing it never hides the Balita post, and
-/// "Tingnan sa Balita" opens that post while it is in Balita.
+/// Home asks once per launch or sign-in, before the welcome poster, so
+/// pop-ups never stack, and shows none while a Sakuna alert is waiting: an
+/// emergency comes first. The server decides whether one is due, for whom
+/// and how often - a birthday one included, drawn in [BirthdayPopup]'s
+/// design. "Tingnan sa Balita" opens its post while it is in Balita, and
+/// "Huwag nang ipakita" puts away one the server marks dismissible.
 class OccasionGreetingPopup extends StatelessWidget {
   const OccasionGreetingPopup({super.key, required this.greeting});
 
   final OccasionGreeting greeting;
 
-  /// Shows the greeting due for [account] now, if any; completes when it is
+  /// Shows the pop-up due for [account] now, if any; completes when it is
   /// closed, with true when the resident went on to its post or link - Home
   /// then leaves the welcome poster for next time rather than opening it over
-  /// the page they chose. A guest has none: greetings follow a barangay.
+  /// the page they chose. A guest has none: pop-ups follow a resident.
   static Future<bool> showIfAny(BuildContext context, CitizenAccount? account) async {
     if (account == null) return false;
     final greeting = await GreetingService.active();
@@ -40,22 +43,40 @@ class OccasionGreetingPopup extends StatelessWidget {
     // Counted as shown now, as the website does: an app closed with the
     // pop-up still open has still shown it.
     GreetingService.markSeen(greeting.id);
+    final birthday = greeting.birthday;
     final wentOn = await showGeneralDialog<bool>(
       context: context,
       barrierDismissible: true,
-      barrierLabel: 'Close greeting',
+      barrierLabel: birthday ? 'Close birthday greeting' : 'Close greeting',
       barrierColor: AppColors.navy950.withValues(alpha: 0.55),
-      transitionDuration: const Duration(milliseconds: 320),
-      pageBuilder: (_, _, _) => OccasionGreetingPopup(greeting: greeting),
-      transitionBuilder: (context, animation, _, child) {
-        final curve = CurvedAnimation(parent: animation, curve: Curves.easeOutCubic);
-        return FadeTransition(
-          opacity: curve,
-          child: ScaleTransition(scale: Tween(begin: 0.94, end: 1.0).animate(curve), child: child),
-        );
-      },
+      transitionDuration: birthday ? BirthdayPopup.transitionDuration : const Duration(milliseconds: 320),
+      pageBuilder: (context, _, _) => birthday
+          ? BirthdayPopup(
+              title: greeting.title,
+              message: greeting.message,
+              imageUrl: greeting.imageUrl,
+              imageAlt: greeting.imageAlt,
+              onDontShowAgain: greeting.dismissible ? () => _dontShowAgain(context, greeting) : null,
+            )
+          : OccasionGreetingPopup(greeting: greeting),
+      transitionBuilder: birthday ? BirthdayPopup.transition : _transition,
     );
     return wentOn ?? false;
+  }
+
+  static Widget _transition(BuildContext context, Animation<double> animation, Animation<double> _, Widget child) {
+    final curve = CurvedAnimation(parent: animation, curve: Curves.easeOutCubic);
+    return FadeTransition(
+      opacity: curve,
+      child: ScaleTransition(scale: Tween(begin: 0.94, end: 1.0).animate(curve), child: child),
+    );
+  }
+
+  /// "Huwag nang ipakita": the server puts it away for this occurrence, and
+  /// it closes at once - the resident is not kept waiting on the network.
+  static void _dontShowAgain(BuildContext context, OccasionGreeting greeting) {
+    GreetingService.dismiss(greeting.id);
+    Navigator.of(context).pop(false);
   }
 
   void _openPost(BuildContext context) {
@@ -79,6 +100,7 @@ class OccasionGreetingPopup extends StatelessWidget {
     final size = MediaQuery.sizeOf(context);
     final width = math.min(320.0, size.width - 2 * AppSpacing.xxl);
     final occasion = greeting.occasion?.label(filipino: filipino);
+    final image = greeting.imageUrl;
     final hasLink = greeting.buttonUrl != null;
     final hasPost = greeting.postId != null;
 
@@ -111,17 +133,17 @@ class OccasionGreetingPopup extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      if (greeting.posterUrl != null)
-                        // The officer's poster, whole: never cropped, at most
-                        // a little over half the screen.
+                      if (image != null)
+                        // The officer's picture, whole: never cropped, at
+                        // most a little under half the screen.
                         ConstrainedBox(
                           constraints: BoxConstraints(maxHeight: size.height * 0.45),
                           child: ColoredBox(
                             color: AppColors.gold50,
                             child: Image.network(
-                              greeting.posterUrl!,
+                              image,
                               fit: BoxFit.contain,
-                              semanticLabel: greeting.title,
+                              semanticLabel: greeting.imageAlt,
                               errorBuilder: (_, _, _) => const SizedBox(height: AppSpacing.xxxl),
                             ),
                           ),
@@ -205,6 +227,8 @@ class OccasionGreetingPopup extends StatelessWidget {
                               ),
                               child: const Text('Salamat!'),
                             ),
+                            if (greeting.dismissible)
+                              DontShowAgainButton(onPressed: () => _dontShowAgain(context, greeting)),
                           ],
                         ),
                       ),
