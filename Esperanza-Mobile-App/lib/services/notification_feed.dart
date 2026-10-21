@@ -6,6 +6,7 @@ import '../models/request_milestones.dart';
 import '../theme/tulong_status.dart';
 import '../models/service_request.dart';
 import '../screens/balita/balita_post_screen.dart';
+import '../screens/events/event_detail_screen.dart';
 import '../screens/notifications/duplicate_account_details_screen.dart';
 import '../screens/notifications/unverified_duplicate_resolution_screen.dart';
 import '../screens/profile/resident_profile/resident_profile_overview_screen.dart';
@@ -409,6 +410,7 @@ IconData _iconFor(String status) => switch (status) {
   // is Mark to Release.
   'Mark to Release' || TulongStatus.readyForRelease => Icons.inventory_2_outlined,
   'Balita' => Icons.campaign_outlined,
+  'Event' => Icons.event_outlined,
   _ => Icons.info_outline_rounded,
 };
 
@@ -439,6 +441,10 @@ Widget? serverNotificationDestination(ServerNotification n) {
   if (post != null) return BalitaPostScreen(announcementId: int.parse(post.group(1)!));
   // `?community=ID` (a resident's own post) is no longer sent: only the LGU
   // posts to Balita (owner, 2026-10-20). An older one leads nowhere.
+  // An event: published, changed, cancelled, or the reminder the resident
+  // asked for (2026-10-21). Opens it; a cancelled one says it is gone.
+  final event = RegExp(r'^/citizen/events\?event=([^&#]+)$').firstMatch(link);
+  if (event != null) return EventLinkScreen(eventKey: Uri.decodeComponent(event.group(1)!));
   final incident = RegExp(r'^/citizen/incidents/([^/?#]+)$').firstMatch(link);
   if (incident != null) return RequestDetailScreen(requestId: Uri.decodeComponent(incident.group(1)!));
   final request = RegExp(r'^/citizen/(?:document|assistance)-requests/([^/?#]+)$').firstMatch(link);

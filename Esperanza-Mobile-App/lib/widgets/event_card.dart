@@ -85,8 +85,8 @@ class EventDescription extends StatelessWidget {
 
 /// The 16:9 poster slot (PAAIPE `.event-poster`): the event's own artwork
 /// when it has one, otherwise a soft blue panel with a calendar and who is
-/// putting it on. Real events have no artwork (the events table has no image
-/// column), so the panel is what residents normally see.
+/// putting it on. A real event's artwork is its first photo from the Web
+/// Admin (2026-10-21); one without photos shows the panel.
 class EventPoster extends StatelessWidget {
   const EventPoster({super.key, required this.event, this.radius = AppRadius.lg});
 
@@ -101,26 +101,46 @@ class EventPoster extends StatelessWidget {
         aspectRatio: 16 / 9,
         child: event.imagePath != null
             ? Image.asset(event.imagePath!, fit: BoxFit.cover)
-            : DecoratedBox(
-                decoration: const BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [AppColors.brand100, AppColors.cyan50],
-                  ),
-                ),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Icon(Icons.calendar_month_outlined, size: 32, color: AppColors.brand600),
-                    const SizedBox(height: AppSpacing.sm),
-                    Text(
-                      event.barangay != null ? 'Brgy. ${event.barangay}' : 'Municipality of Esperanza',
-                      style: const TextStyle(fontSize: AppTextSize.body, color: AppColors.brand600),
-                    ),
-                  ],
-                ),
-              ),
+            : event.imageUrl != null
+            ? Image.network(
+                event.imageUrl!,
+                fit: BoxFit.cover,
+                semanticLabel: 'Poster for ${event.title}',
+                errorBuilder: (_, _, _) => _EventPanel(event: event),
+              )
+            : _EventPanel(event: event),
+      ),
+    );
+  }
+}
+
+/// The plain panel of an event without a poster (or whose poster did not
+/// load).
+class _EventPanel extends StatelessWidget {
+  const _EventPanel({required this.event});
+
+  final EventItem event;
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [AppColors.brand100, AppColors.cyan50],
+        ),
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Icon(Icons.calendar_month_outlined, size: 32, color: AppColors.brand600),
+          const SizedBox(height: AppSpacing.sm),
+          Text(
+            event.barangay != null ? 'Brgy. ${event.barangay}' : 'Municipality of Esperanza',
+            style: const TextStyle(fontSize: AppTextSize.body, color: AppColors.brand600),
+          ),
+        ],
       ),
     );
   }

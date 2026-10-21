@@ -10,6 +10,7 @@ import '../../widgets/app_dialogs.dart';
 import '../../widgets/app_card.dart';
 import '../../widgets/balita_media_gallery.dart';
 import '../../widgets/balita_share_sheet.dart';
+import '../events/event_detail_screen.dart';
 import 'comments_sheet.dart';
 import 'post_image_viewer.dart';
 import '../../theme/app_typography.dart';
@@ -105,6 +106,7 @@ class PostCard extends StatelessWidget {
                 onOpen: (i) => PostImageViewer.open(context, post.id, initialIndex: i),
               ),
             ],
+            if (post.event case final event?) ...[const SizedBox(height: AppSpacing.md), _PostEventRow(event: event)],
             const SizedBox(height: AppSpacing.md),
             BalitaEngagementRow(post: post),
             Row(
@@ -326,4 +328,51 @@ String _bodyAfterHeadline(Announcement post) {
   final headline = _headline(post);
   final body = headline == null ? post.body : post.body.substring(headline.length);
   return body.trim();
+}
+
+/// A post made from an event (2026-10-21): when and where, and the event
+/// itself, to set a reminder.
+class _PostEventRow extends StatelessWidget {
+  const _PostEventRow({required this.event});
+
+  final PostEvent event;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: AppColors.brand50,
+      borderRadius: BorderRadius.circular(AppRadius.lg),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+        onTap: () =>
+            Navigator.of(context).push(MaterialPageRoute(builder: (_) => EventLinkScreen(eventKey: event.key))),
+        child: Padding(
+          padding: const EdgeInsets.all(AppSpacing.md),
+          child: Row(
+            children: [
+              const Icon(Icons.event_outlined, color: AppColors.brand600),
+              const SizedBox(width: AppSpacing.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      event.line.isEmpty ? 'Event' : event.line,
+                      style: const TextStyle(fontSize: AppTextSize.helper, fontWeight: FontWeight.w600),
+                    ),
+                    const SizedBox(height: 2),
+                    const Text(
+                      'See the event and set a reminder',
+                      style: TextStyle(fontSize: AppTextSize.fine, color: AppColors.brand600),
+                    ),
+                  ],
+                ),
+              ),
+              const Icon(Icons.chevron_right_rounded, color: AppColors.brand600),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 }

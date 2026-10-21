@@ -30,6 +30,10 @@ class Announcement {
   /// Every photo and video, in order (2026-10-18): up to ten.
   final List<BalitaMedia> media;
 
+  /// The event this post was made from, when it was (2026-10-21): the card
+  /// shows its day, time and place and opens it.
+  final PostEvent? event;
+
   final DateTime? at;
   int likes;
 
@@ -60,6 +64,7 @@ class Announcement {
     this.title,
     this.imageUrl,
     this.media = const [],
+    this.event,
     this.at,
     required this.likes,
     this.likedByMe,
@@ -93,6 +98,7 @@ class Announcement {
       media: BalitaMedia.listFrom(json, JsonRead.mediaUrl(json['image_url'])),
       // `post_type` and `greeting` are gone (2026-10-21): occasion pop-ups
       // are their own feature, and every post reads as a post.
+      event: PostEvent.fromApi(json['event']),
       at: JsonRead.date(json['published_at']) ?? JsonRead.date(json['created_at']),
       likes: JsonRead.integer(json['likes']) ?? 0,
       // GET /announcements is public, but given the citizen's bearer token
@@ -112,6 +118,34 @@ class Announcement {
     if (title == null || body.trimLeft().startsWith(title)) return body;
     return body.isEmpty ? title : '$title\n\n$body';
   }
+}
+
+/// The event a Balita post carries (announcementRow() `event`, 2026-10-21):
+/// null when the post was not made from one, or the event is no longer on
+/// the calendar.
+class PostEvent {
+  final String key;
+  final DateTime? date;
+  final String? time;
+  final String? venue;
+
+  const PostEvent({required this.key, this.date, this.time, this.venue});
+
+  static PostEvent? fromApi(Object? raw) {
+    final json = JsonRead.map(raw);
+    final key = json == null ? null : JsonRead.nonEmpty(json['key']);
+    if (json == null || key == null) return null;
+    final rawDate = JsonRead.nonEmpty(json['date']);
+    return PostEvent(
+      key: key,
+      date: rawDate != null ? DateTime.tryParse(rawDate) : null,
+      time: JsonRead.nonEmpty(json['time']),
+      venue: JsonRead.nonEmpty(json['venue']),
+    );
+  }
+
+  /// "Sun, Oct 25 · 2:00 PM · Municipal Plaza".
+  String get line => [if (date != null) DateFormat('EEE, MMM d').format(date!), ?time, ?venue].join(' · ');
 }
 
 /// One comment on an announcement (GET/POST
@@ -138,11 +172,22 @@ class PostComment {
 
 /// Mirrors an entry from citizen/events.blade.php's $events array.
 class EventItem {
+  /// The server's key for it: what a reminder and a notification name. Null
+  /// for the bundled mock events.
+  final String? key;
   final String title;
   final String date;
   final String time;
   final String venue;
   final String? imagePath;
+
+  /// Its first photo from the Web Admin (GET /events `image_url`,
+  /// 2026-10-21): the poster of a real event. [imagePath] is the bundled
+  /// artwork of the mock events.
+  final String? imageUrl;
+
+  /// The Balita post that carries it, while that post is in the feed.
+  final int? balitaPostId;
   final String? category;
 
   /// Set when the event is for one barangay; null when it is municipality-wide
@@ -161,11 +206,14 @@ class EventItem {
   final DateTime? startsAt;
 
   EventItem({
+    this.key,
     required this.title,
     required this.date,
     required this.time,
     required this.venue,
     this.imagePath,
+    this.imageUrl,
+    this.balitaPostId,
     this.category,
     this.barangay,
     this.recurrence,
@@ -212,16 +260,14 @@ class EventItem {
   /// (`e.title || e.name`) -- that file is the contract for which of the
   /// two is authoritative, not a guess made independently here.
   ///
-  /// [imagePath] is always null: the real `events` table has no poster/image
-  /// column at all (confirmed against app/Models/Event.php, not assumed),
-  /// unlike MockCatalog's own seed events, which bundle real poster artwork
-  /// for genuine past municipal events. EventCard already treats it as
-  /// optional, so a real event renders as a text-only card rather than
-  /// missing its poster silently -- there is no image to fall back to.
+  /// [imagePath] is the bundled artwork of MockCatalog's seed events; a real
+  /// event's poster is its first photo, [imageUrl] (2026-10-21). An event
+  /// without one renders as the plain panel.
   factory EventItem.fromApi(Map<String, dynamic> json) {
     final rawDate = JsonRead.nonEmpty(json['date']);
     final parsed = rawDate != null ? DateTime.tryParse(rawDate) : null;
     return EventItem(
+      key: JsonRead.nonEmpty(json['key']),
       title: JsonRead.nonEmpty(json['title']) ?? JsonRead.nonEmpty(json['name']) ?? '',
       date: parsed != null ? DateFormat('MMM d, yyyy').format(parsed) : (rawDate ?? ''),
       time: JsonRead.string(json['time']) ?? '',
@@ -230,6 +276,8 @@ class EventItem {
       barangay: JsonRead.nonEmpty(json['barangay']),
       recurrence: JsonRead.nonEmpty(json['recurrence']),
       description: JsonRead.nonEmpty(json['description']),
+      imageUrl: JsonRead.mediaUrl(json['image_url']),
+      balitaPostId: JsonRead.integer(json['balita_post_id']),
       startsAt: parsed,
     );
   }

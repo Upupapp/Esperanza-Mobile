@@ -12,7 +12,7 @@ class EventPosterViewer extends StatelessWidget {
   const EventPosterViewer({super.key, required this.event});
 
   static void open(BuildContext context, EventItem event) {
-    if (event.imagePath == null) return;
+    if (event.imagePath == null && event.imageUrl == null) return;
     Navigator.of(
       context,
     ).push(MaterialPageRoute(builder: (_) => EventPosterViewer(event: event), fullscreenDialog: true));
@@ -21,7 +21,7 @@ class EventPosterViewer extends StatelessWidget {
   @override
   Widget build(BuildContext context) => ImageViewerScaffold(
     title: event.title,
-    image: AssetImage(event.imagePath!),
+    image: event.imagePath != null ? AssetImage(event.imagePath!) : NetworkImage(event.imageUrl!),
     semanticLabel: 'Poster for ${event.title}',
   );
 }
