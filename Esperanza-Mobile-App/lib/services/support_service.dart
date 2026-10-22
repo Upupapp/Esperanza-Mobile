@@ -27,6 +27,10 @@ class SupportTicket {
   final DateTime? createdAt;
   final String? attachmentName;
   final String? office;
+
+  /// The request the ticket is about, when the resident chose one; the
+  /// ticket then goes to that request's office.
+  final String? requestRef;
   final int messagesCount;
 
   /// The conversation after the first message, oldest first; empty on a list
@@ -57,6 +61,7 @@ class SupportTicket {
     this.createdAt,
     this.attachmentName,
     this.office,
+    this.requestRef,
     this.messagesCount = 0,
     this.replies = const [],
   });
@@ -75,6 +80,7 @@ class SupportTicket {
       createdAt: JsonRead.date(row['created_at']),
       attachmentName: JsonRead.nonEmpty(JsonRead.map(row['attachment'])?['name']),
       office: JsonRead.nonEmpty(row['office']),
+      requestRef: JsonRead.nonEmpty(row['request_ref']),
       messagesCount: JsonRead.integer(row['messages_count']) ?? 0,
       replies: JsonRead.rows(row['messages'], (m) {
         final body = JsonRead.nonEmpty(m['body']);
@@ -102,14 +108,21 @@ class SupportService {
   static const categories = ['Account & Login', 'Dokyu', 'Tulong', 'Technical Issue', 'App Problem', 'Other'];
 
   /// Files a ticket and returns its reference (`TKT-YYYY-####`). The
-  /// attachment, when given, is sent as multipart field `attachment`.
+  /// attachment, when given, is sent as multipart field `attachment`; a
+  /// [requestRef] sends the ticket to the office handling that request.
   static Future<String> fileTicket({
     required String category,
     required String subject,
     required String body,
     String? attachmentPath,
+    String? requestRef,
   }) async {
-    final fields = {'category': category, 'subject': subject.trim(), 'body': body.trim()};
+    final fields = {
+      'category': category,
+      'subject': subject.trim(),
+      'body': body.trim(),
+      if (requestRef != null && requestRef.isNotEmpty) 'request_ref': requestRef,
+    };
     final res = attachmentPath != null
         ? await api.postMultipart('/citizen/support/tickets', filePath: attachmentPath, fileField: 'attachment', fields: fields)
         : await api.post('/citizen/support/tickets', body: fields);

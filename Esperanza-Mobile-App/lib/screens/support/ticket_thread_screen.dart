@@ -100,6 +100,7 @@ class _TicketThreadScreenState extends State<TicketThreadScreen> {
         builder: (_) => ReportProblemScreen(
           initialSubject: subject.length > 160 ? subject.substring(0, 160) : subject,
           initialCategory: t.category,
+          initialRequestRef: t.requestRef,
         ),
       ),
     );
@@ -132,6 +133,7 @@ class _TicketThreadScreenState extends State<TicketThreadScreen> {
                     [t.category, ?t.office, ticketStatusNote(t.status)].join(' · '),
                     style: AppTypography.helper,
                   ),
+                  if (t.requestRef != null) Text('Request: ${t.requestRef}', style: AppTypography.fine),
                   if (t.attachmentName != null) Text('Attached: ${t.attachmentName}', style: AppTypography.fine),
                   const SizedBox(height: AppSpacing.lg),
                   if (_error != null && !_loading) ...[

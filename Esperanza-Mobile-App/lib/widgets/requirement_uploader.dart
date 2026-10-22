@@ -121,7 +121,9 @@ class RequirementUploader extends StatelessWidget {
           ),
         );
       case _UploadSource.document:
-        final result = await pickDocumentProtected(context, allowedExtensions: ['pdf', 'doc', 'docx', 'jpg', 'jpeg', 'png']);
+        // What the server accepts (config esperanza.uploads.allowed_mime):
+        // a Word file was offered here and then refused on upload.
+        final result = await pickDocumentProtected(context, allowedExtensions: ['pdf', 'jpg', 'jpeg', 'png', 'webp']);
         if (result == null || result.files.isEmpty) return;
         final f = result.files.single;
         if (f.bytes == null) return;

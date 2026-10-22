@@ -276,6 +276,10 @@ class ServiceRequest {
   /// scan of the signed paper once attached. Re-fetched with every detail.
   List<IssuedDocumentInfo> issuedDocuments = const [];
 
+  /// The service's key (the detail's `service_key`): which document a Dokyu
+  /// request is for. Null on a list row.
+  String? serviceKey;
+
   /// An incident's photos as the resident sent them: each a short-lived
   /// signed link, or null while the server is still checking the file.
   /// Re-fetched with every detail; empty on a list row.

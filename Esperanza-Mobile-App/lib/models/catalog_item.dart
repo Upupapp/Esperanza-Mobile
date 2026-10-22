@@ -7,13 +7,13 @@ import '../services/json_read.dart';
 /// the real backend, GET /services and GET /services/{key}
 /// (CatalogController::serialize()) -- previously a hardcoded copy of the
 /// Web Admin's own inline fixtures (production-readiness programme,
-/// 2026-09-25). [formSpec]/[demoDefaults]/[demoPurpose]/[demoRejectionReason]
-/// stay locally sourced (see [ServiceFormSpec]'s own doc comment) -- they
-/// describe *this wizard's own question set*, audited against the real
-/// paper forms in docs/DOKYU_TULONG_FORM_AUDIT.md, not business data the
-/// backend has any equivalent shape for; `services.fields`/`form_spec`
-/// exist server-side but are unconfirmed to be the same shape and were not
-/// assumed to be.
+/// 2026-09-25).
+///
+/// The form's questions are the server's too, since 2026-10-22: staff edit
+/// them in the Service Catalog (`fields`, published with the service's
+/// version) and the website asks exactly those, so the app does as well
+/// ([ServiceFormSpec.fromServerFields]). Only a service with no published version
+/// keeps the questions written into this app.
 class CatalogItem {
   final String key;
   final String name;
@@ -107,6 +107,10 @@ class CatalogItem {
   factory CatalogItem.fromApi(Map<String, dynamic> json, {ServiceFormSpec? formSpec, Map<String, dynamic> demoDefaults = const {}, String? demoPurpose, String? icon}) {
     final fee = json['fee'];
     String? str(String key) => JsonRead.string(json[key]);
+    // A published version's questions are the ones asked (an empty list means
+    // the form asks only a purpose); [formSpec] is this app's own fallback.
+    final published = json['version'] != null;
+    final entitlement = JsonRead.nonEmpty(JsonRead.map(json['form_spec'])?['entitlement']);
     return CatalogItem(
       key: str('key') ?? '',
       name: str('name') ?? '',
@@ -125,9 +129,10 @@ class CatalogItem {
       feeInputs: fee is Map ? JsonRead.strings(fee['required_inputs']) : const [],
       policyBlocked: JsonRead.boolean(json['policy_blocked']) ?? false,
       policyGapNote: JsonRead.nonEmpty(json['policy_gap_note']),
-      formSpec: formSpec,
-      demoDefaults: demoDefaults,
-      demoPurpose: demoPurpose,
+      amount: entitlement,
+      formSpec: published ? ServiceFormSpec.fromServerFields(json['fields']) : formSpec,
+      demoDefaults: published ? const {} : demoDefaults,
+      demoPurpose: published ? null : demoPurpose,
       icon: icon,
     );
   }

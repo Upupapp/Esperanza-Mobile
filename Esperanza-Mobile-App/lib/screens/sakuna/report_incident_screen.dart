@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 
-import '../../models/catalog_item.dart';
+import '../../models/incident_types.dart';
 import '../../services/api_client.dart';
 import '../../services/citizen_session_service.dart';
 import '../../services/barangay_service.dart';
@@ -27,21 +27,19 @@ import '../../theme/app_typography.dart';
 /// validation. Incidents are their own backend resource and are open to
 /// unverified citizens, so they get their own short form: an emergency
 /// report should take seconds, not a wizard.
+///
+/// What is happening is chosen on the form itself, from the website's list
+/// (lib/models/incident_types.dart): six tiles, the rest under "More kinds".
 class ReportIncidentScreen extends StatefulWidget {
-  const ReportIncidentScreen({super.key, required this.item, required this.accent});
+  const ReportIncidentScreen({super.key, this.initialType, required this.accent});
 
-  /// The incident type picked from the Sakuna catalogue (`MockCatalog
-  /// .incidentTypes`). The backend takes `type` as free text, so the name
-  /// is sent as-is.
-  final CatalogItem item;
+  /// A kind already chosen, if the resident came from one.
+  final IncidentType? initialType;
   final Color accent;
 
   @override
   State<ReportIncidentScreen> createState() => _ReportIncidentScreenState();
 }
-
-/// The severities the backend and the Web Admin's Sakuna module use.
-const incidentSeverities = ['Low', 'Moderate', 'High', 'Critical'];
 
 /// How many photos a report may carry (the backend's own limit).
 const maxIncidentPhotos = 3;
@@ -49,6 +47,7 @@ const maxIncidentPhotos = 3;
 class _ReportIncidentScreenState extends State<ReportIncidentScreen> {
   final _sitio = TextEditingController();
   final _description = TextEditingController();
+  IncidentType? _type;
   String? _severity;
   String? _barangay;
   bool _submitting = false;
@@ -66,6 +65,7 @@ class _ReportIncidentScreenState extends State<ReportIncidentScreen> {
   @override
   void initState() {
     super.initState();
+    _type = widget.initialType;
     final home = context.read<CitizenSessionService>().account?.barangay;
     if (home != null && BarangayService.names.contains(home)) _barangay = home;
   }
@@ -95,6 +95,10 @@ class _ReportIncidentScreenState extends State<ReportIncidentScreen> {
   }
 
   Future<void> _submit() async {
+    if (_type == null) {
+      setState(() => _error = 'Choose what is happening.');
+      return;
+    }
     if (_severity == null || _barangay == null) {
       setState(() => _error = 'Please choose how serious it is and the barangay where it is happening.');
       return;
@@ -105,9 +109,10 @@ class _ReportIncidentScreenState extends State<ReportIncidentScreen> {
     });
     try {
       final sitio = _sitio.text.trim();
+      final type = _type!.name;
       final incident = await context.read<RequestsService>().reportIncident(
-        type: widget.item.name,
-        title: sitio.isEmpty ? '${widget.item.name} — $_barangay' : '${widget.item.name} — $sitio, $_barangay',
+        type: type,
+        title: sitio.isEmpty ? '$type — $_barangay' : '$type — $sitio, $_barangay',
         severity: _severity!,
         barangay: _barangay!,
         sitio: sitio,
@@ -138,7 +143,7 @@ class _ReportIncidentScreenState extends State<ReportIncidentScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text('Report: ${widget.item.name}')),
+      appBar: AppBar(title: const Text('Report an Incident')),
       body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.md, AppSpacing.lg, AppSpacing.xxxl),
@@ -146,6 +151,22 @@ class _ReportIncidentScreenState extends State<ReportIncidentScreen> {
             const Text(
               'For life-threatening emergencies, call a hotline first.',
               style: TextStyle(fontSize: AppTextSize.helper, color: AppColors.rose600, fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: AppSpacing.lg),
+            const Text(
+              'What is happening?',
+              style: TextStyle(fontSize: AppTextSize.body, fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            _IncidentTypeTiles(selected: _type, onSelected: _submitting ? null : (t) => setState(() => _type = t)),
+            const SizedBox(height: AppSpacing.md),
+            AppSelectField<IncidentType>(
+              label: 'More kinds',
+              value: moreIncidentTypes.contains(_type) ? _type : null,
+              options: moreIncidentTypes,
+              labelBuilder: (t) => t.name,
+              hintText: 'Choose if it is not above',
+              onChanged: (t) => setState(() => _type = t),
             ),
             const SizedBox(height: AppSpacing.lg),
             const Text(
@@ -210,6 +231,90 @@ class _ReportIncidentScreenState extends State<ReportIncidentScreen> {
               onPressed: _submitting ? null : _submit,
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// The six kinds most reported, as tiles (the website's grid).
+class _IncidentTypeTiles extends StatelessWidget {
+  const _IncidentTypeTiles({required this.selected, required this.onSelected});
+
+  final IncidentType? selected;
+  final void Function(IncidentType type)? onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final width = (constraints.maxWidth - AppSpacing.sm) / 2;
+        return Wrap(
+          spacing: AppSpacing.sm,
+          runSpacing: AppSpacing.sm,
+          children: [
+            for (final type in incidentTypes)
+              SizedBox(
+                width: width,
+                child: _IncidentTypeTile(
+                  type: type,
+                  selected: selected == type,
+                  onTap: onSelected == null ? null : () => onSelected!(type),
+                ),
+              ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _IncidentTypeTile extends StatelessWidget {
+  const _IncidentTypeTile({required this.type, required this.selected, required this.onTap});
+
+  final IncidentType type;
+  final bool selected;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = selected ? AppColors.rose600 : AppColors.slate600;
+    return Semantics(
+      button: true,
+      selected: selected,
+      label: type.name,
+      excludeSemantics: true,
+      child: Material(
+        color: selected ? AppColors.rose50 : AppColors.surface,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppRadius.md),
+          side: BorderSide(color: selected ? AppColors.rose600 : AppColors.border, width: selected ? 1.5 : 1),
+        ),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(AppRadius.md),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(minHeight: AppSizes.minTouchTarget),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.sm),
+              child: Row(
+                children: [
+                  Icon(type.icon, size: AppSizes.iconBase, color: color),
+                  const SizedBox(width: AppSpacing.sm),
+                  Expanded(
+                    child: Text(
+                      type.name,
+                      style: TextStyle(
+                        fontSize: AppTextSize.helper,
+                        fontWeight: FontWeight.w600,
+                        color: selected ? AppColors.rose600 : AppColors.textPrimary,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
         ),
       ),
     );

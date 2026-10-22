@@ -20,6 +20,7 @@ import '../../widgets/resident_record_tile.dart';
 import '../../widgets/segmented_tabs.dart';
 import '../../widgets/status_chip.dart';
 import '../home/root_shell.dart';
+import '../sakuna/report_incident_screen.dart';
 import 'request_detail_screen.dart';
 import 'service_catalog_screen.dart';
 import '../../theme/app_typography.dart';
@@ -178,14 +179,18 @@ class _RequestListScreenState extends State<RequestListScreen> {
           // — shared by every FloatingActionButton unless overridden — would
           // collide the moment both are reachable in the same route subtree.
           heroTag: widget.category,
+          // An incident is reported on one form that asks what is happening
+          // (as on the website); Dokyu and Tulong pick a service first.
           onPressed: () => Navigator.of(context).push(
             MaterialPageRoute(
-              builder: (_) => ServiceCatalogScreen(
-                category: widget.category,
-                title: widget.title,
-                catalog: widget.catalog,
-                accent: widget.accent,
-              ),
+              builder: (_) => widget.category == ServiceCategory.sakunaIncident
+                  ? ReportIncidentScreen(accent: widget.accent)
+                  : ServiceCatalogScreen(
+                      category: widget.category,
+                      title: widget.title,
+                      catalog: widget.catalog,
+                      accent: widget.accent,
+                    ),
             ),
           ),
         ),

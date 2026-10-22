@@ -12,7 +12,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:esperanza_mobile/main.dart';
 import 'package:esperanza_mobile/models/citizen_account.dart';
-import 'package:esperanza_mobile/utils/birthday.dart';
 import 'package:esperanza_mobile/widgets/birthday_popup.dart';
 import 'package:esperanza_mobile/widgets/home_welcome_banner.dart';
 
@@ -106,12 +105,7 @@ Future<void> _launchSignedIn(WidgetTester tester, {CitizenAccount? account}) asy
 }
 
 void main() {
-  final realToday = Birthday.today;
-  setUp(() => Birthday.today = () => DateTime(2026, 10, 16, 8));
-  tearDown(() {
-    Birthday.today = realToday;
-    FakeApi.restore();
-  });
+  tearDown(FakeApi.restore);
 
   testWidgets(
     'already signed in: the server\'s birthday pop-up greets them in the birthday design, before the poster',
@@ -156,7 +150,6 @@ void main() {
     _phone(tester);
     _serve(popup: null);
     await _launchSignedIn(tester);
-    expect(Birthday.isToday(_account()), isTrue, reason: 'it is the birthday on this phone');
     expect(find.byType(BirthdayPopup), findsNothing);
     expect(find.textContaining('Happy birthday'), findsNothing);
     expect(find.byType(HomeWelcomeBanner), findsOneWidget);

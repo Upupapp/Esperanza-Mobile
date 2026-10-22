@@ -16,13 +16,13 @@ import '../../theme/app_haptics.dart';
 import '../../theme/app_spacing.dart';
 import '../../theme/app_typography.dart';
 import '../../theme/tulong_status.dart';
-import '../../utils/tulong_eligibility.dart';
 import '../../widgets/app_button.dart';
 import '../../widgets/app_card.dart';
 import '../../widgets/app_dialogs.dart';
 import '../../widgets/async_state_view.dart';
 import '../../widgets/image_viewer_scaffold.dart';
 import '../../widgets/request_milestone_timeline.dart';
+import 'document_view_screen.dart';
 import '../../widgets/request_release_cards.dart';
 import '../../widgets/request_survey_card.dart';
 import '../appointments/appointments_screen.dart';
@@ -226,12 +226,8 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
   /// reopens a brand-new application for the same catalog item, reusing the
   /// exact same routing ServiceCatalogScreen's own item list already uses
   /// (formSpec present -> the wizard, otherwise the older single-step
-  /// screen) rather than a second implementation. For Tulong, this still
-  /// goes through the same eligibility check as opening the item fresh
-  /// would (see utils/tulong_eligibility.dart) — a resident could have a
-  /// second, still-active application for this same assistance even while
-  /// looking at an earlier rejected one, and that must still block here
-  /// exactly as it would from the catalog. Dokyu has no such restriction.
+  /// screen) rather than a second implementation. Nothing is checked first,
+  /// as on the website: the office decides on a second application.
   /// The rejected request itself is never touched — submitting always
   /// creates a brand-new ServiceRequest with its own ref (see
   /// RequestsService.submit).
@@ -246,21 +242,6 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
     }
     if (item == null) return; // no matching catalog item to reopen against
 
-    if (request.category == ServiceCategory.tulong) {
-      final account = context.read<CitizenSessionService>().account;
-      if (account != null) {
-        final result = tulongEligibilityFor(service, typeName: item.name);
-        if (!result.isEligible) {
-          final viewRequest = await showTulongBlockedDialog(context, result);
-          if (viewRequest && context.mounted) {
-            Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => RequestDetailScreen(requestId: result.blockingRequest!.id)),
-            );
-          }
-          return;
-        }
-      }
-    }
 
     if (!context.mounted) return;
     final resolvedItem = item;
@@ -422,6 +403,12 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
                 ),
             ],
           ),
+        ],
+        // Approved: the document itself, as the website's Document Ready card
+        // (2026-10-22, app/web parity).
+        if (request.category == ServiceCategory.dokyu && documentReadyStatuses.contains(request.status)) ...[
+          const SizedBox(height: AppSpacing.xl),
+          DocumentReadyCard(request: request, accent: accent),
         ],
         // Ready: where and how to claim it (2026-10-15).
         if (request.pickup != null) ...[

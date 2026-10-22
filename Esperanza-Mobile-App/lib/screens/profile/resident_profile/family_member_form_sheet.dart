@@ -128,7 +128,7 @@ class _FamilyMemberFormSheetState extends State<FamilyMemberFormSheet> {
                         AppTextField(label: 'Full name', controller: _fullName, icon: Icons.person_outline_rounded),
                         const SizedBox(height: AppSpacing.fieldGap),
                         AppSelectField<String>(
-                          label: 'Relationship to Head of Family',
+                          label: 'Relationship to you',
                           value: _relationship,
                           options: ResidentProfileOptions.relationshipToHead,
                           labelBuilder: (v) => v,

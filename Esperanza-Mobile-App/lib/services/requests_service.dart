@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 
 import 'api_client.dart';
 import 'json_read.dart';
+import '../models/incident_types.dart';
 import '../models/request_release.dart';
 import '../models/attachment.dart';
 import '../models/catalog_item.dart';
@@ -290,7 +291,8 @@ class RequestsService extends ChangeNotifier {
       referenceNumber: ref,
       applicantId: '',
       applicantName: '',
-      typeName: JsonRead.nonEmpty(json['type']) ?? JsonRead.nonEmpty(json['title']) ?? 'Incident',
+      // An older report keeps the app's old name; read it under the shared one.
+      typeName: incidentTypeName(JsonRead.nonEmpty(json['type']) ?? JsonRead.nonEmpty(json['title']) ?? 'Incident'),
       category: ServiceCategory.sakunaIncident,
       office: '',
       purpose: [
@@ -436,7 +438,10 @@ class RequestsService extends ChangeNotifier {
       adminRemarks: JsonRead.nonEmpty(json['decision_remarks']),
       flaggedRequirements: needsCorrection,
       expectedDays: '',
+      // What was filed, for "Your Document" (as the website's formSnapshot).
+      formFields: JsonRead.map(json['form_data']) ?? const {},
     )
+      ..serviceKey = JsonRead.nonEmpty(json['service_key'])
       ..canResubmit = JsonRead.boolean(json['can_resubmit']) ?? false
       ..canWithdraw = JsonRead.boolean(json['can_withdraw']) ?? false
       ..attachableRequirements = attachable

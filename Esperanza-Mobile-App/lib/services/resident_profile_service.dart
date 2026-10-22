@@ -371,25 +371,6 @@ class ResidentProfileService extends ChangeNotifier {
     await _save(p);
   }
 
-  /// Family Information's own Emergency Contact Edit action. Marks
-  /// [ResidentProfile.emergencyContactEdited] so the Perlita Master Profile
-  /// alignment's seeded default (Rogelio Escano / Brother / 0919 000 9012)
-  /// never overwrites this again on a later app launch — see that
-  /// alignment's own guard.
-  Future<void> saveEmergencyContact(
-    String accountId, {
-    required String name,
-    required String relationship,
-    required String number,
-  }) async {
-    final p = _profiles[accountId]!;
-    p.emergencyContactName = name;
-    p.emergencyContactRelationship = relationship;
-    p.emergencyContactNumber = number;
-    p.emergencyContactEdited = true;
-    await _save(p);
-  }
-
   Future<void> addFamilyMember(String accountId, Individual member) async {
     final p = _profiles[accountId]!;
     member.familyId = p.familyId;
@@ -447,14 +428,12 @@ class ResidentProfileService extends ChangeNotifier {
     await _save(p);
   }
 
-  /// Section 8 — simulated "join an existing family record" action. No
-  /// real matching/merge happens; this just marks the request as sent and
-  /// adopts the matched family's display name so the UI can show it was
-  /// acted on.
-  Future<void> requestJoinFamily(String accountId, ExistingFamilyMatch match) async {
+  /// The household's monthly income, asked on Personal Information as the
+  /// website asks it (sent as `personal.income_range`).
+  Future<void> setMonthlyIncome(String accountId, String income) async {
     final p = _profiles[accountId]!;
-    p.joinRequestSent = true;
-    if (p.familyName.trim().isEmpty) p.familyName = match.familyName;
+    if (p.household.monthlyIncome == income) return;
+    p.household.monthlyIncome = income;
     await _save(p);
   }
 
@@ -463,9 +442,8 @@ class ResidentProfileService extends ChangeNotifier {
   /// the record "For Validation" for barangay staff; nothing on this device
   /// can mark it verified any more (the old demo verifier panel is gone).
   ///
-  /// The mobile form collects more than the backend stores; the fields
-  /// without a server column (school details, emergency contact, place of
-  /// birth, ...) stay on this device. Throws [ApiException] on failure, and
+  /// The form asks only what the backend stores (as the website's does).
+  /// Throws [ApiException] on failure, and
   /// then the local status is left unchanged.
   Future<void> submit(String accountId) async {
     final p = _profiles[accountId]!;

@@ -1,6 +1,8 @@
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:provider/provider.dart';
+import '../../models/service_request.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_spacing.dart';
 import '../../utils/cross_platform_image.dart';
@@ -12,6 +14,7 @@ import '../../widgets/form_section.dart';
 import '../../theme/app_typography.dart';
 import '../../services/support_service.dart';
 import '../../services/api_client.dart';
+import '../../services/requests_service.dart';
 
 const _categories = SupportService.categories;
 
@@ -22,11 +25,12 @@ const _categories = SupportService.categories;
 /// [SupportService]); the confirmation shows the ticket reference staff
 /// will use. It replaced a simulation that discarded every report.
 class ReportProblemScreen extends StatefulWidget {
-  const ReportProblemScreen({super.key, this.initialSubject, this.initialCategory});
+  const ReportProblemScreen({super.key, this.initialSubject, this.initialCategory, this.initialRequestRef});
 
   /// Prefilled when a closed ticket is followed up with a new one.
   final String? initialSubject;
   final String? initialCategory;
+  final String? initialRequestRef;
 
   @override
   State<ReportProblemScreen> createState() => _ReportProblemScreenState();
@@ -41,6 +45,35 @@ class _ReportProblemScreenState extends State<ReportProblemScreen> {
   String? _screenshotPath;
   bool _submitting = false;
   String? _error;
+
+  /// The request the ticket is about ('' for none), as on the website:
+  /// the ticket then goes to the office handling that request.
+  late String _requestRef = widget.initialRequestRef ?? '';
+  List<ServiceRequest> _requests = const [];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadRequests();
+  }
+
+  /// The resident's Dokyu and Tulong requests, newest first.
+  Future<void> _loadRequests() async {
+    final service = context.read<RequestsService?>();
+    if (service == null) return;
+    if (!service.loaded) {
+      try {
+        await service.loadRequests();
+      } catch (_) {
+        // The ticket can still be filed without a request.
+      }
+    }
+    if (!mounted) return;
+    setState(() {
+      _requests = service.all.where((r) => r.category != ServiceCategory.sakunaIncident).toList()
+        ..sort((a, b) => b.submittedAt.compareTo(a.submittedAt));
+    });
+  }
 
   @override
   void dispose() {
@@ -84,6 +117,7 @@ class _ReportProblemScreenState extends State<ReportProblemScreen> {
         subject: _subject.text,
         body: _description.text,
         attachmentPath: _screenshotPath,
+        requestRef: _requestRef,
       );
     } on ApiException catch (e) {
       if (!mounted) return;
@@ -103,6 +137,36 @@ class _ReportProblemScreenState extends State<ReportProblemScreen> {
           'office about it. For anything urgent, use the contact details on the Suporta page.',
     );
     if (mounted) Navigator.of(context).pop();
+  }
+
+  Widget _relatedRequestField() {
+    final refs = ['', ..._requests.map((r) => r.referenceNumber)];
+    // A follow-up's request may not be in the list (yet): keep it chosen.
+    if (!refs.contains(_requestRef)) refs.add(_requestRef);
+    String label(String ref) {
+      if (ref.isEmpty) return 'None';
+      final r = _requests.where((r) => r.referenceNumber == ref).firstOrNull;
+      return r == null ? ref : [r.referenceNumber, r.typeName, r.status].where((p) => p.isNotEmpty).join(' · ');
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        AppSelectField<String>(
+          key: ValueKey('related-request-${refs.length}'),
+          label: 'Related request (optional)',
+          value: _requestRef,
+          options: refs,
+          labelBuilder: label,
+          onChanged: (v) => setState(() => _requestRef = v ?? ''),
+        ),
+        const SizedBox(height: AppSpacing.xs),
+        Text(
+          'The ticket goes to the office handling that request.',
+          style: AppTypography.fine.copyWith(color: AppColors.textMuted),
+        ),
+      ],
+    );
   }
 
   @override
@@ -142,6 +206,7 @@ class _ReportProblemScreenState extends State<ReportProblemScreen> {
                 onChanged: (v) => setState(() => _category = v!),
               ),
               AppTextField(label: 'Subject', controller: _subject, hintText: 'Briefly describe the problem'),
+              _relatedRequestField(),
               AppTextField(
                 label: 'Description',
                 controller: _description,

@@ -13,12 +13,10 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:esperanza_mobile/screens/onboarding/onboarding_page_data.dart';
 import 'package:esperanza_mobile/screens/onboarding/onboarding_screen.dart';
 import 'package:esperanza_mobile/screens/profile/digital_id_screen.dart';
-import 'package:esperanza_mobile/screens/profile/government_id_viewer.dart';
 import 'package:esperanza_mobile/screens/profile/resident_profile/profile_photo_preview_screen.dart';
 import 'package:esperanza_mobile/services/citizen_session_service.dart';
 import 'package:esperanza_mobile/services/mock_catalog.dart';
 import 'package:esperanza_mobile/services/resident_profile_service.dart';
-import 'package:esperanza_mobile/theme/app_typography.dart';
 import 'package:esperanza_mobile/widgets/app_button.dart';
 import 'package:esperanza_mobile/widgets/image_viewer_scaffold.dart';
 
@@ -43,27 +41,6 @@ void main() {
   tearDown(FakeApi.restore);
 
   group('full-screen image viewer', () {
-    testWidgets('the title is set in Inter and fits on one line', (tester) async {
-      await tester.pumpWidget(
-        const MaterialApp(home: GovernmentIdViewer(record: MockCatalog.verifiedDemoGovernmentId)),
-      );
-      final bar = tester.widget<AppBar>(find.byType(AppBar));
-      expect(bar.titleTextStyle?.fontFamily, AppTypography.sans);
-      final title = tester.widget<Text>(find.text(MockCatalog.verifiedDemoGovernmentId.idType));
-      expect(title.maxLines, 1);
-      expect(title.overflow, TextOverflow.ellipsis);
-      expect(find.text(ImageViewerScaffold.zoomHint), findsOneWidget);
-    });
-
-    testWidgets('a screen reader hears what the image is', (tester) async {
-      final semantics = tester.ensureSemantics();
-      await tester.pumpWidget(
-        const MaterialApp(home: GovernmentIdViewer(record: MockCatalog.verifiedDemoGovernmentId)),
-      );
-      expect(find.bySemanticsLabel('Your submitted ${MockCatalog.verifiedDemoGovernmentId.idType}'), findsOneWidget);
-      semantics.dispose();
-    });
-
     testWidgets('an image that cannot load says so instead of a black screen', (tester) async {
       await tester.pumpWidget(
         const MaterialApp(

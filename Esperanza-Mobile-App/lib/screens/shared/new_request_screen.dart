@@ -9,16 +9,15 @@ import '../../services/requests_service.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_spacing.dart';
 import '../../theme/tulong_status.dart';
+import '../../utils/applicant_form_data.dart';
 import '../../utils/fee_inputs.dart';
 import '../../utils/requirement_document_type.dart';
-import '../../utils/tulong_eligibility.dart';
 import '../../widgets/app_button.dart';
 import '../../widgets/app_card.dart';
 import '../../widgets/app_text_field.dart';
 import '../../widgets/fee_input_fields.dart';
 import '../../widgets/app_dialogs.dart';
 import '../../widgets/request_documents_picker.dart';
-import 'request_detail_screen.dart';
 import 'request_submitted_screen.dart';
 import '../../theme/app_typography.dart';
 
@@ -102,18 +101,6 @@ class _NewRequestScreenState extends State<NewRequestScreen> {
 
     final requestsService = context.read<RequestsService>();
 
-    if (widget.category == ServiceCategory.tulong) {
-      final result = tulongEligibilityFor(requestsService, typeName: widget.item.name);
-      if (!result.isEligible) {
-        final viewRequest = await showTulongBlockedDialog(context, result);
-        if (viewRequest && mounted) {
-          Navigator.of(context).push(
-            MaterialPageRoute(builder: (_) => RequestDetailScreen(requestId: result.blockingRequest!.id)),
-          );
-        }
-        return;
-      }
-    }
 
     setState(() {
       _submitting = true;
@@ -123,7 +110,11 @@ class _NewRequestScreenState extends State<NewRequestScreen> {
     try {
       final request = await requestsService.submit(
         serviceKey: widget.item.key,
-        formData: {'purpose': _purposeController.text.trim()},
+        formData: {
+          'purpose': _purposeController.text.trim(),
+          // The website's applicant block, from the account.
+          ...applicantFormData(context.read<CitizenSessionService>().account),
+        },
         feeInputs: FeeInputs.collect(widget.item.feeInputs, _feeControllers),
       );
       final notUploaded = await requestsService.attachPicked(request, _picked);

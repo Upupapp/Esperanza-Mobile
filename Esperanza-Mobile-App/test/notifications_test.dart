@@ -1,5 +1,5 @@
-// Verifies the Notifications feed: the profile-completion reminder shows
-// only while incomplete and disappears once complete, server notifications
+// Verifies the Notifications feed: only what the server sent, as on the
+// website (no reminders the phone makes itself), its tabs, server notifications
 // (GET /citizen/notifications) render and open their request, and nothing
 // fabricated reaches anyone -- the old illustrative samples ("Typhoon
 // Advisory") are gone.
@@ -11,7 +11,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:esperanza_mobile/models/citizen_account.dart';
 import 'package:esperanza_mobile/screens/balita/balita_post_screen.dart';
 import 'package:esperanza_mobile/screens/notifications/notifications_screen.dart';
-import 'package:esperanza_mobile/screens/profile/resident_profile/resident_profile_overview_screen.dart';
 import 'package:esperanza_mobile/screens/shared/request_detail_screen.dart';
 import 'package:esperanza_mobile/services/balita_service.dart';
 import 'package:esperanza_mobile/services/citizen_session_service.dart';
@@ -71,56 +70,10 @@ Future<void> _pump(
 }
 
 void main() {
-  testWidgets('signed-in resident with an incomplete profile sees the "Complete Your Profile" reminder', (
-    tester,
-  ) async {
+  testWidgets("an incomplete profile adds no reminder of the app's own, as on the website", (tester) async {
     await _pump(tester, account: _incompleteAccount);
-
-    expect(find.text('Complete Your Profile'), findsOneWidget);
-    expect(find.text('Action Required'), findsWidgets); // badge label, may also appear on other tiles
-    expect(find.text('Complete Profile'), findsOneWidget); // the action link
-
-    await tester.tap(find.text('Complete Your Profile'));
-    await tester.pumpAndSettle();
-    expect(find.byType(ResidentProfileOverviewScreen), findsOneWidget);
-    expect(tester.takeException(), isNull);
-  });
-
-  testWidgets('the profile reminder disappears once the profile is 100% complete', (tester) async {
-    final service = ResidentProfileService();
-    // No need to wait for the service's background SharedPreferences
-    // restore here: with setMockInitialValues({}) there is nothing
-    // stored, so _restore() never reassigns _profiles and profileFor()
-    // below is safe to call immediately. (`await Future.delayed(...)`
-    // was tried here first — it hangs forever under flutter_test's fake
-    // clock, which never advances a real Timer.)
-    final profile = service.profileFor(_incompleteAccount);
-    profile.personal
-      ..firstName = 'Test'
-      ..lastName = 'Resident'
-      ..sex = 'Male'
-      ..birthdate = DateTime(1990, 1, 1)
-      ..civilStatus = 'Single'
-      ..mobile = '0900 000 0000'
-      ..barangay = 'Poblacion'
-      ..sitioPurok = 'Purok 1'
-      ..completeAddress = 'Purok 1, Brgy. Poblacion'
-      ..occupation = 'Fisherman';
-    profile.familyName = 'Resident Family';
-    profile.household
-      ..barangay = 'Poblacion'
-      ..sitioPurok = 'Purok 1'
-      ..completeAddress = 'Purok 1, Brgy. Poblacion'
-      ..housingOwnership = 'Owned'
-      ..housingType = 'Concrete'
-      ..waterSource = 'Piped / Communal System'
-      ..toiletFacility = 'Water-Sealed (Own Use)'
-      ..electricitySource = 'Grid-Connected (Meralco/Coop)';
-    expect(profile.overallCompletionPercent, 100);
-
-    await _pump(tester, account: _incompleteAccount, residentProfileService: service);
-
     expect(find.text('Complete Your Profile'), findsNothing);
+    expect(find.text("You're all caught up"), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
@@ -130,6 +83,53 @@ void main() {
     expect(find.text('Complete Your Profile'), findsNothing);
     expect(find.textContaining('Typhoon Advisory'), findsNothing);
     expect(find.text("You're all caught up"), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets("the website's tabs: All, Unread, Read, Dokyu, Tulong; pinned first", (tester) async {
+    Map<String, dynamic> row(int id, String category, String title, {bool pinned = false, String time = ''}) => {
+      'id': id,
+      'category': category,
+      'title': {'fil': title, 'en': title},
+      'body': {'fil': '$title body', 'en': '$title body'},
+      'unread': true,
+      'pinned': pinned,
+      'time': time,
+    };
+    FakeApi.installFull((r) {
+      if (r.path == '/citizen/notifications') {
+        return [
+          row(1, 'dokyu', 'Dokyu update', time: '2026-09-28T03:00:00Z'),
+          row(2, 'tulong', 'Tulong update', time: '2026-09-28T02:00:00Z'),
+          row(3, 'account', 'Pinned notice', pinned: true, time: '2026-09-01T00:00:00Z'),
+        ];
+      }
+      return <dynamic>[];
+    });
+    addTearDown(FakeApi.restore);
+    final notifications = NotificationsService();
+    await _pump(tester, account: _incompleteAccount, notifications: notifications);
+    await tester.runAsync(notifications.loadServer);
+    await tester.pumpAndSettle();
+
+    // Pinned first, though it is the oldest.
+    expect(tester.getTopLeft(find.text('Pinned notice')).dy, lessThan(tester.getTopLeft(find.text('Dokyu update')).dy));
+    expect(find.text('Unread (3)'), findsOneWidget);
+
+    await tester.tap(find.widgetWithText(ChoiceChip, 'Dokyu'));
+    await tester.pumpAndSettle();
+    expect(find.text('Dokyu update'), findsOneWidget);
+    expect(find.text('Tulong update'), findsNothing);
+    expect(find.text('Pinned notice'), findsNothing);
+
+    await tester.tap(find.widgetWithText(ChoiceChip, 'Tulong'));
+    await tester.pumpAndSettle();
+    expect(find.text('Tulong update'), findsOneWidget);
+    expect(find.text('Dokyu update'), findsNothing);
+
+    await tester.tap(find.widgetWithText(ChoiceChip, 'Read'));
+    await tester.pumpAndSettle();
+    expect(find.text('No notifications here'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 

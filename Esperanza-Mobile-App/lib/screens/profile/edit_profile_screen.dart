@@ -11,12 +11,12 @@ import '../../widgets/app_button.dart';
 import '../../widgets/app_dialogs.dart';
 import '../../widgets/app_text_field.dart';
 import '../../theme/app_typography.dart';
+import 'name_change_request.dart';
 
-/// "Update/request profile correction" from the Constituent flow (Section
-/// 10). Since the Web Admin has no residents API to submit a correction
-/// request against yet (see Section 8), this directly updates the local
-/// mock profile rather than creating a separate "correction request" —
-/// documented as a Web Admin alignment gap for later.
+/// Edit Profile, as the website's: before verification the resident types
+/// their own first and last name; once verified the name is locked, and a
+/// change goes to the barangay as a request with the reason and proof
+/// ([NameChangeRequest]).
 class EditProfileScreen extends StatefulWidget {
   const EditProfileScreen({super.key});
 
@@ -26,6 +26,8 @@ class EditProfileScreen extends StatefulWidget {
 
 class _EditProfileScreenState extends State<EditProfileScreen> {
   late final CitizenAccount _original;
+  late final TextEditingController _firstName;
+  late final TextEditingController _lastName;
   late final TextEditingController _mobile;
   late final TextEditingController _occupation;
   late final TextEditingController _purok;
@@ -36,6 +38,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   void initState() {
     super.initState();
     _original = context.read<CitizenSessionService>().account!;
+    _firstName = TextEditingController(text: _original.firstName);
+    _lastName = TextEditingController(text: _original.lastName);
     _mobile = TextEditingController(text: PhMobile.normalise(_original.mobile));
     _occupation = TextEditingController(text: _original.occupation == '—' ? '' : _original.occupation);
     _purok = TextEditingController(text: _original.purok == '—' ? '' : _original.purok);
@@ -44,6 +48,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
   @override
   void dispose() {
+    _firstName.dispose();
+    _lastName.dispose();
     _mobile.dispose();
     _occupation.dispose();
     _purok.dispose();
@@ -62,6 +68,16 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     String orig(String v) => v == '—' ? '' : v;
 
     final changes = <String, dynamic>{};
+    if (!session.identityLocked) {
+      final first = _firstName.text.trim();
+      final last = _lastName.text.trim();
+      if (first.isEmpty || last.isEmpty) {
+        setState(() => _error = 'Enter your first and last name.');
+        return;
+      }
+      if (first != _original.firstName.trim()) changes['first_name'] = first;
+      if (last != _original.lastName.trim()) changes['last_name'] = last;
+    }
     if (_purok.text.trim() != orig(_original.purok).trim()) changes['purok'] = blankToNull(_purok.text);
     if (_occupation.text.trim() != orig(_original.occupation).trim()) {
       changes['occupation'] = blankToNull(_occupation.text);
@@ -168,11 +184,19 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              _LockedField(
-                label: 'Full name',
-                value: _original.fullName,
-                note: 'Name and Resident ID are locked — request a correction at your barangay hall if these are incorrect.',
-              ),
+              if (context.watch<CitizenSessionService>().identityLocked) ...[
+                _LockedField(
+                  label: 'Full name',
+                  value: _original.fullName,
+                  note: 'Verified accounts change their name through the barangay office.',
+                ),
+                const SizedBox(height: AppSpacing.md),
+                NameChangeRequest(account: _original),
+              ] else ...[
+                AppTextField(label: 'First name', controller: _firstName, maxLength: 100),
+                const SizedBox(height: AppSpacing.lg),
+                AppTextField(label: 'Last name', controller: _lastName, maxLength: 100),
+              ],
               const SizedBox(height: AppSpacing.lg),
               AppTextField(
                 label: 'Mobile number',

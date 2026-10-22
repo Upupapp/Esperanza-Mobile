@@ -108,10 +108,13 @@ class BarangayInfo {
   static BarangayInfo? fromApi(Map<String, dynamic> m) {
     final name = JsonRead.nonEmpty(m['name']);
     if (name == null) return null;
+    // The names may come only inside `officials`, as the website reads them
+    // (staging 2026-10-22: the top-level fields were empty).
+    final officials = JsonRead.map(m['officials']);
     return BarangayInfo(
       name: name,
-      captain: JsonRead.nonEmpty(m['punong_barangay']),
-      secretary: JsonRead.nonEmpty(m['barangay_secretary']),
+      captain: JsonRead.nonEmpty(m['punong_barangay']) ?? JsonRead.nonEmpty(officials?['punong_barangay']),
+      secretary: JsonRead.nonEmpty(m['barangay_secretary']) ?? JsonRead.nonEmpty(officials?['barangay_secretary']),
       contact: JsonRead.nonEmpty(m['contact']),
       sealUrl: JsonRead.nonEmpty(m['seal_url']),
       history: BarangayHistory.fromApi(m['history']),

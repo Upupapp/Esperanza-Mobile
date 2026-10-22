@@ -38,21 +38,58 @@ class BalitaService extends ChangeNotifier {
   /// where the citizen types.
   static const commentMaxLength = 1000;
 
-  /// GET /announcements, newest first. Public, so a Guest gets the same
-  /// feed; with a signed-in citizen's token (ApiClient sends it on every
-  /// request) it also says which posts they liked.
+  /// The website's page size (scope-citizen.js FEED_PAGE).
+  static const pageSize = 20;
+
+  int _page = 0;
+  int _lastPage = 0;
+  bool _loadingMore = false;
+
+  /// More posts on the server than are loaded (the website's "Load more").
+  bool get hasMore => _page < _lastPage;
+  bool get loadingMore => _loadingMore;
+
+  /// GET /announcements, the first page, newest first. Public, so a Guest
+  /// gets the same feed; with a signed-in citizen's token (ApiClient sends it
+  /// on every request) the server keeps to their barangay's posts and the
+  /// municipality's, and says which they liked.
   Future<void> loadFeed() async {
     _loaded = false;
     scheduleMicrotask(notifyListeners);
     try {
-      final rows = await api.getAllPages('/announcements', query: {'per_page': 50}, maxPages: 2);
-      _posts = JsonRead.rows(rows, Announcement.fromAnnouncementApi)
-        ..sort((a, b) => (b.at ?? DateTime(0)).compareTo(a.at ?? DateTime(0)));
+      final res = await api.get('/announcements', query: {'per_page': pageSize, 'page': 1});
+      _posts = _sorted(JsonRead.rows(res.list, Announcement.fromAnnouncementApi));
+      _page = 1;
+      _lastPage = JsonRead.integer(res.meta?['last_page']) ?? 1;
     } finally {
       _loaded = true;
       notifyListeners();
     }
   }
+
+  /// The next page, added under what is loaded (each post once).
+  Future<void> loadMore() async {
+    if (_loadingMore || !hasMore) return;
+    _loadingMore = true;
+    notifyListeners();
+    try {
+      final next = _page + 1;
+      final res = await api.get('/announcements', query: {'per_page': pageSize, 'page': next});
+      final known = {for (final p in _posts) p.id};
+      _posts = _sorted([
+        ..._posts,
+        ...JsonRead.rows(res.list, Announcement.fromAnnouncementApi).where((p) => !known.contains(p.id)),
+      ]);
+      _page = next;
+      _lastPage = JsonRead.integer(res.meta?['last_page']) ?? next;
+    } finally {
+      _loadingMore = false;
+      notifyListeners();
+    }
+  }
+
+  static List<Announcement> _sorted(List<Announcement> posts) =>
+      posts..sort((a, b) => (b.at ?? DateTime(0)).compareTo(a.at ?? DateTime(0)));
 
   /// One announcement, for a "New in Balita" notification that opens it
   /// (Esperanza QA, 2026-10-07): the loaded feed's copy when it has one,
@@ -122,6 +159,8 @@ class BalitaService extends ChangeNotifier {
   void clear() {
     _posts = [];
     _loaded = false;
+    _page = 0;
+    _lastPage = 0;
     notifyListeners();
   }
 }

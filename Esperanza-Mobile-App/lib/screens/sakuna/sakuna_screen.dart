@@ -6,7 +6,6 @@ import '../../models/evacuation_center.dart';
 import '../../utils/balita_post_actions.dart';
 import '../../models/service_request.dart';
 import '../../services/api_client.dart';
-import '../../services/mock_catalog.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_spacing.dart';
 import '../../theme/app_typography.dart';
@@ -181,9 +180,9 @@ class _SakunaScreenState extends State<SakunaScreen> {
                         category: ServiceCategory.sakunaIncident,
                         title: 'Incident Reports',
                         subtitle: 'Report and track disaster/emergency incidents.',
-                        // Incident types stay local: POST /citizen/incidents takes
-                        // `type` as free text, not a key into a server catalogue.
-                        catalog: MockCatalog.incidentTypes,
+                        // The report form asks what is happening itself
+                        // (lib/models/incident_types.dart).
+                        catalog: [],
                         accent: AppColors.rose600,
                         icon: Icons.report_outlined,
                         pushed: true,

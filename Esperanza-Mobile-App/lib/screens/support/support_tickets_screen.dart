@@ -121,7 +121,7 @@ class _TicketCard extends StatelessWidget {
             ),
             const SizedBox(height: AppSpacing.xs),
             Text(
-              [ticket.ref, ticket.category, if (ticket.createdAt != null) date.format(ticket.createdAt!.toLocal())].join(' · '),
+              [ticket.ref, ticket.category, ?ticket.requestRef, if (ticket.createdAt != null) date.format(ticket.createdAt!.toLocal())].join(' · '),
               style: AppTypography.fine,
             ),
             if (ticket.body.isNotEmpty) ...[

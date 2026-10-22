@@ -3,34 +3,29 @@ import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../../../models/citizen_account.dart';
-import '../../../models/government_id_record.dart';
 import '../../../models/resident_profile.dart';
 import '../../../models/profile_photo.dart';
 import '../../../services/citizen_session_service.dart';
-import '../../../services/barangay_service.dart';
 import '../../../services/resident_profile_service.dart';
 import '../../../theme/app_colors.dart';
 import '../../../theme/app_spacing.dart';
 import '../../../utils/age_calculator.dart';
 import '../../../utils/demo_resident_photo.dart';
-import '../../../utils/government_id.dart';
 import '../../../utils/ph_mobile.dart';
 import '../../../utils/protected_action.dart';
 import '../../../widgets/app_button.dart';
-import '../../../widgets/app_card.dart';
 import '../../../widgets/app_date_field.dart';
 import '../../../widgets/app_dialogs.dart';
 import '../../../widgets/app_text_field.dart';
 import '../../../widgets/form_section.dart';
-import '../government_id_viewer.dart';
 import 'profile_photo_preview_screen.dart';
 import '../../../theme/app_typography.dart';
 
-/// Step 1 — Personal Information. Maps conceptually to a Web Admin
-/// Constituents > Individual record for the citizen themself. Pre-filled
-/// from whatever's already on the ResidentProfile (seeded from the
-/// citizen's account on first visit), edited locally, and only written
-/// back to ResidentProfileService on Save.
+/// Step 1 — Personal Information, as the website's "You" tab: only what the
+/// barangay keeps (PUT /citizen/resident-profile `personal`). The name comes
+/// from the account and is changed in Edit Profile; there is no separate
+/// email, barangay or attachment here, since the server keeps none of them
+/// on the profile.
 class PersonalInformationScreen extends StatefulWidget {
   const PersonalInformationScreen({super.key});
 
@@ -41,27 +36,20 @@ class PersonalInformationScreen extends StatefulWidget {
 class _PersonalInformationScreenState extends State<PersonalInformationScreen> {
   late final CitizenAccount _account;
   late final Individual _original;
-  late final TextEditingController _firstName;
-  late final TextEditingController _middleName;
-  late final TextEditingController _lastName;
-  late final TextEditingController _suffix;
   late final TextEditingController _mobile;
-  late final TextEditingController _email;
   late final TextEditingController _sitioPurok;
-  late final TextEditingController _completeAddress;
   late final TextEditingController _occupation;
 
   String? _sex;
   String? _civilStatus;
-  String? _barangay;
   String? _educationalAttainment;
+  String? _income;
   DateTime? _birthdate;
   bool _senior = false;
   bool _pwd = false;
   bool _soloParent = false;
   bool _voter = false;
   bool _fourPs = false;
-  List<String> _documentPaths = [];
 
   bool _saving = false;
   String? _error;
@@ -70,42 +58,27 @@ class _PersonalInformationScreenState extends State<PersonalInformationScreen> {
   void initState() {
     super.initState();
     _account = context.read<CitizenSessionService>().account!;
-    _original = context.read<ResidentProfileService>().profileFor(_account).personal;
-    _firstName = TextEditingController(text: _original.firstName);
-    _middleName = TextEditingController(text: _original.middleName);
-    _lastName = TextEditingController(text: _original.lastName);
-    _suffix = TextEditingController(text: _original.suffix);
+    final profile = context.read<ResidentProfileService>().profileFor(_account);
+    _original = profile.personal;
     _mobile = TextEditingController(text: PhMobile.normalise(_original.mobile));
-    _email = TextEditingController(text: _original.email);
     _sitioPurok = TextEditingController(text: _original.sitioPurok);
-    _completeAddress = TextEditingController(text: _original.completeAddress);
     _occupation = TextEditingController(text: _original.occupation);
     _sex = _original.sex.isEmpty ? null : _original.sex;
     _civilStatus = _original.civilStatus.isEmpty ? null : _original.civilStatus;
-    _barangay = _original.barangay.isEmpty ? null : _original.barangay;
     _educationalAttainment = _original.educationalAttainment.isEmpty ? null : _original.educationalAttainment;
+    final income = profile.household.monthlyIncome;
+    _income = ResidentProfileOptions.monthlyIncome.contains(income) ? income : null;
     _birthdate = _original.birthdate;
     _senior = _original.isSeniorCitizen;
     _pwd = _original.isPWD;
     _soloParent = _original.isSoloParent;
     _voter = _original.isVoter;
     _fourPs = _original.isFourPsBeneficiary;
-    _documentPaths = List.of(_original.documentPaths);
   }
 
   @override
   void dispose() {
-    for (final c in [
-      _firstName,
-      _middleName,
-      _lastName,
-      _suffix,
-      _mobile,
-      _email,
-      _sitioPurok,
-      _completeAddress,
-      _occupation,
-    ]) {
+    for (final c in [_mobile, _sitioPurok, _occupation]) {
       c.dispose();
     }
     super.dispose();
@@ -122,18 +95,18 @@ class _PersonalInformationScreenState extends State<PersonalInformationScreen> {
     final currentPhoto = context.read<ResidentProfileService>().profileFor(_account).personal;
     return Individual(
       individualId: _original.individualId,
-      firstName: _firstName.text.trim(),
-      middleName: _middleName.text.trim(),
-      lastName: _lastName.text.trim(),
-      suffix: _suffix.text.trim(),
+      firstName: _account.firstName,
+      middleName: _original.middleName,
+      lastName: _account.lastName,
+      suffix: _original.suffix,
       sex: _sex ?? '',
       birthdate: _birthdate,
       civilStatus: _civilStatus ?? '',
       mobile: _mobile.text.trim(),
-      email: _email.text.trim(),
-      barangay: _barangay ?? '',
+      email: _original.email,
+      barangay: _account.barangay,
       sitioPurok: _sitioPurok.text.trim(),
-      completeAddress: _completeAddress.text.trim(),
+      completeAddress: _original.completeAddress,
       occupation: _occupation.text.trim(),
       educationalAttainment: _educationalAttainment ?? '',
       isSeniorCitizen: _senior,
@@ -143,7 +116,6 @@ class _PersonalInformationScreenState extends State<PersonalInformationScreen> {
       isFourPsBeneficiary: _fourPs,
       photoPath: currentPhoto.photoPath,
       photoBytesBase64: currentPhoto.photoBytesBase64,
-      documentPaths: _documentPaths,
       hasEsperanzaAccount: true,
       linkedCitizenAccountId: _original.individualId,
       familyId: _original.familyId,
@@ -152,25 +124,17 @@ class _PersonalInformationScreenState extends State<PersonalInformationScreen> {
   }
 
   String? _missingFieldError() {
-    if (_firstName.text.trim().isEmpty || _lastName.text.trim().isEmpty) {
-      return 'Please enter your first and last name.';
-    }
     if (_sex == null) return 'Please select your sex.';
     if (_birthdate == null) return 'Please select your birthdate.';
     if (_civilStatus == null) return 'Please select your civil status.';
-    final mobileError = PhMobile.validate(_mobile.text, required: true, emptyMessage: 'Please enter your mobile number.');
-    if (mobileError != null) return mobileError;
-    if (_barangay == null) return 'Please select your barangay.';
     if (_sitioPurok.text.trim().isEmpty) return 'Please enter your Sitio / Purok.';
-    if (_completeAddress.text.trim().isEmpty) return 'Please enter your complete address.';
-    if (_occupation.text.trim().isEmpty) return 'Please enter your occupation.';
     return null;
   }
 
   Future<void> _save({required bool markComplete}) async {
-    // A draft may leave the number blank, but never save one that is wrong.
+    // The number may be left blank, but is never saved wrong.
     final mobileError = PhMobile.validate(_mobile.text);
-    if (!markComplete && mobileError != null) {
+    if (mobileError != null) {
       setState(() => _error = mobileError);
       return;
     }
@@ -188,7 +152,9 @@ class _PersonalInformationScreenState extends State<PersonalInformationScreen> {
     await Future.delayed(const Duration(milliseconds: 500));
     if (!mounted) return;
     final accountId = context.read<CitizenSessionService>().account!.id;
-    await context.read<ResidentProfileService>().savePersonal(accountId, _buildUpdated(), markComplete: markComplete);
+    final service = context.read<ResidentProfileService>();
+    await service.savePersonal(accountId, _buildUpdated(), markComplete: markComplete);
+    await service.setMonthlyIncome(accountId, _income ?? '');
     if (!mounted) return;
     setState(() => _saving = false);
     AppDialogs.toast(context, markComplete ? 'Personal information saved.' : 'Saved for later.');
@@ -267,25 +233,8 @@ class _PersonalInformationScreenState extends State<PersonalInformationScreen> {
     }
   }
 
-  Future<void> _pickDocument() async {
-    // withData: true is required for this to work at all on Flutter Web —
-    // web never provides PlatformFile.path, only .bytes.
-    final result = await pickDocumentProtected(
-      context,
-      allowedExtensions: ['pdf', 'doc', 'docx', 'jpg', 'jpeg', 'png'],
-    );
-    if (result == null || result.files.isEmpty || !mounted) return;
-    final f = result.files.single;
-    if (f.bytes == null) return;
-    // documentPaths only needs a display identifier here (_DocumentTile
-    // just shows a filename, never opens the file) — path on native,
-    // name as a stand-in on web where there is no real path.
-    setState(() => _documentPaths = [..._documentPaths, f.path ?? f.name]);
-  }
-
   @override
   Widget build(BuildContext context) {
-    final governmentId = governmentIdFor(_account);
     final currentPersonal = context.watch<ResidentProfileService>().profileFor(_account).personal;
     final serverPhoto = context.watch<CitizenSessionService>().photo;
     return Scaffold(
@@ -313,28 +262,10 @@ class _PersonalInformationScreenState extends State<PersonalInformationScreen> {
               FormSection(
                 title: 'Basic Information',
                 children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: AppTextField(label: 'First name', controller: _firstName),
-                      ),
-                      const SizedBox(width: AppSpacing.md),
-                      Expanded(
-                        child: AppTextField(label: 'Middle name', controller: _middleName),
-                      ),
-                    ],
-                  ),
-                  Row(
-                    children: [
-                      Expanded(
-                        flex: 2,
-                        child: AppTextField(label: 'Last name', controller: _lastName),
-                      ),
-                      const SizedBox(width: AppSpacing.md),
-                      Expanded(
-                        child: AppTextField(label: 'Suffix', controller: _suffix, hintText: 'Jr., Sr., III'),
-                      ),
-                    ],
+                  _ReadOnlyField(
+                    label: 'Name',
+                    value: _account.fullName,
+                    note: 'Your name comes from your account. Change it in Edit Profile.',
                   ),
                   Row(
                     children: [
@@ -384,13 +315,6 @@ class _PersonalInformationScreenState extends State<PersonalInformationScreen> {
                     inputFormatters: PhMobile.inputFormatters,
                     icon: Icons.phone_outlined,
                     hintText: PhMobile.hint,
-                    required: true,
-                  ),
-                  AppTextField(
-                    label: 'Email address',
-                    controller: _email,
-                    keyboardType: TextInputType.emailAddress,
-                    icon: Icons.mail_outline_rounded,
                   ),
                 ],
               ),
@@ -398,15 +322,12 @@ class _PersonalInformationScreenState extends State<PersonalInformationScreen> {
               FormSection(
                 title: 'Address',
                 children: [
-                  AppSelectField<String>(
-                    label: 'Barangay',
-                    value: _barangay,
-                    options: BarangayService.names,
-                    labelBuilder: (v) => v,
-                    onChanged: (v) => setState(() => _barangay = v),
+                  AppTextField(
+                    label: 'Sitio / Purok',
+                    controller: _sitioPurok,
+                    icon: Icons.place_outlined,
+                    required: true,
                   ),
-                  AppTextField(label: 'Sitio / Purok', controller: _sitioPurok, icon: Icons.place_outlined),
-                  AppTextField(label: 'Complete address', controller: _completeAddress, maxLines: 2),
                 ],
               ),
               const SizedBox(height: AppSpacing.lg),
@@ -420,6 +341,13 @@ class _PersonalInformationScreenState extends State<PersonalInformationScreen> {
                     options: ResidentProfileOptions.educationalAttainment,
                     labelBuilder: (v) => v,
                     onChanged: (v) => setState(() => _educationalAttainment = v),
+                  ),
+                  AppSelectField<String>(
+                    label: 'Household monthly income',
+                    value: _income,
+                    options: ResidentProfileOptions.monthlyIncome,
+                    labelBuilder: (v) => v,
+                    onChanged: (v) => setState(() => _income = v),
                   ),
                 ],
               ),
@@ -455,45 +383,6 @@ class _PersonalInformationScreenState extends State<PersonalInformationScreen> {
                   ),
                 ],
               ),
-              const SizedBox(height: AppSpacing.lg),
-              FormSection(
-                title: 'Supporting Documents',
-                description: 'Optional — a valid ID or proof of residency helps LGU verification.',
-                children: [
-                  for (final path in _documentPaths)
-                    _DocumentTile(
-                      path: path,
-                      onRemove: () => setState(() => _documentPaths = _documentPaths.where((d) => d != path).toList()),
-                    ),
-                  OutlinedButton.icon(
-                    onPressed: _pickDocument,
-                    icon: const Icon(Icons.attach_file_rounded, size: 16),
-                    label: const Text('Attach ID / Document'),
-                  ),
-                ],
-              ),
-              // Very end of the page, after every editable field — this is
-              // the physical ID document submitted at registration/
-              // verification time, a different concept from the Esperanza
-              // Digital ID (see screens/profile/digital_id_screen.dart's own
-              // doc comment). It stays visible here regardless of
-              // verification status, since it shows what was submitted, not
-              // something the LGU has issued.
-              if (governmentId != null) ...[
-                const SizedBox(height: AppSpacing.lg),
-                const Text(
-                  'Submitted Government ID',
-                  style: TextStyle(fontSize: AppTextSize.card, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
-                ),
-                const SizedBox(height: AppSpacing.xs),
-                const Text(
-                  'The identification you submitted during registration. This stays on file regardless of your '
-                  'verification status.',
-                  style: TextStyle(fontSize: AppTextSize.helper, color: AppColors.textMuted),
-                ),
-                const SizedBox(height: AppSpacing.md),
-                _SubmittedGovernmentIdCard(record: governmentId),
-              ],
               if (_error != null) ...[
                 const SizedBox(height: AppSpacing.md),
                 Text(_error!, style: const TextStyle(fontSize: AppTextSize.helper, color: AppColors.rose600)),
@@ -617,6 +506,35 @@ class _PhotoPicker extends StatelessWidget {
 /// "locked, computed" treatment for Age everywhere it appears in the app.
 /// Never a text input: entering a birthdate above is the only way this
 /// value ever changes.
+/// A value shown, not typed here.
+class _ReadOnlyField extends StatelessWidget {
+  const _ReadOnlyField({required this.label, required this.value, required this.note});
+
+  final String label;
+  final String value;
+  final String note;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        FieldLabel(label),
+        const SizedBox(height: AppSpacing.sm),
+        Container(
+          constraints: const BoxConstraints(minHeight: AppSizes.minTouchTarget),
+          alignment: Alignment.centerLeft,
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: AppSpacing.md),
+          decoration: BoxDecoration(color: AppColors.slate100, borderRadius: BorderRadius.circular(AppRadius.md)),
+          child: Text(value, style: AppTypography.bodyText.copyWith(color: AppColors.slate700)),
+        ),
+        const SizedBox(height: AppSpacing.xs),
+        Text(note, style: AppTypography.fine.copyWith(color: AppColors.textMuted)),
+      ],
+    );
+  }
+}
+
 class _ReadOnlyAgeField extends StatelessWidget {
   final DateTime? birthdate;
   const _ReadOnlyAgeField({required this.birthdate});
@@ -688,138 +606,3 @@ class _ClassificationSwitch extends StatelessWidget {
   }
 }
 
-class _DocumentTile extends StatelessWidget {
-  final String path;
-  final VoidCallback onRemove;
-  const _DocumentTile({required this.path, required this.onRemove});
-
-  String get _fileName {
-    final normalized = path.replaceAll('\\', '/');
-    final idx = normalized.lastIndexOf('/');
-    return idx == -1 ? normalized : normalized.substring(idx + 1);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(AppSpacing.sm),
-      decoration: BoxDecoration(
-        color: AppColors.slate50,
-        borderRadius: BorderRadius.circular(AppRadius.md),
-        border: Border.all(color: AppColors.border),
-      ),
-      child: Row(
-        children: [
-          const Icon(Icons.insert_drive_file_outlined, size: 18, color: AppColors.slate500),
-          const SizedBox(width: AppSpacing.sm),
-          Expanded(
-            child: Text(
-              _fileName,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(fontSize: AppTextSize.helper, fontWeight: FontWeight.w500, color: AppColors.slate700),
-            ),
-          ),
-          IconButton(
-            tooltip: 'Remove',
-            onPressed: onRemove,
-            icon: const Icon(Icons.close_rounded, size: 18, color: AppColors.slate400),
-            padding: EdgeInsets.zero,
-            constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// The physical government ID document this resident submitted at
-/// registration/verification time — the same single seeded
-/// [GovernmentIdRecord] read by [governmentIdFor], reused here (not
-/// duplicated) and opened in the same [GovernmentIdViewer] used elsewhere.
-/// This is deliberately not "verified"/"unverified" itself — that status
-/// belongs to the account as a whole, not to the document — so this only
-/// ever indicates the document is on file.
-class _SubmittedGovernmentIdCard extends StatelessWidget {
-  final GovernmentIdRecord record;
-  const _SubmittedGovernmentIdCard({required this.record});
-
-  @override
-  Widget build(BuildContext context) {
-    return AppCard(
-      padding: EdgeInsets.zero,
-      onTap: () => GovernmentIdViewer.open(context, record),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          ClipRRect(
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(AppRadius.lg)),
-            child: AspectRatio(
-              aspectRatio: 16 / 10,
-              // This card preview is card-width, not full document
-              // resolution — the seeded ID assets are ~2MB photos, so
-              // decode at the card's own width instead of native size.
-              // GovernmentIdViewer (opened on tap) shows the real,
-              // full-resolution, zoomable document.
-              child: Image.asset(
-                record.assetPath,
-                fit: BoxFit.cover,
-                cacheWidth: (MediaQuery.sizeOf(context).width * MediaQuery.devicePixelRatioOf(context)).round(),
-              ),
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.all(AppSpacing.md),
-            // A Column, not a Row-of-two-columns: at extreme narrow widths
-            // combined with a large text scale, a fixed-width trailing
-            // "View ID ›" group next to an Expanded info column overflowed
-            // (large text scale alone can push "View ID" past what's left
-            // once the ID type + "On File" chip claim their own space) —
-            // stacking instead means every line only ever competes for the
-            // card's full width, never a shrunken remainder.
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Wrap(
-                  crossAxisAlignment: WrapCrossAlignment.center,
-                  spacing: 6,
-                  runSpacing: 4,
-                  children: [
-                    Text(
-                      record.idType,
-                      style: const TextStyle(fontSize: AppTextSize.body, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
-                    ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xs, vertical: AppSpacing.xs),
-                      decoration: BoxDecoration(color: AppColors.emerald50, borderRadius: BorderRadius.circular(AppRadius.full)),
-                      child: const Text(
-                        'On File',
-                        style: TextStyle(fontSize: AppTextSize.fine, fontWeight: FontWeight.w700, color: AppColors.emerald700),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: AppSpacing.xs),
-                Text(
-                  'Issued by ${record.issuingOffice}',
-                  style: const TextStyle(fontSize: AppTextSize.label, color: AppColors.textMuted),
-                ),
-                const SizedBox(height: AppSpacing.sm),
-                const Row(
-                  children: [
-                    Text(
-                      'View ID',
-                      style: TextStyle(fontSize: AppTextSize.label, fontWeight: FontWeight.w600, color: AppColors.brand600),
-                    ),
-                    SizedBox(width: AppSpacing.xs),
-                    Icon(Icons.chevron_right_rounded, size: 16, color: AppColors.brand600),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}

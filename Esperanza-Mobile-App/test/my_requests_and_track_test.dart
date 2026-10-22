@@ -7,8 +7,8 @@
 // the same service 4 times through RequestsService directly and checking
 // each got its own reference number. That was really exercising the fake
 // backend's willingness to accept duplicates, not any mobile-side logic --
-// there is no Dokyu-side gate to test (unlike Tulong's tulongEligibilityFor,
-// Dokyu genuinely has none), so it added no coverage beyond what the "Track
+// there is no gate to test (neither Dokyu nor, since 2026-10-22, Tulong
+// has one), so it added no coverage beyond what the "Track
 // This Request" case below already proves (two submissions, two distinct
 // requests). Dropped rather than converted.
 //
@@ -31,7 +31,6 @@ import 'package:esperanza_mobile/services/citizen_session_service.dart';
 import 'package:esperanza_mobile/services/mock_catalog.dart';
 import 'package:esperanza_mobile/services/requests_service.dart';
 import 'package:esperanza_mobile/theme/app_colors.dart';
-import 'package:esperanza_mobile/utils/tulong_eligibility.dart';
 import 'package:esperanza_mobile/widgets/app_button.dart';
 import 'package:esperanza_mobile/widgets/segmented_tabs.dart';
 
@@ -83,68 +82,6 @@ void main() {
   // apparently never services that Timer unless something has already
   // pumped in that test (found while fixing service_category_unknown_test.dart's
   // equivalent case) -- test() has no such zone and isn't affected.
-  group('Tulong reapplication rule — status-based, per assistance type', () {
-    test('Case A — no previous application for this assistance is eligible', () async {
-      final requests = await _loadedWith([]);
-      final result = tulongEligibilityFor(requests, typeName: 'Medical Assistance (AICS)');
-      expect(result.isEligible, isTrue);
-      expect(result.blockingRequest, isNull);
-    });
-
-    // Tulong's own case statuses (TulongStatus), still being decided.
-    for (final activeStatus in [
-      'Submitted',
-      'Initial Screening',
-      'Needs Requirements',
-      'Assessment',
-      'For Approval',
-      'Returned for Reassessment',
-    ]) {
-      test('Case B/C — a "$activeStatus" application for this assistance blocks a new one', () async {
-        final requests = await _loadedWith([
-          _summary(ref: 'AR-2026-0001', type: 'tulong', service: 'Medical Assistance (AICS)', status: activeStatus),
-        ]);
-        final result = tulongEligibilityFor(requests, typeName: 'Medical Assistance (AICS)');
-        expect(result.isEligible, isFalse);
-        expect(result.blockingRequest?.referenceNumber, 'AR-2026-0001');
-      });
-    }
-
-    test('Case C — an approved case (Assistance Processing, Ready for Release, Completed) also blocks', () async {
-      for (final status in ['Assistance Processing', 'Ready for Release', 'Completed']) {
-        final requests = await _loadedWith([
-          _summary(ref: 'AR-2026-0001', type: 'tulong', service: 'Medical Assistance (AICS)', status: status),
-        ]);
-        final result = tulongEligibilityFor(requests, typeName: 'Medical Assistance (AICS)');
-        expect(result.isEligible, isFalse, reason: 'status=$status');
-        expect(result.status, TulongEligibility.blockedReceived, reason: 'status=$status');
-      }
-    });
-
-    test('Case D — a Rejected application allows reapplying to the same assistance', () async {
-      final requests = await _loadedWith([
-        _summary(ref: 'AR-2026-0001', type: 'tulong', service: 'Medical Assistance (AICS)', status: 'Rejected'),
-      ]);
-      final result = tulongEligibilityFor(requests, typeName: 'Medical Assistance (AICS)');
-      expect(result.isEligible, isTrue);
-    });
-
-    test('a Cancelled application also allows reapplying', () async {
-      final requests = await _loadedWith([
-        _summary(ref: 'AR-2026-0001', type: 'tulong', service: 'Medical Assistance (AICS)', status: 'Cancelled'),
-      ]);
-      final result = tulongEligibilityFor(requests, typeName: 'Medical Assistance (AICS)');
-      expect(result.isEligible, isTrue);
-    });
-
-    test('the restriction is per assistance type — an active Medical Assistance never blocks Educational Assistance', () async {
-      final requests = await _loadedWith([
-        _summary(ref: 'AR-2026-0001', type: 'tulong', service: 'Medical Assistance (AICS)', status: 'Pending Review'),
-      ]);
-      expect(tulongEligibilityFor(requests, typeName: 'Medical Assistance (AICS)').isEligible, isFalse);
-      expect(tulongEligibilityFor(requests, typeName: 'Educational Assistance').isEligible, isTrue);
-    });
-  });
 
   group('My Requests screen', () {
     Future<void> pumpMyRequests(WidgetTester tester, RequestsService requests, CitizenSessionService session) async {
@@ -293,127 +230,4 @@ void main() {
     );
   });
 
-  group('Tulong blocked-application dialog', () {
-    // Exercises showTulongBlockedDialog directly — the exact same helper
-    // ServiceCatalogScreen (early detection), NewRequestScreen, and
-    // ServiceRequestWizardScreen all now call once tulongEligibilityFor
-    // reports a block.
-    Future<void> pumpGate(
-      WidgetTester tester,
-      RequestsService requests,
-      CitizenSessionService session, {
-      required String typeName,
-    }) async {
-      await tester.pumpWidget(
-        MultiProvider(
-          providers: [
-            ChangeNotifierProvider<RequestsService>.value(value: requests),
-            ChangeNotifierProvider<CitizenSessionService>.value(value: session),
-          ],
-          child: MaterialApp(
-            home: Builder(
-              builder: (context) => Scaffold(
-                body: Center(
-                  child: ElevatedButton(
-                    onPressed: () async {
-                      final result = tulongEligibilityFor(requests, typeName: typeName);
-                      if (result.isEligible) return;
-                      final viewRequest = await showTulongBlockedDialog(context, result);
-                      if (viewRequest && context.mounted) {
-                        Navigator.of(context).push(
-                          MaterialPageRoute(builder: (_) => RequestDetailScreen(requestId: result.blockingRequest!.id)),
-                        );
-                      }
-                    },
-                    child: const Text('Attempt Submit'),
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ),
-      );
-      await tester.pumpAndSettle();
-    }
-
-    testWidgets('an active application shows "Active Application Exists" with View Existing Request / Close', (
-      tester,
-    ) async {
-      final requests = await _loadedWith([
-        _summary(ref: 'AR-2026-ACTIVE', type: 'tulong', service: 'Medical Assistance (AICS)', status: 'Submitted'),
-      ]);
-      final session = await _signedInAsVerifiedDemo(tester);
-
-      await pumpGate(tester, requests, session, typeName: 'Medical Assistance (AICS)');
-      await tester.tap(find.text('Attempt Submit'));
-      await tester.pumpAndSettle();
-
-      expect(find.text('Active Application Exists'), findsOneWidget);
-      expect(find.text('You already have an active application for this assistance.'), findsOneWidget);
-      expect(find.text('View Existing Request'), findsOneWidget);
-      expect(find.text('Close'), findsOneWidget);
-
-      await tester.tap(find.text('View Existing Request'));
-      await tester.pumpAndSettle();
-      expect(find.byType(RequestDetailScreen), findsOneWidget);
-      expect(tester.widget<RequestDetailScreen>(find.byType(RequestDetailScreen)).requestId, 'AR-2026-ACTIVE');
-    });
-
-    testWidgets('an already-received assistance shows "Assistance Already Received" with View Previous Request / Close', (
-      tester,
-    ) async {
-      final requests = await _loadedWith([
-        _summary(ref: 'AR-2026-0001', type: 'tulong', service: 'Medical Assistance (AICS)', status: 'Completed'),
-      ]);
-      final session = await _signedInAsVerifiedDemo(tester);
-
-      await pumpGate(tester, requests, session, typeName: 'Medical Assistance (AICS)');
-      await tester.tap(find.text('Attempt Submit'));
-      await tester.pumpAndSettle();
-
-      expect(find.text('Assistance Already Received'), findsOneWidget);
-      expect(
-        find.text(
-          'You have already received this assistance and cannot submit another application for the same '
-          'assistance at this time.',
-        ),
-        findsOneWidget,
-      );
-      expect(find.text('View Previous Request'), findsOneWidget);
-      expect(find.text('Close'), findsOneWidget);
-
-      await tester.tap(find.text('Close'));
-      await tester.pumpAndSettle();
-      expect(find.text('Assistance Already Received'), findsNothing);
-      expect(find.byType(RequestDetailScreen), findsNothing);
-    });
-
-    testWidgets('an approved, unclaimed assistance says "Already Approved", never "Received"', (tester) async {
-      final requests = await _loadedWith([
-        _summary(ref: 'AR-2026-0001', type: 'tulong', service: 'Medical Assistance (AICS)', status: 'Ready for Release'),
-      ]);
-      final session = await _signedInAsVerifiedDemo(tester);
-
-      await pumpGate(tester, requests, session, typeName: 'Medical Assistance (AICS)');
-      await tester.tap(find.text('Attempt Submit'));
-      await tester.pumpAndSettle();
-
-      expect(find.text('Assistance Already Approved'), findsOneWidget);
-      expect(find.text('Assistance Already Received'), findsNothing);
-      expect(find.text('View Previous Request'), findsOneWidget);
-    });
-
-    testWidgets('does not gate a rejected-only history — Attempt Submit proceeds with no dialog', (tester) async {
-      final requests = await _loadedWith([
-        _summary(ref: 'AR-2026-0002', type: 'tulong', service: 'Medical Assistance (AICS)', status: 'Rejected'),
-      ]);
-      final session = await _signedInAsVerifiedDemo(tester);
-
-      await pumpGate(tester, requests, session, typeName: 'Medical Assistance (AICS)');
-      await tester.tap(find.text('Attempt Submit'));
-      await tester.pumpAndSettle();
-      expect(find.text('Active Application Exists'), findsNothing);
-      expect(find.text('Assistance Already Received'), findsNothing);
-    });
-  });
 }

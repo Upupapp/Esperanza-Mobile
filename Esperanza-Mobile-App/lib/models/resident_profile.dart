@@ -776,6 +776,16 @@ class ResidentProfileOptions {
   static const relationshipToHead = [
     'Spouse', 'Son', 'Daughter', 'Father', 'Mother', 'Parent', 'Sibling', 'Grandchild', 'Other Relative', 'Non-Relative',
   ];
+  /// The website's household income brackets (resident-profile-form.js).
+  static const monthlyIncome = [
+    'No Income',
+    'Below ₱5,000',
+    '₱5,000–₱9,999',
+    '₱10,000–₱14,999',
+    '₱15,000–₱24,999',
+    '₱25,000–₱49,999',
+    '₱50,000 and above',
+  ];
   static const housingOwnership = ['Owned', 'Renting', 'Rent-Free with Consent', 'Informal Settler'];
   static const housingType = ['Concrete', 'Semi-Concrete', 'Wood', 'Mixed / Light Materials'];
   static const waterSource = ['Piped / Communal System', 'Deep Well', 'Shallow Well', 'Bottled / Refilled', 'Other'];

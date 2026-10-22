@@ -109,32 +109,44 @@ class SupportChannel {
   }
 }
 
-/// A video tutorial. Only one with a link is shown, as on the web portal,
-/// which hides the tab while none has a video.
+/// A tutorial, as the website reads it: a link to the video or guide
+/// (`url`, or an older `video_url`) and a write-up. One with neither is not
+/// shown, and the Tutorials tab is hidden while none has either.
 class HelpTutorial {
   final String title;
-  final String videoUrl;
+  final String? link;
+  final String? description;
+  final String? category;
   final String? duration;
-  const HelpTutorial({required this.title, required this.videoUrl, this.duration});
+  const HelpTutorial({required this.title, this.link, this.description, this.category, this.duration});
 
   static HelpTutorial? fromJson(Map<String, dynamic> row) {
     final title = JsonRead.nonEmpty(row['title']);
-    final url = JsonRead.nonEmpty(row['video_url']);
-    if (title == null || url == null) return null;
-    return HelpTutorial(title: title, videoUrl: url, duration: JsonRead.nonEmpty(row['duration']));
+    final link = JsonRead.nonEmpty(row['url']) ?? JsonRead.nonEmpty(row['video_url']);
+    final description = JsonRead.nonEmpty(row['description']);
+    if (title == null || (link == null && description == null)) return null;
+    return HelpTutorial(
+      title: title,
+      link: link,
+      description: description,
+      category: JsonRead.nonEmpty(row['category']),
+      duration: JsonRead.nonEmpty(row['duration']),
+    );
   }
 }
 
 /// What the web portal's Help page shows from the LGU: its FAQs, tutorials,
 /// support channels and office hours. Each part is empty when it could not
-/// be loaded; the app's own help still shows.
+/// be loaded ([faqsFailed] says so for the FAQs).
 class HelpContent {
   final List<HelpFaq> faqs;
   final List<HelpTutorial> tutorials;
   final List<SupportChannel> channels;
   final String? officeHours;
   final String? intro;
+  final bool faqsFailed;
   const HelpContent({
+    this.faqsFailed = false,
     this.faqs = const [],
     this.tutorials = const [],
     this.channels = const [],
@@ -192,17 +204,20 @@ class SiteContentService {
   /// FAQs, tutorials and support channels, read together as the web
   /// portal's Help page does. A part that fails is left empty.
   static Future<HelpContent> help() async {
-    Future<Map<String, dynamic>> read(String key) async {
+    Future<Map<String, dynamic>?> read(String key) async {
       try {
         return (await api.get('/site-content/$key')).map;
-      } on ApiException {
-        return const {};
+      } on ApiException catch (e) {
+        // Nothing published yet (404) is not a failure, as on the website.
+        return e.status == 404 ? const <String, dynamic>{} : null;
       }
     }
 
-    final parts = await Future.wait([read('faqs'), read('tutorials'), read('support')]);
+    final read3 = await Future.wait([read('faqs'), read('tutorials'), read('support')]);
+    final parts = [for (final p in read3) p ?? const <String, dynamic>{}];
     final support = parts[2];
     return HelpContent(
+      faqsFailed: read3[0] == null,
       faqs: JsonRead.rows(parts[0]['sections'], HelpFaq.fromJson),
       tutorials: JsonRead.rows(parts[1]['sections'], HelpTutorial.fromJson),
       channels: JsonRead.rows(support['channels'], SupportChannel.fromJson),

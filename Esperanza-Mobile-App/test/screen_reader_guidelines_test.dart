@@ -20,7 +20,6 @@ import 'package:esperanza_mobile/widgets/request_survey_card.dart';
 import 'package:esperanza_mobile/screens/sakuna/report_incident_screen.dart';
 import 'package:esperanza_mobile/screens/support/report_problem_screen.dart';
 import 'package:esperanza_mobile/services/citizen_session_service.dart';
-import 'package:esperanza_mobile/services/mock_catalog.dart';
 import 'package:esperanza_mobile/services/requests_service.dart';
 import 'package:esperanza_mobile/theme/app_colors.dart';
 import 'package:esperanza_mobile/theme/app_spacing.dart';
@@ -67,7 +66,7 @@ void main() {
 
   testWidgets('Report an incident, with its photo buttons', (tester) async {
     FakeApi.installFull((_) => <dynamic>[]);
-    await _pump(tester, ReportIncidentScreen(item: MockCatalog.incidentTypes.first, accent: AppColors.rose600));
+    await _pump(tester, const ReportIncidentScreen(accent: AppColors.rose600));
     await _meetsGuidelines(tester);
   });
 

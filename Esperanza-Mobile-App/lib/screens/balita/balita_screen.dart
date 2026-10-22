@@ -6,12 +6,14 @@ import '../../services/balita_service.dart';
 import '../../services/citizen_session_service.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_spacing.dart';
-import '../../utils/birthday.dart';
+import '../../theme/app_typography.dart';
+import '../../widgets/app_button.dart';
+import '../../widgets/app_text_field.dart';
+import '../../widgets/segmented_tabs.dart';
 import '../../widgets/app_dialogs.dart';
 import '../../widgets/async_state_view.dart';
 import '../../widgets/empty_state.dart';
 import '../home/root_shell.dart';
-import 'birthday_greeting_card.dart';
 import 'post_card.dart';
 
 /// Balita ("news" in Filipino) — the LGU's announcements, real now
@@ -61,22 +63,78 @@ class BalitaScreen extends StatelessWidget {
   }
 }
 
-class _Feed extends StatelessWidget {
+/// The website's Balita categories (scope-citizen.js), in its order.
+const balitaCategories = ['Community', 'Health', 'Public Service', 'Advisory', 'Livelihood', 'Governance'];
+
+/// The feed as the website shows it (announcements.blade.php): All or
+/// Barangay (the resident's own barangay's posts), a category, the count,
+/// and "Load more posts" at the end. The tabs and the category narrow what
+/// is loaded, as there.
+class _Feed extends StatefulWidget {
   const _Feed({required this.onRefresh});
 
   final Future<void> Function() onRefresh;
 
   @override
+  State<_Feed> createState() => _FeedState();
+}
+
+class _FeedState extends State<_Feed> {
+  int _tab = 0; // 0 All, 1 Barangay
+  String? _category;
+
+  Future<void> _loadMore(BalitaService balita) async {
+    try {
+      await balita.loadMore();
+    } on ApiException {
+      if (mounted) AppDialogs.toast(context, 'Could not load more posts.', success: false);
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     final balita = context.watch<BalitaService>();
-    final posts = balita.posts;
-    // On the citizen's birthday a private greeting leads the feed.
-    final account = context.watch<CitizenSessionService>().account;
-    final birthday = Birthday.isToday(account);
+    final mine = context.watch<CitizenSessionService>().account?.barangay;
+    final hasBarangay = mine != null && mine.trim().isNotEmpty;
+    final tab = hasBarangay ? _tab : 0;
+    final posts = [
+      for (final p in balita.posts)
+        if ((tab == 0 || p.barangay == mine) && (_category == null || p.category == _category)) p,
+    ];
+    final header = Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (hasBarangay) ...[
+          SegmentedTabs(labels: const ['All', 'Barangay'], selectedIndex: tab, onChanged: (i) => setState(() => _tab = i)),
+          const SizedBox(height: AppSpacing.md),
+        ],
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                '${posts.length} post${posts.length == 1 ? '' : 's'}',
+                style: AppTypography.bodySmall.copyWith(color: AppColors.textMuted),
+              ),
+            ),
+            Flexible(
+              flex: 2,
+              child: AppSelectField<String>(
+                value: _category ?? 'All categories',
+                options: const ['All categories', ...balitaCategories],
+                labelBuilder: (c) => c,
+                hintText: 'Category',
+                onChanged: (c) => setState(() => _category = c == 'All categories' ? null : c),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: AppSpacing.md),
+      ],
+    );
     return RefreshIndicator(
       onRefresh: () async {
         try {
-          await onRefresh();
+          await widget.onRefresh();
         } on ApiException catch (e) {
           if (context.mounted) AppDialogs.toast(context, e.message(), success: false);
         }
@@ -98,20 +156,33 @@ class _Feed extends StatelessWidget {
         // full hit-testable bounding box and become untappable even
         // though it looks like ordinary scrolled content.
         padding: EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.md, AppSpacing.lg, 24 + MediaQuery.paddingOf(context).bottom),
-        itemCount: (birthday ? 1 : 0) + (posts.isEmpty ? 1 : posts.length),
+        // The header, the posts (or the empty state), then Load more.
+        itemCount: 1 + (posts.isEmpty ? 1 : posts.length) + (balita.hasMore ? 1 : 0),
         itemBuilder: (context, i) {
-          if (birthday) {
-            if (i == 0) return BirthdayGreetingCard(key: ValueKey('birthday-${account!.id}'), account: account);
-            i -= 1;
-          }
+          if (i == 0) return header;
+          i -= 1;
           if (posts.isEmpty) {
-            return const EmptyState(
-              icon: Icons.campaign_outlined,
-              title: 'No announcements available',
-              description: 'Check back soon for updates from Esperanza LGU.',
-            );
+            if (i == 0) {
+              return const EmptyState(
+                icon: Icons.campaign_outlined,
+                title: 'No Balita posts here yet.',
+                description: 'Check back soon for updates from Esperanza LGU.',
+              );
+            }
+            i -= 1;
+          } else if (i < posts.length) {
+            return PostCard(key: ValueKey(posts[i].id), post: posts[i]);
           }
-          return PostCard(key: ValueKey(posts[i].id), post: posts[i]);
+          return Padding(
+            padding: const EdgeInsets.only(top: AppSpacing.sm),
+            child: AppButton(
+              label: balita.loadingMore ? 'Loading…' : 'Load more posts',
+              variant: AppButtonVariant.secondary,
+              fullWidth: true,
+              loading: balita.loadingMore,
+              onPressed: balita.loadingMore ? null : () => _loadMore(balita),
+            ),
+          );
         },
       ),
     );

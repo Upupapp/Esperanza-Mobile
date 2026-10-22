@@ -25,7 +25,12 @@ class NotificationsScreen extends StatefulWidget {
   State<NotificationsScreen> createState() => _NotificationsScreenState();
 }
 
+/// The website's tabs (notifications.blade.php), in its order.
+enum _Tab { all, unread, read, dokyu, tulong }
+
 class _NotificationsScreenState extends State<NotificationsScreen> {
+  _Tab _tab = _Tab.all;
+
   @override
   void initState() {
     super.initState();
@@ -39,10 +44,51 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final items = buildNotificationFeed(context);
+    final all = buildNotificationFeed(context);
     final notifService = context.watch<NotificationsService>();
-    final ids = items.map((n) => n.id);
+    final ids = all.map((n) => n.id);
     final anyUnread = notifService.hasUnread(ids);
+    final unread = all.where((n) => !notifService.isRead(n.id)).length;
+    final items = [
+      for (final n in all)
+        if (switch (_tab) {
+          _Tab.all => true,
+          _Tab.unread => !notifService.isRead(n.id),
+          _Tab.read => notifService.isRead(n.id),
+          _Tab.dokyu => n.category == 'dokyu',
+          _Tab.tulong => n.category == 'tulong',
+        })
+          n,
+    ];
+    final tabs = Padding(
+      padding: const EdgeInsets.only(bottom: AppSpacing.md),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          children: [
+            for (final t in _Tab.values) ...[
+              ChoiceChip(
+                label: Text(switch (t) {
+                  _Tab.all => 'All',
+                  _Tab.unread => unread > 0 ? 'Unread ($unread)' : 'Unread',
+                  _Tab.read => 'Read',
+                  _Tab.dokyu => 'Dokyu',
+                  _Tab.tulong => 'Tulong',
+                }),
+                avatar: switch (t) {
+                  _Tab.dokyu => const Icon(Icons.description_outlined, size: AppSizes.iconSm),
+                  _Tab.tulong => const Icon(Icons.volunteer_activism_outlined, size: AppSizes.iconSm),
+                  _ => null,
+                },
+                selected: _tab == t,
+                onSelected: (_) => setState(() => _tab = t),
+              ),
+              const SizedBox(width: AppSpacing.sm),
+            ],
+          ],
+        ),
+      ),
+    );
 
     return Scaffold(
       appBar: AppBar(
@@ -66,10 +112,15 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         child: ListView.builder(
           physics: const AlwaysScrollableScrollPhysics(),
           padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.md, AppSpacing.lg, AppSpacing.xxl),
-          itemCount: items.isEmpty ? 1 : items.length,
+          itemCount: 1 + (items.isEmpty ? 1 : items.length),
           itemBuilder: (context, i) {
+            if (i == 0) return tabs;
+            i -= 1;
             if (items.isEmpty) {
-              return const EmptyState(icon: Icons.notifications_none_rounded, title: "You're all caught up");
+              return EmptyState(
+                icon: Icons.notifications_none_rounded,
+                title: all.isEmpty ? "You're all caught up" : 'No notifications here',
+              );
             }
             final n = items[i];
             return _NotificationTile(notification: n, unread: !notifService.isRead(n.id));

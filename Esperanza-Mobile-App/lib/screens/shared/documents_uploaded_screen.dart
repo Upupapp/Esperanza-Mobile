@@ -55,7 +55,8 @@ class _DocumentsUploadedScreenState extends State<DocumentsUploadedScreen> {
     if (accountId == null || _adding) return;
     final picked = await pickDocumentProtected(
       context,
-      allowedExtensions: const ['jpg', 'jpeg', 'png', 'pdf', 'docx'],
+      // What the server accepts (config esperanza.uploads.allowed_mime).
+      allowedExtensions: const ['jpg', 'jpeg', 'png', 'webp', 'pdf'],
       withData: false,
       explanation: 'Esperanza needs access to your files so you can keep a document in your Papeles.',
     );
@@ -473,8 +474,7 @@ class _DocumentCard extends StatelessWidget {
 }
 
 /// Same simple InteractiveViewer pattern as every other in-app document/ID
-/// viewer (see RequirementUploader's own _AttachmentImageViewer,
-/// GovernmentIdViewer). [provider] is null when this document's bytes
+/// viewer (see RequirementUploader's own _AttachmentImageViewer). [provider] is null when this document's bytes
 /// weren't persisted across an app restart (see Attachment's own doc
 /// comment on why `bytes` is excluded from JSON) — shown as a plain
 /// message instead of crashing.

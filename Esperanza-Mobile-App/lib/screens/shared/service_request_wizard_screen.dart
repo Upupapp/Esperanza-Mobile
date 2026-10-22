@@ -3,12 +3,14 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../../models/attachment.dart';
 import '../../models/catalog_item.dart';
+import '../../models/citizen_account.dart';
+import '../../models/document_preview.dart';
 import '../../models/resident_profile.dart';
 import '../../models/service_form_spec.dart';
 import '../../models/service_request.dart';
 import '../../services/api_client.dart';
 import '../../services/citizen_session_service.dart';
-import '../../services/barangay_service.dart';
+import '../../services/document_templates_service.dart';
 import '../../services/requests_service.dart';
 import '../../services/resident_profile_service.dart';
 import '../../theme/app_colors.dart';
@@ -18,17 +20,18 @@ import '../../utils/fee_inputs.dart';
 import '../../utils/peso_text.dart';
 import '../../utils/ph_mobile.dart';
 import '../../utils/requirement_document_type.dart';
-import '../../utils/tulong_eligibility.dart';
 import '../../widgets/app_button.dart';
 import '../../widgets/app_dialogs.dart';
 import '../../widgets/app_date_field.dart';
 import '../../widgets/app_text_field.dart';
+import '../../widgets/document_paper.dart';
+import '../../widgets/zoomable_document.dart';
 import '../../widgets/fee_input_fields.dart';
 import '../../widgets/request_documents_picker.dart';
 import '../../widgets/form_section.dart';
 import '../../widgets/onboarding_step_indicator.dart';
 import '../profile/resident_profile/personal_information_screen.dart';
-import 'request_detail_screen.dart';
+import 'document_view_screen.dart';
 import 'request_submitted_screen.dart';
 import '../../theme/app_typography.dart';
 import '../../widgets/esperanza_art.dart';
@@ -88,14 +91,15 @@ class _ServiceRequestWizardScreenState extends State<ServiceRequestWizardScreen>
   String? _error;
   bool _submitting = false;
 
-  // Applicant info (step 0) — prefilled from the signed-in account, still
-  // editable since a request's details can differ from the base profile
-  // (e.g. requesting on behalf of a household matter).
-  final _fullName = TextEditingController();
+  // Applicant info (step 0) — the website's applicant block: prefilled from
+  // the signed-in account, still editable since a request's details can
+  // differ from the base profile (e.g. requesting on behalf of a household
+  // matter). Sent as applicant_first_name ... applicant_email, as there.
+  final _firstName = TextEditingController();
+  final _lastName = TextEditingController();
+  final _address = TextEditingController();
   final _contact = TextEditingController();
   final _email = TextEditingController();
-  final _purok = TextEditingController();
-  String? _barangay;
 
   // Service-specific field values, keyed by ServiceFormField.key. Text-like
   // fields are read from `_controllers`; everything else lives here.
@@ -141,13 +145,36 @@ class _ServiceRequestWizardScreenState extends State<ServiceRequestWizardScreen>
 
   bool get _hasPurposeField => _serviceSteps.any((s) => s.fields.any((f) => f.key == 'purpose'));
 
+  /// The Service Catalog's questions (the website's), not this app's own.
+  bool get _fromServer => widget.item.formSpec!.fromServer;
+
+  /// The "Others (please specify)" box of a multiselect.
+  static String _otherKey(String key) => '$key::other';
+
   /// Whether [f] should currently be shown/enforced — see
   /// [ServiceFormField.visibleWhenKey]'s own doc comment. Fields with no
   /// gate are always visible, which is every pre-existing formSpec's
   /// entire field list, so this is a no-op for them.
   bool _isFieldVisible(ServiceFormField f) {
-    if (f.visibleWhenKey == null) return true;
-    return f.visibleWhenValueIn!.contains(_values[f.visibleWhenKey]);
+    final key = f.visibleWhenKey;
+    if (key == null) return true;
+    // The server's rule, read as the website reads it: the answer's text
+    // contains the given words.
+    if (f.visibleWhenContains != null) return _answerText(key).contains(f.visibleWhenContains!);
+    return f.visibleWhenValueIn?.contains(_values[key]) ?? true;
+  }
+
+  /// An answer as text, for a show-if rule.
+  String _answerText(String key) {
+    final field = _fieldByKey(key);
+    if (field == null) return '';
+    return switch (field.type) {
+      ServiceFieldType.multiselect => ((_values[key] as Set<String>?) ?? const <String>{}).join(','),
+      ServiceFieldType.select => (_values[key] as String?) ?? '',
+      ServiceFieldType.date => _dateOnly(_values[key] as DateTime?) ?? '',
+      ServiceFieldType.checkbox => _values[key] == true ? 'true' : '',
+      _ => _controllers[key]?.text ?? '',
+    };
   }
 
   @override
@@ -155,6 +182,15 @@ class _ServiceRequestWizardScreenState extends State<ServiceRequestWizardScreen>
     super.initState();
     final account = context.read<CitizenSessionService>().account;
     if (account != null) {
+      _firstName.text = account.firstName;
+      _lastName.text = account.lastName;
+      _address.text = account.address;
+      _contact.text = PhMobile.normalise(account.mobile);
+      _email.text = account.email;
+    }
+    if (_fromServer) {
+      _applyServerDefaults(account);
+    } else if (account != null) {
       // Sourced from the Resident Profile (the Master Profile's richer,
       // editable record) rather than the shallower CitizenSessionService
       // account — editing Personal Information never writes back to that
@@ -165,12 +201,6 @@ class _ServiceRequestWizardScreenState extends State<ServiceRequestWizardScreen>
       // current.
       final personal = context.read<ResidentProfileService>().profileFor(account).personal;
       _personal = personal;
-
-      _fullName.text = personal.fullName;
-      _contact.text = PhMobile.normalise(personal.mobile);
-      _email.text = personal.email;
-      _purok.text = personal.sitioPurok;
-      _barangay = personal.barangay.isEmpty ? null : personal.barangay;
 
       // Prefill Date of Birth from the citizen's existing Resident Profile
       // (already parsed to a real DateTime there) rather than making them
@@ -348,12 +378,76 @@ class _ServiceRequestWizardScreenState extends State<ServiceRequestWizardScreen>
             case ServiceFieldType.checkbox:
               _values.putIfAbsent(entry.key, () => entry.value);
             case ServiceFieldType.derivedAge:
+            case ServiceFieldType.table:
               break; // never independently set — always derived
           }
         }
         if (widget.item.demoPurpose != null && _notesController.text.isEmpty) {
           _notesController.text = widget.item.demoPurpose!;
         }
+      }
+    }
+  }
+
+  /// Each question's starting answer, then the resident's own details for the
+  /// questions that ask them again (the website's profileDefaults: name, age,
+  /// purok, address, birthdate, civil status, sex, occupation). Only blank
+  /// answers are filled, and every one stays editable: a request can be for
+  /// someone else.
+  void _applyServerDefaults(CitizenAccount? account) {
+    final fields = [for (final s in _serviceSteps) ...s.fields];
+    for (final f in fields) {
+      final d = f.defaultValue;
+      if (d == null) continue;
+      switch (f.type) {
+        case ServiceFieldType.text:
+        case ServiceFieldType.textarea:
+        case ServiceFieldType.number:
+        case ServiceFieldType.phone:
+          _controllerFor(f.key).text = d;
+        case ServiceFieldType.select:
+          if (f.options?.contains(d) ?? false) _values[f.key] = d;
+        case ServiceFieldType.date:
+          final parsed = DateTime.tryParse(d);
+          if (parsed != null) _values[f.key] = parsed;
+        case ServiceFieldType.multiselect:
+        case ServiceFieldType.checkbox:
+        case ServiceFieldType.derivedAge:
+        case ServiceFieldType.table:
+          break;
+      }
+    }
+    if (account == null) return;
+    final birthdate = DateTime.tryParse(account.birthdate);
+    final byKey = <String, Object?>{
+      'requester_name': account.fullName.trim(),
+      'applicant_name': account.fullName.trim(),
+      'full_name': account.fullName.trim(),
+      'subject_name': account.fullName.trim(),
+      'age': birthdate == null ? null : calculateAge(birthdate),
+      'purok': account.purok,
+      'address': account.address,
+      'date_of_birth': birthdate,
+      'civil_status': account.civilStatus,
+      'sex': account.sex,
+      'occupation': account.occupation,
+    };
+    for (final f in fields) {
+      final value = byKey[f.key];
+      if (value == null || (value is String && value.trim().isEmpty)) continue;
+      switch (f.type) {
+        case ServiceFieldType.text:
+        case ServiceFieldType.number:
+          final c = _controllerFor(f.key);
+          if (c.text.trim().isEmpty) {
+            c.text = value is DateTime ? _dateOnly(value)! : '$value';
+          }
+        case ServiceFieldType.date:
+          if (_values[f.key] == null && value is DateTime) _values[f.key] = value;
+        case ServiceFieldType.select:
+          if (_values[f.key] == null && (f.options?.contains('$value') ?? false)) _values[f.key] = '$value';
+        default:
+          break;
       }
     }
   }
@@ -400,10 +494,11 @@ class _ServiceRequestWizardScreenState extends State<ServiceRequestWizardScreen>
 
   @override
   void dispose() {
-    _fullName.dispose();
+    _firstName.dispose();
+    _lastName.dispose();
+    _address.dispose();
     _contact.dispose();
     _email.dispose();
-    _purok.dispose();
     _notesController.dispose();
     for (final c in [..._controllers.values, ..._feeControllers.values]) {
       c.dispose();
@@ -438,8 +533,9 @@ class _ServiceRequestWizardScreenState extends State<ServiceRequestWizardScreen>
 
   String? _validateStep(int step) {
     if (step == 0) {
-      if (_fullName.text.trim().isEmpty) return 'Please enter your full name.';
-      if (_barangay == null) return 'Please select your barangay.';
+      if (_firstName.text.trim().isEmpty || _lastName.text.trim().isEmpty) {
+        return 'Please enter your first and last name.';
+      }
       return PhMobile.validate(_contact.text);
     }
     if (step >= 1 && step <= _serviceSteps.length) {
@@ -455,14 +551,16 @@ class _ServiceRequestWizardScreenState extends State<ServiceRequestWizardScreen>
           }
         }
         if (f.type == ServiceFieldType.phone) {
-          final err = PhMobile.validate(_controllers[f.key]?.text ?? '');
+          final err = PhMobile.validate(_controllers[f.key]?.text ?? '', required: f.required);
           if (err != null) return '${f.label}: $err';
         }
       }
       return null;
     }
     if (step == _requirementsStep) {
-      if (!_hasPurposeField && _notesController.text.trim().isEmpty) {
+      // A Service Catalog form asks its own questions and no purpose box, as
+      // on the website.
+      if (!_fromServer && !_hasPurposeField && _notesController.text.trim().isEmpty) {
         return 'Please describe the purpose of this request.';
       }
       return FeeInputs.validate(_feeAsked, _feeControllers);
@@ -496,6 +594,8 @@ class _ServiceRequestWizardScreenState extends State<ServiceRequestWizardScreen>
         return _values[f.key] != true;
       case ServiceFieldType.derivedAge:
         return _computeAge(f.derivedFromKey!) == null;
+      case ServiceFieldType.table:
+        return _tableRows(f.key).isEmpty;
     }
   }
 
@@ -513,23 +613,63 @@ class _ServiceRequestWizardScreenState extends State<ServiceRequestWizardScreen>
       case ServiceFieldType.select:
         return (_values[f.key] as String?) ?? '—';
       case ServiceFieldType.multiselect:
-        final v = _values[f.key] as Set<String>?;
+        final v = _multiselectAnswer(f);
         return (v == null || v.isEmpty) ? '—' : v.join(', ');
       case ServiceFieldType.checkbox:
         return (_values[f.key] == true) ? 'Yes' : 'No';
       case ServiceFieldType.derivedAge:
         final a = _computeAge(f.derivedFromKey!);
         return a == null ? '—' : '$a years old';
+      case ServiceFieldType.table:
+        final rows = _tableRows(f.key);
+        return rows.isEmpty ? '—' : '${rows.length} added';
     }
   }
 
+  /// A multiselect's choices, "Others" carrying what the resident typed
+  /// ("Others: ..."), as the website sends it.
+  List<String>? _multiselectAnswer(ServiceFormField f) {
+    final chosen = (_values[f.key] as Set<String>?)?.toList();
+    if (chosen == null) return null;
+    final other = _controllers[_otherKey(f.key)]?.text.trim() ?? '';
+    if (!f.allowOther || other.isEmpty) return chosen;
+    final others = RegExp('^others', caseSensitive: false);
+    return [for (final o in chosen) others.hasMatch(o) ? 'Others: $other' : o];
+  }
+
+  // -- Table questions: one row per person or item. A row is an id; its
+  // cells live in [_controllers] (text) and [_values] (choices, dates).
+  List<String> _tableRows(String key) => (_values[key] as List<String>?) ?? const [];
+  static String _cellKey(String field, String row, String column) => 'cell::$field::$row::$column';
+  int _rowSeq = 0;
+
+  void _addTableRow(ServiceFormField f) {
+    setState(() => _values[f.key] = [..._tableRows(f.key), 'r${_rowSeq++}']);
+  }
+
+  void _removeTableRow(ServiceFormField f, String row) {
+    setState(() => _values[f.key] = _tableRows(f.key).where((r) => r != row).toList());
+  }
+
+  String _cellText(ServiceFormField f, String row, ServiceTableColumn c) {
+    final key = _cellKey(f.key, row, c.key);
+    if (c.options != null) return (_values[key] as String?) ?? '';
+    if (c.type == 'date') return _dateOnly(_values[key] as DateTime?) ?? '';
+    return _controllers[key]?.text.trim() ?? '';
+  }
+
+  List<Map<String, String>> _tableAnswer(ServiceFormField f) => [
+    for (final row in _tableRows(f.key)) {for (final c in f.columns!) c.key: _cellText(f, row, c)},
+  ];
+
   Map<String, dynamic> _buildFormFields() {
+    // The website's names for the applicant block.
     final out = <String, dynamic>{
-      'applicantFullName': _fullName.text.trim(),
-      'applicantBarangay': _barangay ?? '',
-      'applicantPurok': _purok.text.trim(),
-      'applicantContact': _contact.text.trim(),
-      'applicantEmail': _email.text.trim(),
+      'applicant_first_name': _firstName.text.trim(),
+      'applicant_last_name': _lastName.text.trim(),
+      'applicant_address': _address.text.trim(),
+      'applicant_mobile': _contact.text.trim(),
+      'applicant_email': _email.text.trim(),
     };
     for (final s in _serviceSteps) {
       for (final f in s.fields) {
@@ -543,12 +683,13 @@ class _ServiceRequestWizardScreenState extends State<ServiceRequestWizardScreen>
           ServiceFieldType.phone => _controllers[f.key]?.text.trim(),
           ServiceFieldType.date => _dateOnly(_values[f.key] as DateTime?),
           ServiceFieldType.select => _values[f.key],
-          ServiceFieldType.multiselect => (_values[f.key] as Set<String>?)?.toList(),
+          ServiceFieldType.multiselect => _multiselectAnswer(f) ?? const <String>[],
           ServiceFieldType.checkbox => _values[f.key] == true,
           // Preserved in submission data (some official/backend shapes
           // expect an age value) but always derived, never typed — see the
           // global birthdate/age rule.
           ServiceFieldType.derivedAge => _computeAge(f.derivedFromKey!),
+          ServiceFieldType.table => _tableAnswer(f),
         };
         out[f.key] = raw;
       }
@@ -601,18 +742,6 @@ class _ServiceRequestWizardScreenState extends State<ServiceRequestWizardScreen>
     final account = context.read<CitizenSessionService>().account!;
     final requestsService = context.read<RequestsService>();
 
-    if (widget.category == ServiceCategory.tulong) {
-      final result = tulongEligibilityFor(requestsService, typeName: widget.item.name);
-      if (!result.isEligible) {
-        final viewRequest = await showTulongBlockedDialog(context, result);
-        if (viewRequest && mounted) {
-          Navigator.of(
-            context,
-          ).push(MaterialPageRoute(builder: (_) => RequestDetailScreen(requestId: result.blockingRequest!.id)));
-        }
-        return;
-      }
-    }
 
     setState(() {
       _submitting = true;
@@ -623,7 +752,9 @@ class _ServiceRequestWizardScreenState extends State<ServiceRequestWizardScreen>
     await _backfillMasterProfile(profileService, account.id);
 
     final formData = _buildFormFields();
-    formData['purpose'] = _resolvePurpose();
+    // This app's own forms carry a purpose box; a Service Catalog form asks
+    // its own questions (its purpose among them, where it has one).
+    if (!_fromServer) formData['purpose'] = _resolvePurpose();
 
     try {
       final request = await requestsService.submit(
@@ -765,19 +896,11 @@ class _ServiceRequestWizardScreenState extends State<ServiceRequestWizardScreen>
           ),
         ),
         const SizedBox(height: AppSpacing.xl),
-        AppTextField(label: 'Full name', controller: _fullName, required: true),
+        AppTextField(label: 'First name', controller: _firstName, required: true),
         const SizedBox(height: AppSpacing.lg),
-        AppSelectField<String>(
-          label: 'Barangay',
-          required: true,
-          value: _barangay,
-          options: BarangayService.names,
-          labelBuilder: (b) => b,
-          onChanged: (v) => setState(() => _barangay = v),
-          hintText: 'Select your barangay',
-        ),
+        AppTextField(label: 'Last name', controller: _lastName, required: true),
         const SizedBox(height: AppSpacing.lg),
-        AppTextField(label: 'Purok / Sitio', controller: _purok, icon: Icons.place_outlined),
+        AppTextField(label: 'Address', controller: _address, icon: Icons.place_outlined),
         const SizedBox(height: AppSpacing.lg),
         AppTextField(
           label: 'Mobile number',
@@ -884,11 +1007,20 @@ class _ServiceRequestWizardScreenState extends State<ServiceRequestWizardScreen>
           required: f.required,
         );
       case ServiceFieldType.multiselect:
-        return _MultiSelectField(
+        final picker = _MultiSelectField(
           label: f.label,
           options: f.options!,
           selected: (_values[f.key] as Set<String>?) ?? <String>{},
           onChanged: (s) => setState(() => _values[f.key] = s),
+        );
+        if (!f.allowOther) return picker;
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            picker,
+            const SizedBox(height: AppSpacing.sm),
+            AppTextField(hintText: 'Others (please specify)', controller: _controllerFor(_otherKey(f.key))),
+          ],
         );
       case ServiceFieldType.checkbox:
         return _CheckboxField(
@@ -900,19 +1032,119 @@ class _ServiceRequestWizardScreenState extends State<ServiceRequestWizardScreen>
         // Read-only — rebuilds live whenever the paired date field's
         // setState fires, since both fields live in the same step.
         return _DerivedAgeField(label: f.label, age: _computeAge(f.derivedFromKey!));
+      case ServiceFieldType.table:
+        return _tableField(f);
     }
+  }
+
+  /// A table question: a card per row with every column, a remove button, and
+  /// "Add" and the row's name (the website's family members / dependents list).
+  Widget _tableField(ServiceFormField f) {
+    final rows = _tableRows(f.key);
+    final rowLabel = f.rowLabel ?? 'Entry';
+    final accent = _WizardAccent.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(
+          f.label + (f.required ? ' *' : ''),
+          style: const TextStyle(fontSize: AppTextSize.helper, fontWeight: FontWeight.w500, color: AppColors.slate700),
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        if (rows.isEmpty)
+          Container(
+            padding: const EdgeInsets.all(AppSpacing.lg),
+            decoration: BoxDecoration(
+              color: AppColors.slate50,
+              borderRadius: BorderRadius.circular(AppRadius.md),
+              border: Border.all(color: AppColors.border),
+            ),
+            child: Text(
+              'None added yet.',
+              textAlign: TextAlign.center,
+              style: AppTypography.captionSmallRegular.copyWith(color: AppColors.textMuted),
+            ),
+          ),
+        for (var i = 0; i < rows.length; i++) ...[
+          Container(
+            padding: const EdgeInsets.all(AppSpacing.md),
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              borderRadius: BorderRadius.circular(AppRadius.md),
+              border: Border.all(color: AppColors.border),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        '$rowLabel ${i + 1}',
+                        style: TextStyle(fontSize: AppTextSize.helper, fontWeight: FontWeight.w700, color: accent.deep),
+                      ),
+                    ),
+                    IconButton(
+                      tooltip: 'Remove $rowLabel ${i + 1}',
+                      onPressed: () => _removeTableRow(f, rows[i]),
+                      icon: const Icon(Icons.delete_outline_rounded, color: AppColors.slate600),
+                    ),
+                  ],
+                ),
+                for (final c in f.columns!) ...[const SizedBox(height: AppSpacing.sm), _tableCell(f, rows[i], c)],
+              ],
+            ),
+          ),
+          const SizedBox(height: AppSpacing.sm),
+        ],
+        const SizedBox(height: AppSpacing.sm),
+        OutlinedButton.icon(
+          onPressed: () => _addTableRow(f),
+          icon: const Icon(Icons.add_rounded, size: 18),
+          label: Text('Add $rowLabel'),
+        ),
+      ],
+    );
+  }
+
+  Widget _tableCell(ServiceFormField f, String row, ServiceTableColumn c) {
+    final key = _cellKey(f.key, row, c.key);
+    if (c.options != null) {
+      return AppSelectField<String>(
+        label: c.label,
+        value: _values[key] as String?,
+        options: c.options!,
+        labelBuilder: (o) => o,
+        onChanged: (v) => setState(() => _values[key] = v),
+        hintText: 'Select',
+      );
+    }
+    if (c.type == 'date') {
+      return AppDateField(
+        label: c.label,
+        value: _values[key] as DateTime?,
+        onChanged: (d) => setState(() => _values[key] = d),
+        lastDate: DateTime.now(),
+      );
+    }
+    return AppTextField(
+      label: c.label,
+      controller: _controllerFor(key),
+      keyboardType: c.type == 'number' ? TextInputType.number : null,
+    );
   }
 
   Widget _requirementsAttachmentsStep() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        AppTextField(
-          label: _hasPurposeField ? 'Additional notes (optional)' : 'Purpose',
-          hintText: 'e.g. Employment requirement, medical assistance for hospital bill...',
-          controller: _notesController,
-          maxLines: 3,
-        ),
+        if (!_fromServer)
+          AppTextField(
+            label: _hasPurposeField ? 'Additional notes (optional)' : 'Purpose',
+            hintText: 'e.g. Employment requirement, medical assistance for hospital bill...',
+            controller: _notesController,
+            maxLines: 3,
+          ),
         if (_feeAsked.isNotEmpty) ...[
           const SizedBox(height: AppSpacing.xl),
           FeeInputFields(names: _feeAsked, controllers: _feeControllers),
@@ -957,11 +1189,14 @@ class _ServiceRequestWizardScreenState extends State<ServiceRequestWizardScreen>
           style: TextStyle(fontSize: AppTextSize.helper, color: AppColors.textMuted, height: 1.4),
         ),
         const SizedBox(height: AppSpacing.xl),
-        _reviewRow('Full name', _fullName.text.trim(), onEdit: () => setState(() => _step = 0)),
-        _reviewRow('Barangay', _barangay ?? '—', onEdit: () => setState(() => _step = 0)),
         _reviewRow(
-          'Purok / Sitio',
-          _purok.text.trim().isEmpty ? '—' : _purok.text.trim(),
+          'Name',
+          '${_firstName.text.trim()} ${_lastName.text.trim()}'.trim(),
+          onEdit: () => setState(() => _step = 0),
+        ),
+        _reviewRow(
+          'Address',
+          _address.text.trim().isEmpty ? '—' : _address.text.trim(),
           onEdit: () => setState(() => _step = 0),
         ),
         _reviewRow(
@@ -987,11 +1222,12 @@ class _ServiceRequestWizardScreenState extends State<ServiceRequestWizardScreen>
               editLabel: _prefilledFromProfile.contains(f.key) ? 'Edit Profile' : 'Edit',
             ),
         ],
-        _reviewRow(
-          _hasPurposeField ? 'Additional notes' : 'Purpose',
-          _notesController.text.trim().isEmpty ? '—' : _notesController.text.trim(),
-          onEdit: () => setState(() => _step = _requirementsStep),
-        ),
+        if (!_fromServer)
+          _reviewRow(
+            _hasPurposeField ? 'Additional notes' : 'Purpose',
+            _notesController.text.trim().isEmpty ? '—' : _notesController.text.trim(),
+            onEdit: () => setState(() => _step = _requirementsStep),
+          ),
         for (final name in widget.item.feeInputs)
           _reviewRow(
             FeeInputs.label(name),
@@ -1005,6 +1241,15 @@ class _ServiceRequestWizardScreenState extends State<ServiceRequestWizardScreen>
             onEdit: () => setState(() => _step = _requirementsStep),
           ),
         if (widget.item.fee != 'Free') _reviewRow('Fee', widget.item.fee, onEdit: null),
+        if (_documentMeta != null) ...[
+          const SizedBox(height: AppSpacing.lg),
+          const Text(
+            'Preview',
+            style: TextStyle(fontSize: AppTextSize.body, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          _documentPreview(),
+        ],
         if (_error != null) ...[
           const SizedBox(height: AppSpacing.md),
           Text(
@@ -1013,6 +1258,58 @@ class _ServiceRequestWizardScreenState extends State<ServiceRequestWizardScreen>
           ),
         ],
       ],
+    );
+  }
+
+  /// The document this request is for, as the website previews it on its
+  /// Review step: Dokyu documents it draws, filled with the answers so far.
+  DocumentMeta? get _documentMeta => widget.category == ServiceCategory.dokyu ? documentMetas[widget.item.key] : null;
+
+  Future<(Map<String, DocumentTemplate>, ({String? captain, String? secretary, String? sealUrl}))>? _documentContext;
+
+  Future<(Map<String, DocumentTemplate>, ({String? captain, String? secretary, String? sealUrl}))> _loadDocumentContext(
+    String barangay,
+  ) async => (await DocumentTemplatesService.load(), await barangayOfficials(barangay));
+
+  Widget _documentPreview() {
+    final barangay = context.read<CitizenSessionService>().account?.barangay ?? '';
+    _documentContext ??= _loadDocumentContext(barangay);
+    return FutureBuilder(
+      future: _documentContext,
+      builder: (context, snap) {
+        final (templates, officials) =
+            snap.data ?? (const <String, DocumentTemplate>{}, (captain: null, secretary: null, sealUrl: null));
+        final sheet = buildDocument(
+          _documentMeta!,
+          _buildFormFields(),
+          barangay: barangay,
+          punongBarangay: officials.captain,
+          barangaySecretary: officials.secretary,
+          template: templates[_documentMeta!.key],
+        );
+        // Tap to open it full screen, where it can be pinched in and out.
+        return Semantics(
+          button: true,
+          hint: 'Opens the document full screen to zoom',
+          child: GestureDetector(
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => DocumentFullScreen(sheet: sheet, barangaySealUrl: officials.sealUrl)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                DocumentPaper(sheet: sheet, barangaySealUrl: officials.sealUrl),
+                const SizedBox(height: AppSpacing.xs),
+                Text(
+                  'Tap to view full screen and pinch to zoom.',
+                  textAlign: TextAlign.center,
+                  style: AppTypography.bodySmall.copyWith(color: AppColors.textMuted),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 

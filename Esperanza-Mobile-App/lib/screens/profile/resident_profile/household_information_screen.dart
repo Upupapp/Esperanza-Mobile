@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../models/resident_profile.dart';
 import '../../../services/citizen_session_service.dart';
-import '../../../services/barangay_service.dart';
 import '../../../services/resident_profile_service.dart';
 import '../../../theme/app_colors.dart';
 import '../../../theme/app_spacing.dart';
@@ -12,8 +11,8 @@ import '../../../widgets/app_text_field.dart';
 import '../../../widgets/form_section.dart';
 import '../../../theme/app_typography.dart';
 
-/// Step 3 — Household Information. Maps to Web Admin Constituents >
-/// Households. "Number of People" / "Number of Families" are shown as
+/// Step 3 — Household Information, as the website's Household tab: only
+/// what the barangay keeps (PUT /citizen/resident-profile `household`). "Number of People" / "Number of Families" are shown as
 /// read-only summaries derived from Family Information rather than
 /// re-typed here — asking the citizen to manually keep a count in sync
 /// with the family members they already entered would just invite drift.
@@ -29,18 +28,13 @@ class _HouseholdInformationScreenState extends State<HouseholdInformationScreen>
   late final String _accountId;
   late final TextEditingController _sitioPurok;
   late final TextEditingController _completeAddress;
-  late final TextEditingController _numberOfRooms;
-  String? _barangay;
   String? _housingOwnership;
   String? _housingType;
   String? _waterSource;
   String? _toiletFacility;
   String? _electricitySource;
-  bool _hasInternet = false;
   bool _saving = false;
   String? _error;
-
-  ResidentProfileService get _service => context.read<ResidentProfileService>();
 
   @override
   void initState() {
@@ -50,44 +44,22 @@ class _HouseholdInformationScreenState extends State<HouseholdInformationScreen>
     _original = context.read<ResidentProfileService>().profileFor(account).household;
     _sitioPurok = TextEditingController(text: _original.sitioPurok);
     _completeAddress = TextEditingController(text: _original.completeAddress);
-    _numberOfRooms = TextEditingController(text: _original.numberOfRooms > 0 ? '${_original.numberOfRooms}' : '');
-    _barangay = _original.barangay.isEmpty ? null : _original.barangay;
     _housingOwnership = _original.housingOwnership.isEmpty ? null : _original.housingOwnership;
     _housingType = _original.housingType.isEmpty ? null : _original.housingType;
     _waterSource = _original.waterSource.isEmpty ? null : _original.waterSource;
     _toiletFacility = _original.toiletFacility.isEmpty ? null : _original.toiletFacility;
     _electricitySource = _original.electricitySource.isEmpty ? null : _original.electricitySource;
-    _hasInternet = _original.hasInternetAccess;
   }
 
   @override
   void dispose() {
     _sitioPurok.dispose();
     _completeAddress.dispose();
-    _numberOfRooms.dispose();
     super.dispose();
   }
 
-  String? _missingFieldError() {
-    if (_barangay == null) return 'Please select your barangay.';
-    if (_sitioPurok.text.trim().isEmpty) return 'Please enter your Sitio / Purok.';
-    if (_completeAddress.text.trim().isEmpty) return 'Please enter your complete address.';
-    if (_housingOwnership == null) return 'Please select your housing ownership.';
-    if (_housingType == null) return 'Please select your housing type.';
-    if (_waterSource == null) return 'Please select your water source.';
-    if (_toiletFacility == null) return 'Please select your toilet / sanitation facility.';
-    if (_electricitySource == null) return 'Please select your electricity source.';
-    return null;
-  }
-
   Future<void> _save({required bool markComplete}) async {
-    if (markComplete) {
-      final err = _missingFieldError();
-      if (err != null) {
-        setState(() => _error = err);
-        return;
-      }
-    }
+    // Every household answer is optional, as on the website.
     setState(() {
       _saving = true;
       _error = null;
@@ -96,16 +68,16 @@ class _HouseholdInformationScreenState extends State<HouseholdInformationScreen>
     if (!mounted) return;
     final updated = Household(
       householdId: _original.householdId,
-      barangay: _barangay ?? '',
+      barangay: _original.barangay,
       sitioPurok: _sitioPurok.text.trim(),
       completeAddress: _completeAddress.text.trim(),
       housingOwnership: _housingOwnership ?? '',
       housingType: _housingType ?? '',
-      numberOfRooms: int.tryParse(_numberOfRooms.text.trim()) ?? 0,
+      numberOfRooms: _original.numberOfRooms,
       waterSource: _waterSource ?? '',
       toiletFacility: _toiletFacility ?? '',
       electricitySource: _electricitySource ?? '',
-      hasInternetAccess: _hasInternet,
+      hasInternetAccess: _original.hasInternetAccess,
       familyIds: _original.familyIds,
       otherFamilies: _original.otherFamilies,
     );
@@ -115,25 +87,6 @@ class _HouseholdInformationScreenState extends State<HouseholdInformationScreen>
     AppDialogs.toast(context, markComplete ? 'Household information saved.' : 'Saved for later.');
     Navigator.of(context).pop();
   }
-
-  Future<void> _addOtherFamily() async {
-    final result = await showModalBottomSheet<_OtherFamilyResult>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) => const _OtherFamilyFormSheet(),
-    );
-    if (result != null && mounted) {
-      await _service.addOtherFamilyToHousehold(
-        _accountId,
-        result.familyName,
-        headName: result.headName,
-        members: result.members,
-      );
-    }
-  }
-
-  Future<void> _removeOtherFamily(String familyId) => _service.removeOtherFamilyFromHousehold(_accountId, familyId);
 
   @override
   Widget build(BuildContext context) {
@@ -159,14 +112,7 @@ class _HouseholdInformationScreenState extends State<HouseholdInformationScreen>
               FormSection(
                 title: 'Location',
                 children: [
-                  AppSelectField<String>(
-                    label: 'Barangay',
-                    value: _barangay,
-                    options: BarangayService.names,
-                    labelBuilder: (v) => v,
-                    onChanged: (v) => setState(() => _barangay = v),
-                  ),
-                  AppTextField(label: 'Sitio / Purok', controller: _sitioPurok, icon: Icons.place_outlined),
+                  AppTextField(label: 'Sitio / Purok of the house', controller: _sitioPurok, icon: Icons.place_outlined),
                   AppTextField(label: 'Complete address', controller: _completeAddress, maxLines: 2),
                 ],
               ),
@@ -187,12 +133,6 @@ class _HouseholdInformationScreenState extends State<HouseholdInformationScreen>
                     options: ResidentProfileOptions.housingType,
                     labelBuilder: (v) => v,
                     onChanged: (v) => setState(() => _housingType = v),
-                  ),
-                  AppTextField(
-                    label: 'Number of rooms',
-                    controller: _numberOfRooms,
-                    keyboardType: TextInputType.number,
-                    icon: Icons.meeting_room_outlined,
                   ),
                 ],
               ),
@@ -221,25 +161,6 @@ class _HouseholdInformationScreenState extends State<HouseholdInformationScreen>
                     labelBuilder: (v) => v,
                     onChanged: (v) => setState(() => _electricitySource = v),
                   ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.xs),
-                    decoration: BoxDecoration(color: AppColors.slate50, borderRadius: BorderRadius.circular(AppRadius.md)),
-                    child: Row(
-                      children: [
-                        const Expanded(
-                          child: Text(
-                            'Internet Access',
-                            style: TextStyle(fontSize: AppTextSize.body, fontWeight: FontWeight.w500, color: AppColors.slate700),
-                          ),
-                        ),
-                        Switch(
-                          value: _hasInternet,
-                          onChanged: (v) => setState(() => _hasInternet = v),
-                          activeThumbColor: AppColors.brand500,
-                        ),
-                      ],
-                    ),
-                  ),
                 ],
               ),
               const SizedBox(height: AppSpacing.lg),
@@ -248,36 +169,6 @@ class _HouseholdInformationScreenState extends State<HouseholdInformationScreen>
                 description: 'Based on your Family Information — update that section to change these.',
                 children: [
                   _CompositionRow(label: 'People living in household', value: '${profile.householdResidentCount}'),
-                  _CompositionRow(label: 'Families living in household', value: '${profile.householdFamilyCount}'),
-                ],
-              ),
-              const SizedBox(height: AppSpacing.lg),
-              // A household is the physical residence — this is where
-              // *other* family groups sharing it belong, distinct from
-              // Family Information (which is only the signed-in citizen's
-              // own family). Moved here from Family Information.
-              FormSection(
-                title: 'Families in this Household',
-                description: 'A household can include more than one family living together.',
-                children: [
-                  _FamilyChip(
-                    name: profile.familyName.trim().isEmpty
-                        ? '${context.watch<CitizenSessionService>().account!.lastName} Family'
-                        : profile.familyName,
-                    isOwn: true,
-                  ),
-                  for (final f in profile.household.otherFamilies)
-                    _FamilyChip(
-                      name: f.familyName,
-                      headName: f.headName,
-                      memberCount: f.members.length,
-                      onRemove: () => _removeOtherFamily(f.familyId),
-                    ),
-                  OutlinedButton.icon(
-                    onPressed: _addOtherFamily,
-                    icon: const Icon(Icons.add_rounded, size: 17),
-                    label: const Text('Add Another Family'),
-                  ),
                 ],
               ),
               if (_error != null) ...[
@@ -331,249 +222,3 @@ class _CompositionRow extends StatelessWidget {
   }
 }
 
-/// One family group living in this household — the citizen's own (never
-/// removable, no head/member entry needed since that's already captured in
-/// Family Information) or another family they've acknowledged, which can
-/// optionally show who leads it and how many members it has.
-class _FamilyChip extends StatelessWidget {
-  final String name;
-  final bool isOwn;
-  final String? headName;
-  final int memberCount;
-  final VoidCallback? onRemove;
-  const _FamilyChip({required this.name, this.isOwn = false, this.headName, this.memberCount = 0, this.onRemove});
-
-  @override
-  Widget build(BuildContext context) {
-    final subtitleParts = <String>[
-      if (headName != null && headName!.trim().isNotEmpty) 'Head: ${headName!.trim()}',
-      if (memberCount > 0) '$memberCount member${memberCount == 1 ? '' : 's'}',
-    ];
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.sm),
-      decoration: BoxDecoration(
-        color: isOwn ? AppColors.brand50 : AppColors.slate50,
-        borderRadius: BorderRadius.circular(AppRadius.md),
-      ),
-      child: Row(
-        children: [
-          Icon(Icons.diversity_3_outlined, size: 17, color: isOwn ? AppColors.brand600 : AppColors.slate500),
-          const SizedBox(width: AppSpacing.sm),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  name,
-                  style: TextStyle(
-                    fontSize: AppTextSize.helper,
-                    fontWeight: FontWeight.w600,
-                    color: isOwn ? AppColors.brand700 : AppColors.slate700,
-                  ),
-                ),
-                if (subtitleParts.isNotEmpty)
-                  Text(subtitleParts.join(' · '), style: const TextStyle(fontSize: AppTextSize.fine, color: AppColors.textMuted)),
-              ],
-            ),
-          ),
-          if (isOwn)
-            // Flexible, not a bare Text: at a large system text scale this
-            // trailing label cannot shrink and pushed the row past its width
-            // (measured 2026-08-29 — 82px of overflow at 280pt/200%). Letting
-            // it wrap keeps the chip intact without shrinking the type, which
-            // would defeat the setting the citizen chose.
-            const Flexible(
-              child: Text(
-                'Your family',
-                textAlign: TextAlign.end,
-                style: TextStyle(fontSize: AppTextSize.fine, color: AppColors.brand600, fontWeight: FontWeight.w600),
-              ),
-            )
-          else if (onRemove != null)
-            IconButton(
-              tooltip: 'Remove this family from the household',
-              onPressed: onRemove,
-              icon: const Icon(Icons.close_rounded, size: 17, color: AppColors.slate400),
-              constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-              padding: EdgeInsets.zero,
-            ),
-        ],
-      ),
-    );
-  }
-}
-
-class _OtherFamilyResult {
-  final String familyName;
-  final String headName;
-  final List<OtherFamilyMember> members;
-  const _OtherFamilyResult({required this.familyName, required this.headName, required this.members});
-}
-
-/// Captures a household-mate family group beyond just its name — family
-/// head and members, each with their relationship to that family's head —
-/// per the household restructure's requirement that other families in the
-/// household aren't just acknowledged by name but can record who's in
-/// them. Deliberately lighter than [FamilyMemberFormSheet] (plain
-/// name/relationship, no full Individual record): these are someone
-/// else's family being noted for household-composition purposes, not
-/// Individuals-table records the citizen is authoring.
-class _OtherFamilyFormSheet extends StatefulWidget {
-  const _OtherFamilyFormSheet();
-
-  @override
-  State<_OtherFamilyFormSheet> createState() => _OtherFamilyFormSheetState();
-}
-
-class _OtherFamilyFormSheetState extends State<_OtherFamilyFormSheet> {
-  final _familyName = TextEditingController();
-  final _headName = TextEditingController();
-  final List<TextEditingController> _memberNames = [];
-  final List<String?> _memberRelationships = [];
-  String? _error;
-
-  @override
-  void dispose() {
-    _familyName.dispose();
-    _headName.dispose();
-    for (final c in _memberNames) {
-      c.dispose();
-    }
-    super.dispose();
-  }
-
-  void _addMemberRow() {
-    setState(() {
-      _memberNames.add(TextEditingController());
-      _memberRelationships.add(null);
-    });
-  }
-
-  void _removeMemberRow(int i) {
-    setState(() {
-      _memberNames.removeAt(i).dispose();
-      _memberRelationships.removeAt(i);
-    });
-  }
-
-  void _submit() {
-    if (_familyName.text.trim().isEmpty) {
-      setState(() => _error = 'Please enter a family name.');
-      return;
-    }
-    final members = <OtherFamilyMember>[
-      for (var i = 0; i < _memberNames.length; i++)
-        if (_memberNames[i].text.trim().isNotEmpty)
-          OtherFamilyMember(name: _memberNames[i].text.trim(), relationship: _memberRelationships[i] ?? ''),
-    ];
-    Navigator.of(
-      context,
-    ).pop(_OtherFamilyResult(familyName: _familyName.text.trim(), headName: _headName.text.trim(), members: members));
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
-      child: SafeArea(
-        child: Container(
-          margin: const EdgeInsets.all(AppSpacing.md),
-          constraints: BoxConstraints(maxHeight: MediaQuery.sizeOf(context).height * 0.85),
-          decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(AppRadius.xl)),
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.lg, AppSpacing.lg, AppSpacing.lg),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Text(
-                  'Add Another Family',
-                  style: TextStyle(fontSize: AppTextSize.card, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
-                ),
-                const SizedBox(height: AppSpacing.xs),
-                const Text(
-                  'A different family group living in this same household.',
-                  style: TextStyle(fontSize: AppTextSize.label, color: AppColors.textMuted, height: 1.35),
-                ),
-                const SizedBox(height: AppSpacing.lg),
-                AppTextField(label: 'Family name', controller: _familyName, icon: Icons.diversity_3_outlined),
-                const SizedBox(height: AppSpacing.fieldGap),
-                AppTextField(
-                  label: 'Family head (optional)',
-                  controller: _headName,
-                  icon: Icons.person_outline_rounded,
-                ),
-                const SizedBox(height: AppSpacing.md),
-                const Text(
-                  'Family Members',
-                  style: TextStyle(fontSize: AppTextSize.helper, fontWeight: FontWeight.w600, color: AppColors.slate600),
-                ),
-                const SizedBox(height: AppSpacing.sm),
-                for (var i = 0; i < _memberNames.length; i++)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Expanded(
-                          flex: 3,
-                          child: AppTextField(
-                            label: 'Name',
-                            controller: _memberNames[i],
-                            icon: Icons.person_outline_rounded,
-                          ),
-                        ),
-                        const SizedBox(width: AppSpacing.sm),
-                        Expanded(
-                          flex: 3,
-                          child: AppSelectField<String>(
-                            label: 'Relationship to head',
-                            value: _memberRelationships[i],
-                            options: ResidentProfileOptions.relationshipToHead,
-                            labelBuilder: (v) => v,
-                            onChanged: (v) => setState(() => _memberRelationships[i] = v),
-                          ),
-                        ),
-                        IconButton(
-                          tooltip: 'Remove member',
-                          onPressed: () => _removeMemberRow(i),
-                          icon: const Icon(Icons.delete_outline_rounded, size: 19, color: AppColors.rose500),
-                          constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
-                          padding: EdgeInsets.zero,
-                        ),
-                      ],
-                    ),
-                  ),
-                OutlinedButton.icon(
-                  onPressed: _addMemberRow,
-                  icon: const Icon(Icons.person_add_alt_1_rounded, size: 17),
-                  label: const Text('Add Member'),
-                ),
-                if (_error != null) ...[
-                  const SizedBox(height: AppSpacing.sm),
-                  Text(_error!, style: const TextStyle(fontSize: AppTextSize.helper, color: AppColors.rose600)),
-                ],
-                const SizedBox(height: AppSpacing.xl),
-                Row(
-                  children: [
-                    Expanded(
-                      child: AppButton(
-                        label: 'Cancel',
-                        variant: AppButtonVariant.ghost,
-                        onPressed: () => Navigator.of(context).pop(),
-                      ),
-                    ),
-                    const SizedBox(width: AppSpacing.sm),
-                    Expanded(
-                      child: AppButton(label: 'Add Family', onPressed: _submit),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}

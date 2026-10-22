@@ -1,7 +1,8 @@
-// Coverage for Nicanor Sarmiento's and Anacleto Dimaculangan's profile photo +
-// submitted government ID — the same single-source-of-truth architecture
-// already used for Perlita (see utils/demo_resident_photo.dart and
-// utils/government_id.dart), just extended to two more seeded residents.
+// Coverage for Nicanor Sarmiento's and Anacleto Dimaculangan's profile photo —
+// the same single-source-of-truth architecture already used for Perlita (see
+// utils/demo_resident_photo.dart), just extended to two more seeded residents.
+// (The submitted government ID card on Personal Information is gone: the
+// website shows none, and the profile keeps only what the server stores.)
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
@@ -13,7 +14,6 @@ import 'package:esperanza_mobile/screens/profile/digital_id_screen.dart';
 import 'package:esperanza_mobile/services/citizen_session_service.dart';
 import 'package:esperanza_mobile/services/mock_catalog.dart';
 import 'package:esperanza_mobile/utils/demo_resident_photo.dart';
-import 'package:esperanza_mobile/utils/government_id.dart';
 
 import 'support/fake_api.dart';
 import 'support/wallet_fixture.dart';
@@ -51,20 +51,15 @@ Future<void> _pumpDigitalId(WidgetTester tester, CitizenSessionService session) 
 
 void main() {
   group('Asset lookups (no widgets — proves the single source of truth resolves correctly)', () {
-    test('Nicanor has his own profile photo and government ID, distinct from Perlita and Anacleto', () {
+    test('Nicanor has his own profile photo, distinct from Perlita and Anacleto', () {
       final nicanor = MockCatalog.demoAccounts.first;
       expect(nicanor.firstName, 'Nicanor');
       final photo = _unwrapAssetImage(demoProfileImageFor(nicanor));
       expect(photo.assetName, pendingDemoProfilePhotoAsset);
       expect(pendingDemoProfilePhotoAsset, 'assets/images/Nicanor Sarmiento.png');
-
-      final id = governmentIdFor(nicanor);
-      expect(id, isNotNull);
-      expect(id!.assetPath, 'assets/images/NICANOR ID DEMO.png');
-      expect(id.accountId, nicanor.id);
     });
 
-    test('Both Anacleto duplicate accounts share the same photo and the same government ID record', () {
+    test('Both Anacleto duplicate accounts share the same photo', () {
       final a = MockCatalog.unverifiedDuplicateAccountA;
       final b = MockCatalog.unverifiedDuplicateAccountB;
       expect(a.id, isNot(b.id)); // distinct accounts internally
@@ -74,12 +69,6 @@ void main() {
       expect(photoA.assetName, duplicateDemoProfilePhotoAsset);
       expect(photoB.assetName, duplicateDemoProfilePhotoAsset);
       expect(duplicateDemoProfilePhotoAsset, 'assets/images/Anacleto Dimaculangan.png');
-
-      final idA = governmentIdFor(a);
-      final idB = governmentIdFor(b);
-      expect(idA, isNotNull);
-      expect(idA!.assetPath, 'assets/images/ANACLETO ID DEMO.png');
-      expect(idA, same(idB)); // literally the same record, not two copies
     });
 
     test('an unrelated account (Perlita) never resolves to Nicanor or Anacleto assets', () {
@@ -87,14 +76,12 @@ void main() {
       final photo = _unwrapAssetImage(demoProfileImageFor(perlita));
       expect(photo.assetName, isNot(pendingDemoProfilePhotoAsset));
       expect(photo.assetName, isNot(duplicateDemoProfilePhotoAsset));
-      expect(governmentIdFor(perlita)!.assetPath, isNot('assets/images/NICANOR ID DEMO.png'));
     });
   });
 
   group('Digital ID screen', () {
     // The registration-uploaded ID document is a different concept from the
-    // Esperanza Digital ID and is never shown on this screen — see Profile >
-    // Personal Information's own coverage in submitted_government_id_test.dart.
+    // Esperanza Digital ID and is never shown on this screen.
     testWidgets('Nicanor (Unverified): no Esperanza Digital ID, and no registration ID document either', (tester) async {
       final session = await _signedInAs(tester, MockCatalog.demoAccounts.first);
       expect(session.account!.firstName, 'Nicanor');
