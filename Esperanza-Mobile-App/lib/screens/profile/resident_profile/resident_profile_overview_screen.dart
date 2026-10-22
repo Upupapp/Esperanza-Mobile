@@ -111,9 +111,11 @@ class _ResidentProfileOverviewScreenState extends State<ResidentProfileOverviewS
             _SectionCard(
               icon: Icons.fact_check_outlined,
               title: 'Review & Submit',
-              description: profile.readyToSubmit
+              description: !profile.editable
+                  ? 'Sent to your barangay office. See what you sent.'
+                  : profile.readyToSubmit
                   ? 'Everything looks good — review and submit for verification.'
-                  : 'Complete all sections above to submit.',
+                  : 'Fill in Personal Information to submit; Family and Household are optional.',
               status: null,
               onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const ReviewSubmitScreen())),
             ),

@@ -320,6 +320,16 @@ class RequestsService extends ChangeNotifier {
     }
   }
 
+  /// The purpose the resident filed: text, or a list of choices (the
+  /// server joins those with commas, CitizenRequestController::purposeText).
+  /// It was always left blank here, so the app never showed it (parity
+  /// check, 2026-10-22).
+  static String _purposeOf(Object? raw) {
+    final list = JsonRead.strings(raw);
+    if (list.isNotEmpty) return list.where((s) => s.trim().isNotEmpty).join(', ');
+    return JsonRead.nonEmpty(raw) ?? '';
+  }
+
   ServiceRequest _requestFromSummary(Map<String, dynamic> json) {
     final ref = JsonRead.nonEmpty(json['ref']) ?? '';
     return ServiceRequest(
@@ -330,7 +340,7 @@ class RequestsService extends ChangeNotifier {
       typeName: JsonRead.string(json['service']) ?? '',
       category: _categoryFromType(JsonRead.string(json['type'])),
       office: JsonRead.string(json['office']) ?? '',
-      purpose: '',
+      purpose: _purposeOf(json['purpose']),
       submittedAt: JsonRead.date(json['submitted']) ?? DateTime.now(),
       status: JsonRead.nonEmpty(json['status']) ?? 'Submitted',
       statusHistory: const [],
@@ -430,7 +440,7 @@ class RequestsService extends ChangeNotifier {
       typeName: JsonRead.string(json['service']) ?? '',
       category: _categoryFromType(JsonRead.string(json['type'])),
       office: JsonRead.string(json['office']) ?? '',
-      purpose: '',
+      purpose: _purposeOf(json['purpose']),
       submittedAt: JsonRead.date(json['submitted']) ?? DateTime.now(),
       status: JsonRead.nonEmpty(json['status']) ?? 'Submitted',
       statusHistory: history,

@@ -19,6 +19,10 @@ import 'package:esperanza_mobile/services/notifications_service.dart';
 import 'package:esperanza_mobile/screens/profile/profile_screen.dart';
 import 'package:esperanza_mobile/screens/shared/my_requests_screen.dart';
 import 'package:esperanza_mobile/screens/support/help_support_screen.dart';
+import 'package:esperanza_mobile/screens/appointments/appointments_screen.dart';
+import 'package:esperanza_mobile/screens/home/root_shell.dart';
+import 'package:esperanza_mobile/screens/profile/data_requests_screen.dart';
+import 'package:esperanza_mobile/screens/support/support_tickets_screen.dart';
 import 'package:esperanza_mobile/services/requests_service.dart';
 import 'package:esperanza_mobile/services/resident_profile_service.dart';
 import 'package:esperanza_mobile/theme/app_status.dart';
@@ -313,11 +317,25 @@ void main() {
       );
     });
 
-    test('a support reply opens Help & Support, not the ticket as a request', () {
+    test('a support reply opens the tickets, not the FAQs and not the ticket as a request', () {
       expect(
         serverNotificationDestination(n(link: '/citizen/help/support', ref: 'TKT-2026-0042', category: 'account')),
-        isA<HelpSupportScreen>(),
+        isA<SupportTicketsScreen>(),
       );
+      expect(serverNotificationDestination(n(link: '/citizen/help')), isA<HelpSupportScreen>());
+    });
+
+    test('the links the app could not open now lead somewhere (parity check, 2026-10-22)', () {
+      // An incident's update, as IncidentLifecycle links it.
+      final incident = serverNotificationDestination(n(link: '/citizen/emergency?incident=INC-2026-00012'));
+      expect(incident, isA<RequestDetailScreen>());
+      expect((incident! as RequestDetailScreen).requestId, 'INC-2026-00012');
+      // A Sakuna alert: the Emergency tab, through the shell and its guard.
+      final alert = serverNotificationDestination(n(link: '/citizen/emergency'));
+      expect(alert, isA<ShellTabLink>());
+      expect((alert! as ShellTabLink).tab, 3);
+      expect(serverNotificationDestination(n(link: '/citizen/appointments')), isA<AppointmentsScreen>());
+      expect(serverNotificationDestination(n(link: '/citizen/settings')), isA<DataRequestsScreen>());
     });
 
     test('a rejected payment opens the request list, not the payment as a request', () {

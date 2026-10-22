@@ -371,11 +371,44 @@ class _RootShellState extends State<RootShell> with WidgetsBindingObserver {
 
 /// The menu button at the leading edge of every tab's AppBar: opens the
 /// shell's side menu (see [RootShell.openDrawer]).
+/// A link to one of the shell's tabs from somewhere a screen is expected (a
+/// notification, or a push tapped): back to the shell, then that tab - the
+/// tab keeps its own AccessGuard, so nothing is opened around it.
+class ShellTabLink extends StatefulWidget {
+  const ShellTabLink({super.key, required this.tab});
+
+  /// Home=0, Balita=1, Events=2, Emergency=3.
+  final int tab;
+
+  @override
+  State<ShellTabLink> createState() => _ShellTabLinkState();
+}
+
+class _ShellTabLinkState extends State<ShellTabLink> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      Navigator.of(context).popUntil((route) => route.isFirst);
+      RootShell.jumpTo(context, widget.tab);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) => const Scaffold(body: SizedBox.shrink());
+}
+
 class ShellMenuButton extends StatelessWidget {
   const ShellMenuButton({super.key});
 
   @override
   Widget build(BuildContext context) {
+    // A tab's screen opened on its own (from a notification) has no shell
+    // and so no menu: it goes back instead.
+    if (context.findAncestorStateOfType<_RootShellState>() == null && Navigator.of(context).canPop()) {
+      return const BackButton();
+    }
     return IconButton(
       icon: const Icon(Icons.menu),
       tooltip: MaterialLocalizations.of(context).openAppDrawerTooltip,

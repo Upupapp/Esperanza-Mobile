@@ -132,6 +132,11 @@ class Individual {
   bool hasEsperanzaAccount;
   String? linkedCitizenAccountId;
 
+  /// The server's own reference for this person (`RES-...`), once the
+  /// barangay's record has them. Sent back with every resubmit, so the
+  /// server updates the person instead of adding them again.
+  String? serverRef;
+
   String? familyId;
   String? householdId;
   final String source;
@@ -171,6 +176,7 @@ class Individual {
     this.relationshipToHead = '',
     this.hasEsperanzaAccount = false,
     this.linkedCitizenAccountId,
+    this.serverRef,
     this.familyId,
     this.householdId,
     this.source = RecordSource.mobileApp,
@@ -222,6 +228,7 @@ class Individual {
         'relationshipToHead': relationshipToHead,
         'hasEsperanzaAccount': hasEsperanzaAccount,
         'linkedCitizenAccountId': linkedCitizenAccountId,
+        'serverRef': serverRef,
         'familyId': familyId,
         'householdId': householdId,
         'source': source,
@@ -262,6 +269,7 @@ class Individual {
         relationshipToHead: json['relationshipToHead'] ?? '',
         hasEsperanzaAccount: json['hasEsperanzaAccount'] ?? false,
         linkedCitizenAccountId: json['linkedCitizenAccountId'],
+        serverRef: json['serverRef'],
         familyId: json['familyId'],
         householdId: json['householdId'],
         source: json['source'] ?? RecordSource.mobileApp,
@@ -605,21 +613,19 @@ class ResidentProfile {
   static const _familyWeight = 0.3;
   static const _householdWeight = 0.3;
 
+  /// What the website requires before the profile can be sent
+  /// (resident-profile-form.js): sex, birthdate, civil status and Sitio /
+  /// Purok. Everything else, Family and Household included, is optional.
   List<bool> get _personalRequiredFlags => [
-        personal.firstName.trim().isNotEmpty,
-        personal.lastName.trim().isNotEmpty,
         personal.sex.trim().isNotEmpty,
         personal.birthdate != null,
         personal.civilStatus.trim().isNotEmpty,
-        personal.mobile.trim().isNotEmpty,
-        personal.barangay.trim().isNotEmpty,
         personal.sitioPurok.trim().isNotEmpty,
-        personal.completeAddress.trim().isNotEmpty,
-        personal.occupation.trim().isNotEmpty,
       ];
 
+  /// How much of the household is filled in, for the percentage only: none
+  /// of it is required.
   List<bool> get _householdRequiredFlags => [
-        household.barangay.trim().isNotEmpty,
         household.sitioPurok.trim().isNotEmpty,
         household.completeAddress.trim().isNotEmpty,
         household.housingOwnership.trim().isNotEmpty,
@@ -647,19 +653,26 @@ class ResidentProfile {
   }
 
   SectionStatus get familyStatus {
-    if (familySaved && familyCompletion >= 1.0) return SectionStatus.complete;
+    if (familySaved) return SectionStatus.complete;
     if (familyName.trim().isNotEmpty || familyMembers.isNotEmpty) return SectionStatus.inProgress;
     return SectionStatus.notStarted;
   }
 
   SectionStatus get householdStatus {
-    if (householdSaved && householdCompletion >= 1.0) return SectionStatus.complete;
+    if (householdSaved) return SectionStatus.complete;
     if (householdCompletion > 0) return SectionStatus.inProgress;
     return SectionStatus.notStarted;
   }
 
-  bool get readyToSubmit =>
-      personalStatus == SectionStatus.complete && familyStatus == SectionStatus.complete && householdStatus == SectionStatus.complete;
+  /// The website's rule: the required personal fields filled in. Family and
+  /// Household go along as they are.
+  bool get readyToSubmit => editable && personalCompletion >= 1.0;
+
+  /// Filled in or corrected only while Unverified (not yet sent, or sent
+  /// back), as on the website: while the barangay checks it, or once it is
+  /// verified, it is shown, not edited (parity, 2026-10-23: a resubmit from
+  /// the app put a verified profile back to For Validation).
+  bool get editable => status != VerificationStatus.verified && status != VerificationStatus.pendingVerification;
 
   /// All individuals in the family, including the head — used everywhere
   /// "who's in this family" needs to be shown without duplicating the
@@ -673,8 +686,6 @@ class ResidentProfile {
 
   int get householdResidentCount => 1 + familyMembers.length;
   int get householdFamilyCount => 1 + household.otherFamilies.length;
-  int get documentCount =>
-      personal.documentPaths.length + ((personal.photoPath != null || personal.photoBytesBase64 != null) ? 1 : 0);
 
   // ---- Profile photo cooldown ----------------------------------------
 

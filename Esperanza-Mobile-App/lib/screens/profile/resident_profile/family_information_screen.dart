@@ -10,6 +10,7 @@ import '../../../widgets/app_card.dart';
 import '../../../widgets/app_dialogs.dart';
 import '../../../widgets/app_text_field.dart';
 import '../../../widgets/form_section.dart';
+import '../../../widgets/resident_profile_lock_note.dart';
 import 'family_member_form_sheet.dart';
 import '../../../theme/app_typography.dart';
 
@@ -49,10 +50,6 @@ class _FamilyInformationScreenState extends State<FamilyInformationScreen> {
   ResidentProfileService get _service => context.read<ResidentProfileService>();
 
   Future<void> _save({required bool markComplete}) async {
-    if (markComplete && _familyName.text.trim().isEmpty) {
-      setState(() => _error = 'Please enter a family name.');
-      return;
-    }
     setState(() {
       _saving = true;
       _error = null;
@@ -107,6 +104,7 @@ class _FamilyInformationScreenState extends State<FamilyInformationScreen> {
   Widget build(BuildContext context) {
     final account = context.watch<CitizenSessionService>().account!;
     final profile = context.watch<ResidentProfileService>().profileFor(account);
+    final locked = !profile.editable;
 
     return Scaffold(
       appBar: AppBar(title: const Text('Family Information')),
@@ -118,62 +116,77 @@ class _FamilyInformationScreenState extends State<FamilyInformationScreen> {
               'Add the people in your family (not yourself).',
               style: TextStyle(fontSize: AppTextSize.helper, color: AppColors.textMuted, height: 1.4),
             ),
+            if (locked) ...[
+              const SizedBox(height: AppSpacing.md),
+              ResidentProfileLockNote(status: profile.status),
+            ],
             const SizedBox(height: AppSpacing.lg),
-            FormSection(
-              title: 'Family Details',
-              children: [
-                AppTextField(label: 'Family name', controller: _familyName, icon: Icons.diversity_3_outlined),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
+            // View only, greyed out, while the barangay has it (as on the website).
+            ResidentProfileViewOnly(
+              locked: locked,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                FormSection(
+                  title: 'Family Details',
                   children: [
-                    _InfoRow(label: 'Members', value: '${profile.allFamilyIndividuals.length}'),
+                    AppTextField(label: 'Family name', controller: _familyName, icon: Icons.diversity_3_outlined),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        _InfoRow(label: 'Members', value: '${profile.allFamilyIndividuals.length}'),
+                      ],
+                    ),
                   ],
                 ),
-              ],
-            ),
-            const SizedBox(height: AppSpacing.xl),
-            const Text(
-              'Family Members',
-              style: TextStyle(fontSize: AppTextSize.helper, fontWeight: FontWeight.w600, color: AppColors.slate600),
-            ),
-            const SizedBox(height: AppSpacing.sm),
-            if (profile.familyMembers.isEmpty)
-              Container(
-                margin: const EdgeInsets.only(bottom: AppSpacing.itemGap),
-                padding: const EdgeInsets.all(AppSpacing.lg),
-                decoration: BoxDecoration(color: AppColors.slate50, borderRadius: BorderRadius.circular(AppRadius.md)),
-                child: const Text(
-                  'No family members added yet. Add anyone living with you — even if they don\'t have an Esperanza account.',
-                  style: TextStyle(fontSize: AppTextSize.helper, color: AppColors.textMuted, height: 1.4),
+                const SizedBox(height: AppSpacing.xl),
+                const Text(
+                  'Family Members',
+                  style: TextStyle(fontSize: AppTextSize.helper, fontWeight: FontWeight.w600, color: AppColors.slate600),
                 ),
-              )
-            else
-              for (final member in profile.familyMembers)
-                _MemberTile(member: member, onEdit: () => _editMember(member), onRemove: () => _removeMember(member)),
-            OutlinedButton.icon(
-              onPressed: _addMember,
-              icon: const Icon(Icons.person_add_alt_1_rounded, size: 17),
-              label: const Text('Add Family Member'),
+                const SizedBox(height: AppSpacing.sm),
+                if (profile.familyMembers.isEmpty)
+                  Container(
+                    margin: const EdgeInsets.only(bottom: AppSpacing.itemGap),
+                    padding: const EdgeInsets.all(AppSpacing.lg),
+                    decoration: BoxDecoration(color: AppColors.slate50, borderRadius: BorderRadius.circular(AppRadius.md)),
+                    child: const Text(
+                      'No family members added yet. Add anyone living with you — even if they don\'t have an Esperanza account.',
+                      style: TextStyle(fontSize: AppTextSize.helper, color: AppColors.textMuted, height: 1.4),
+                    ),
+                  )
+                else
+                  for (final member in profile.familyMembers)
+                    _MemberTile(member: member, onEdit: () => _editMember(member), onRemove: () => _removeMember(member)),
+                OutlinedButton.icon(
+                  onPressed: _addMember,
+                  icon: const Icon(Icons.person_add_alt_1_rounded, size: 17),
+                  label: const Text('Add Family Member'),
+                ),
+                ],
+              ),
             ),
             if (_error != null) ...[
               const SizedBox(height: AppSpacing.md),
               Text(_error!, style: const TextStyle(fontSize: AppTextSize.helper, color: AppColors.rose600)),
             ],
-            const SizedBox(height: AppSpacing.xxl),
-            AppButton(
-              label: 'Save & Continue',
-              onPressed: () => _save(markComplete: true),
-              loading: _saving,
-              fullWidth: true,
-              size: AppButtonSize.lg,
-            ),
-            const SizedBox(height: AppSpacing.sm),
-            AppButton(
-              label: 'Save for Later',
-              variant: AppButtonVariant.ghost,
-              onPressed: _saving ? null : () => _save(markComplete: false),
-              fullWidth: true,
-            ),
+            if (!locked) ...[
+              const SizedBox(height: AppSpacing.xxl),
+              AppButton(
+                label: 'Save & Continue',
+                onPressed: () => _save(markComplete: true),
+                loading: _saving,
+                fullWidth: true,
+                size: AppButtonSize.lg,
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              AppButton(
+                label: 'Save for Later',
+                variant: AppButtonVariant.ghost,
+                onPressed: _saving ? null : () => _save(markComplete: false),
+                fullWidth: true,
+              ),
+            ],
           ],
         ),
       ),

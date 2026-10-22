@@ -17,7 +17,6 @@ import '../../widgets/empty_state.dart';
 import '../../widgets/esperanza_art.dart';
 import '../../widgets/menu_tile.dart';
 import '../../widgets/status_chip.dart';
-import '../../theme/app_status.dart';
 import '../balita/balita_post_screen.dart';
 import '../events/event_detail_screen.dart';
 import 'request_detail_screen.dart';
@@ -259,7 +258,9 @@ class _RequestResult extends StatelessWidget {
                 ],
               ),
             ),
-            StatusChip(status: AppStatusX.fromLabel(request.status), small: true),
+            // StatusChip.request knows Tulong's own statuses; fromLabel showed
+            // them as a grey "Draft" (parity check, 2026-10-22).
+            StatusChip.request(request.status, small: true),
           ],
         ),
       ),

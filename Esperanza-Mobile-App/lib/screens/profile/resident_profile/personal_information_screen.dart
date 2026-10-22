@@ -18,6 +18,7 @@ import '../../../widgets/app_date_field.dart';
 import '../../../widgets/app_dialogs.dart';
 import '../../../widgets/app_text_field.dart';
 import '../../../widgets/form_section.dart';
+import '../../../widgets/resident_profile_lock_note.dart';
 import 'profile_photo_preview_screen.dart';
 import '../../../theme/app_typography.dart';
 
@@ -235,7 +236,9 @@ class _PersonalInformationScreenState extends State<PersonalInformationScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final currentPersonal = context.watch<ResidentProfileService>().profileFor(_account).personal;
+    final current = context.watch<ResidentProfileService>().profileFor(_account);
+    final currentPersonal = current.personal;
+    final locked = !current.editable;
     final serverPhoto = context.watch<CitizenSessionService>().photo;
     return Scaffold(
       appBar: AppBar(title: const Text('Personal Information')),
@@ -258,150 +261,165 @@ class _PersonalInformationScreenState extends State<PersonalInformationScreen> {
                   startCooldown: false,
                 ),
               ),
-              const SizedBox(height: AppSpacing.lg),
-              FormSection(
-                title: 'Basic Information',
-                children: [
-                  _ReadOnlyField(
-                    label: 'Name',
-                    value: _account.fullName,
-                    note: 'Your name comes from your account. Change it in Edit Profile.',
-                  ),
-                  Row(
+              if (locked) ...[
+                const SizedBox(height: AppSpacing.lg),
+                ResidentProfileLockNote(status: current.status),
+              ],
+              // View only, greyed out, while the barangay has it (as on the website).
+              ResidentProfileViewOnly(
+                locked: locked,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                  const SizedBox(height: AppSpacing.lg),
+                  FormSection(
+                    title: 'Basic Information',
                     children: [
-                      Expanded(
-                        child: AppSelectField<String>(
-                          label: 'Sex',
-                          value: _sex,
-                          options: ResidentProfileOptions.sex,
-                          labelBuilder: (v) => v,
-                          onChanged: (v) => setState(() => _sex = v),
-                        ),
+                      _ReadOnlyField(
+                        label: 'Name',
+                        value: _account.fullName,
+                        note: 'Your name comes from your account. Change it in Edit Profile.',
                       ),
-                      const SizedBox(width: AppSpacing.md),
-                      Expanded(
-                        child: AppDateField(
-                          label: 'Birthdate',
-                          value: _birthdate,
-                          onChanged: (d) => setState(() => _birthdate = d),
-                        ),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: AppSelectField<String>(
+                              label: 'Sex',
+                              value: _sex,
+                              options: ResidentProfileOptions.sex,
+                              labelBuilder: (v) => v,
+                              onChanged: (v) => setState(() => _sex = v),
+                            ),
+                          ),
+                          const SizedBox(width: AppSpacing.md),
+                          Expanded(
+                            child: AppDateField(
+                              label: 'Birthdate',
+                              value: _birthdate,
+                              onChanged: (d) => setState(() => _birthdate = d),
+                            ),
+                          ),
+                        ],
+                      ),
+                      // Read-only/calculated, never a second, independently-
+                      // typeable value — Birthdate above is the only source of
+                      // truth (see utils/age_calculator.dart). Recomputed from
+                      // the real current date on every build, so it stays
+                      // correct as time passes rather than freezing at whatever
+                      // it was when this screen first opened.
+                      _ReadOnlyAgeField(birthdate: _birthdate),
+                      AppSelectField<String>(
+                        label: 'Civil status',
+                        value: _civilStatus,
+                        options: ResidentProfileOptions.civilStatus,
+                        labelBuilder: (v) => v,
+                        onChanged: (v) => setState(() => _civilStatus = v),
                       ),
                     ],
                   ),
-                  // Read-only/calculated, never a second, independently-
-                  // typeable value — Birthdate above is the only source of
-                  // truth (see utils/age_calculator.dart). Recomputed from
-                  // the real current date on every build, so it stays
-                  // correct as time passes rather than freezing at whatever
-                  // it was when this screen first opened.
-                  _ReadOnlyAgeField(birthdate: _birthdate),
-                  AppSelectField<String>(
-                    label: 'Civil status',
-                    value: _civilStatus,
-                    options: ResidentProfileOptions.civilStatus,
-                    labelBuilder: (v) => v,
-                    onChanged: (v) => setState(() => _civilStatus = v),
+                  const SizedBox(height: AppSpacing.lg),
+                  FormSection(
+                    title: 'Contact Information',
+                    children: [
+                      AppTextField(
+                        label: 'Mobile number',
+                        controller: _mobile,
+                        keyboardType: TextInputType.phone,
+                        inputFormatters: PhMobile.inputFormatters,
+                        icon: Icons.phone_outlined,
+                        hintText: PhMobile.hint,
+                      ),
+                    ],
                   ),
-                ],
-              ),
-              const SizedBox(height: AppSpacing.lg),
-              FormSection(
-                title: 'Contact Information',
-                children: [
-                  AppTextField(
-                    label: 'Mobile number',
-                    controller: _mobile,
-                    keyboardType: TextInputType.phone,
-                    inputFormatters: PhMobile.inputFormatters,
-                    icon: Icons.phone_outlined,
-                    hintText: PhMobile.hint,
+                  const SizedBox(height: AppSpacing.lg),
+                  FormSection(
+                    title: 'Address',
+                    children: [
+                      AppTextField(
+                        label: 'Sitio / Purok',
+                        controller: _sitioPurok,
+                        icon: Icons.place_outlined,
+                        required: true,
+                      ),
+                    ],
                   ),
-                ],
-              ),
-              const SizedBox(height: AppSpacing.lg),
-              FormSection(
-                title: 'Address',
-                children: [
-                  AppTextField(
-                    label: 'Sitio / Purok',
-                    controller: _sitioPurok,
-                    icon: Icons.place_outlined,
-                    required: true,
+                  const SizedBox(height: AppSpacing.lg),
+                  FormSection(
+                    title: 'Resident Information',
+                    children: [
+                      AppTextField(label: 'Occupation', controller: _occupation, icon: Icons.work_outline_rounded),
+                      AppSelectField<String>(
+                        label: 'Educational attainment',
+                        value: _educationalAttainment,
+                        options: ResidentProfileOptions.educationalAttainment,
+                        labelBuilder: (v) => v,
+                        onChanged: (v) => setState(() => _educationalAttainment = v),
+                      ),
+                      AppSelectField<String>(
+                        label: 'Household monthly income',
+                        value: _income,
+                        options: ResidentProfileOptions.monthlyIncome,
+                        labelBuilder: (v) => v,
+                        onChanged: (v) => setState(() => _income = v),
+                      ),
+                    ],
                   ),
-                ],
-              ),
-              const SizedBox(height: AppSpacing.lg),
-              FormSection(
-                title: 'Resident Information',
-                children: [
-                  AppTextField(label: 'Occupation', controller: _occupation, icon: Icons.work_outline_rounded),
-                  AppSelectField<String>(
-                    label: 'Educational attainment',
-                    value: _educationalAttainment,
-                    options: ResidentProfileOptions.educationalAttainment,
-                    labelBuilder: (v) => v,
-                    onChanged: (v) => setState(() => _educationalAttainment = v),
+                  const SizedBox(height: AppSpacing.lg),
+                  FormSection(
+                    title: 'Classifications',
+                    description: 'Select any that apply to you.',
+                    children: [
+                      _ClassificationSwitch(
+                        label: 'Senior Citizen',
+                        value: _senior,
+                        onChanged: (v) => setState(() => _senior = v),
+                      ),
+                      _ClassificationSwitch(
+                        label: 'Person with Disability (PWD)',
+                        value: _pwd,
+                        onChanged: (v) => setState(() => _pwd = v),
+                      ),
+                      _ClassificationSwitch(
+                        label: 'Solo Parent',
+                        value: _soloParent,
+                        onChanged: (v) => setState(() => _soloParent = v),
+                      ),
+                      _ClassificationSwitch(
+                        label: 'Registered Voter',
+                        value: _voter,
+                        onChanged: (v) => setState(() => _voter = v),
+                      ),
+                      _ClassificationSwitch(
+                        label: '4Ps Beneficiary',
+                        value: _fourPs,
+                        onChanged: (v) => setState(() => _fourPs = v),
+                      ),
+                    ],
                   ),
-                  AppSelectField<String>(
-                    label: 'Household monthly income',
-                    value: _income,
-                    options: ResidentProfileOptions.monthlyIncome,
-                    labelBuilder: (v) => v,
-                    onChanged: (v) => setState(() => _income = v),
-                  ),
-                ],
-              ),
-              const SizedBox(height: AppSpacing.lg),
-              FormSection(
-                title: 'Classifications',
-                description: 'Select any that apply to you.',
-                children: [
-                  _ClassificationSwitch(
-                    label: 'Senior Citizen',
-                    value: _senior,
-                    onChanged: (v) => setState(() => _senior = v),
-                  ),
-                  _ClassificationSwitch(
-                    label: 'Person with Disability (PWD)',
-                    value: _pwd,
-                    onChanged: (v) => setState(() => _pwd = v),
-                  ),
-                  _ClassificationSwitch(
-                    label: 'Solo Parent',
-                    value: _soloParent,
-                    onChanged: (v) => setState(() => _soloParent = v),
-                  ),
-                  _ClassificationSwitch(
-                    label: 'Registered Voter',
-                    value: _voter,
-                    onChanged: (v) => setState(() => _voter = v),
-                  ),
-                  _ClassificationSwitch(
-                    label: '4Ps Beneficiary',
-                    value: _fourPs,
-                    onChanged: (v) => setState(() => _fourPs = v),
-                  ),
-                ],
+                  ],
+                ),
               ),
               if (_error != null) ...[
                 const SizedBox(height: AppSpacing.md),
                 Text(_error!, style: const TextStyle(fontSize: AppTextSize.helper, color: AppColors.rose600)),
               ],
-              const SizedBox(height: AppSpacing.xxl),
-              AppButton(
-                label: 'Save & Continue',
-                onPressed: () => _save(markComplete: true),
-                loading: _saving,
-                fullWidth: true,
-                size: AppButtonSize.lg,
-              ),
-              const SizedBox(height: AppSpacing.sm),
-              AppButton(
-                label: 'Save for Later',
-                variant: AppButtonVariant.ghost,
-                onPressed: _saving ? null : () => _save(markComplete: false),
-                fullWidth: true,
-              ),
+              if (!locked) ...[
+                const SizedBox(height: AppSpacing.xxl),
+                AppButton(
+                  label: 'Save & Continue',
+                  onPressed: () => _save(markComplete: true),
+                  loading: _saving,
+                  fullWidth: true,
+                  size: AppButtonSize.lg,
+                ),
+                const SizedBox(height: AppSpacing.sm),
+                AppButton(
+                  label: 'Save for Later',
+                  variant: AppButtonVariant.ghost,
+                  onPressed: _saving ? null : () => _save(markComplete: false),
+                  fullWidth: true,
+                ),
+              ],
             ],
           ),
         ),

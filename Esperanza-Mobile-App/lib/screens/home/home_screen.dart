@@ -81,10 +81,14 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   Future<List<EventItem>> _loadEvents() async {
     try {
-      // Asks for more than the two it shows: the server's order is not
-      // calendar order, and the preview should lead with what is coming up
-      // next, not whichever two rows came back first.
-      final res = await api.get('/events', query: {'per_page': 20});
+      // From today, as the website asks (parity check, 2026-10-22): the
+      // server lists events oldest first, so without it 20 past events
+      // filled the page and nothing upcoming was left. More than the two it
+      // shows, since the server's order is not calendar order.
+      final now = DateTime.now();
+      final from =
+          '${now.year.toString().padLeft(4, '0')}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+      final res = await api.get('/events', query: {'from': from, 'per_page': 20});
       final events = EventItem.inCalendarOrder(JsonRead.rows(res.list, EventItem.fromApi).where((e) => e.title.isNotEmpty));
       // Upcoming only: under an "Upcoming Events" heading, a past event
       // (which calendar order puts after the upcoming ones) must not fill a

@@ -316,6 +316,14 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
                 const SizedBox(height: AppSpacing.md),
                 Text(request.purpose, style: AppTypography.bodySmallRegular.copyWith(color: AppColors.textPrimary)),
               ],
+              // The purpose filed, under the title, as on the website.
+              if (request.category != ServiceCategory.sakunaIncident && request.purpose.isNotEmpty) ...[
+                const SizedBox(height: AppSpacing.xs),
+                Text(
+                  'Purpose: ${request.purpose}',
+                  style: AppTypography.bodySmallRegular.copyWith(color: AppColors.textPrimary),
+                ),
+              ],
               if (request.incidentPhotos.isNotEmpty) ...[
                 const SizedBox(height: AppSpacing.md),
                 _IncidentPhotos(urls: request.incidentPhotos),

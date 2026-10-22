@@ -9,6 +9,7 @@ import '../../../widgets/app_button.dart';
 import '../../../widgets/app_dialogs.dart';
 import '../../../widgets/app_text_field.dart';
 import '../../../widgets/form_section.dart';
+import '../../../widgets/resident_profile_lock_note.dart';
 import '../../../theme/app_typography.dart';
 
 /// Step 3 — Household Information, as the website's Household tab: only
@@ -91,6 +92,7 @@ class _HouseholdInformationScreenState extends State<HouseholdInformationScreen>
   @override
   Widget build(BuildContext context) {
     final profile = context.watch<ResidentProfileService>().profileFor(context.watch<CitizenSessionService>().account!);
+    final locked = !profile.editable;
 
     return Scaffold(
       appBar: AppBar(title: const Text('Household Information')),
@@ -108,88 +110,103 @@ class _HouseholdInformationScreenState extends State<HouseholdInformationScreen>
                   style: TextStyle(fontSize: AppTextSize.label, color: AppColors.brand700, height: 1.4),
                 ),
               ),
-              const SizedBox(height: AppSpacing.lg),
-              FormSection(
-                title: 'Location',
-                children: [
-                  AppTextField(label: 'Sitio / Purok of the house', controller: _sitioPurok, icon: Icons.place_outlined),
-                  AppTextField(label: 'Complete address', controller: _completeAddress, maxLines: 2),
-                ],
-              ),
-              const SizedBox(height: AppSpacing.lg),
-              FormSection(
-                title: 'Residence',
-                children: [
-                  AppSelectField<String>(
-                    label: 'Housing ownership',
-                    value: _housingOwnership,
-                    options: ResidentProfileOptions.housingOwnership,
-                    labelBuilder: (v) => v,
-                    onChanged: (v) => setState(() => _housingOwnership = v),
+              if (locked) ...[
+                const SizedBox(height: AppSpacing.md),
+                ResidentProfileLockNote(status: profile.status),
+              ],
+              // View only, greyed out, while the barangay has it (as on the website).
+              ResidentProfileViewOnly(
+                locked: locked,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                  const SizedBox(height: AppSpacing.lg),
+                  FormSection(
+                    title: 'Location',
+                    children: [
+                      AppTextField(label: 'Sitio / Purok of the house', controller: _sitioPurok, icon: Icons.place_outlined),
+                      AppTextField(label: 'Complete address', controller: _completeAddress, maxLines: 2),
+                    ],
                   ),
-                  AppSelectField<String>(
-                    label: 'Housing type / material',
-                    value: _housingType,
-                    options: ResidentProfileOptions.housingType,
-                    labelBuilder: (v) => v,
-                    onChanged: (v) => setState(() => _housingType = v),
+                  const SizedBox(height: AppSpacing.lg),
+                  FormSection(
+                    title: 'Residence',
+                    children: [
+                      AppSelectField<String>(
+                        label: 'Housing ownership',
+                        value: _housingOwnership,
+                        options: ResidentProfileOptions.housingOwnership,
+                        labelBuilder: (v) => v,
+                        onChanged: (v) => setState(() => _housingOwnership = v),
+                      ),
+                      AppSelectField<String>(
+                        label: 'Housing type / material',
+                        value: _housingType,
+                        options: ResidentProfileOptions.housingType,
+                        labelBuilder: (v) => v,
+                        onChanged: (v) => setState(() => _housingType = v),
+                      ),
+                    ],
                   ),
-                ],
-              ),
-              const SizedBox(height: AppSpacing.lg),
-              FormSection(
-                title: 'Utilities / Services',
-                children: [
-                  AppSelectField<String>(
-                    label: 'Water source',
-                    value: _waterSource,
-                    options: ResidentProfileOptions.waterSource,
-                    labelBuilder: (v) => v,
-                    onChanged: (v) => setState(() => _waterSource = v),
+                  const SizedBox(height: AppSpacing.lg),
+                  FormSection(
+                    title: 'Utilities / Services',
+                    children: [
+                      AppSelectField<String>(
+                        label: 'Water source',
+                        value: _waterSource,
+                        options: ResidentProfileOptions.waterSource,
+                        labelBuilder: (v) => v,
+                        onChanged: (v) => setState(() => _waterSource = v),
+                      ),
+                      AppSelectField<String>(
+                        label: 'Toilet / sanitation',
+                        value: _toiletFacility,
+                        options: ResidentProfileOptions.toiletFacility,
+                        labelBuilder: (v) => v,
+                        onChanged: (v) => setState(() => _toiletFacility = v),
+                      ),
+                      AppSelectField<String>(
+                        label: 'Electricity',
+                        value: _electricitySource,
+                        options: ResidentProfileOptions.electricitySource,
+                        labelBuilder: (v) => v,
+                        onChanged: (v) => setState(() => _electricitySource = v),
+                      ),
+                    ],
                   ),
-                  AppSelectField<String>(
-                    label: 'Toilet / sanitation',
-                    value: _toiletFacility,
-                    options: ResidentProfileOptions.toiletFacility,
-                    labelBuilder: (v) => v,
-                    onChanged: (v) => setState(() => _toiletFacility = v),
+                  const SizedBox(height: AppSpacing.lg),
+                  FormSection(
+                    title: 'Household Composition',
+                    description: 'Based on your Family Information — update that section to change these.',
+                    children: [
+                      _CompositionRow(label: 'People living in household', value: '${profile.householdResidentCount}'),
+                    ],
                   ),
-                  AppSelectField<String>(
-                    label: 'Electricity',
-                    value: _electricitySource,
-                    options: ResidentProfileOptions.electricitySource,
-                    labelBuilder: (v) => v,
-                    onChanged: (v) => setState(() => _electricitySource = v),
-                  ),
-                ],
-              ),
-              const SizedBox(height: AppSpacing.lg),
-              FormSection(
-                title: 'Household Composition',
-                description: 'Based on your Family Information — update that section to change these.',
-                children: [
-                  _CompositionRow(label: 'People living in household', value: '${profile.householdResidentCount}'),
-                ],
+                  ],
+                ),
               ),
               if (_error != null) ...[
                 const SizedBox(height: AppSpacing.md),
                 Text(_error!, style: const TextStyle(fontSize: AppTextSize.helper, color: AppColors.rose600)),
               ],
-              const SizedBox(height: AppSpacing.xxl),
-              AppButton(
-                label: 'Save & Continue',
-                onPressed: () => _save(markComplete: true),
-                loading: _saving,
-                fullWidth: true,
-                size: AppButtonSize.lg,
-              ),
-              const SizedBox(height: AppSpacing.sm),
-              AppButton(
-                label: 'Save for Later',
-                variant: AppButtonVariant.ghost,
-                onPressed: _saving ? null : () => _save(markComplete: false),
-                fullWidth: true,
-              ),
+              if (!locked) ...[
+                const SizedBox(height: AppSpacing.xxl),
+                AppButton(
+                  label: 'Save & Continue',
+                  onPressed: () => _save(markComplete: true),
+                  loading: _saving,
+                  fullWidth: true,
+                  size: AppButtonSize.lg,
+                ),
+                const SizedBox(height: AppSpacing.sm),
+                AppButton(
+                  label: 'Save for Later',
+                  variant: AppButtonVariant.ghost,
+                  onPressed: _saving ? null : () => _save(markComplete: false),
+                  fullWidth: true,
+                ),
+              ],
             ],
           ),
         ),

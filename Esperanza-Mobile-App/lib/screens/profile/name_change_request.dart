@@ -74,7 +74,9 @@ class _NameChangeRequestState extends State<NameChangeRequest> {
 
   void _start() {
     _first.text = widget.account.firstName;
-    _middle.clear();
+    // The whole name on record, middle name included, as the website starts
+    // it: a blank middle name here asked to drop it (parity check, 2026-10-22).
+    _middle.text = widget.account.middleName;
     _last.text = widget.account.lastName;
     _note.clear();
     setState(() {
@@ -121,7 +123,10 @@ class _NameChangeRequestState extends State<NameChangeRequest> {
     } else if (first.isEmpty || last.isEmpty) {
       error = 'Enter your new first and last name.';
     } else if ([first, middle, last].where((p) => p.isNotEmpty).join(' ').toLowerCase() ==
-        [widget.account.firstName, widget.account.lastName].where((p) => p.isNotEmpty).join(' ').toLowerCase()) {
+        [widget.account.firstName, widget.account.middleName, widget.account.lastName]
+            .where((p) => p.trim().isNotEmpty)
+            .join(' ')
+            .toLowerCase()) {
       error = 'That is the name already on record.';
     } else if (_proof == null) {
       error = 'Attach your proof: $_proofHint';

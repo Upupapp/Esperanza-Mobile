@@ -13,12 +13,14 @@ import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:esperanza_mobile/models/citizen_account.dart';
+import 'package:esperanza_mobile/models/resident_profile.dart';
 import 'package:esperanza_mobile/screens/balita/balita_screen.dart';
 import 'package:esperanza_mobile/screens/directory/barangay_profile_screen.dart';
 import 'package:esperanza_mobile/screens/profile/edit_profile_screen.dart';
 import 'package:esperanza_mobile/screens/profile/resident_profile/family_information_screen.dart';
 import 'package:esperanza_mobile/screens/profile/resident_profile/household_information_screen.dart';
 import 'package:esperanza_mobile/screens/profile/resident_profile/personal_information_screen.dart';
+import 'package:esperanza_mobile/screens/profile/resident_profile/review_submit_screen.dart';
 import 'package:esperanza_mobile/screens/support/report_problem_screen.dart';
 import 'package:esperanza_mobile/services/api_client.dart';
 import 'package:esperanza_mobile/services/balita_service.dart';
@@ -391,6 +393,144 @@ void main() {
       expect(find.text('Read full history'), findsOneWidget);
       expect(find.text('Leadership'), findsNothing);
       expect(tester.takeException(), isNull);
+    });
+  });
+
+  group('App bugs from the parity check (2026-10-23)', () {
+    test('a resubmit sends the server\'s ref for family members it already has', () async {
+      SharedPreferences.setMockInitialValues({});
+      final view = {
+        'individual': {'ref': 'RES-1', 'verification': 'For Validation'},
+        'family': {
+          'surname': 'Sintetiko',
+          'members': [
+            {'ref': 'RES-2', 'name': 'Ana Una'},
+          ],
+        },
+      };
+      Map<String, dynamic>? sent;
+      FakeApi.installFull((r) {
+        if (r.method == 'PUT') sent = r.body;
+        return view;
+      });
+      final service = ResidentProfileService();
+      final account = _citizen();
+      final profile = service.profileFor(account);
+      profile.personal
+        ..sex = 'Female'
+        ..birthdate = DateTime(1995, 3, 2)
+        ..civilStatus = 'Single'
+        ..sitioPurok = 'Purok 1';
+      await service.addFamilyMember(account.id, Individual(individualId: 'IND-a', firstName: 'Ana Una'));
+      await service.addFamilyMember(account.id, Individual(individualId: 'IND-b', firstName: 'Ben Bago'));
+      expect(profile.readyToSubmit, isTrue, reason: 'only the website\'s four fields are required');
+
+      await service.submit(account.id);
+      final members = (sent!['family'] as Map)['members'] as List;
+      expect(members[0], containsPair('ref', 'RES-2'));
+      expect(members[1], isNot(contains('ref')));
+      // Household goes along whether or not it was saved, as on the website.
+      expect(sent!.containsKey('household'), isTrue);
+    });
+
+    test('the purpose the resident filed is read, a list of choices joined', () async {
+      FakeApi.installFull((r) => [
+            {'ref': 'DOK-2026-00001', 'type': 'dokyu', 'service': 'Clearance', 'status': 'Submitted', 'purpose': ['Employment', 'Travel']},
+            {'ref': 'DOK-2026-00002', 'type': 'dokyu', 'service': 'Clearance', 'status': 'Submitted', 'purpose': 'Scholarship'},
+          ]);
+      final service = RequestsService();
+      await service.loadRequests();
+      final byRef = {for (final r in service.all) r.referenceNumber: r.purpose};
+      expect(byRef['DOK-2026-00001'], 'Employment, Travel');
+      expect(byRef['DOK-2026-00002'], 'Scholarship');
+    });
+
+    testWidgets('a name change starts from the whole name, middle name included', (tester) async {
+      _serve(<_Sent>[], (r) => _ok(<dynamic>[]));
+      final account = CitizenAccount(
+        id: 'ESP-RES-2026-000902',
+        firstName: 'Testa',
+        middleName: 'Gitna',
+        lastName: 'Sintetiko',
+        email: 'testa2@esperanza-test.invalid',
+        mobile: '09170000001',
+        barangay: 'Poblacion',
+        purok: 'Purok 1',
+        address: 'Purok 1',
+        birthdate: '1995-03-02',
+        sex: 'Female',
+        civilStatus: 'Single',
+        occupation: 'Teacher',
+        profileCompleteness: 100,
+        status: 'Approved',
+      );
+      expect(CitizenAccount.fromJson(account.toJson()).middleName, 'Gitna');
+      await _pump(tester, const EditProfileScreen(), account: account);
+      await _tapText(tester, 'Request a name change');
+      expect(find.widgetWithText(TextField, 'Gitna'), findsOneWidget);
+    });
+  });
+
+  group('Resident Profile while the barangay has it (as on the website)', () {
+    Future<ResidentProfileService> pumpWith(WidgetTester tester, VerificationStatus status, Widget screen) async {
+      FakeApi.install((path, query) => <dynamic>[]);
+      final service = ResidentProfileService();
+      final account = _citizen();
+      service.profileFor(account).status = status;
+      SharedPreferences.setMockInitialValues({});
+      tester.view.physicalSize = const Size(1080, 2400);
+      tester.view.devicePixelRatio = 2.5;
+      addTearDown(tester.view.reset);
+      final session = CitizenSessionService();
+      await tester.runAsync(() => session.login(account));
+      await tester.pumpWidget(
+        MultiProvider(
+          providers: [
+            ChangeNotifierProvider<CitizenSessionService>.value(value: session),
+            ChangeNotifierProvider<ResidentProfileService>.value(value: service),
+            ChangeNotifierProvider(create: (_) => RequestsService()),
+          ],
+          child: MaterialApp(home: screen),
+        ),
+      );
+      await tester.pumpAndSettle();
+      return service;
+    }
+
+    testWidgets('verified: shown, not edited - no Save, no Edit, no Submit', (tester) async {
+      await pumpWith(tester, VerificationStatus.verified, const PersonalInformationScreen());
+      expect(find.textContaining('Your barangay office verified your information'), findsOneWidget);
+      expect(find.text('Save & Continue'), findsNothing);
+      expect(find.text('Save for Later'), findsNothing);
+
+      await pumpWith(tester, VerificationStatus.verified, const ReviewSubmitScreen());
+      expect(find.text('Submit for LGU Verification'), findsNothing);
+      expect(find.text('Edit'), findsNothing);
+    });
+
+    testWidgets('For Validation: the same, until the barangay sends it back', (tester) async {
+      await pumpWith(tester, VerificationStatus.pendingVerification, const FamilyInformationScreen());
+      expect(find.textContaining('Your barangay office is reviewing it'), findsOneWidget);
+      expect(find.text('Save & Continue'), findsNothing);
+
+      await pumpWith(tester, VerificationStatus.needsCorrection, const FamilyInformationScreen());
+      expect(find.textContaining('Your barangay office is reviewing it'), findsNothing);
+      await tester.scrollUntilVisible(find.text('Save & Continue'), 300, scrollable: find.byType(Scrollable).first);
+      expect(find.text('Save & Continue'), findsOneWidget);
+    });
+
+    test('a verified profile is never sent again', () async {
+      SharedPreferences.setMockInitialValues({});
+      var puts = 0;
+      FakeApi.installFull((r) {
+        if (r.method == 'PUT') puts++;
+        return <String, dynamic>{};
+      });
+      final service = ResidentProfileService();
+      final account = _citizen();
+      service.profileFor(account).status = VerificationStatus.verified;
+      await expectLater(service.submit(account.id), throwsA(isA<ApiException>()));
+      expect(puts, 0);
     });
   });
 }

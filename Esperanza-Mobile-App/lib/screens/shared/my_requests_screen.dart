@@ -166,6 +166,14 @@ class _MyRequestCard extends StatelessWidget {
                 fontFeatures: [FontFeature.tabularFigures()],
               ),
             ),
+            // The purpose filed, as the website's list shows it.
+            if (request.purpose.isNotEmpty)
+              Text(
+                request.purpose,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(fontSize: AppTextSize.label, color: AppColors.textMuted),
+              ),
             const SizedBox(height: AppSpacing.xs),
             Text(
               'Submitted ${shortDate(request.submittedAt)}',

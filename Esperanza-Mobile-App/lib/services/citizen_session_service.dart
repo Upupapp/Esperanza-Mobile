@@ -382,6 +382,7 @@ class CitizenSessionService extends ChangeNotifier {
         id: accountNo,
         firstName: str('first_name'),
         lastName: str('last_name'),
+        middleName: str('middle_name'),
         email: str('email'),
         mobile: str('mobile'),
         barangay: str('barangay'),

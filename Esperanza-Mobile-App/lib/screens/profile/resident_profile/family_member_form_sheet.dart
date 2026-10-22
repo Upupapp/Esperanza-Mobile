@@ -57,18 +57,15 @@ class _FamilyMemberFormSheetState extends State<FamilyMemberFormSheet> {
       setState(() => _error = "Please enter the family member's name.");
       return;
     }
-    if (_relationship == null) {
-      setState(() => _error = 'Please select their relationship to the head of family.');
-      return;
-    }
     final result = Individual(
       individualId: widget.existing?.individualId ?? 'IND-${DateTime.now().microsecondsSinceEpoch}',
+      serverRef: widget.existing?.serverRef,
       firstName: _fullName.text.trim(),
       sex: _sex ?? '',
       birthdate: _birthdate,
       civilStatus: _civilStatus ?? '',
       occupation: _occupation.text.trim(),
-      relationshipToHead: _relationship!,
+      relationshipToHead: _relationship ?? '',
       hasEsperanzaAccount: _hasAccount,
     );
     Navigator.of(context).pop(result);

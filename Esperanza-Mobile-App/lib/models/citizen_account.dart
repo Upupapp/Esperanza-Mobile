@@ -8,6 +8,10 @@ class CitizenAccount {
   final String id;
   final String firstName;
   final String lastName;
+
+  /// As the server keeps it; '' when there is none (or for an account saved
+  /// by an older build). Kept so a name change starts from the whole name.
+  final String middleName;
   final String email;
   final String mobile;
   final String barangay;
@@ -35,6 +39,7 @@ class CitizenAccount {
     required this.id,
     required this.firstName,
     required this.lastName,
+    this.middleName = '',
     required this.email,
     required this.mobile,
     required this.barangay,
@@ -57,6 +62,7 @@ class CitizenAccount {
         'id': id,
         'firstName': firstName,
         'lastName': lastName,
+        'middleName': middleName,
         'email': email,
         'mobile': mobile,
         'barangay': barangay,
@@ -76,6 +82,7 @@ class CitizenAccount {
         id: json['id'],
         firstName: json['firstName'],
         lastName: json['lastName'],
+        middleName: json['middleName'] is String ? json['middleName'] as String : '',
         email: json['email'],
         mobile: json['mobile'],
         barangay: json['barangay'],

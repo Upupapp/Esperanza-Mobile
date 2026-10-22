@@ -447,8 +447,24 @@ class ResidentProfileService extends ChangeNotifier {
   /// then the local status is left unchanged.
   Future<void> submit(String accountId) async {
     final p = _profiles[accountId]!;
+    if (!p.editable) {
+      throw const ApiException(
+        messageEn: 'Your barangay office has your Resident Profile. You can change it again if they send it back.',
+        messageFil: 'Nasa iyong barangay office ang iyong Resident Profile. Maaari mo itong baguhin kapag ibinalik nila.',
+      );
+    }
+    // The family members already on the server are matched first, so a
+    // resubmit updates them rather than adding them again (parity check,
+    // 2026-10-22: every resubmit from the app duplicated the family).
+    try {
+      final current = await api.get('/citizen/resident-profile');
+      if (current.data != null) _takeMemberRefs(p, current.map);
+    } on ApiException {
+      // Nothing on file yet, or unreachable: the PUT below says which.
+    }
     final res = await api.put('/citizen/resident-profile', body: _payloadFor(p));
     _applyServerStatus(p, res.map);
+    _takeMemberRefs(p, res.map);
     p.correctionMessage = null;
     p.submittedAt ??= DateTime.now();
     await _save(p);
@@ -534,6 +550,7 @@ class ResidentProfileService extends ChangeNotifier {
           if (name == null) continue;
           p.familyMembers.add(Individual(
             individualId: JsonRead.nonEmpty(m['ref']) ?? 'server-${p.familyMembers.length + 1}',
+            serverRef: JsonRead.nonEmpty(m['ref']),
             firstName: name,
             sex: fill('', m['sex'], ResidentProfileOptions.sex),
             birthdate: JsonRead.date(m['dob']),
@@ -549,6 +566,26 @@ class ResidentProfileService extends ChangeNotifier {
         }
       }
       p.familySaved = true;
+    }
+  }
+
+  /// Gives each family member here the server's reference for the same
+  /// person (matched by name), when it does not have one yet.
+  void _takeMemberRefs(ResidentProfile p, Map<String, dynamic> view) {
+    final members = JsonRead.list(JsonRead.map(view['family'])?['members']).map(JsonRead.map).whereType<Map<String, dynamic>>();
+    final taken = {for (final m in p.familyMembers) ?m.serverRef};
+    String key(String name) => name.trim().toLowerCase().replaceAll(RegExp(r'\s+'), ' ');
+    for (final row in members) {
+      final ref = JsonRead.nonEmpty(row['ref']);
+      final name = JsonRead.nonEmpty(row['name']);
+      if (ref == null || name == null || taken.contains(ref)) continue;
+      for (final m in p.familyMembers) {
+        if (m.serverRef == null && key(m.fullName) == key(name)) {
+          m.serverRef = ref;
+          taken.add(ref);
+          break;
+        }
+      }
     }
   }
 
@@ -629,8 +666,7 @@ class ResidentProfileService extends ChangeNotifier {
           if (me.isFourPsBeneficiary) '4Ps',
         ],
       },
-      if (p.householdSaved)
-        'household': {
+      'household': {
           'sitio': _text(h.sitioPurok),
           'address': _text(h.completeAddress),
           'dwelling_type': _text(h.housingType),
@@ -639,13 +675,13 @@ class ResidentProfileService extends ChangeNotifier {
           'water': _text(h.waterSource),
           'toilet': _text(h.toiletFacility),
         },
-      if (p.familySaved)
-        'family': {
+      'family': {
           'surname': _text(p.familyName),
           'members': [
             for (final m in p.familyMembers)
               if (m.individualId != me.individualId && _text(m.fullName) != null)
                 {
+                  'ref': ?m.serverRef,
                   'name': m.fullName.trim(),
                   ..._personOf(m),
                   'relation': _text(m.relationshipToHead),

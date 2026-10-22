@@ -16,6 +16,10 @@ import '../utils/date_text.dart';
 import '../screens/shared/my_requests_screen.dart';
 import '../screens/profile/profile_screen.dart';
 import '../screens/support/help_support_screen.dart';
+import '../screens/appointments/appointments_screen.dart';
+import '../screens/profile/data_requests_screen.dart';
+import '../screens/home/root_shell.dart';
+import '../screens/support/support_tickets_screen.dart';
 
 /// Timestamp for evergreen/contextual notifications that have no real event
 /// of their own (a profile-completion reminder, a duplicate-account alert)
@@ -301,6 +305,12 @@ Widget? serverNotificationDestination(ServerNotification n) {
   if (event != null) return EventLinkScreen(eventKey: Uri.decodeComponent(event.group(1)!));
   final incident = RegExp(r'^/citizen/incidents/([^/?#]+)$').firstMatch(link);
   if (incident != null) return RequestDetailScreen(requestId: Uri.decodeComponent(incident.group(1)!));
+  // An incident's update, as the server links it (IncidentLifecycle): the
+  // website's Emergency page with that report open.
+  final emergencyIncident = RegExp(r'^/citizen/emergency\?incident=([^&#]+)$').firstMatch(link);
+  if (emergencyIncident != null) {
+    return RequestDetailScreen(requestId: Uri.decodeComponent(emergencyIncident.group(1)!));
+  }
   final request = RegExp(r'^/citizen/(?:document|assistance)-requests/([^/?#]+)$').firstMatch(link);
   if (request != null) return RequestDetailScreen(requestId: Uri.decodeComponent(request.group(1)!));
   return switch (link) {
@@ -308,6 +318,15 @@ Widget? serverNotificationDestination(ServerNotification n) {
     '/citizen/profile' => const ProfileScreen(),
     // The barangay verified the Resident Profile, or sent it back.
     '/citizen/profile#resident-profile' => const ResidentProfileOverviewScreen(),
+    // A Sakuna alert (AlertService) and appointment changes (AppointmentBook)
+    // led nowhere in the app (parity check, 2026-10-22).
+    '/citizen/emergency' => const ShellTabLink(tab: 3),
+    '/citizen/appointments' => const AppointmentsScreen(),
+    // A data or name-change request answered (RecordsController): the
+    // website keeps them in Settings; the app, in My data requests.
+    '/citizen/settings' => const DataRequestsScreen(),
+    // An office's reply to a ticket (FeedbackDesk): the tickets, not the FAQs.
+    _ when link.startsWith('/citizen/help/support') => const SupportTicketsScreen(),
     _ when link.startsWith('/citizen/help') => const HelpSupportScreen(),
     _ => null,
   };
