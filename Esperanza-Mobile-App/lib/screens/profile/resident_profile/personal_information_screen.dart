@@ -22,6 +22,7 @@ import '../../../widgets/resident_profile_lock_note.dart';
 import 'profile_photo_preview_screen.dart';
 import '../../../theme/app_typography.dart';
 
+import '../../../l10n/tr.dart';
 /// Step 1 — Personal Information, as the website's "You" tab: only what the
 /// barangay keeps (PUT /citizen/resident-profile `personal`). The name comes
 /// from the account and is changed in Edit Profile; there is no separate
@@ -193,7 +194,7 @@ class _PersonalInformationScreenState extends State<PersonalInformationScreen> {
 
     final proceed = await AppDialogs.centeredConfirm(
       context,
-      title: 'Change Profile Photo',
+      title: tr('Change Profile Photo'),
       message: 'Your profile photo can only be changed once every 6 months, and it is taken with your camera.\n\n'
           'For better identification, please take it in a well-lit area with a plain or white '
           'background. Make sure your full face is clearly visible and avoid filters, sunglasses, masks, or '
@@ -226,7 +227,7 @@ class _PersonalInformationScreenState extends State<PersonalInformationScreen> {
       if (!mounted) return;
 
       if (saved == true) {
-        AppDialogs.toast(context, 'Photo sent. It appears on your Digital ID once the LGU approves it.');
+        AppDialogs.toast(context, tr('Photo sent. It appears on your Digital ID once the LGU approves it.'));
         return;
       }
       if (saved == false) continue; // Retake: back to the camera.
@@ -241,7 +242,7 @@ class _PersonalInformationScreenState extends State<PersonalInformationScreen> {
     final locked = !current.editable;
     final serverPhoto = context.watch<CitizenSessionService>().photo;
     return Scaffold(
-      appBar: AppBar(title: const Text('Personal Information')),
+      appBar: AppBar(title: Text(tr('Personal Information'))),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.md, AppSpacing.lg, AppSpacing.xxxl),
@@ -276,7 +277,7 @@ class _PersonalInformationScreenState extends State<PersonalInformationScreen> {
                     title: 'Basic Information',
                     children: [
                       _ReadOnlyField(
-                        label: 'Name',
+                        label: tr('Name'),
                         value: _account.fullName,
                         note: 'Your name comes from your account. Change it in Edit Profile.',
                       ),
@@ -284,7 +285,7 @@ class _PersonalInformationScreenState extends State<PersonalInformationScreen> {
                         children: [
                           Expanded(
                             child: AppSelectField<String>(
-                              label: 'Sex',
+                              label: tr('Sex'),
                               value: _sex,
                               options: ResidentProfileOptions.sex,
                               labelBuilder: (v) => v,
@@ -294,7 +295,7 @@ class _PersonalInformationScreenState extends State<PersonalInformationScreen> {
                           const SizedBox(width: AppSpacing.md),
                           Expanded(
                             child: AppDateField(
-                              label: 'Birthdate',
+                              label: tr('Birthdate'),
                               value: _birthdate,
                               onChanged: (d) => setState(() => _birthdate = d),
                             ),
@@ -309,7 +310,7 @@ class _PersonalInformationScreenState extends State<PersonalInformationScreen> {
                       // it was when this screen first opened.
                       _ReadOnlyAgeField(birthdate: _birthdate),
                       AppSelectField<String>(
-                        label: 'Civil status',
+                        label: tr('Civil status'),
                         value: _civilStatus,
                         options: ResidentProfileOptions.civilStatus,
                         labelBuilder: (v) => v,
@@ -322,7 +323,7 @@ class _PersonalInformationScreenState extends State<PersonalInformationScreen> {
                     title: 'Contact Information',
                     children: [
                       AppTextField(
-                        label: 'Mobile number',
+                        label: tr('Mobile number'),
                         controller: _mobile,
                         keyboardType: TextInputType.phone,
                         inputFormatters: PhMobile.inputFormatters,
@@ -333,7 +334,7 @@ class _PersonalInformationScreenState extends State<PersonalInformationScreen> {
                   ),
                   const SizedBox(height: AppSpacing.lg),
                   FormSection(
-                    title: 'Address',
+                    title: tr('Address'),
                     children: [
                       AppTextField(
                         label: 'Sitio / Purok',
@@ -347,7 +348,7 @@ class _PersonalInformationScreenState extends State<PersonalInformationScreen> {
                   FormSection(
                     title: 'Resident Information',
                     children: [
-                      AppTextField(label: 'Occupation', controller: _occupation, icon: Icons.work_outline_rounded),
+                      AppTextField(label: tr('Occupation'), controller: _occupation, icon: Icons.work_outline_rounded),
                       AppSelectField<String>(
                         label: 'Educational attainment',
                         value: _educationalAttainment,
@@ -356,7 +357,7 @@ class _PersonalInformationScreenState extends State<PersonalInformationScreen> {
                         onChanged: (v) => setState(() => _educationalAttainment = v),
                       ),
                       AppSelectField<String>(
-                        label: 'Household monthly income',
+                        label: tr('Household monthly income'),
                         value: _income,
                         options: ResidentProfileOptions.monthlyIncome,
                         labelBuilder: (v) => v,
@@ -502,7 +503,7 @@ class _PhotoPicker extends StatelessWidget {
           if (hasCustomPhoto)
             TextButton(
               onPressed: onRemove,
-              child: const Text('Remove photo', style: TextStyle(fontSize: AppTextSize.label)),
+              child: Text(tr('Remove photo'), style: TextStyle(fontSize: AppTextSize.label)),
             )
           else if (status != null)
             Text(

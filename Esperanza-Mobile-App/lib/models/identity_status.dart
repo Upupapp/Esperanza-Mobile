@@ -90,5 +90,13 @@ String? identityReasonText(String code) => switch (code) {
   'SELFIE_UNUSABLE' => 'We could not see your face clearly in the selfie.',
   'DOCUMENT_NOT_GENUINE' => 'Photograph the ID card itself, not a screen, a photocopy or a printout.',
   'DOCUMENT_EXPIRED' => 'The ID has expired. Please use a valid, unexpired ID.',
+  // The ID never overwrites the account: a difference goes to an officer
+  // (2026-10-16). The website's words.
+  'NAME_MISMATCH' =>
+    'The name on your ID is different from the name on your account. Your barangay office will compare them.',
+  'BIRTHDATE_MISMATCH' =>
+    'The birth date on your ID is different from the one on your account. Your barangay office will compare them.',
+  'SEX_MISMATCH' =>
+    'The sex on your ID is different from the one on your account. Your barangay office will compare them.',
   _ => null,
 };

@@ -15,6 +15,7 @@ import '../theme/app_spacing.dart';
 import '../theme/app_typography.dart';
 import 'birthday_popup.dart';
 
+import '../l10n/tr.dart';
 /// An occasion pop-up from the LGU (2026-10-19; its own server feature since
 /// 2026-10-21) - a fiesta, a holiday, an LGU event, the resident's birthday -
 /// popping up when the resident opens the app, as an officer wrote,
@@ -243,7 +244,7 @@ class OccasionGreetingPopup extends StatelessWidget {
                     shape: const CircleBorder(),
                     child: IconButton(
                       onPressed: () => Navigator.of(context).pop(),
-                      tooltip: 'Close',
+                      tooltip: tr('Close'),
                       constraints: const BoxConstraints.tightFor(
                         width: AppSizes.minTouchTarget,
                         height: AppSizes.minTouchTarget,

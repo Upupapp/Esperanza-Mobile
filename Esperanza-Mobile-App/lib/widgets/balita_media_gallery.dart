@@ -5,6 +5,7 @@ import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
 import '../theme/app_typography.dart';
 
+import '../l10n/tr.dart';
 /// A Balita post's photos and videos in its card (2026-10-18), laid out as
 /// the website does: one alone at its own shape, two side by side, three
 /// with the first across, four or more as a 2x2 grid whose last tile says how
@@ -104,8 +105,8 @@ class BalitaMediaTile extends StatelessWidget {
                   ),
                 ),
               if (!ready)
-                const Center(
-                  child: Text('Being checked', style: TextStyle(fontSize: AppTextSize.label, color: AppColors.slate500)),
+                Center(
+                  child: Text(tr('Being checked'), style: TextStyle(fontSize: AppTextSize.label, color: AppColors.slate500)),
                 ),
               if (media.isVideo && ready)
                 Center(

@@ -15,6 +15,7 @@ import '../../widgets/app_dialogs.dart';
 import '../../theme/app_status.dart';
 import '../../widgets/status_chip.dart';
 
+import '../../l10n/tr.dart';
 /// See notification_feed.dart for how the feed itself is assembled — this
 /// screen only renders it plus each tile's read/unread state (tracked by
 /// [NotificationsService]).
@@ -92,12 +93,12 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Notifications'),
+        title: Text(tr('Notifications')),
         actions: [
           if (anyUnread)
             TextButton(
               onPressed: () => notifService.markAllRead(ids),
-              child: const Text('Mark all as read'),
+              child: Text(tr('Mark all as read')),
             ),
         ],
       ),

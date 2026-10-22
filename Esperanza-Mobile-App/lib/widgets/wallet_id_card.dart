@@ -7,6 +7,7 @@ import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
 import '../theme/app_typography.dart';
 
+import '../l10n/tr.dart';
 /// The wallet's own card for each kind of ID (owner, 2026-10-13): its colours,
 /// icon, the name its number goes by, and which of what the ID says goes on
 /// the front and the back. Deliberately NOT the agency's design: no seal,
@@ -334,7 +335,7 @@ class _FrontBody extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _Label('Name'),
+                  _Label(tr('Name')),
                   Text(
                     d.holderName ?? 'Not entered',
                     maxLines: 2,
@@ -502,7 +503,7 @@ class _Footer extends StatelessWidget {
       color: design.top.withValues(alpha: 0.08),
       alignment: Alignment.centerLeft,
       child: Text(
-        'Esperanza wallet copy · not an official ID',
+        tr('Esperanza wallet copy · not an official ID'),
         style: AppTypography.fine.copyWith(color: AppColors.slate600, letterSpacing: 0.2),
       ),
     );

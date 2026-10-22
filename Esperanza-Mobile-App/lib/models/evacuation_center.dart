@@ -27,6 +27,9 @@ class EvacuationCenter {
   /// answer, not those words.
   final bool isOpen;
 
+  /// Families staying there now, when the office counts them.
+  final int? families;
+
   const EvacuationCenter({
     required this.name,
     required this.barangay,
@@ -36,9 +39,21 @@ class EvacuationCenter {
     this.contactNumber,
     this.distanceKm,
     this.currentOccupancy,
+    this.families,
     this.address,
     this.isOpen = false,
   });
 
   bool get hasLiveCapacityData => currentOccupancy != null;
+
+  /// The staff Centres tab's thresholds, as the website warns: almost full
+  /// from 75%, full at 100% - only for an open centre with a live count.
+  String? get occupancyWarning {
+    final n = currentOccupancy;
+    if (!isOpen || n == null || totalCapacity <= 0) return null;
+    final pct = n * 100 / totalCapacity;
+    if (pct >= 100) return 'Full: ask the MDRRMO for another centre';
+    if (pct >= 75) return 'Almost full';
+    return null;
+  }
 }

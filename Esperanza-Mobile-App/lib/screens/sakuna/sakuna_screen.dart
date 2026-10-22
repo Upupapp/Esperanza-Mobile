@@ -23,15 +23,17 @@ import '../../services/sakuna_alerts.dart';
 import '../../utils/date_text.dart';
 import '../../widgets/esperanza_art.dart';
 
+import '../../l10n/tr.dart';
 /// GET /hotlines (public, PublicContentController::hotlines).
-Future<List<(String, String)>> _loadHotlines() async {
+Future<List<(String, String, String?)>> _loadHotlines() async {
   final res = await api.get('/hotlines');
   return JsonRead.rows(res.list, (m) {
     final office = JsonRead.nonEmpty(m['office']) ?? JsonRead.nonEmpty(m['name']);
     final contact = JsonRead.nonEmpty(m['contact']) ?? JsonRead.nonEmpty(m['number']);
     // A hotline with no number is not a hotline.
     if (contact == null) return null;
-    return (office ?? 'Hotline', contact);
+    // Who answers it, as the website shows under the office.
+    return (office ?? 'Hotline', contact, JsonRead.nonEmpty(m['position']));
   });
 }
 
@@ -55,6 +57,7 @@ Future<List<EvacuationCenter>> _loadEvacuationCenters() async {
       // but a string.
       services: JsonRead.strings(m['services']),
       currentOccupancy: JsonRead.integer(m['individuals']),
+      families: JsonRead.integer(m['families']),
       address: JsonRead.nonEmpty(m['address']),
       isOpen: JsonRead.nonEmpty(m['status']) == 'Processing',
     );
@@ -68,7 +71,7 @@ Future<List<EvacuationCenter>> _loadEvacuationCenters() async {
 /// alignment doc). Citizens get: read-only hotlines/evacuation-center
 /// info, and the ability to report an incident + track its status, reusing
 /// the same request pipeline as Dokyu/Tulong.
-typedef _SakunaData = ({List<(String, String)> hotlines, List<EvacuationCenter> centers});
+typedef _SakunaData = ({List<(String, String, String?)> hotlines, List<EvacuationCenter> centers});
 
 class SakunaScreen extends StatefulWidget {
   const SakunaScreen({super.key});
@@ -86,7 +89,7 @@ class _SakunaScreenState extends State<SakunaScreen> {
 
   Future<_SakunaData> _load() async {
     final results = await Future.wait([_loadHotlines(), _loadEvacuationCenters()]);
-    return (hotlines: results[0] as List<(String, String)>, centers: results[1] as List<EvacuationCenter>);
+    return (hotlines: results[0] as List<(String, String, String?)>, centers: results[1] as List<EvacuationCenter>);
   }
 
   @override
@@ -158,7 +161,7 @@ class _SakunaScreenState extends State<SakunaScreen> {
             // so it renders unconditionally rather than living inside the
             // AsyncStateView gate.
             AppButton(
-              label: 'Report an Incident',
+              label: tr('Report an Incident'),
               icon: Icons.report_outlined,
               variant: AppButtonVariant.danger,
               fullWidth: true,
@@ -199,22 +202,25 @@ class _SakunaScreenState extends State<SakunaScreen> {
               builder: (context, data, reload) => Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('Emergency Hotlines', style: AppTypography.subsectionLabel),
+                  Text(tr('Emergency Hotlines'), style: AppTypography.subsectionLabel),
                   const SizedBox(height: AppSpacing.md),
                   if (data.hotlines.isEmpty)
-                    const Padding(
+                    Padding(
                       padding: EdgeInsets.symmetric(vertical: AppSpacing.md),
-                      child: Text('No hotlines listed yet.', style: TextStyle(color: AppColors.textMuted)),
+                      child: Text(tr('No hotlines listed yet.'), style: TextStyle(color: AppColors.textMuted)),
                     ),
                   ...data.hotlines.map(
                     (h) => Padding(
                       padding: const EdgeInsets.only(bottom: AppSpacing.itemGap),
-                      child: _HotlineTile(office: h.$1, contact: h.$2),
+                      child: _HotlineTile(office: h.$1, contact: h.$2, position: h.$3),
                     ),
                   ),
                   // The last tile's own 12, plus 12: a section's 24.
                   const SizedBox(height: AppSpacing.md),
-                  _EvacuationCentersSection(centers: data.centers),
+                  _EvacuationCentersSection(
+                    centers: data.centers,
+                    mine: context.watch<CitizenSessionService>().account?.barangay,
+                  ),
                 ],
               ),
             ),
@@ -234,18 +240,28 @@ class _SakunaScreenState extends State<SakunaScreen> {
 /// still render normally, just without a distance line or nearest badge —
 /// manual browsing always works regardless of location availability.
 class _EvacuationCentersSection extends StatelessWidget {
-  const _EvacuationCentersSection({required this.centers});
+  const _EvacuationCentersSection({required this.centers, this.mine});
 
   final List<EvacuationCenter> centers;
 
+  /// The resident's barangay: its centres lead, as on the website.
+  final String? mine;
+
+  bool _isMine(EvacuationCenter c) => mine != null && mine!.isNotEmpty && c.barangay == mine;
+
   @override
   Widget build(BuildContext context) {
+    // The website's order: the resident's barangay first, open ones first,
+    // then by barangay and name (a distance, if one ever exists, after that).
+    int flag(bool v) => v ? 0 : 1;
     final sorted = [...centers]
       ..sort((a, b) {
-        if (a.distanceKm == null && b.distanceKm == null) return 0;
-        if (a.distanceKm == null) return 1;
-        if (b.distanceKm == null) return -1;
-        return a.distanceKm!.compareTo(b.distanceKm!);
+        final byMine = flag(_isMine(a)).compareTo(flag(_isMine(b)));
+        if (byMine != 0) return byMine;
+        final byOpen = flag(a.isOpen).compareTo(flag(b.isOpen));
+        if (byOpen != 0) return byOpen;
+        final byBarangay = a.barangay.compareTo(b.barangay);
+        return byBarangay != 0 ? byBarangay : a.name.compareTo(b.name);
       });
     // No center ever carries a real distanceKm today (this app has no
     // geolocation wired up, and SakunaCenter has no lat/lng at all) -- the
@@ -328,7 +344,15 @@ class _EvacuationCentersSection extends StatelessWidget {
                           ],
                         ),
                         const SizedBox(height: AppSpacing.xs),
-                        _OpenChip(isOpen: c.isOpen),
+                        Wrap(
+                          spacing: AppSpacing.xs,
+                          runSpacing: AppSpacing.xs,
+                          children: [
+                            _OpenChip(isOpen: c.isOpen),
+                            if (_isMine(c)) _Tag(tr('In your barangay'), AppColors.brand50, AppColors.brand700),
+                            if (c.occupancyWarning case final w?) _Tag(w, AppColors.amber50, AppColors.amber700),
+                          ],
+                        ),
                         const SizedBox(height: AppSpacing.xs),
                         Text(
                           [
@@ -338,9 +362,12 @@ class _EvacuationCentersSection extends StatelessWidget {
                             // "Is there room?" is the question during an
                             // evacuation: the live headcount when the backend
                             // has one, capacity alone when it does not.
-                            c.hasLiveCapacityData
-                                ? '${c.currentOccupancy} of ${c.totalCapacity} occupied'
-                                : 'Capacity: ${c.totalCapacity}',
+                            c.hasLiveCapacityData && c.totalCapacity > 0
+                                ? '${c.currentOccupancy} of ${c.totalCapacity} people'
+                                : c.totalCapacity > 0
+                                ? 'Capacity: ${c.totalCapacity} people'
+                                : 'Capacity not listed',
+                            if (c.families != null) '${c.families} ${c.families == 1 ? 'family' : 'families'}',
                           ].join(' · '),
                           style: AppTypography.helper,
                         ),
@@ -365,10 +392,11 @@ class _EvacuationCentersSection extends StatelessWidget {
 /// Only the first number is dialled (see [dialUri]); the full text stays
 /// visible so a second line can still be read and dialled by hand.
 class _HotlineTile extends StatelessWidget {
-  const _HotlineTile({required this.office, required this.contact});
+  const _HotlineTile({required this.office, required this.contact, this.position});
 
   final String office;
   final String contact;
+  final String? position;
 
   @override
   Widget build(BuildContext context) {
@@ -378,7 +406,7 @@ class _HotlineTile extends StatelessWidget {
     return Semantics(
       container: true,
       button: uri != null,
-      label: uri == null ? '$office, $contact' : 'Call $office, $contact',
+      label: [uri == null ? office : 'Call $office', ?position, contact].join(', '),
       excludeSemantics: true,
       child: AppCard(
         padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: AppSpacing.md),
@@ -393,6 +421,7 @@ class _HotlineTile extends StatelessWidget {
                     office,
                     style: AppTypography.bodyText.copyWith(fontWeight: FontWeight.w600, color: AppColors.textPrimary),
                   ),
+                  if (position != null) Text(position!, style: AppTypography.helper),
                   const SizedBox(height: AppSpacing.xs),
                   Text(
                     contact,
@@ -442,30 +471,30 @@ class _AlertsSectionState extends State<_AlertsSection> {
       future: _alerts,
       builder: (context, snapshot) {
         if (snapshot.connectionState != ConnectionState.done) {
-          return const Text('Checking for emergency alerts…', style: AppTypography.helper);
+          return Text(tr('Checking for emergency alerts…'), style: AppTypography.helper);
         }
         if (snapshot.hasError) {
           return Row(
             children: [
-              const Expanded(child: Text('Emergency alerts could not be checked.', style: AppTypography.helper)),
-              TextButton(onPressed: () => setState(() => _alerts = _load()), child: const Text('Try Again')),
+              Expanded(child: Text(tr('Emergency alerts could not be checked.'), style: AppTypography.helper)),
+              TextButton(onPressed: () => setState(() => _alerts = _load()), child: Text(tr('Try Again'))),
             ],
           );
         }
         final alerts = snapshot.data!;
         if (alerts.isEmpty) {
-          return const Row(
+          return Row(
             children: [
               Icon(Icons.check_circle_outline_rounded, size: AppSizes.iconSm, color: AppColors.emerald700),
               SizedBox(width: AppSpacing.sm),
-              Expanded(child: Text('No emergency alerts in force right now.', style: AppTypography.helper)),
+              Expanded(child: Text(tr('No emergency alerts in force right now.'), style: AppTypography.helper)),
             ],
           );
         }
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const Text('Active Alerts', style: AppTypography.subsectionLabel),
+            Text(tr('Active Alerts'), style: AppTypography.subsectionLabel),
             const SizedBox(height: AppSpacing.md),
             // 12 between alerts and none after the last: the section gap
             // below is the same with alerts or without.
@@ -487,11 +516,11 @@ class _AlertCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final kind = [?alert.type, ?alert.level].join(' · ');
+    final kind = [?alert.type, ?alert.levelLabel].join(' · ');
     final where = alert.barangays.isEmpty ? 'All barangays' : alert.barangays.map((b) => 'Brgy. $b').join(', ');
     return Semantics(
       container: true,
-      label: 'Emergency alert',
+      label: tr('Emergency alert'),
       child: GlassSurface(
         radius: AppRadius.xl,
         padding: const EdgeInsets.all(AppSpacing.lg),
@@ -518,7 +547,12 @@ class _AlertCard extends StatelessWidget {
                   ],
                   const SizedBox(height: AppSpacing.sm),
                   Text(
-                    [where, if (alert.publishedAt != null) timeAgo(alert.publishedAt!)].join(' · '),
+                    [
+                      where,
+                      if (alert.publishedAt != null) timeAgo(alert.publishedAt!),
+                      // When the office set it to end, as the website says it.
+                      if (alert.expiresAt != null) 'Until ${dateAndTime(alert.expiresAt!)}',
+                    ].join(' · '),
                     style: AppTypography.helper,
                   ),
                 ],
@@ -556,4 +590,20 @@ class _OpenChip extends StatelessWidget {
       ),
     );
   }
+}
+
+/// A small label beside a centre's open/closed chip.
+class _Tag extends StatelessWidget {
+  const _Tag(this.text, this.background, this.foreground);
+
+  final String text;
+  final Color background;
+  final Color foreground;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: 2),
+    decoration: BoxDecoration(color: background, borderRadius: BorderRadius.circular(AppRadius.full)),
+    child: Text(text, style: AppTypography.fine.copyWith(color: foreground, fontWeight: FontWeight.w700)),
+  );
 }

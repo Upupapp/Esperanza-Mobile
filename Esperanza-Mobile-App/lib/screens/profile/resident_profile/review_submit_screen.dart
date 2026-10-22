@@ -16,6 +16,7 @@ import 'submission_confirmation_screen.dart';
 import '../../../theme/app_typography.dart';
 import '../../../services/api_client.dart';
 
+import '../../../l10n/tr.dart';
 /// Final step — a read-only summary of all three sections with per-section
 /// Edit links, gated on all three being SectionStatus.complete. Submitting
 /// sends the profile to Esperanza LGU (PUT /citizen/resident-profile), where
@@ -74,7 +75,7 @@ class _ReviewSubmitScreenState extends State<ReviewSubmitScreen> {
             ],
             const SizedBox(height: AppSpacing.lg),
             _SummaryCard(
-              title: 'Personal Information',
+              title: tr('Personal Information'),
               status: profile.personalStatus,
               onEdit: locked
                   ? null
@@ -187,8 +188,8 @@ class _SummaryCard extends StatelessWidget {
               if (onEdit != null)
                 GestureDetector(
                   onTap: onEdit,
-                  child: const Text(
-                    'Edit',
+                  child: Text(
+                    tr('Edit'),
                     style: TextStyle(fontSize: AppTextSize.helper, fontWeight: FontWeight.w600, color: AppColors.brand600),
                   ),
                 ),

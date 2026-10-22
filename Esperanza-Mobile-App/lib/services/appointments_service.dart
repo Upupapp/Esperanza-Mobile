@@ -14,6 +14,7 @@ class AppointmentSchedule {
     this.endTime,
     this.location,
     this.notes,
+    this.bookDaysAhead = 14,
   });
 
   final int id;
@@ -29,6 +30,10 @@ class AppointmentSchedule {
   final String? endTime;
   final String? location;
   final String? notes;
+
+  /// How far ahead the office takes bookings, in days (`book_days_ahead`);
+  /// 14 when it does not say, never more than 62, as on the website.
+  final int bookDaysAhead;
 
   static const _days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
@@ -60,6 +65,7 @@ class AppointmentSchedule {
       endTime: JsonRead.nonEmpty(json['end_time']),
       location: JsonRead.nonEmpty(json['location']),
       notes: JsonRead.nonEmpty(json['notes']),
+      bookDaysAhead: (JsonRead.integer(json['book_days_ahead']) ?? 14).clamp(1, 62),
     );
   }
 }
@@ -145,7 +151,13 @@ class Appointment {
 
   static const statuses = ['Booked', 'Confirmed', 'Completed', 'Cancelled', 'No Show'];
 
-  bool get upcoming => status == 'Booked' || status == 'Confirmed';
+  /// Booked or confirmed, and not yet past: a past booking that was never
+  /// marked is history, not upcoming (as on the website).
+  bool get upcoming {
+    if (status != 'Booked' && status != 'Confirmed') return false;
+    final now = DateTime.now();
+    return !DateTime(date.year, date.month, date.day).isBefore(DateTime(now.year, now.month, now.day));
+  }
 
   static Appointment? fromApi(Map<String, dynamic> json) {
     final ref = JsonRead.nonEmpty(json['ref']);
@@ -207,8 +219,18 @@ class AppointmentsService {
     return JsonRead.rows(res.data, AppointmentSchedule.fromApi);
   }
 
-  static Future<List<AppointmentDay>> availability(int scheduleId) async {
-    final res = await api.get('/citizen/appointments/schedules/${ApiClient.segment(scheduleId)}/availability');
+  /// The office's free times from today to its own booking window ahead
+  /// (up to 62 days, as the website asks); without dates the server gave 14.
+  static Future<List<AppointmentDay>> availability(int scheduleId, {int daysAhead = 14}) async {
+    String day(int offset) {
+      final d = DateTime.now().add(Duration(days: offset));
+      return '${d.year.toString().padLeft(4, '0')}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+    }
+
+    final res = await api.get(
+      '/citizen/appointments/schedules/${ApiClient.segment(scheduleId)}/availability',
+      query: {'from': day(0), 'to': day(daysAhead.clamp(1, 62))},
+    );
     return JsonRead.rows(res.map['days'], AppointmentDay.fromApi);
   }
 

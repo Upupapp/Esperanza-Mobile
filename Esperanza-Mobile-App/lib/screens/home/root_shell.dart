@@ -17,6 +17,7 @@ import '../../utils/banner_memory.dart';
 import '../../widgets/promotional_banner_dialog.dart';
 import '../../widgets/sakuna_alerts_ui.dart';
 import '../../widgets/service_launcher_menu.dart';
+import '../../widgets/verified_welcome_dialog.dart';
 import '../balita/balita_screen.dart';
 import '../dokyu/dokyu_screen.dart';
 import '../events/events_screen.dart';
@@ -29,6 +30,7 @@ import '../../theme/app_typography.dart';
 import '../../services/api_client.dart';
 import '../../widgets/esperanza_drawer.dart';
 
+import '../../l10n/tr.dart';
 /// Mobile bottom-nav IA: Home / Balita / + / Events / Emergency, laid out
 /// and animated as a direct port of the Servana Client App's curved main
 /// navigation (see widgets/esperanza_curved_navbar.dart's doc comment for
@@ -154,13 +156,33 @@ class _RootShellState extends State<RootShell> with WidgetsBindingObserver {
     final service = _notifications;
     if (_alertOpen || !mounted || service == null) return;
     final alert = service.pendingAlert;
-    if (alert == null) return;
+    if (alert != null) {
+      _alertOpen = true;
+      final openEmergency = await SakunaAlertDialog.show(context, alert);
+      await service.alertShown(alert);
+      _alertOpen = false;
+      if (openEmergency && mounted) setTab(3);
+      if (mounted) unawaited(_maybeShowAlert());
+      return;
+    }
+    // An alert first, then the welcome, as on the website.
+    final welcome = service.pendingWelcome;
+    if (welcome == null) return;
     _alertOpen = true;
-    final openEmergency = await SakunaAlertDialog.show(context, alert);
-    await service.alertShown(alert);
+    // Read the account again so Dokyu and Tulong open without a restart.
+    final session = context.read<CitizenSessionService>();
+    unawaited(session.refresh().catchError((Object _) {}));
+    final target = await VerifiedWelcomeDialog.show(context);
+    await service.alertShown(welcome);
     _alertOpen = false;
-    if (openEmergency && mounted) setTab(3);
-    if (mounted) unawaited(_maybeShowAlert());
+    if (target != null && mounted) {
+      try {
+        await session.refresh();
+      } on ApiException {
+        // Opens with what is known; the guard explains if still waiting.
+      }
+      if (mounted) openService(target);
+    }
   }
 
   Future<void> _loadNotifications() async {
@@ -233,11 +255,11 @@ class _RootShellState extends State<RootShell> with WidgetsBindingObserver {
     });
   }
 
-  static const _items = [
+  static final _items = [
     NavItemData(outlineIcon: Icons.home_outlined, filledIcon: Icons.home_rounded, label: 'Home'),
     NavItemData(outlineIcon: Icons.campaign_outlined, filledIcon: Icons.campaign_rounded, label: 'Balita'),
-    NavItemData(outlineIcon: Icons.event_outlined, filledIcon: Icons.event_rounded, label: 'Events'),
-    NavItemData(outlineIcon: Icons.shield_outlined, filledIcon: Icons.shield_rounded, label: 'Emergency'),
+    NavItemData(outlineIcon: Icons.event_outlined, filledIcon: Icons.event_rounded, label: tr('Events')),
+    NavItemData(outlineIcon: Icons.shield_outlined, filledIcon: Icons.shield_rounded, label: tr('Emergency')),
   ];
 
   /// The nav's own index space (0-3: Home, Balita, Events, Emergency).

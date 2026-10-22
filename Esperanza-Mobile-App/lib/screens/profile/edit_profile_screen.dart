@@ -13,6 +13,7 @@ import '../../widgets/app_text_field.dart';
 import '../../theme/app_typography.dart';
 import 'name_change_request.dart';
 
+import '../../l10n/tr.dart';
 /// Edit Profile, as the website's: before verification the resident types
 /// their own first and last name; once verified the name is locked, and a
 /// change goes to the barangay as a request with the reason and proof
@@ -118,7 +119,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       }
       if (!mounted) return;
       setState(() => _saving = false);
-      AppDialogs.toast(context, 'Profile updated.');
+      AppDialogs.toast(context, tr('Profile updated.'));
       Navigator.of(context).pop();
     } on ApiException catch (e) {
       if (!mounted) return;
@@ -154,7 +155,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             ],
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: const Text('Cancel')),
+            TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: Text(tr('Cancel'))),
             FilledButton(
               onPressed: () async {
                 try {
@@ -164,7 +165,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                   setLocal(() => error = e.message());
                 }
               },
-              child: const Text('Verify'),
+              child: Text(tr('Verify')),
             ),
           ],
         ),
@@ -177,7 +178,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Edit Profile')),
+      appBar: AppBar(title: Text(tr('Edit Profile'))),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenGutter, vertical: AppSpacing.xl),
@@ -186,7 +187,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             children: [
               if (context.watch<CitizenSessionService>().identityLocked) ...[
                 _LockedField(
-                  label: 'Full name',
+                  label: tr('Full name'),
                   value: _original.fullName,
                   note: 'Verified accounts change their name through the barangay office.',
                 ),
@@ -199,7 +200,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
               ],
               const SizedBox(height: AppSpacing.lg),
               AppTextField(
-                label: 'Mobile number',
+                label: tr('Mobile number'),
                 controller: _mobile,
                 keyboardType: TextInputType.phone,
                 inputFormatters: PhMobile.inputFormatters,
@@ -226,14 +227,14 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
               const SizedBox(height: AppSpacing.lg),
               AppTextField(label: 'Purok / Sitio', controller: _purok, icon: Icons.place_outlined),
               const SizedBox(height: AppSpacing.lg),
-              AppTextField(label: 'Occupation', controller: _occupation, icon: Icons.work_outline_rounded),
+              AppTextField(label: tr('Occupation'), controller: _occupation, icon: Icons.work_outline_rounded),
               const SizedBox(height: AppSpacing.xxl),
               if (_error != null) ...[
                 Text(_error!, style: AppTypography.helper.copyWith(color: AppColors.danger)),
                 const SizedBox(height: AppSpacing.md),
               ],
               AppButton(
-                label: 'Save Changes',
+                label: tr('Save Changes'),
                 onPressed: _save,
                 loading: _saving,
                 fullWidth: true,

@@ -145,7 +145,7 @@ void main() {
   });
 
   group('Master File (Papeles)', () {
-    test('sync adopts server documents; a saved upload goes to the wallet; archive calls the server', () async {
+    test('sync adopts server documents; a saved upload stays on this phone; archive calls the server', () async {
       final dir = await Directory.systemTemp.createTemp('esp_papeles');
       addTearDown(() => dir.delete(recursive: true));
       final file = File('${dir.path}/id.jpg')..writeAsBytesSync([1, 2, 3]);
@@ -182,12 +182,15 @@ void main() {
         ),
         origin: 'Dokyu',
       );
-      expect(saved.id, 'pap-9');
+      // Not copied into Papeles: the website never did (2026-10-23).
+      expect(saved.id, startsWith('mfd-'));
       expect(saved.attachment.localPath, file.path, reason: 'kept for reuse on this device');
+      expect(calls.where((c) => c.startsWith('POST')), isEmpty);
 
-      await service.archive('ESP-TEST-0100', saved);
-      expect(calls.last, 'POST /citizen/papeles/9/archive');
-      expect(service.documentsFor('ESP-TEST-0100').map((d) => d.id), ['pap-5']);
+      final server = service.documentsFor('ESP-TEST-0100').firstWhere((d) => d.id == 'pap-5');
+      await service.archive('ESP-TEST-0100', server);
+      expect(calls.last, 'POST /citizen/papeles/5/archive');
+      expect(service.documentsFor('ESP-TEST-0100').map((d) => d.id), isNot(contains('pap-5')));
     });
 
     test('an upload that fails offline keeps the local copy', () async {

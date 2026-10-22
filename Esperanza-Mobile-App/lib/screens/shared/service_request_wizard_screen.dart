@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../widgets/payment_guidance_card.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../../models/attachment.dart';
@@ -36,6 +37,7 @@ import 'request_submitted_screen.dart';
 import '../../theme/app_typography.dart';
 import '../../widgets/esperanza_art.dart';
 
+import '../../l10n/tr.dart';
 /// "Sir Paul's Required Form Experience" — a data-driven, multi-step
 /// service-request wizard mirroring `RegisterScreen`'s step pattern
 /// (indicator, per-step validation, Back/Continue, a Review step with
@@ -831,7 +833,7 @@ class _ServiceRequestWizardScreenState extends State<ServiceRequestWizardScreen>
                   children: [
                     Expanded(
                       child: AppButton(
-                        label: 'Back',
+                        label: tr('Back'),
                         variant: AppButtonVariant.secondary,
                         fullWidth: true,
                         onPressed: _submitting ? null : _back,
@@ -888,7 +890,7 @@ class _ServiceRequestWizardScreenState extends State<ServiceRequestWizardScreen>
               GestureDetector(
                 onTap: _goToEditProfile,
                 child: Text(
-                  'Edit Profile',
+                  tr('Edit Profile'),
                   style: TextStyle(fontSize: AppTextSize.label, fontWeight: FontWeight.w700, color: _accent.deep),
                 ),
               ),
@@ -900,10 +902,10 @@ class _ServiceRequestWizardScreenState extends State<ServiceRequestWizardScreen>
         const SizedBox(height: AppSpacing.lg),
         AppTextField(label: 'Last name', controller: _lastName, required: true),
         const SizedBox(height: AppSpacing.lg),
-        AppTextField(label: 'Address', controller: _address, icon: Icons.place_outlined),
+        AppTextField(label: tr('Address'), controller: _address, icon: Icons.place_outlined),
         const SizedBox(height: AppSpacing.lg),
         AppTextField(
-          label: 'Mobile number',
+          label: tr('Mobile number'),
           controller: _contact,
           keyboardType: TextInputType.phone,
           inputFormatters: PhMobile.inputFormatters,
@@ -1179,8 +1181,8 @@ class _ServiceRequestWizardScreenState extends State<ServiceRequestWizardScreen>
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const Text(
-          'Review Your Request',
+        Text(
+          tr('Review Your Request'),
           style: TextStyle(fontSize: AppTextSize.card, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
         ),
         const SizedBox(height: AppSpacing.xs),
@@ -1190,12 +1192,12 @@ class _ServiceRequestWizardScreenState extends State<ServiceRequestWizardScreen>
         ),
         const SizedBox(height: AppSpacing.xl),
         _reviewRow(
-          'Name',
+          tr('Name'),
           '${_firstName.text.trim()} ${_lastName.text.trim()}'.trim(),
           onEdit: () => setState(() => _step = 0),
         ),
         _reviewRow(
-          'Address',
+          tr('Address'),
           _address.text.trim().isEmpty ? '—' : _address.text.trim(),
           onEdit: () => setState(() => _step = 0),
         ),
@@ -1240,7 +1242,10 @@ class _ServiceRequestWizardScreenState extends State<ServiceRequestWizardScreen>
             _picked[req.label]?.fileName ?? (req.isRequired ? 'Not attached yet — add it later from your request' : 'Not attached'),
             onEdit: () => setState(() => _step = _requirementsStep),
           ),
-        if (widget.item.fee != 'Free') _reviewRow('Fee', widget.item.fee, onEdit: null),
+        if (widget.item.fee != 'Free') _reviewRow(tr('Fee'), widget.item.fee, onEdit: null),
+        // How the fee is paid, as the website's Payment step says it.
+        const SizedBox(height: AppSpacing.lg),
+        PaymentGuidanceCard(item: widget.item, sayWhenFree: widget.category == ServiceCategory.dokyu),
         if (_documentMeta != null) ...[
           const SizedBox(height: AppSpacing.lg),
           const Text(
@@ -1442,7 +1447,7 @@ class _MasterSourcedField extends StatelessWidget {
             GestureDetector(
               onTap: onEditProfile,
               child: Text(
-                'Edit Profile',
+                tr('Edit Profile'),
                 style: TextStyle(
                   fontSize: AppTextSize.label,
                   fontWeight: FontWeight.w600,

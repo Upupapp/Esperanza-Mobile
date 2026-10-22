@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../widgets/status_chip.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../../models/attachment.dart';
@@ -21,6 +22,7 @@ import '../../services/json_read.dart';
 import '../../widgets/app_dialogs.dart';
 import '../../widgets/image_viewer_scaffold.dart';
 
+import '../../l10n/tr.dart';
 /// Resident-facing history/library of every document uploaded through a
 /// Dokyu or Tulong requirement uploader (see widgets/requirement_uploader.dart)
 /// — read-only, no delete.
@@ -89,13 +91,13 @@ class _DocumentsUploadedScreenState extends State<DocumentsUploadedScreen> {
           decoration: const InputDecoration(hintText: 'e.g. Barangay clearance 2026'),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Cancel')),
+          TextButton(onPressed: () => Navigator.of(context).pop(), child: Text(tr('Cancel'))),
           FilledButton(
             onPressed: () {
               final v = controller.text.trim();
               if (v.isNotEmpty) Navigator.of(context).pop(v);
             },
-            child: const Text('Add'),
+            child: Text(tr('Add')),
           ),
         ],
       ),
@@ -170,7 +172,7 @@ class _DocumentsUploadedScreenState extends State<DocumentsUploadedScreen> {
     final isEmpty = serverRows == null ? filtered.isEmpty : serverRows.isEmpty;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Documents Uploaded')),
+      appBar: AppBar(title: Text(tr('Documents Uploaded'))),
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.md, AppSpacing.lg, 0),
@@ -185,7 +187,7 @@ class _DocumentsUploadedScreenState extends State<DocumentsUploadedScreen> {
               ),
               const SizedBox(height: AppSpacing.lg),
               SegmentedTabs(
-                labels: const ['All', 'Dokyu', 'Tulong', 'Papeles'],
+                labels: [tr('All'), 'Dokyu', 'Tulong', 'Papeles'],
                 selectedIndex: _tab,
                 onChanged: (i) => setState(() => _tab = i),
               ),
@@ -223,9 +225,9 @@ class _DocumentsUploadedScreenState extends State<DocumentsUploadedScreen> {
                                         'Add an ID, a certificate or any document to keep it here and attach it to '
                                         'a request later.',
                                   )
-                                : const EmptyState(
+                                : EmptyState(
                                     icon: Icons.folder_open_outlined,
-                                    title: 'No documents uploaded yet',
+                                    title: tr('No documents uploaded yet'),
                                     description:
                                         'Documents you upload while submitting a Dokyu or Tulong request will '
                                         'appear here.',
@@ -347,7 +349,7 @@ class _UploadCard extends StatelessWidget {
                       _tag(document.isDokyu ? 'Dokyu' : 'Tulong', document.isDokyu ? AppColors.brand600 : AppColors.purple700),
                       if (document.service != null) _tag(document.service!, AppColors.slate600),
                       _tag(document.ref, AppColors.slate600),
-                      if (!document.current) _tag('Replaced', AppColors.slate500),
+                      if (!document.current) _tag(tr('Replaced'), AppColors.slate500),
                       Text(
                         when == null
                             ? category.shortLabel
@@ -465,6 +467,11 @@ class _DocumentCard extends StatelessWidget {
                 ],
               ),
             ),
+            // The office's review, as the website's Documents on File shows it.
+            if (document.status != null) ...[
+              const SizedBox(width: AppSpacing.sm),
+              StatusChip.request(document.status!, small: true),
+            ],
             if (canPreview) const Icon(Icons.chevron_right_rounded, size: 18, color: AppColors.slate400),
           ],
         ),

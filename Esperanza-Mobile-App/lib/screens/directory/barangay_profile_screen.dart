@@ -8,6 +8,7 @@ import '../../theme/app_typography.dart';
 import '../../utils/phone_dial.dart';
 import '../../widgets/segmented_tabs.dart';
 
+import '../../l10n/tr.dart';
 /// A barangay's profile (the redesign, 2026-10-22; the website's barangay
 /// modal is the same): its seal and a call button, then History - a few
 /// facts, where the name comes from, livelihood, past leaders, places to
@@ -88,7 +89,7 @@ class _BarangayProfileScreenState extends State<BarangayProfileScreen> {
                   const Icon(Icons.auto_stories_outlined, size: AppSizes.iconLg, color: AppColors.textDisabled),
                   const SizedBox(height: AppSpacing.sm),
                   Text(
-                    'History and the officials roster are being added barangay by barangay.',
+                    tr('History and the officials roster are being added barangay by barangay.'),
                     textAlign: TextAlign.center,
                     style: AppTypography.helper,
                   ),
@@ -97,18 +98,18 @@ class _BarangayProfileScreenState extends State<BarangayProfileScreen> {
             )
           else ...[
             SegmentedTabs(
-              labels: const ['History', 'Officials & Staff'],
+              labels: [tr('History'), tr('Officials & Staff')],
               selectedIndex: _tab,
               onChanged: (i) => setState(() => _tab = i),
             ),
             const SizedBox(height: AppSpacing.lg),
             if (_tab == 0)
               if (history == null)
-                const _Empty('The history of this barangay has not been added yet.')
+                _Empty(tr('The history of this barangay has not been added yet.'))
               else
                 _HistoryView(history: history)
             else if (b.roster.isEmpty)
-              const _Empty('The officials roster has not been added yet.')
+              _Empty(tr('The officials roster has not been added yet.'))
             else
               _OfficialsView(roster: b.roster, leadership: history?.leadership ?? const []),
           ],
@@ -232,7 +233,7 @@ class _HistoryViewState extends State<_HistoryView> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const _Eyebrow('The name'),
+                _Eyebrow(tr('The name')),
                 const SizedBox(height: AppSpacing.xs),
                 if (h.nameTitle != null) Text(h.nameTitle!, style: AppTypography.cardHeading),
                 if (h.nameText != null) ...[
@@ -249,7 +250,7 @@ class _HistoryViewState extends State<_HistoryView> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const _Eyebrow('Livelihood'),
+                _Eyebrow(tr('Livelihood')),
                 const SizedBox(height: AppSpacing.sm),
                 Wrap(
                   spacing: AppSpacing.sm,
@@ -267,7 +268,7 @@ class _HistoryViewState extends State<_HistoryView> {
         ],
         if (leaders.isNotEmpty) ...[
           _SectionTitle(
-            'Leadership',
+            tr('Leadership'),
             trailing: leaders.length > _shownLeaders
                 ? TextButton(
                     onPressed: () => setState(() => _allLeaders = !_allLeaders),
@@ -293,7 +294,7 @@ class _HistoryViewState extends State<_HistoryView> {
                           ],
                         ),
                       ),
-                      if (_isCurrent(l)) const _Chip('Current', green: true),
+                      if (_isCurrent(l)) _Chip(tr('Current'), green: true),
                     ],
                   ),
                 ),
@@ -302,7 +303,7 @@ class _HistoryViewState extends State<_HistoryView> {
           gap,
         ],
         if (h.landmarks.isNotEmpty) ...[
-          const _SectionTitle('Places to know'),
+          _SectionTitle(tr('Places to know')),
           _ListPanel(
             children: [
               for (final p in h.landmarks)
@@ -745,7 +746,7 @@ class _OfficialSheet extends StatelessWidget {
                       label: areaLabel,
                       value: _committeeShown(official, alsoServed)!,
                     ),
-                  if (alsoServed != null) _SheetRow(label: 'Also served', value: alsoServed!),
+                  if (alsoServed != null) _SheetRow(label: tr('Also served'), value: alsoServed!),
                 ],
               ),
             ),

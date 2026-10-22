@@ -1,3 +1,5 @@
+import 'incident_status.dart';
+import 'request_workflow.dart';
 import 'request_release.dart';
 import 'attachment.dart';
 
@@ -288,6 +290,14 @@ class ServiceRequest {
   /// The fee, if the service has one; re-fetched with every detail, like
   /// [canResubmit]. The resident saw neither the fee nor the receipt before.
   RequestPayment? payment;
+
+  /// "Steps of your request": the service's own process on this request,
+  /// when it publishes one. Re-fetched with every detail, never stored.
+  RequestWorkflow? workflow;
+
+  /// The status as a resident reads it: an incident's in residents' words
+  /// (Dispatched, Resolved), as on the website; any other request's as is.
+  String get statusLabel => category == ServiceCategory.sakunaIncident ? incidentStatusLabel(status) : status;
 
   final String expectedDays;
   final Map<String, dynamic> formFields;

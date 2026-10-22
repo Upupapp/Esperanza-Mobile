@@ -21,6 +21,7 @@ import '../sakuna/report_incident_screen.dart';
 import 'report_problem_screen.dart';
 import 'support_tickets_screen.dart';
 
+import '../../l10n/tr.dart';
 /// Suporta, as the website's Help & Support page (citizen/help): FAQs,
 /// Tutorials and Support. Every answer is the LGU's own, published in
 /// Settings > Site Content, so the website and the app say the same thing
@@ -94,9 +95,9 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
             labels: [
               for (final t in tabs)
                 switch (t) {
-                  _HelpTab.faqs => 'FAQs',
-                  _HelpTab.tutorials => 'Tutorials',
-                  _HelpTab.support => 'Support',
+                  _HelpTab.faqs => tr('FAQs'),
+                  _HelpTab.tutorials => tr('Tutorials'),
+                  _HelpTab.support => tr('Support'),
                 },
             ],
             selectedIndex: tabs.indexOf(tab),
@@ -124,9 +125,9 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
       return [
         EmptyState(
           icon: Icons.cloud_off_rounded,
-          title: 'Could not load',
-          description: 'Could not load the FAQs.',
-          action: AppButton(label: 'Try again', variant: AppButtonVariant.secondary, onPressed: _loadContent),
+          title: tr('Could not load'),
+          description: tr('Could not load the FAQs.'),
+          action: AppButton(label: tr('Try again'), variant: AppButtonVariant.secondary, onPressed: _loadContent),
         ),
       ];
     }
@@ -137,7 +138,7 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
     ];
     final signedIn = context.watch<CitizenSessionService>().account != null;
     return [
-      AppTextField(hintText: 'Search FAQs...', icon: Icons.search_rounded, onChanged: (v) => setState(() => _faqSearch = v)),
+      AppTextField(hintText: tr('Search FAQs...'), icon: Icons.search_rounded, onChanged: (v) => setState(() => _faqSearch = v)),
       const SizedBox(height: AppSpacing.md),
       _CategoryChips(
         categories: categories,
@@ -180,7 +181,7 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
     ];
     return [
       AppTextField(
-        hintText: 'Search tutorials...',
+        hintText: tr('Search tutorials...'),
         icon: Icons.search_rounded,
         onChanged: (v) => setState(() => _tutorialSearch = v),
       ),
@@ -194,7 +195,7 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
       Text('${shown.length} ${shown.length == 1 ? 'result' : 'results'}', style: AppTypography.fine.copyWith(color: AppColors.textMuted)),
       const SizedBox(height: AppSpacing.sm),
       if (shown.isEmpty)
-        const EmptyState(icon: Icons.school_outlined, title: 'No tutorials match your search.')
+        EmptyState(icon: Icons.school_outlined, title: tr('No tutorials match your search.'))
       else
         for (final t in shown)
           Padding(
@@ -255,7 +256,7 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text('Flooding, fire, a landslide or an accident?', style: AppTypography.cardHeading),
+                        Text(tr('Flooding, fire, a landslide or an accident?'), style: AppTypography.cardHeading),
                         const SizedBox(height: AppSpacing.xs),
                         Text(
                           "Don't file it as a ticket: report an incident so the MDRRMO sees it at once.",
@@ -268,7 +269,7 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
               ),
               const SizedBox(height: AppSpacing.md),
               AppButton(
-                label: 'Report an incident',
+                label: tr('Report an incident'),
                 variant: AppButtonVariant.secondary,
                 onPressed: () => Navigator.of(context).push(
                   MaterialPageRoute(builder: (_) => const ReportIncidentScreen(accent: AppColors.rose600)),
@@ -283,7 +284,7 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
         icon: Icons.flag_outlined,
         tint: AppColors.rose50,
         color: AppColors.rose600,
-        label: 'Submit a Support Ticket',
+        label: tr('Submit a Support Ticket'),
         onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const ReportProblemScreen())),
       ),
       if (signedIn) ...[
@@ -292,7 +293,7 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
           icon: Icons.confirmation_number_outlined,
           tint: AppColors.brand50,
           color: AppColors.brand600,
-          label: 'My Support Tickets',
+          label: tr('My Support Tickets'),
           onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const SupportTicketsScreen())),
         ),
       ],
@@ -309,14 +310,14 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
               Row(
                 children: [
                   const Expanded(child: Text('Contact details could not be loaded.', style: AppTypography.helper)),
-                  TextButton(onPressed: _loadContent, child: const Text('Try again')),
+                  TextButton(onPressed: _loadContent, child: Text(tr('Try again'))),
                 ],
               )
             else ...[
               for (final c in content.channels)
                 _ContactRow(icon: _channelIcon(c.key), label: c.label, value: c.value, onTap: _channelAction(c)),
               if (content.officeHours != null)
-                _ContactRow(icon: Icons.schedule_outlined, label: 'Office Hours', value: content.officeHours!),
+                _ContactRow(icon: Icons.schedule_outlined, label: tr('Office Hours'), value: content.officeHours!),
             ],
           ],
         ),
@@ -327,7 +328,7 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
         children: [
           TextButton(
             onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const PrivacyPolicyScreen())),
-            child: Text('Privacy Policy', style: AppTypography.helper.copyWith(fontWeight: FontWeight.w600, color: AppColors.brand600)),
+            child: Text(tr('Privacy Policy'), style: AppTypography.helper.copyWith(fontWeight: FontWeight.w600, color: AppColors.brand600)),
           ),
           TextButton(
             onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const TermsScreen())),

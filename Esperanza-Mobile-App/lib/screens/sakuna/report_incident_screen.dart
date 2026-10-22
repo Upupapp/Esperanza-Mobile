@@ -19,6 +19,7 @@ import '../../widgets/app_text_field.dart';
 import '../shared/request_submitted_screen.dart';
 import '../../theme/app_typography.dart';
 
+import '../../l10n/tr.dart';
 /// Report an Incident, against POST /citizen/incidents.
 ///
 /// Incidents used to go through the Dokyu/Tulong flow, which posted
@@ -143,34 +144,34 @@ class _ReportIncidentScreenState extends State<ReportIncidentScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Report an Incident')),
+      appBar: AppBar(title: Text(tr('Report an Incident'))),
       body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.md, AppSpacing.lg, AppSpacing.xxxl),
           children: [
-            const Text(
-              'For life-threatening emergencies, call a hotline first.',
+            Text(
+              tr('For life-threatening emergencies, call a hotline first.'),
               style: TextStyle(fontSize: AppTextSize.helper, color: AppColors.rose600, fontWeight: FontWeight.w600),
             ),
             const SizedBox(height: AppSpacing.lg),
-            const Text(
-              'What is happening?',
+            Text(
+              tr('What is happening?'),
               style: TextStyle(fontSize: AppTextSize.body, fontWeight: FontWeight.w600),
             ),
             const SizedBox(height: AppSpacing.sm),
             _IncidentTypeTiles(selected: _type, onSelected: _submitting ? null : (t) => setState(() => _type = t)),
             const SizedBox(height: AppSpacing.md),
             AppSelectField<IncidentType>(
-              label: 'More kinds',
+              label: tr('More kinds'),
               value: moreIncidentTypes.contains(_type) ? _type : null,
               options: moreIncidentTypes,
               labelBuilder: (t) => t.name,
-              hintText: 'Choose if it is not above',
+              hintText: tr('Choose if it is not above'),
               onChanged: (t) => setState(() => _type = t),
             ),
             const SizedBox(height: AppSpacing.lg),
-            const Text(
-              'How serious is it?',
+            Text(
+              tr('How serious is it?'),
               style: TextStyle(fontSize: AppTextSize.body, fontWeight: FontWeight.w600),
             ),
             const SizedBox(height: AppSpacing.sm),
@@ -196,15 +197,15 @@ class _ReportIncidentScreenState extends State<ReportIncidentScreen> {
               value: _barangay,
               options: BarangayService.names,
               labelBuilder: (b) => b,
-              hintText: 'Choose the barangay',
+              hintText: tr('Choose the barangay'),
               onChanged: (v) => setState(() => _barangay = v),
             ),
             const SizedBox(height: AppSpacing.lg),
-            AppTextField(label: 'Sitio / purok / landmark (optional)', controller: _sitio),
+            AppTextField(label: tr('Sitio / purok / landmark (optional)'), controller: _sitio),
             const SizedBox(height: AppSpacing.lg),
             AppTextField(
-              label: 'What is happening? (optional)',
-              hintText: 'e.g. Water is knee-deep near the chapel; two families need help moving.',
+              label: tr('What is happening? (optional)'),
+              hintText: tr('e.g. Water is knee-deep near the chapel; two families need help moving.'),
               controller: _description,
               maxLines: 4,
             ),
@@ -223,7 +224,7 @@ class _ReportIncidentScreenState extends State<ReportIncidentScreen> {
             ],
             const SizedBox(height: AppSpacing.xl),
             AppButton(
-              label: 'Submit Report',
+              label: tr('Submit Report'),
               icon: Icons.send_rounded,
               variant: AppButtonVariant.danger,
               fullWidth: true,
@@ -334,8 +335,8 @@ class _IncidentPhotosField extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          'Photos (optional)',
+        Text(
+          tr('Photos (optional)'),
           style: TextStyle(fontSize: AppTextSize.body, fontWeight: FontWeight.w600),
         ),
         const SizedBox(height: AppSpacing.xs),

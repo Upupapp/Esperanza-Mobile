@@ -1,6 +1,9 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import '../../widgets/app_text_field.dart';
+import '../../widgets/request_workflow_card.dart';
+import '../../utils/expected_release.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../models/attachment.dart';
@@ -37,6 +40,7 @@ import '../../utils/peso_text.dart';
 import '../../utils/request_sheets.dart';
 import '../../widgets/esperanza_art.dart';
 
+import '../../l10n/tr.dart';
 /// Full request detail + real status history, against
 /// GET /citizen/requests/{ref} (production-readiness programme,
 /// 2026-09-25). Previously showed [RequestsService]'s own local
@@ -104,6 +108,11 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
   void initState() {
     super.initState();
     _poll = Timer.periodic(const Duration(seconds: 30), (_) => _refreshQuietly());
+    // The catalogue gives the service's processing time (Expected release).
+    final service = context.read<RequestsService>();
+    if (service.dokyuCatalog.isEmpty && service.tulongCatalog.isEmpty) {
+      service.loadCatalog().catchError((Object _) {});
+    }
     final target = widget.focusFlaggedRequirementId;
     if (target == null) return;
     // One-shot, after the first frame this screen renders — by then the
@@ -199,18 +208,41 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
   }
 
   Future<void> _withdraw(RequestsService service, ServiceRequest request) async {
-    final ok = await AppDialogs.confirm(
-      context,
-      title: 'Withdraw this request?',
-      message: 'The office stops working on ${request.referenceNumber} and it cannot be reopened. To ask again, file a new request.',
-      confirmLabel: 'Withdraw',
-      cancelLabel: 'Keep it',
-      danger: true,
+    final reason = TextEditingController();
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Withdraw this request?'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'The office stops working on ${request.referenceNumber} and it cannot be reopened. '
+              'To ask again, file a new request.',
+              style: AppTypography.helper,
+            ),
+            const SizedBox(height: AppSpacing.md),
+            // Optional, as on the website: the office sees it.
+            AppTextField(label: tr('Reason (optional)'), controller: reason, maxLines: 2, maxLength: 500),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: Text(tr('Keep it'))),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: AppColors.danger),
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Withdraw'),
+          ),
+        ],
+      ),
     );
-    if (!ok || !mounted) return;
+    final why = reason.text;
+    reason.dispose();
+    if (ok != true || !mounted) return;
     setState(() => _busy = true);
     try {
-      final updated = await service.withdraw(widget.requestId);
+      final updated = await service.withdraw(widget.requestId, reason: why);
       if (mounted) {
         setState(() => _latest = updated);
         AppDialogs.toast(context, '${request.referenceNumber} withdrawn.');
@@ -278,6 +310,7 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
       ServiceCategory.unknown => AppColors.slate600,
     };
     final usesMilestones = request.category != ServiceCategory.sakunaIncident;
+    final due = usesMilestones ? expectedRelease(request.submittedAt, service.processingDays(request.serviceKey)) : null;
 
     return ListView(
       padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.md, AppSpacing.lg, AppSpacing.xxxl),
@@ -303,7 +336,7 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
                   // service name from overflowing a narrow phone.
                   ConstrainedBox(
                     constraints: BoxConstraints(maxWidth: MediaQuery.sizeOf(context).width * 0.4),
-                    child: StatusChip.request(request.status),
+                    child: StatusChip.request(request.status, label: request.statusLabel),
                   ),
                 ],
               ),
@@ -330,12 +363,32 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
               ],
               const Divider(height: AppSpacing.xxl),
               _infoRow('Submitted', dateAndTime(request.submittedAt)),
+              // As the website works it out, from the service's processing time.
+              if (due != null) _infoRow(tr('Expected release'), shortDate(due)),
               if (!usesMilestones && request.adminRemarks != null) _infoRow('Admin remarks', request.adminRemarks!),
             ],
           ),
         ),
         // Noticeable, but only ever for a genuinely Rejected request that
         // actually has a reason on file.
+        // Cancelled: said plainly, as the website's Tulong page does. The
+        // reason itself is the timeline's "Reason for Cancellation" below.
+        if (usesMilestones && request.status == 'Cancelled') ...[
+          const SizedBox(height: AppSpacing.xl),
+          AppCard(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(tr('This request was cancelled'), style: AppTypography.cardHeading),
+                const SizedBox(height: AppSpacing.xs),
+                Text(
+                  request.adminRemarks != null ? 'The reason is shown under Status below.' : 'No reason was given.',
+                  style: AppTypography.helper,
+                ),
+              ],
+            ),
+          ),
+        ],
         if (request.status == 'Rejected' && request.adminRemarks != null) ...[
           const SizedBox(height: AppSpacing.xl),
           _RejectedApplicationCard(
@@ -391,6 +444,19 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
           const SizedBox(height: AppSpacing.xl),
           _FeeCard(payment: request.payment!),
         ],
+        if (request.workflow != null) ...[
+          const SizedBox(height: AppSpacing.xl),
+          RequestWorkflowCard(workflow: request.workflow!, accent: accent),
+        ],
+        // Where to claim it while the server sends no pickup details, as the
+        // website's fallback box does.
+        if (usesMilestones && request.pickup == null && request.office.isNotEmpty) ...[
+          const SizedBox(height: AppSpacing.xl),
+          WhereToClaimCard(
+            office: request.office,
+            barangay: context.read<CitizenSessionService>().account?.barangay ?? '',
+          ),
+        ],
         // To print, save or send, as on the website (parity, 2026-10-15).
         if (usesMilestones) ...[
           const SizedBox(height: AppSpacing.lg),
@@ -401,13 +467,13 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
               OutlinedButton.icon(
                 onPressed: () => _sheet(request, RequestSheet.slip),
                 icon: const Icon(Icons.print_outlined, size: 18),
-                label: const Text('Print request slip'),
+                label: Text(tr('Print request slip')),
               ),
               if (RequestSheets.noticeReady(request))
                 OutlinedButton.icon(
                   onPressed: () => _sheet(request, RequestSheet.notice),
                   icon: const Icon(Icons.task_alt_rounded, size: 18),
-                  label: const Text('Approval notice'),
+                  label: Text(tr('Approval notice')),
                 ),
             ],
           ),
@@ -429,7 +495,7 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
                 MaterialPageRoute(builder: (_) => BookAppointmentScreen(requestRef: request.referenceNumber)),
               ),
               icon: const Icon(Icons.event_available_outlined, size: 18),
-              label: const Text('Book a time to claim it'),
+              label: Text(tr('Book a time to claim it')),
             ),
           ),
         ],
@@ -606,9 +672,9 @@ class _CorrectionsSection extends StatelessWidget {
             children: [
               const Icon(Icons.warning_amber_rounded, size: 18, color: AppColors.orange700),
               const SizedBox(width: AppSpacing.sm),
-              const Expanded(
+              Expanded(
                 child: Text(
-                  'Application Needs Correction',
+                  tr('Application Needs Correction'),
                   style: TextStyle(fontSize: AppTextSize.body, fontWeight: FontWeight.w700, color: AppColors.orange700),
                 ),
               ),
@@ -672,7 +738,7 @@ class _CorrectionsSection extends StatelessWidget {
             ),
           const SizedBox(height: AppSpacing.lg),
           AppButton(
-            label: 'Resubmit Application',
+            label: tr('Resubmit Application'),
             icon: Icons.send_rounded,
             fullWidth: true,
             loading: busy,
@@ -1056,7 +1122,7 @@ class _FeeCard extends StatelessWidget {
               Icon(icon, size: 18, color: fg),
               const SizedBox(width: AppSpacing.sm),
               Expanded(
-                child: Text('Fee', style: TextStyle(fontSize: AppTextSize.body, fontWeight: FontWeight.w700, color: fg)),
+                child: Text(tr('Fee'), style: TextStyle(fontSize: AppTextSize.body, fontWeight: FontWeight.w700, color: fg)),
               ),
               Text(
                 pesoText(payment.amount.toStringAsFixed(2)) ?? '',
@@ -1268,7 +1334,7 @@ class _IncidentPhotos extends StatelessWidget {
                       padding: const EdgeInsets.all(AppSpacing.xs),
                       alignment: Alignment.center,
                       child: Text(
-                        'Being checked',
+                        tr('Being checked'),
                         textAlign: TextAlign.center,
                         style: AppTypography.captionSmallRegular.copyWith(color: AppColors.textMuted),
                       ),
@@ -1317,7 +1383,7 @@ class _ReleaseProofCard extends StatelessWidget {
       await Navigator.of(context).push(
         MaterialPageRoute(
           builder: (_) => ImageViewerScaffold(
-            title: 'Proof of release',
+            title: tr('Proof of release'),
             image: NetworkImage(url),
             semanticLabel: 'Proof of release photo',
           ),
@@ -1342,8 +1408,8 @@ class _ReleaseProofCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  'Proof of release',
+                Text(
+                  tr('Proof of release'),
                   style: TextStyle(fontSize: AppTextSize.body, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
                 ),
                 const SizedBox(height: 2),
@@ -1351,7 +1417,7 @@ class _ReleaseProofCard extends StatelessWidget {
               ],
             ),
           ),
-          TextButton(onPressed: () => _open(context), child: const Text('View')),
+          TextButton(onPressed: () => _open(context), child: Text(tr('View'))),
         ],
       ),
     );

@@ -15,6 +15,7 @@ import 'comments_sheet.dart';
 import 'post_image_viewer.dart';
 import '../../theme/app_typography.dart';
 
+import '../../l10n/tr.dart';
 /// A single Balita feed post — header (avatar/author/verified badge/
 /// barangay/timestamp), body text, optional image, an engagement summary
 /// row, and a Like / Comment / Share action row. Real data and real
@@ -114,7 +115,7 @@ class PostCard extends StatelessWidget {
                 Expanded(
                   child: PostActionButton(
                     icon: post.likedByMe == true ? Icons.favorite_rounded : Icons.favorite_border_rounded,
-                    label: 'Like',
+                    label: tr('Like'),
                     color: post.likedByMe == true ? AppColors.rose500 : AppColors.slate500,
                     onTap: () =>
                         requireAccountForBalita(context, 'Reacting to Balita posts', () => _like(context, balita)),
@@ -123,7 +124,7 @@ class PostCard extends StatelessWidget {
                 Expanded(
                   child: PostActionButton(
                     icon: Icons.mode_comment_outlined,
-                    label: 'Comment',
+                    label: tr('Comment'),
                     color: AppColors.slate500,
                     onTap: () => requireAccountForBalita(
                       context,
@@ -135,13 +136,9 @@ class PostCard extends StatelessWidget {
                 Expanded(
                   child: PostActionButton(
                     icon: Icons.share_outlined,
-                    label: 'Share',
+                    label: tr('Share'),
                     color: AppColors.slate500,
-                    onTap: () => requireAccountForBalita(
-                      context,
-                      'Sharing Balita posts',
-                      () => BalitaShareSheet.show(context, post),
-                    ),
+                    onTap: () => BalitaShareSheet.show(context, post),
                   ),
                 ),
               ],
@@ -361,8 +358,8 @@ class _PostEventRow extends StatelessWidget {
                       style: const TextStyle(fontSize: AppTextSize.helper, fontWeight: FontWeight.w600),
                     ),
                     const SizedBox(height: 2),
-                    const Text(
-                      'See the event and set a reminder',
+                    Text(
+                      tr('See the event and set a reminder'),
                       style: TextStyle(fontSize: AppTextSize.fine, color: AppColors.brand600),
                     ),
                   ],

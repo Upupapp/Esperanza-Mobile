@@ -6,6 +6,7 @@ import '../theme/app_spacing.dart';
 import '../theme/app_typography.dart';
 import '../utils/ambient_motion.dart';
 
+import '../l10n/tr.dart';
 /// The birthday pop-up over Home, after the owner's design (canvas "Balita
 /// Birthday Theme", artboard "Birthday pop-up (login / after splash)",
 /// 2026-10-16): a cake with lit candles, confetti falling over the page, and
@@ -291,7 +292,7 @@ class _BirthdayPopupState extends State<BirthdayPopup> with TickerProviderStateM
                       right: AppSpacing.sm,
                       child: IconButton(
                         onPressed: _close,
-                        tooltip: 'Close',
+                        tooltip: tr('Close'),
                         constraints: const BoxConstraints.tightFor(
                           width: AppSizes.minTouchTarget,
                           height: AppSizes.minTouchTarget,

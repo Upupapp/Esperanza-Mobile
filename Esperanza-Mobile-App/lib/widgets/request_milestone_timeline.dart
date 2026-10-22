@@ -87,7 +87,7 @@ class RequestMilestoneTimeline extends StatelessWidget {
             const SizedBox(height: AppSpacing.md),
             _RejectionReasonCard(
               reason: request.adminRemarks!,
-              title: isCancelledCase ? 'Reason for Cancellation' : 'Reason for Rejection',
+              title: request.status == TulongStatus.cancelled ? 'Reason for Cancellation' : 'Reason for Rejection',
             ),
           ],
         ],

@@ -7,6 +7,7 @@ import '../../../widgets/app_date_field.dart';
 import '../../../widgets/app_text_field.dart';
 import '../../../theme/app_typography.dart';
 
+import '../../../l10n/tr.dart';
 /// Add/edit sheet for one family member. Deliberately lighter than the
 /// citizen's own Personal Information step (Section 4: "Full Name" as one
 /// field, not first/middle/last) — children, seniors, and residents
@@ -122,10 +123,10 @@ class _FamilyMemberFormSheetState extends State<FamilyMemberFormSheet> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        AppTextField(label: 'Full name', controller: _fullName, icon: Icons.person_outline_rounded),
+                        AppTextField(label: tr('Full name'), controller: _fullName, icon: Icons.person_outline_rounded),
                         const SizedBox(height: AppSpacing.fieldGap),
                         AppSelectField<String>(
-                          label: 'Relationship to you',
+                          label: tr('Relationship to you'),
                           value: _relationship,
                           options: ResidentProfileOptions.relationshipToHead,
                           labelBuilder: (v) => v,
@@ -136,7 +137,7 @@ class _FamilyMemberFormSheetState extends State<FamilyMemberFormSheet> {
                           children: [
                             Expanded(
                               child: AppSelectField<String>(
-                                label: 'Sex',
+                                label: tr('Sex'),
                                 value: _sex,
                                 options: ResidentProfileOptions.sex,
                                 labelBuilder: (v) => v,
@@ -146,7 +147,7 @@ class _FamilyMemberFormSheetState extends State<FamilyMemberFormSheet> {
                             const SizedBox(width: AppSpacing.md),
                             Expanded(
                               child: AppDateField(
-                                label: 'Birthdate',
+                                label: tr('Birthdate'),
                                 value: _birthdate,
                                 onChanged: (d) => setState(() => _birthdate = d),
                               ),
@@ -155,14 +156,14 @@ class _FamilyMemberFormSheetState extends State<FamilyMemberFormSheet> {
                         ),
                         const SizedBox(height: AppSpacing.fieldGap),
                         AppSelectField<String>(
-                          label: 'Civil status',
+                          label: tr('Civil status'),
                           value: _civilStatus,
                           options: ResidentProfileOptions.civilStatus,
                           labelBuilder: (v) => v,
                           onChanged: (v) => setState(() => _civilStatus = v),
                         ),
                         const SizedBox(height: AppSpacing.fieldGap),
-                        AppTextField(label: 'Occupation', controller: _occupation, icon: Icons.work_outline_rounded),
+                        AppTextField(label: tr('Occupation'), controller: _occupation, icon: Icons.work_outline_rounded),
                         const SizedBox(height: AppSpacing.fieldGap),
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.xs),

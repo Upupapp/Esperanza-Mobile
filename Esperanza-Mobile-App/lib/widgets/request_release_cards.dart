@@ -12,6 +12,7 @@ import 'app_card.dart';
 import 'app_dialogs.dart';
 import 'image_viewer_scaffold.dart';
 
+import '../l10n/tr.dart';
 /// Where and how to claim a request that is ready (owner, 2026-10-15): the
 /// office, its contact and hours, what to bring, and a fee still to pay.
 class PickupCard extends StatelessWidget {
@@ -48,7 +49,7 @@ class PickupCard extends StatelessWidget {
             children: [
               Icon(Icons.storefront_outlined, size: AppSizes.iconBase, color: accent),
               const SizedBox(width: AppSpacing.sm),
-              const Expanded(child: Text('Ready to claim', style: AppTypography.cardHeading)),
+              Expanded(child: Text(tr('Ready to claim'), style: AppTypography.cardHeading)),
             ],
           ),
           if (pickup.readySince != null) ...[
@@ -56,13 +57,13 @@ class PickupCard extends StatelessWidget {
             Text('Ready since ${shortDate(pickup.readySince!)}', style: AppTypography.helper),
           ],
           const SizedBox(height: AppSpacing.headingGap),
-          _Line(label: 'Where', value: pickup.office ?? 'The office handling your request'),
-          if (pickup.officeHours != null) _Line(label: 'Hours', value: pickup.officeHours!),
+          _Line(label: tr('Where'), value: pickup.office ?? 'The office handling your request'),
+          if (pickup.officeHours != null) _Line(label: tr('Hours'), value: pickup.officeHours!),
           if (pickup.officeContact != null)
             _Line(label: 'Contact', value: pickup.officeContact!, onTap: () => _call(context, pickup.officeContact!)),
           if (pickup.bring.isNotEmpty) ...[
             const SizedBox(height: AppSpacing.sm),
-            const Text('Bring', style: AppTypography.labelText),
+            Text(tr('Bring'), style: AppTypography.labelText),
             const SizedBox(height: AppSpacing.xs),
             for (final key in pickup.bring)
               Padding(
@@ -284,7 +285,7 @@ class _IssuedDocument extends StatelessWidget {
               FilledButton.tonalIcon(
                 onPressed: () => _open(context, d.scanUrl!, image: !d.isPdf),
                 icon: const Icon(Icons.description_outlined, size: AppSizes.iconSm),
-                label: const Text('View signed copy'),
+                label: Text(tr('View signed copy')),
               ),
             if (!d.revoked && d.verifyUrl != null)
               TextButton.icon(
@@ -295,8 +296,8 @@ class _IssuedDocument extends StatelessWidget {
           ],
         ),
         if (!d.revoked && !d.hasScan)
-          const Text(
-            'The office has not attached a signed copy yet. The paper copy you claim is the official document.',
+          Text(
+            tr('The office has not attached a signed copy yet. The paper copy you claim is the official document.'),
             style: AppTypography.helper,
           ),
       ],

@@ -14,6 +14,7 @@ import '../../widgets/empty_state.dart';
 import '../home/root_shell.dart';
 import 'post_card.dart';
 
+import '../../l10n/tr.dart';
 /// Balita ("news" in Filipino) — the LGU's announcements, real now
 /// (production-readiness programme, 2026-09-25). Mirrors
 /// citizen/announcements.blade.php in intent. Residents read, react,
@@ -86,7 +87,7 @@ class _FeedState extends State<_Feed> {
     try {
       await balita.loadMore();
     } on ApiException {
-      if (mounted) AppDialogs.toast(context, 'Could not load more posts.', success: false);
+      if (mounted) AppDialogs.toast(context, tr('Could not load more posts.'), success: false);
     }
   }
 
@@ -107,7 +108,7 @@ class _FeedState extends State<_Feed> {
           decoration: const BoxDecoration(border: Border(bottom: BorderSide(color: AppColors.slate200))),
           child: Row(
             children: [
-              _FeedTab(label: 'All', selected: tab == 0, onTap: () => setState(() => _tab = 0)),
+              _FeedTab(label: tr('All'), selected: tab == 0, onTap: () => setState(() => _tab = 0)),
               if (hasBarangay) _FeedTab(label: 'Barangay', selected: tab == 1, onTap: () => setState(() => _tab = 1)),
               const Spacer(),
               TextButton.icon(
@@ -189,9 +190,9 @@ class _FeedState extends State<_Feed> {
           i -= 1;
           if (posts.isEmpty) {
             if (i == 0) {
-              return const EmptyState(
+              return EmptyState(
                 icon: Icons.campaign_outlined,
-                title: 'No Balita posts here yet.',
+                title: tr('No Balita posts here yet.'),
                 description: 'Check back soon for updates from Esperanza LGU.',
               );
             }

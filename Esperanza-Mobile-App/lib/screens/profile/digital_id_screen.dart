@@ -29,6 +29,7 @@ import '../../widgets/image_viewer_scaffold.dart';
 import '../../widgets/status_chip.dart';
 import '../../widgets/wallet_id_card.dart';
 
+import '../../l10n/tr.dart';
 /// The Unified Digital ID Wallet (owner decisions, 2026-10-13), from
 /// GET /citizen/wallet, laid out after the owner's designs (2026-10-13,
 /// "Esperanza Digital ID" canvas; 2026-10-15, "Resident ID Redesign"):
@@ -70,7 +71,7 @@ class DigitalIdScreen extends StatelessWidget {
                   child: SizedBox.square(
                     dimension: 48,
                     child: IconButton(
-                      tooltip: 'Back',
+                      tooltip: tr('Back'),
                       onPressed: () => Navigator.of(context).maybePop(),
                       style: IconButton.styleFrom(
                         backgroundColor: AppColors.surface,
@@ -196,7 +197,7 @@ class _WalletViewState extends State<_WalletView> {
                     style: AppTypography.helper,
                   ),
                   const SizedBox(height: AppSpacing.lg),
-                  OutlinedButton(onPressed: _reload, child: const Text('Try Again')),
+                  OutlinedButton(onPressed: _reload, child: Text(tr('Try Again'))),
                 ],
               ),
             ),
@@ -368,7 +369,7 @@ class _InactiveCardBody extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   if (name != null && name.isNotEmpty) ...[
-                    _fieldLabel('NAME'),
+                    _fieldLabel(tr('NAME')),
                     const SizedBox(height: 2),
                     Text(name, style: AppTypography.sectionTitle.copyWith(height: 1.15)),
                     const SizedBox(height: 10),
@@ -1107,12 +1108,12 @@ class _MyIds extends StatelessWidget {
         Row(
           children: [
             Expanded(
-              child: Text('My IDs', style: AppTypography.sectionTitle.copyWith(fontWeight: FontWeight.w800)),
+              child: Text(tr('My IDs'), style: AppTypography.sectionTitle.copyWith(fontWeight: FontWeight.w800)),
             ),
             OutlinedButton.icon(
               onPressed: onAdd,
               icon: const Icon(Icons.add_rounded, size: 18),
-              label: const Text('Add ID'),
+              label: Text(tr('Add ID')),
               style: OutlinedButton.styleFrom(
                 minimumSize: const Size(0, AppSizes.minTouchTarget),
                 padding: const EdgeInsets.symmetric(horizontal: 18),
@@ -1186,7 +1187,7 @@ class _EmptyDeck extends StatelessWidget {
             child: const Icon(Icons.credit_card_rounded, size: 26, color: AppColors.navy800),
           ),
           const SizedBox(height: AppSpacing.md),
-          Text('No IDs added yet', style: AppTypography.cardHeading.copyWith(fontWeight: FontWeight.w800)),
+          Text(tr('No IDs added yet'), style: AppTypography.cardHeading.copyWith(fontWeight: FontWeight.w800)),
           const SizedBox(height: AppSpacing.sm),
           Text(
             'Add your PhilSys National ID, PhilHealth, SSS, driver\'s license or any other ID to keep a copy here.',
@@ -1599,23 +1600,23 @@ class _CornerBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     return switch (status) {
       WalletDocumentStatus.verifiedByLgu => const _HoloSeal(key: ValueKey('verified-seal'), size: 62),
-      WalletDocumentStatus.returnedByLgu => const _Pill(
-        label: 'Returned',
+      WalletDocumentStatus.returnedByLgu => _Pill(
+        label: tr('Returned'),
         icon: Icons.undo_rounded,
         foreground: AppColors.rose700,
         background: AppColors.rose50,
         border: AppColors.rose500,
       ),
-      WalletDocumentStatus.uploadedNotChecked => const _Pill(
-        label: 'Not checked',
+      WalletDocumentStatus.uploadedNotChecked => _Pill(
+        label: tr('Not checked'),
         icon: Icons.arrow_upward_rounded,
         foreground: AppColors.amber700,
         background: AppColors.amber50,
         border: AppColors.gold200,
       ),
       // Didit's check, not the LGU's: a plain mark, never the seal.
-      WalletDocumentStatus.checkedByDidit => const _Pill(
-        label: 'Checked',
+      WalletDocumentStatus.checkedByDidit => _Pill(
+        label: tr('Checked'),
         icon: Icons.verified_outlined,
         foreground: AppColors.sky700,
         background: AppColors.sky50,
@@ -1666,7 +1667,7 @@ class _HoloSealState extends State<_HoloSeal> with SingleTickerProviderStateMixi
   Widget build(BuildContext context) {
     final s = widget.size;
     return Semantics(
-      label: 'Esperanza seal: verified by the LGU',
+      label: tr('Esperanza seal: verified by the LGU'),
       child: Opacity(
         opacity: 0.8,
         child: Container(
@@ -1839,12 +1840,12 @@ class _IdViewerState extends State<_IdViewer> with SingleTickerProviderStateMixi
                 children: [
                   _ViewerButton(
                     icon: Icons.close_rounded,
-                    label: 'Close',
+                    label: tr('Close'),
                     onPressed: () => Navigator.of(context).pop(false),
                   ),
                   _ViewerButton(
                     icon: Icons.info_outline_rounded,
-                    label: 'Details',
+                    label: tr('Details'),
                     onPressed: () => Navigator.of(context).pop(true),
                   ),
                 ],
@@ -1913,7 +1914,7 @@ class _WhereThingsStand extends StatelessWidget {
     final rid = wallet.residentId;
 
     final identityStep = _Step(
-      title: 'Identity',
+      title: tr('Identity'),
       color: idStatus?.foreground ?? AppColors.slate500,
       icon: switch (idStatus) {
         IdentityStatus.verified => Icons.check_rounded,
@@ -1922,7 +1923,7 @@ class _WhereThingsStand extends StatelessWidget {
         _ => Icons.schedule_rounded,
       },
       pill: idStatus == null
-          ? const _Pill(label: 'Not started', foreground: AppColors.slate600, background: AppColors.slate100)
+          ? _Pill(label: tr('Not started'), foreground: AppColors.slate600, background: AppColors.slate100)
           : _Pill(label: idStatus.label, foreground: idStatus.foreground, background: idStatus.background),
       lines: [
         ?identity.sourceLabel,
@@ -1935,7 +1936,7 @@ class _WhereThingsStand extends StatelessWidget {
     );
 
     final residencyStep = _Step(
-      title: 'Residency',
+      title: tr('Residency'),
       color: switch (residency) {
         AppStatus.approved => AppColors.emerald700,
         AppStatus.rejected => AppColors.rose700,
@@ -1970,14 +1971,14 @@ class _WhereThingsStand extends StatelessWidget {
         _ => Icons.badge_outlined,
       },
       pill: switch (rid.state) {
-        ResidentIdState.active => const _Pill(label: 'Active', foreground: Colors.white, background: AppColors.navy900),
-        ResidentIdState.suspended => const _Pill(
-          label: 'Suspended',
+        ResidentIdState.active => _Pill(label: tr('Active'), foreground: Colors.white, background: AppColors.navy900),
+        ResidentIdState.suspended => _Pill(
+          label: tr('Suspended'),
           foreground: AppColors.rose700,
           background: AppColors.rose50,
         ),
-        ResidentIdState.notIssued => const _Pill(
-          label: 'Not issued yet',
+        ResidentIdState.notIssued => _Pill(
+          label: tr('Not issued yet'),
           foreground: AppColors.amber700,
           background: AppColors.amber50,
         ),
@@ -2003,7 +2004,7 @@ class _WhereThingsStand extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Where things stand',
+            tr('Where things stand'),
             style: AppTypography.sectionTitle.copyWith(fontWeight: FontWeight.w800),
           ),
           const SizedBox(height: AppSpacing.lg),
@@ -2290,7 +2291,7 @@ class _WalletIdDetailScreenState extends State<_WalletIdDetailScreen> {
       context,
       title: 'Remove this ID?',
       message: 'It leaves your wallet. The LGU keeps its record of the upload, as with every document you send.',
-      confirmLabel: 'Remove',
+      confirmLabel: tr('Remove'),
       danger: true,
     );
     if (!ok || !mounted) return;
@@ -2334,16 +2335,16 @@ class _WalletIdDetailScreenState extends State<_WalletIdDetailScreen> {
         padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.md, AppSpacing.lg, AppSpacing.xxxl),
         children: [
           _SideImage(
-            label: 'Front',
+            label: tr('Front'),
             url: d.frontUrl,
-            onView: d.frontUrl == null ? null : () => _view('Front', d.frontUrl!),
+            onView: d.frontUrl == null ? null : () => _view(tr('Front'), d.frontUrl!),
           ),
           const SizedBox(height: AppSpacing.md),
           if (d.hasBack)
             _SideImage(
-              label: 'Back',
+              label: tr('Back'),
               url: d.backUrl,
-              onView: d.backUrl == null ? null : () => _view('Back', d.backUrl!),
+              onView: d.backUrl == null ? null : () => _view(tr('Back'), d.backUrl!),
             )
           else
             const Text('No back side added.', style: AppTypography.helper),
@@ -2353,16 +2354,16 @@ class _WalletIdDetailScreenState extends State<_WalletIdDetailScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 _Field('ID', d.name),
-                _Field('Issued by', d.issuer ?? 'Not given'),
+                _Field(tr('Issued by'), d.issuer ?? 'Not given'),
                 _Field(WalletIdDesign.of(d.idKind).numberLabel, d.shownNumber ?? 'Not entered'),
-                _Field('Name', d.details.holderName ?? 'Not entered'),
+                _Field(tr('Name'), d.details.holderName ?? 'Not entered'),
                 for (final key in {...WalletIdDesign.of(d.idKind).front, ...WalletIdDesign.of(d.idKind).back})
                   if (fieldValue(key, d) case final v?) _Field(fieldLabel(key), v),
-                if (d.expiresOn == null) const _Field('Valid until', 'No expiry date given'),
-                if (d.uploadedAt != null) _Field('Added', _date(d.uploadedAt!.toLocal())),
+                if (d.expiresOn == null) _Field(tr('Valid until'), 'No expiry date given'),
+                if (d.uploadedAt != null) _Field(tr('Added'), _date(d.uploadedAt!.toLocal())),
                 const SizedBox(height: AppSpacing.sm),
                 AppButton(
-                  label: 'Edit details',
+                  label: tr('Edit details'),
                   icon: Icons.edit_outlined,
                   variant: AppButtonVariant.secondary,
                   size: AppButtonSize.sm,
@@ -2376,10 +2377,10 @@ class _WalletIdDetailScreenState extends State<_WalletIdDetailScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('Checks on this ID', style: AppTypography.cardHeading),
+                Text(tr('Checks on this ID'), style: AppTypography.cardHeading),
                 const SizedBox(height: AppSpacing.md),
                 _StatusRow(
-                  title: 'This upload',
+                  title: tr('This upload'),
                   status: _DocumentStatusChip(status: d.status),
                   details: [
                     if (d.status == WalletDocumentStatus.verifiedByLgu)
@@ -2395,16 +2396,16 @@ class _WalletIdDetailScreenState extends State<_WalletIdDetailScreen> {
                 ),
                 const Divider(height: AppSpacing.xl),
                 _StatusRow(
-                  title: 'Didit check',
+                  title: tr('Didit check'),
                   status: d.checkedAt != null
-                      ? const _PlainChip(
-                          label: 'Checked',
+                      ? _PlainChip(
+                          label: tr('Checked'),
                           icon: Icons.verified_outlined,
                           foreground: AppColors.sky700,
                           background: AppColors.sky50,
                         )
-                      : const _PlainChip(
-                          label: 'Not checked',
+                      : _PlainChip(
+                          label: tr('Not checked'),
                           foreground: AppColors.slate600,
                           background: AppColors.slate100,
                         ),
@@ -2419,10 +2420,10 @@ class _WalletIdDetailScreenState extends State<_WalletIdDetailScreen> {
                   ],
                 ),
                 const Divider(height: AppSpacing.xl),
-                const _StatusRow(
-                  title: 'Issuing agency',
+                _StatusRow(
+                  title: tr('Issuing agency'),
                   status: _PlainChip(
-                    label: 'Not available',
+                    label: tr('Not available'),
                     foreground: AppColors.slate600,
                     background: AppColors.slate100,
                   ),
@@ -2433,7 +2434,7 @@ class _WalletIdDetailScreenState extends State<_WalletIdDetailScreen> {
           ),
           const SizedBox(height: AppSpacing.xl),
           AppButton(
-            label: 'Replace',
+            label: tr('Replace'),
             icon: Icons.sync_rounded,
             variant: AppButtonVariant.secondary,
             fullWidth: true,
@@ -2441,7 +2442,7 @@ class _WalletIdDetailScreenState extends State<_WalletIdDetailScreen> {
           ),
           const SizedBox(height: AppSpacing.md),
           AppButton(
-            label: 'Remove from wallet',
+            label: tr('Remove from wallet'),
             icon: Icons.delete_outline_rounded,
             variant: AppButtonVariant.danger,
             fullWidth: true,
@@ -2466,7 +2467,7 @@ class _SideImage extends StatelessWidget {
     final missing = Container(
       color: AppColors.slate100,
       alignment: Alignment.center,
-      child: const Text('This image cannot be shown right now.', style: AppTypography.helper),
+      child: Text(tr('This image cannot be shown right now.'), style: AppTypography.helper),
     );
     final waiting = Container(color: AppColors.slate100);
     final failed = Container(
@@ -2649,7 +2650,7 @@ class _AddWalletIdScreenState extends State<AddWalletIdScreen> {
           Navigator.of(context).pop(true);
         case WalletScanOutcome.pending:
           messenger.showSnackBar(
-            const SnackBar(content: Text('Didit is still checking your ID. It appears in your wallet when it is done.')),
+            SnackBar(content: Text(tr('Didit is still checking your ID. It appears in your wallet when it is done.'))),
           );
           Navigator.of(context).pop(true);
         case WalletScanOutcome.cancelled:
@@ -2764,12 +2765,12 @@ class _AddWalletIdScreenState extends State<AddWalletIdScreen> {
             const SizedBox(height: AppSpacing.lg),
           ],
           AppSelectField<WalletIdType>(
-            label: 'Type of ID',
+            label: tr('Type of ID'),
             required: true,
             value: _type,
             options: widget.types,
             labelBuilder: (t) => t.name,
-            hintText: 'Choose the type of ID',
+            hintText: tr('Choose the type of ID'),
             onChanged: replacing != null
                 ? (_) {}
                 : (t) {
@@ -2788,21 +2789,21 @@ class _AddWalletIdScreenState extends State<AddWalletIdScreen> {
           if (_isOther) ...[
             const SizedBox(height: AppSpacing.fieldGap),
             AppTextField(
-              label: 'Name of the ID',
+              label: tr('Name of the ID'),
               required: true,
               controller: _name,
               maxLength: 80,
-              hintText: 'e.g. Barangay Health Worker ID',
+              hintText: tr('e.g. Barangay Health Worker ID'),
               error: _tried && _name.text.trim().isEmpty ? 'Enter the name of the ID.' : null,
               onChanged: (_) => setState(() {}),
             ),
             const SizedBox(height: AppSpacing.fieldGap),
             AppTextField(
-              label: 'Issued by',
+              label: tr('Issued by'),
               required: true,
               controller: _issuer,
               maxLength: 120,
-              hintText: 'The office or organization that issued it',
+              hintText: tr('The office or organization that issued it'),
               error: _tried && _issuer.text.trim().isEmpty ? 'Enter who issued the ID.' : null,
               onChanged: (_) => setState(() {}),
             ),
@@ -2813,11 +2814,11 @@ class _AddWalletIdScreenState extends State<AddWalletIdScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Row(
+                  Row(
                     children: [
                       Icon(Icons.verified_outlined, size: AppSizes.iconBase, color: AppColors.sky700),
                       SizedBox(width: AppSpacing.sm),
-                      Expanded(child: Text('Scan it with Didit', style: AppTypography.cardHeading)),
+                      Expanded(child: Text(tr('Scan it with Didit'), style: AppTypography.cardHeading)),
                     ],
                   ),
                   const SizedBox(height: AppSpacing.xs),
@@ -2835,7 +2836,7 @@ class _AddWalletIdScreenState extends State<AddWalletIdScreen> {
             ],
             const SizedBox(height: AppSpacing.xl),
             AppButton(
-              label: 'Scan with Didit',
+              label: tr('Scan with Didit'),
               icon: Icons.document_scanner_outlined,
               fullWidth: true,
               loading: _sending,
@@ -2843,7 +2844,7 @@ class _AddWalletIdScreenState extends State<AddWalletIdScreen> {
             ),
             const SizedBox(height: AppSpacing.md),
             AppButton(
-              label: 'Upload photos instead',
+              label: tr('Upload photos instead'),
               variant: AppButtonVariant.ghost,
               fullWidth: true,
               onPressed: _sending
@@ -2856,7 +2857,7 @@ class _AddWalletIdScreenState extends State<AddWalletIdScreen> {
           ] else ...[
           const SizedBox(height: AppSpacing.lg),
           _ImageSlot(
-            title: 'Front',
+            title: tr('Front'),
             required: true,
             image: _front,
             missing: _tried && _front == null,
@@ -2869,7 +2870,7 @@ class _AddWalletIdScreenState extends State<AddWalletIdScreen> {
           ),
           const SizedBox(height: AppSpacing.lg),
           _ImageSlot(
-            title: 'Back',
+            title: tr('Back'),
             image: _back,
             onPick: (source) => _pick(front: false, source: source),
             onRemove: () => setState(() {
@@ -2884,7 +2885,7 @@ class _AddWalletIdScreenState extends State<AddWalletIdScreen> {
           ),
           if (_type != null) ...[
             const SizedBox(height: AppSpacing.sectionGap),
-            const Text('What the ID says', style: AppTypography.cardHeading),
+            Text(tr('What the ID says'), style: AppTypography.cardHeading),
             const SizedBox(height: AppSpacing.xs),
             Text(
               _reading
@@ -3021,16 +3022,16 @@ class _DetailFields extends StatelessWidget {
           label: kind == 'other' ? 'ID number' : 'ID number (${design.numberLabel})',
           controller: c.number,
           maxLength: 40,
-          hintText: 'As printed on the ID',
+          hintText: tr('As printed on the ID'),
           onChanged: (_) => onChanged(),
         ),
         const SizedBox(height: AppSpacing.fieldGap),
-        AppTextField(label: 'Name as printed', controller: c.name, maxLength: 160, onChanged: (_) => onChanged()),
+        AppTextField(label: tr('Name as printed'), controller: c.name, maxLength: 160, onChanged: (_) => onChanged()),
         const SizedBox(height: AppSpacing.fieldGap),
         AppDateField(
-          label: 'Date of birth',
+          label: tr('Date of birth'),
           value: c.birthdate,
-          hintText: 'Not entered',
+          hintText: tr('Not entered'),
           firstDate: DateTime(1900),
           lastDate: DateTime.now(),
           onChanged: (d) {
@@ -3041,11 +3042,11 @@ class _DetailFields extends StatelessWidget {
         if (usesSex) ...[
           const SizedBox(height: AppSpacing.fieldGap),
           AppSelectField<String>(
-            label: 'Sex',
+            label: tr('Sex'),
             value: c.sex,
             options: const ['Male', 'Female'],
             labelBuilder: (s) => s,
-            hintText: 'Not entered',
+            hintText: tr('Not entered'),
             onChanged: (s) {
               c.sex = s;
               onChanged();
@@ -3054,7 +3055,7 @@ class _DetailFields extends StatelessWidget {
         ],
         const SizedBox(height: AppSpacing.fieldGap),
         AppTextField(
-          label: 'Address',
+          label: tr('Address'),
           controller: c.address,
           maxLength: 255,
           maxLines: 2,
@@ -3062,7 +3063,7 @@ class _DetailFields extends StatelessWidget {
         ),
         const SizedBox(height: AppSpacing.fieldGap),
         AppDateField(
-          label: 'Valid until (if printed on the ID)',
+          label: tr('Valid until (if printed on the ID)'),
           value: expires,
           hintText: 'No expiry date',
           firstDate: DateTime(2000),
@@ -3140,7 +3141,7 @@ class _EditIdDetailsScreenState extends State<_EditIdDetailsScreen> {
   Widget build(BuildContext context) {
     final d = widget.document;
     return Scaffold(
-      appBar: AppBar(title: const Text('Edit details')),
+      appBar: AppBar(title: Text(tr('Edit details'))),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.md, AppSpacing.lg, AppSpacing.xxxl),
         children: [
@@ -3148,7 +3149,7 @@ class _EditIdDetailsScreenState extends State<_EditIdDetailsScreen> {
           if (d.status == WalletDocumentStatus.verifiedByLgu || d.status == WalletDocumentStatus.returnedByLgu) ...[
             const SizedBox(height: AppSpacing.sm),
             Text(
-              'Saving a change sends this ID back to the LGU for review.',
+              tr('Saving a change sends this ID back to the LGU for review.'),
               style: AppTypography.helper.copyWith(color: AppColors.amber700),
             ),
           ],
@@ -3172,7 +3173,7 @@ class _EditIdDetailsScreenState extends State<_EditIdDetailsScreen> {
             Text(_error!, style: AppTypography.helper.copyWith(color: AppColors.rose700)),
           ],
           const SizedBox(height: AppSpacing.xl),
-          AppButton(label: 'Save', fullWidth: true, loading: _saving, onPressed: _save),
+          AppButton(label: tr('Save'), fullWidth: true, loading: _saving, onPressed: _save),
         ],
       ),
     );
@@ -3254,7 +3255,7 @@ class _ImageSlot extends StatelessWidget {
               ),
               if (img != null)
                 AppButton(
-                  label: 'Remove',
+                  label: tr('Remove'),
                   icon: Icons.close_rounded,
                   size: AppButtonSize.sm,
                   variant: AppButtonVariant.ghost,

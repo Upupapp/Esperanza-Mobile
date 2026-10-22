@@ -27,6 +27,7 @@ import '../../theme/app_typography.dart';
 import '../../utils/date_text.dart';
 import '../../widgets/esperanza_art.dart';
 
+import '../../l10n/tr.dart';
 // This screen's own FAB-clearance constants — not navbar geometry. Pair
 // with `MediaQuery.paddingOf(context).bottom`, which RootShell's
 // `extendBody: true` keeps in sync with whatever the bottom nav bar
@@ -452,7 +453,7 @@ class _RequestTile extends StatelessWidget {
                 // name from overflowing a narrow card.
                 ConstrainedBox(
                   constraints: BoxConstraints(maxWidth: MediaQuery.sizeOf(context).width * 0.4),
-                  child: StatusChip.request(request.status, small: true),
+                  child: StatusChip.request(request.status, small: true, label: request.statusLabel),
                 ),
               ],
             ),
@@ -494,7 +495,7 @@ class _RequestTile extends StatelessWidget {
                 Row(
                   children: [
                     Text(
-                      'Track',
+                      tr('Track'),
                       style: TextStyle(fontSize: AppTextSize.label, fontWeight: FontWeight.w600, color: accent),
                     ),
                     Icon(Icons.chevron_right_rounded, size: 15, color: accent),

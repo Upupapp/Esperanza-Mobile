@@ -12,6 +12,7 @@ import '../../../widgets/form_section.dart';
 import '../../../widgets/resident_profile_lock_note.dart';
 import '../../../theme/app_typography.dart';
 
+import '../../../l10n/tr.dart';
 /// Step 3 — Household Information, as the website's Household tab: only
 /// what the barangay keeps (PUT /citizen/resident-profile `household`). "Number of People" / "Number of Families" are shown as
 /// read-only summaries derived from Family Information rather than
@@ -124,8 +125,8 @@ class _HouseholdInformationScreenState extends State<HouseholdInformationScreen>
                   FormSection(
                     title: 'Location',
                     children: [
-                      AppTextField(label: 'Sitio / Purok of the house', controller: _sitioPurok, icon: Icons.place_outlined),
-                      AppTextField(label: 'Complete address', controller: _completeAddress, maxLines: 2),
+                      AppTextField(label: tr('Sitio / Purok of the house'), controller: _sitioPurok, icon: Icons.place_outlined),
+                      AppTextField(label: tr('Complete address'), controller: _completeAddress, maxLines: 2),
                     ],
                   ),
                   const SizedBox(height: AppSpacing.lg),

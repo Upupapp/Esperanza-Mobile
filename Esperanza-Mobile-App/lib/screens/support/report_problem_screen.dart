@@ -16,6 +16,7 @@ import '../../services/support_service.dart';
 import '../../services/api_client.dart';
 import '../../services/requests_service.dart';
 
+import '../../l10n/tr.dart';
 const _categories = SupportService.categories;
 
 /// A simple "report a problem" form reachable from Suporta.
@@ -101,6 +102,22 @@ class _ReportProblemScreenState extends State<ReportProblemScreen> {
     });
   }
 
+  /// A PDF instead of a photo, as the website's form takes either.
+  Future<void> _pickPdf() async {
+    final result = await pickDocumentProtected(
+      context,
+      allowedExtensions: const ['pdf'],
+      explanation: 'Choose a PDF to attach to your report. Esperanza only reads the file you pick.',
+    );
+    final file = result?.files.singleOrNull;
+    if (file == null || file.path == null || !mounted) return;
+    setState(() {
+      _screenshotBytes = file.bytes ?? Uint8List(0);
+      _screenshotName = file.name;
+      _screenshotPath = file.path;
+    });
+  }
+
   Future<void> _submit() async {
     if (_subject.text.trim().isEmpty || _description.text.trim().isEmpty) {
       setState(() => _error = 'Please fill in both the subject and description.');
@@ -154,7 +171,7 @@ class _ReportProblemScreenState extends State<ReportProblemScreen> {
       children: [
         AppSelectField<String>(
           key: ValueKey('related-request-${refs.length}'),
-          label: 'Related request (optional)',
+          label: tr('Related request (optional)'),
           value: _requestRef,
           options: refs,
           labelBuilder: label,
@@ -162,7 +179,7 @@ class _ReportProblemScreenState extends State<ReportProblemScreen> {
         ),
         const SizedBox(height: AppSpacing.xs),
         Text(
-          'The ticket goes to the office handling that request.',
+          tr('The ticket goes to the office handling that request.'),
           style: AppTypography.fine.copyWith(color: AppColors.textMuted),
         ),
       ],
@@ -199,7 +216,7 @@ class _ReportProblemScreenState extends State<ReportProblemScreen> {
             title: 'Problem Details',
             children: [
               AppSelectField<String>(
-                label: 'Category',
+                label: tr('Category'),
                 value: _category,
                 options: _categories,
                 labelBuilder: (c) => c,
@@ -217,6 +234,7 @@ class _ReportProblemScreenState extends State<ReportProblemScreen> {
                 bytes: _screenshotBytes,
                 fileName: _screenshotName,
                 onPick: _pickScreenshot,
+                onPickPdf: _pickPdf,
                 onRemove: () => setState(() {
                   _screenshotBytes = null;
                   _screenshotName = null;
@@ -234,7 +252,7 @@ class _ReportProblemScreenState extends State<ReportProblemScreen> {
           ],
           const SizedBox(height: AppSpacing.xl),
           AppButton(
-            label: 'Submit Report',
+            label: tr('Submit Report'),
             fullWidth: true,
             size: AppButtonSize.lg,
             loading: _submitting,
@@ -250,9 +268,18 @@ class _ScreenshotField extends StatelessWidget {
   final Uint8List? bytes;
   final String? fileName;
   final void Function(ImageSource source) onPick;
+  final VoidCallback onPickPdf;
   final VoidCallback onRemove;
 
-  const _ScreenshotField({required this.bytes, required this.fileName, required this.onPick, required this.onRemove});
+  const _ScreenshotField({
+    required this.bytes,
+    required this.fileName,
+    required this.onPick,
+    required this.onPickPdf,
+    required this.onRemove,
+  });
+
+  bool get _isPdf => (fileName ?? '').toLowerCase().endsWith('.pdf');
 
   @override
   Widget build(BuildContext context) {
@@ -260,7 +287,7 @@ class _ScreenshotField extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text(
-          'Photo or screenshot (optional)',
+          'Photo, screenshot or PDF (optional)',
           style: TextStyle(fontSize: AppTextSize.helper, fontWeight: FontWeight.w500, color: AppColors.slate700),
         ),
         const SizedBox(height: AppSpacing.sm),
@@ -273,15 +300,27 @@ class _ScreenshotField extends StatelessWidget {
             ),
             child: Row(
               children: [
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(AppRadius.sm),
-                  child: Image(
-                    image: pickedFileImageProvider(bytes: bytes)!,
+                if (_isPdf)
+                  Container(
                     width: 44,
                     height: 44,
-                    fit: BoxFit.cover,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: AppColors.rose50,
+                      borderRadius: BorderRadius.circular(AppRadius.sm),
+                    ),
+                    child: const Icon(Icons.picture_as_pdf_outlined, size: 22, color: AppColors.rose600),
+                  )
+                else
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(AppRadius.sm),
+                    child: Image(
+                      image: pickedFileImageProvider(bytes: bytes)!,
+                      width: 44,
+                      height: 44,
+                      fit: BoxFit.cover,
+                    ),
                   ),
-                ),
                 const SizedBox(width: AppSpacing.sm),
                 Expanded(
                   child: Text(
@@ -322,6 +361,11 @@ class _ScreenshotField extends StatelessWidget {
                 onPressed: () => onPick(ImageSource.gallery),
                 icon: const Icon(Icons.add_photo_alternate_outlined, size: 17),
                 label: const Text('Attach a screenshot'),
+              ),
+              OutlinedButton.icon(
+                onPressed: onPickPdf,
+                icon: const Icon(Icons.picture_as_pdf_outlined, size: 17),
+                label: const Text('Attach a PDF'),
               ),
             ],
           ),

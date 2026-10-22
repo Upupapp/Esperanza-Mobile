@@ -6,6 +6,7 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../widgets/app_dialogs.dart';
 
+import '../l10n/tr.dart';
 /// The kind of protected device resource an action needs — drives which
 /// explanation copy/permission this goes through. Every screen in the app
 /// that touches the camera, photo library, or a document picker routes
@@ -88,7 +89,7 @@ Future<bool> _confirmExplanation(BuildContext context, ProtectedResource resourc
     title: copy.title,
     message: explanation ?? copy.explanation,
     cancelLabel: 'Not Now',
-    confirmLabel: 'Continue',
+    confirmLabel: tr('Continue'),
   );
   if (proceed) await _remember(resource);
   return proceed;

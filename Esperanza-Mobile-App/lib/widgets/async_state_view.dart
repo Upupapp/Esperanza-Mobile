@@ -7,6 +7,7 @@ import '../theme/app_typography.dart';
 import 'app_button.dart';
 import 'esperanza_art.dart';
 
+import '../l10n/tr.dart';
 /// Loading/error/data wrapper for a screen backed by a real API call —
 /// the mobile equivalent of the Web Admin's `x-ui.skeleton`/`x-ui.error-state`
 /// pair, now that screens fetch from [api] instead of reading [MockCatalog]
@@ -78,7 +79,7 @@ class _ErrorState extends StatelessWidget {
             const SizedBox(height: AppSpacing.xs),
             Text(message, textAlign: TextAlign.center, style: const TextStyle(fontSize: AppTextSize.helper, color: AppColors.slate600, height: 1.4)),
             const SizedBox(height: AppSpacing.lg),
-            AppButton(label: 'Try Again', icon: Icons.refresh_rounded, variant: AppButtonVariant.secondary, onPressed: onRetry),
+            AppButton(label: tr('Try Again'), icon: Icons.refresh_rounded, variant: AppButtonVariant.secondary, onPressed: onRetry),
           ],
         ),
       ),

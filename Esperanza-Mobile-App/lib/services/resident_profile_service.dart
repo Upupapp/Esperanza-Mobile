@@ -606,12 +606,22 @@ class ResidentProfileService extends ChangeNotifier {
     if (_applyServerStatus(p, res.map)) await _save(p);
   }
 
+  /// The signed-in resident matched a record their barangay already had,
+  /// not yet confirmed by the barangay office (`registry_match.status`
+  /// pending): the Resident Profile says so, as the website's does.
+  bool registryMatchPending = false;
+
   /// Individual.verification: Unverified / For Validation / Verified, and the
   /// barangay's decision (`review`). A profile the barangay sent back is
   /// Unverified with `review.outcome` 'returned' and a note saying what to
   /// change: that is Needs Correction here, with the note as the message
   /// (2026-10-06: nothing could leave Pending Verification before).
   bool _applyServerStatus(ResidentProfile p, Map<String, dynamic> view) {
+    final match = JsonRead.nonEmpty(JsonRead.map(view['registry_match'])?['status']) == 'pending';
+    if (match != registryMatchPending) {
+      registryMatchPending = match;
+      notifyListeners();
+    }
     final individual = JsonRead.map(view['individual']);
     final verification = JsonRead.nonEmpty(individual?['verification']);
     final review = JsonRead.map(view['review']);

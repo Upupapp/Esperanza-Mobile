@@ -153,7 +153,7 @@ void main() {
   tearDown(FakeApi.restore);
 
   testWidgets(
-    'Guest: can open the viewer and read the post, but React/Comment/Share all show the account-required notice',
+    'Guest: can open the viewer, read and share the post, but React/Comment show the account-required notice',
     (tester) async {
       SharedPreferences.setMockInitialValues({});
       _setPhoneViewport(tester);
@@ -181,7 +181,17 @@ void main() {
       );
       expect(closeInViewer, findsOneWidget);
 
-      for (final label in ['Like', 'Comment', 'Share']) {
+      // Sharing a public post's link needs no account, as on the website.
+      final shareInViewer = find.descendant(of: find.byType(PostImageViewer), matching: find.text('Share'));
+      await tester.ensureVisible(shareInViewer);
+      await tester.tap(shareInViewer);
+      await tester.pumpAndSettle();
+      expect(find.byType(RestrictedFeatureNotice), findsNothing);
+      expect(find.text('Share Balita Post'), findsOneWidget);
+      Navigator.of(tester.element(find.text('Share Balita Post'))).pop();
+      await tester.pumpAndSettle();
+
+      for (final label in ['Like', 'Comment']) {
         final actionInViewer = find.descendant(of: find.byType(PostImageViewer), matching: find.text(label));
         expect(actionInViewer, findsOneWidget, reason: '$label action should be visible in the viewer');
         // The viewer's own content (image + message + actions) can exceed
@@ -221,7 +231,7 @@ void main() {
   );
 
   testWidgets(
-    'Nicanor Sarmiento (signed in, unverified): treated the same as Guest — React/Comment/Share are blocked in the viewer, viewing/zooming stays available',
+    'Nicanor Sarmiento (signed in, unverified): can like and comment, as any resident can on the website',
     (tester) async {
       SharedPreferences.setMockInitialValues({});
       _setPhoneViewport(tester);
@@ -230,33 +240,23 @@ void main() {
       await _loginAs(tester, MockCatalog.demoAccounts.first); // Nicanor Sarmiento
       await _dismissWelcomeBanner(tester);
 
-      // Viewing/zooming the image itself stays available — the gate only
-      // wraps the react/comment/share actions, never opening the viewer.
       await _openMangroveViewer(tester);
       expect(find.byType(PostImageViewer), findsOneWidget);
 
-      // Starting state: 89 likes, unchanged — an unverified account is
-      // blocked the same as a Guest now (Phase 7 of the Balita access
-      // rules), not treated as merely "signed in".
-      expect(find.text('89'), findsOneWidget);
-
+      // The server asks only for a signed-in resident; the website lets an
+      // unverified one like and comment, so the app does too.
       final likeInViewer = find.descendant(of: find.byType(PostImageViewer), matching: find.text('Like'));
       await tester.ensureVisible(likeInViewer);
       await tester.tap(likeInViewer);
       await tester.pumpAndSettle();
+      expect(find.byType(RestrictedFeatureNotice), findsNothing);
 
-      expect(find.byType(RestrictedFeatureNotice), findsOneWidget);
-      // The like count never moved — the action was blocked before it ran.
-      Navigator.of(tester.element(find.byType(RestrictedFeatureNotice))).pop();
-      await tester.pumpAndSettle();
-      expect(find.text('89'), findsOneWidget);
-
-      // Comment is gated the same way.
       final commentInViewer = find.descendant(of: find.byType(PostImageViewer), matching: find.text('Comment'));
       await tester.ensureVisible(commentInViewer);
       await tester.tap(commentInViewer);
       await tester.pumpAndSettle();
-      expect(find.byType(RestrictedFeatureNotice), findsOneWidget);
+      expect(find.byType(RestrictedFeatureNotice), findsNothing);
+      expect(find.byType(TextField), findsOneWidget);
     },
   );
 

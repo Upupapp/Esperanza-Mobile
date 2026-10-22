@@ -4,6 +4,7 @@ import '../theme/app_spacing.dart';
 import '../theme/app_typography.dart';
 import 'esperanza_art.dart';
 
+import '../l10n/tr.dart';
 /// Mirrors `resources/views/components/ui/empty-state.blade.php`.
 /// The empty state (2026-10 design): a clay illustration on a clay tile,
 /// a friendly title, a line of explanation and, where there is one, the
@@ -177,7 +178,7 @@ class ErrorState extends StatelessWidget {
             TextButton.icon(
               onPressed: onRetry,
               icon: const Icon(Icons.refresh_rounded, size: 16),
-              label: const Text('Try again'),
+              label: Text(tr('Try again')),
             ),
           ],
         ],

@@ -8,6 +8,7 @@ import '../../widgets/app_button.dart';
 import '../../widgets/app_card.dart';
 import '../../utils/phone_dial.dart';
 
+import '../../l10n/tr.dart';
 /// Full detail view for one evacuation center — services, amenities,
 /// distance, contact, directions, and capacity/status. This app has no
 /// real geolocation package wired up (no `geolocator` dependency, no
@@ -132,7 +133,7 @@ class EvacuationCenterDetailScreen extends StatelessWidget {
                   const SizedBox(width: AppSpacing.sm),
                   Expanded(
                     child: AppButton(
-                      label: 'Call',
+                      label: tr('Call'),
                       icon: Icons.call_outlined,
                       variant: AppButtonVariant.secondary,
                       onPressed: () => launchUrl(dialUri(center.contactNumber)!),
@@ -179,12 +180,12 @@ class EvacuationCenterDetailScreen extends StatelessWidget {
                     )
                   else
                     Row(
-                      children: const [
+                      children: [
                         Icon(Icons.info_outline_rounded, size: 16, color: AppColors.slate400),
                         SizedBox(width: AppSpacing.sm),
                         Expanded(
                           child: Text(
-                            'Capacity information unavailable',
+                            tr('Capacity information unavailable'),
                             style: TextStyle(
                               fontSize: AppTextSize.helper,
                               color: AppColors.textMuted,
@@ -198,7 +199,7 @@ class EvacuationCenterDetailScreen extends StatelessWidget {
               ),
             ),
             const SizedBox(height: AppSpacing.lg),
-            _ListCard(title: 'Available Services', icon: Icons.medical_services_outlined, items: center.services),
+            _ListCard(title: tr('Available Services'), icon: Icons.medical_services_outlined, items: center.services),
             const SizedBox(height: AppSpacing.lg),
             _ListCard(title: 'Amenities', icon: Icons.checklist_rounded, items: center.amenities),
             const SizedBox(height: AppSpacing.lg),
@@ -268,8 +269,8 @@ class _ListCard extends StatelessWidget {
           ),
           const SizedBox(height: AppSpacing.sm),
           if (items.isEmpty)
-            const Text(
-              'No information available yet.',
+            Text(
+              tr('No information available yet.'),
               style: TextStyle(fontSize: AppTextSize.helper, color: AppColors.textMuted, fontStyle: FontStyle.italic),
             )
           else

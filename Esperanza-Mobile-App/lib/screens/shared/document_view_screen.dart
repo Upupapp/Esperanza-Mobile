@@ -14,6 +14,7 @@ import '../../widgets/app_button.dart';
 import '../../widgets/app_card.dart';
 import '../../widgets/zoomable_document.dart';
 
+import '../../l10n/tr.dart';
 /// The statuses at which the website offers "View Document".
 const documentReadyStatuses = {'Approved', 'Mark to Release', 'Released'};
 
@@ -84,12 +85,12 @@ class DocumentReadyCard extends StatelessWidget {
           ),
           const SizedBox(height: AppSpacing.xs),
           Text(
-            'Preview, download, or print your official copy.',
+            tr('Preview, download, or print your official copy.'),
             style: AppTypography.bodySmall.copyWith(color: AppColors.textMuted),
           ),
           const SizedBox(height: AppSpacing.md),
           AppButton(
-            label: 'View Document',
+            label: tr('View Document'),
             icon: Icons.visibility_outlined,
             variant: AppButtonVariant.secondary,
             onPressed: () => Navigator.of(context).push(
@@ -154,7 +155,7 @@ class _DocumentViewScreenState extends State<DocumentViewScreen> {
   Widget build(BuildContext context) {
     final r = widget.request;
     return Scaffold(
-      appBar: AppBar(title: const Text('Your Document')),
+      appBar: AppBar(title: Text(tr('Your Document'))),
       body: SafeArea(
         child: FutureBuilder<(DocumentSheet, String?)>(
           future: _sheet,
@@ -188,13 +189,13 @@ class _DocumentViewScreenState extends State<DocumentViewScreen> {
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       Text(
-                        'Reference copy. The signed copy is released at the office.',
+                        tr('Reference copy. The signed copy is released at the office.'),
                         textAlign: TextAlign.center,
                         style: AppTypography.bodySmall.copyWith(color: AppColors.textMuted),
                       ),
                       const SizedBox(height: AppSpacing.md),
                       AppButton(
-                        label: 'Download PDF',
+                        label: tr('Download PDF'),
                         icon: Icons.download_rounded,
                         fullWidth: true,
                         onPressed: () => DocumentPdf.share(

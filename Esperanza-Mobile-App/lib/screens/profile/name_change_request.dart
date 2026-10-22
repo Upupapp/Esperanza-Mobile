@@ -12,6 +12,7 @@ import '../../widgets/app_button.dart';
 import '../../widgets/app_dialogs.dart';
 import '../../widgets/app_text_field.dart';
 
+import '../../l10n/tr.dart';
 /// A verified resident asks to change their name, with the reason and proof;
 /// the barangay checks it and applies it (the website's nameChangeRequest in
 /// Edit Profile). One request waits at a time, and the former name stays on
@@ -233,16 +234,16 @@ class _NameChangeRequestState extends State<NameChangeRequest> {
               child: TextButton.icon(
                 onPressed: _start,
                 icon: const Icon(Icons.edit_note_rounded, size: AppSizes.iconSm),
-                label: const Text('Request a name change'),
+                label: Text(tr('Request a name change')),
               ),
             ),
           ],
           if (_open) ...[
             const SizedBox(height: AppSpacing.md),
             AppSelectField<String>(
-              label: 'Reason',
+              label: tr('Reason'),
               value: _reason,
-              hintText: 'Choose…',
+              hintText: tr('Choose…'),
               options: [for (final r in AccountPrivacyService.nameChangeReasons) r.key],
               labelBuilder: (k) => AccountPrivacyService.nameChangeReasons.firstWhere((r) => r.key == k).label,
               onChanged: (v) => setState(() => _reason = v),
@@ -254,7 +255,7 @@ class _NameChangeRequestState extends State<NameChangeRequest> {
             const SizedBox(height: AppSpacing.md),
             AppTextField(label: 'Middle name (optional)', controller: _middle, maxLength: 80),
             const SizedBox(height: AppSpacing.md),
-            const FieldLabel('Proof'),
+            FieldLabel(tr('Proof')),
             Text(_proofHint, style: AppTypography.fine.copyWith(color: AppColors.textMuted)),
             const SizedBox(height: AppSpacing.xs),
             Align(
@@ -276,7 +277,7 @@ class _NameChangeRequestState extends State<NameChangeRequest> {
             ],
             const SizedBox(height: AppSpacing.sm),
             Text(
-              'Free, and no waiting period, but only one request can be waiting at a time. Your former name stays on record.',
+              tr('Free, and no waiting period, but only one request can be waiting at a time. Your former name stays on record.'),
               style: note,
             ),
             const SizedBox(height: AppSpacing.md),
@@ -293,7 +294,7 @@ class _NameChangeRequestState extends State<NameChangeRequest> {
                 const SizedBox(width: AppSpacing.sm),
                 Expanded(
                   child: AppButton(
-                    label: 'Never mind',
+                    label: tr('Never mind'),
                     size: AppButtonSize.sm,
                     variant: AppButtonVariant.secondary,
                     onPressed: _sending ? null : () => setState(() => _open = false),

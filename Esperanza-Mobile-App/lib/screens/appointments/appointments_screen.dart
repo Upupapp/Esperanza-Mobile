@@ -15,6 +15,7 @@ import '../../widgets/app_card.dart';
 import '../../widgets/app_dialogs.dart';
 import '../../widgets/app_text_field.dart';
 
+import '../../l10n/tr.dart';
 /// Appointments (scope round 2026-10-15; the web portal's Appointments page):
 /// the resident's own appointments, upcoming first, each cancellable while it
 /// can be, and booking a new one.
@@ -43,18 +44,40 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
   }
 
   Future<void> _cancel(Appointment a) async {
-    final ok = await AppDialogs.confirm(
-      context,
-      title: 'Cancel this appointment?',
-      message: '${a.place ?? 'The office'}, ${a.when ?? shortDate(a.date)}. The time is freed for someone else.',
-      confirmLabel: 'Cancel appointment',
-      cancelLabel: 'Keep it',
-      danger: true,
+    final reason = TextEditingController();
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(tr('Cancel this appointment?')),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              '${a.place ?? 'The office'}, ${a.when ?? shortDate(a.date)}. The time is freed for someone else.',
+              style: AppTypography.helper,
+            ),
+            const SizedBox(height: AppSpacing.md),
+            // Optional, as on the website: the office sees it.
+            AppTextField(label: tr('Reason (optional)'), controller: reason, maxLines: 2, maxLength: 500),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: Text(tr('Keep it'))),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: AppColors.danger),
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Cancel appointment'),
+          ),
+        ],
+      ),
     );
-    if (!ok || !mounted) return;
+    final why = reason.text;
+    reason.dispose();
+    if (ok != true || !mounted) return;
     setState(() => _cancelling = a.ref);
     try {
-      await AppointmentsService.cancel(a.ref);
+      await AppointmentsService.cancel(a.ref, reason: why);
       if (!mounted) return;
       AppDialogs.toast(context, 'Appointment ${a.ref} cancelled.');
       _reload();
@@ -70,7 +93,7 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Appointments')),
+      appBar: AppBar(title: Text(tr('Appointments'))),
       body: FutureBuilder<List<Appointment>>(
         future: _future,
         builder: (context, snap) {
@@ -112,12 +135,12 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
                   style: AppTypography.helper,
                 ),
                 const SizedBox(height: AppSpacing.lg),
-                AppButton(label: 'Book an appointment', icon: Icons.add_rounded, fullWidth: true, onPressed: _book),
+                AppButton(label: tr('Book an appointment'), icon: Icons.add_rounded, fullWidth: true, onPressed: _book),
                 const SizedBox(height: AppSpacing.sectionGap),
-                const Text('Upcoming', style: AppTypography.sectionTitle),
+                Text(tr('Upcoming'), style: AppTypography.sectionTitle),
                 const SizedBox(height: AppSpacing.headingGap),
                 if (upcoming.isEmpty)
-                  const Text('You have no upcoming appointments.', style: AppTypography.helper)
+                  Text(tr('You have no upcoming appointments.'), style: AppTypography.helper)
                 else
                   for (final a in upcoming) ...[
                     _AppointmentCard(
@@ -128,10 +151,10 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
                     const SizedBox(height: AppSpacing.itemGap),
                   ],
                 const SizedBox(height: AppSpacing.sectionGap),
-                const Text('Past', style: AppTypography.sectionTitle),
+                Text(tr('Past'), style: AppTypography.sectionTitle),
                 const SizedBox(height: AppSpacing.headingGap),
                 if (past.isEmpty)
-                  const Text('No past appointments yet.', style: AppTypography.helper)
+                  Text(tr('No past appointments yet.'), style: AppTypography.helper)
                 else
                   for (final a in past) ...[
                     _AppointmentCard(appointment: a),
@@ -225,7 +248,7 @@ class _AppointmentCard extends StatelessWidget {
                       ),
                     ),
                     icon: const Icon(Icons.event_available_outlined, size: AppSizes.iconSm),
-                    label: const Text('Add to calendar'),
+                    label: Text(tr('Add to calendar')),
                   ),
                 if (onCancel != null || busy)
                   TextButton.icon(
@@ -261,7 +284,7 @@ class _Problem extends StatelessWidget {
           children: [
             Text(message, textAlign: TextAlign.center, style: AppTypography.helper),
             const SizedBox(height: AppSpacing.lg),
-            OutlinedButton(onPressed: onRetry, child: const Text('Try Again')),
+            OutlinedButton(onPressed: onRetry, child: Text(tr('Try Again'))),
           ],
         ),
       ),
@@ -307,7 +330,7 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
       _day = null;
       _slot = null;
       _error = null;
-      _days = AppointmentsService.availability(s.id);
+      _days = AppointmentsService.availability(s.id, daysAhead: s.bookDaysAhead);
     });
   }
 
@@ -317,7 +340,7 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
     setState(() {
       _day = null;
       _slot = null;
-      _days = AppointmentsService.availability(s.id);
+      _days = AppointmentsService.availability(s.id, daysAhead: s.bookDaysAhead);
     });
   }
 
@@ -390,7 +413,7 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
                 const SizedBox(width: AppSpacing.sm),
                 Expanded(
                   child: Text(
-                    'Your account must be verified before you can book. You can still look at the open times.',
+                    tr('Your account must be verified before you can book. You can still look at the open times.'),
                     style: AppTypography.bodyText.copyWith(color: AppColors.amber700),
                   ),
                 ),
@@ -399,7 +422,7 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
           ),
           const SizedBox(height: AppSpacing.sectionGap),
         ],
-        const _Step(number: 1, title: 'Choose an office'),
+        _Step(number: 1, title: tr('Choose an office')),
         FutureBuilder<List<AppointmentSchedule>>(
           future: _schedules,
           builder: (context, snap) {
@@ -440,7 +463,7 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
         ),
         if (_schedule != null) ...[
           const SizedBox(height: AppSpacing.sectionGap),
-          const _Step(number: 2, title: 'Choose a day and time'),
+          _Step(number: 2, title: tr('Choose a day and time')),
           if (_schedule!.notes != null) ...[
             Text(_schedule!.notes!, style: AppTypography.helper.copyWith(color: AppColors.amber700)),
             const SizedBox(height: AppSpacing.sm),
@@ -522,12 +545,12 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
           const SizedBox(height: AppSpacing.sectionGap),
           const _Step(number: 3, title: 'What is the visit for?'),
           AppTextField(
-            label: 'Purpose',
+            label: tr('Purpose'),
             required: true,
             controller: _purpose,
             maxLines: 3,
             maxLength: 500,
-            hintText: 'e.g. Claim my barangay clearance',
+            hintText: tr('e.g. Claim my barangay clearance'),
             error: _tried && _purpose.text.trim().length < 3 ? 'Write at least 3 characters.' : null,
             onChanged: (_) => setState(() {}),
           ),
@@ -552,7 +575,7 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
         ],
         const SizedBox(height: AppSpacing.xl),
         AppButton(
-          label: 'Confirm booking',
+          label: tr('Confirm booking'),
           fullWidth: true,
           loading: _sending,
           onPressed: verified && _slot != null ? _confirm : null,
@@ -715,17 +738,17 @@ class _BookedView extends StatelessWidget {
       children: [
         const Icon(Icons.event_available_rounded, size: AppSizes.iconHero, color: AppColors.emerald700),
         const SizedBox(height: AppSpacing.md),
-        const Text('Your appointment is booked', textAlign: TextAlign.center, style: AppTypography.sectionTitle),
+        Text(tr('Your appointment is booked'), textAlign: TextAlign.center, style: AppTypography.sectionTitle),
         const SizedBox(height: AppSpacing.xs),
-        const Text(
-          'The office will confirm it, and you will be notified.',
+        Text(
+          tr('The office will confirm it, and you will be notified.'),
           textAlign: TextAlign.center,
           style: AppTypography.helper,
         ),
         const SizedBox(height: AppSpacing.sectionGap),
         _AppointmentCard(appointment: a),
         const SizedBox(height: AppSpacing.xl),
-        AppButton(label: 'Done', fullWidth: true, onPressed: () => Navigator.of(context).pop(true)),
+        AppButton(label: tr('Done'), fullWidth: true, onPressed: () => Navigator.of(context).pop(true)),
       ],
     );
   }

@@ -13,6 +13,7 @@ import '../../widgets/balita_video_player.dart';
 import 'post_card.dart';
 import '../../theme/app_typography.dart';
 
+import '../../l10n/tr.dart';
 /// A lightweight full-screen overlay for a single Balita post's photos and
 /// videos (2026-10-18: up to ten, swiped through, a video playing in place) —
 /// opened by tapping the image in [PostCard], not a separate post-detail
@@ -191,7 +192,7 @@ class _PostImageViewerState extends State<PostImageViewer> {
                     Expanded(
                       child: PostActionButton(
                         icon: post.likedByMe == true ? Icons.favorite_rounded : Icons.favorite_border_rounded,
-                        label: 'Like',
+                        label: tr('Like'),
                         color: post.likedByMe == true ? AppColors.rose500 : AppColors.slate500,
                         onTap: () => requireAccountForBalita(
                           context,
@@ -203,7 +204,7 @@ class _PostImageViewerState extends State<PostImageViewer> {
                     Expanded(
                       child: PostActionButton(
                         icon: Icons.mode_comment_outlined,
-                        label: 'Comment',
+                        label: tr('Comment'),
                         color: AppColors.slate500,
                         onTap: () => requireAccountForBalita(
                           context,
@@ -215,13 +216,9 @@ class _PostImageViewerState extends State<PostImageViewer> {
                     Expanded(
                       child: PostActionButton(
                         icon: Icons.share_outlined,
-                        label: 'Share',
+                        label: tr('Share'),
                         color: AppColors.slate500,
-                        onTap: () => requireAccountForBalita(
-                          context,
-                          'Sharing Balita posts',
-                          () => BalitaShareSheet.show(context, post!),
-                        ),
+                        onTap: () => BalitaShareSheet.show(context, post!),
                       ),
                     ),
                   ],
@@ -245,8 +242,8 @@ class _MediaPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final url = media.url;
     if (url == null) {
-      return const Center(
-        child: Text('Being checked', style: TextStyle(fontSize: AppTextSize.helper, color: AppColors.onMediaMuted)),
+      return Center(
+        child: Text(tr('Being checked'), style: TextStyle(fontSize: AppTextSize.helper, color: AppColors.onMediaMuted)),
       );
     }
     if (media.isVideo) {

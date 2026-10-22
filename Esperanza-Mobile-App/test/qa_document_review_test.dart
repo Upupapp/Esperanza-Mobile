@@ -17,6 +17,7 @@ import 'package:esperanza_mobile/services/notifications_service.dart';
 import 'package:esperanza_mobile/services/requests_service.dart';
 import 'package:esperanza_mobile/services/resident_profile_service.dart';
 import 'package:esperanza_mobile/utils/ph_mobile.dart';
+import 'package:esperanza_mobile/l10n/tr.dart';
 import 'package:esperanza_mobile/services/message_language.dart';
 
 import 'support/fake_api.dart';
@@ -175,8 +176,8 @@ void main() {
     });
 
     testWidgets('reading one lowers the number; Mark all as read clears it, on the server too', (tester) async {
-      // These notices are checked in Filipino, the language chosen in Settings
-      // (English is the default since the live test of 2026-10-07, UX-15).
+      // These notices are checked in Filipino, the language chosen in Settings;
+      // the app's own button then reads in the website's Filipino too.
       MessageLanguage.filipino.value = true;
       addTearDown(() => MessageLanguage.filipino.value = false);
       final (notifications, posts) = await _pumpBell(tester, [
@@ -197,11 +198,13 @@ void main() {
         await tester.pumpAndSettle();
       }
 
-      expect(find.textContaining('Mark all as read'), findsOneWidget);
-      await tester.tap(find.text('Mark all as read'));
+      final markAll = tr('Mark all as read');
+      expect(markAll, isNot('Mark all as read'));
+      expect(find.textContaining(markAll), findsOneWidget);
+      await tester.tap(find.text(markAll));
       await tester.pumpAndSettle();
       expect(posts.last, '/citizen/notifications/read-all');
-      expect(find.text('Mark all as read'), findsNothing, reason: 'nothing left unread');
+      expect(find.text(markAll), findsNothing, reason: 'nothing left unread');
 
       await tester.pageBack();
       await tester.pumpAndSettle();

@@ -15,6 +15,7 @@ import '../../theme/app_typography.dart';
 import '../../utils/date_text.dart';
 import '../../widgets/esperanza_art.dart';
 
+import '../../l10n/tr.dart';
 /// The signed-in resident's full Dokyu + Tulong request history in one
 /// place — derived straight from [RequestsService], never a separate
 /// hardcoded list. Tapping a card opens the same [RequestDetailScreen]
@@ -70,13 +71,13 @@ class _MyRequestsScreenState extends State<MyRequestsScreen> {
     mine.sort((a, b) => b.submittedAt.compareTo(a.submittedAt));
 
     return Scaffold(
-      appBar: AppBar(title: const Text('My Requests')),
+      appBar: AppBar(title: Text(tr('My Requests'))),
       body: Column(
         children: [
           Padding(
             padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.md, AppSpacing.lg, AppSpacing.xs),
             child: SegmentedTabs(
-              labels: const ['All', 'Dokyu', 'Tulong'],
+              labels: [tr('All'), 'Dokyu', 'Tulong'],
               selectedIndex: _tab,
               onChanged: (i) => setState(() => _tab = i),
             ),
@@ -154,7 +155,7 @@ class _MyRequestCard extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: AppSpacing.sm),
-                StatusChip.request(request.status, small: true),
+                StatusChip.request(request.status, small: true, label: request.statusLabel),
               ],
             ),
             const SizedBox(height: AppSpacing.xs),
@@ -183,7 +184,7 @@ class _MyRequestCard extends StatelessWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
-                Text('Track', style: TextStyle(fontSize: AppTextSize.label, fontWeight: FontWeight.w600, color: categoryColor)),
+                Text(tr('Track'), style: TextStyle(fontSize: AppTextSize.label, fontWeight: FontWeight.w600, color: categoryColor)),
                 Icon(Icons.chevron_right_rounded, size: 15, color: categoryColor),
               ],
             ),

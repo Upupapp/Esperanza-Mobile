@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../widgets/payment_guidance_card.dart';
 import 'package:provider/provider.dart';
 import '../../models/attachment.dart';
 import '../../models/catalog_item.dart';
@@ -21,6 +22,7 @@ import '../../widgets/request_documents_picker.dart';
 import 'request_submitted_screen.dart';
 import '../../theme/app_typography.dart';
 
+import '../../l10n/tr.dart';
 /// Fallback wizard for a catalog item with no curated [CatalogItem.formSpec]
 /// (see [ServiceFormSpecs] — only real backend services whose `key` matches
 /// one of [MockCatalog]'s curated document/assistance types get the fuller,
@@ -196,7 +198,7 @@ class _NewRequestScreenState extends State<NewRequestScreen> {
         ),
         const SizedBox(height: AppSpacing.lg),
         AppTextField(
-          label: 'Purpose',
+          label: tr('Purpose'),
           hintText: 'e.g. Employment requirement, medical assistance for hospital bill...',
           controller: _purposeController,
           maxLines: 3,
@@ -216,6 +218,8 @@ class _NewRequestScreenState extends State<NewRequestScreen> {
             category: widget.category,
           ),
         ],
+        const SizedBox(height: AppSpacing.xl),
+        PaymentGuidanceCard(item: widget.item, sayWhenFree: widget.category == ServiceCategory.dokyu),
         if (_error != null) ...[
           const SizedBox(height: AppSpacing.md),
           Text(_error!, style: const TextStyle(fontSize: AppTextSize.helper, color: AppColors.rose600)),

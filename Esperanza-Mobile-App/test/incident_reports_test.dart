@@ -131,13 +131,17 @@ void main() {
     expect(detail.office, 'Poblacion · Sitio Purok 3');
     expect(detail.purpose, contains('Severity: High'));
     expect(detail.purpose, contains('Water rising fast near the covered court.'));
-    expect(detail.statusHistory, hasLength(1));
-    expect(detail.statusHistory.single.status, 'Under Verification');
-    expect(detail.statusHistory.single.actor, isNotEmpty);
+    // In residents' words, as the website's timeline: the report itself,
+    // then the office's step (the validate step).
+    expect(detail.statusHistory, hasLength(2));
+    expect(detail.statusHistory.first.status, 'You reported it');
+    expect(detail.statusHistory.last.status, 'Report confirmed by the office');
+    expect(detail.statusHistory.last.actor, isNotEmpty);
+    expect(detail.statusLabel, isNot('Processing'));
 
     // The server's own citizen-safe shape has no staff note or responder
     // identity to begin with; this just confirms nothing here invents one.
-    expect(detail.statusHistory.single.remarks, isNull);
+    expect(detail.statusHistory.last.remarks, isNull);
 
     // Replaces the matching list-row entry rather than duplicating it.
     expect(service.byCategory(ServiceCategory.sakunaIncident), hasLength(1));
@@ -152,7 +156,8 @@ void main() {
 
     expect(detail.office, 'Poblacion'); // no sitio on the row -> no trailing separator
     expect(detail.purpose, 'Severity: High'); // no description -> just the severity line
-    expect(detail.statusHistory, isEmpty);
+    // Only the report itself: the office has done nothing yet.
+    expect(detail.statusHistory.map((e) => e.status), ['You reported it']);
   });
 
   test('Dokyu/Tulong reloads do not drop incidents', () async {

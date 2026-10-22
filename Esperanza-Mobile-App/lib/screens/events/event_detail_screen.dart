@@ -13,6 +13,7 @@ import '../../widgets/event_card.dart';
 import '../balita/balita_post_screen.dart';
 import '../shared/event_poster_viewer.dart';
 
+import '../../l10n/tr.dart';
 /// One event, opened from its card, laid out like the PAAIPE Mobile App's
 /// event page (Upupapp/PAAIPE-Mobile-APP `EventsView` detail): the banner,
 /// the title, then the date/time/place rows.
@@ -35,7 +36,7 @@ class EventDetailScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Events')),
+      appBar: AppBar(title: Text(tr('Events'))),
       body: EventDetailBody(event: event),
     );
   }
@@ -51,7 +52,7 @@ class EventLinkScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Events')),
+      appBar: AppBar(title: Text(tr('Events'))),
       body: AsyncStateView<EventItem>(
         loader: () async {
           final res = await api.get('/events/${ApiClient.segment(eventKey)}');
@@ -122,7 +123,7 @@ class _EventDetailBodyState extends State<EventDetailBody> {
     } on ApiException catch (e) {
       if (mounted) AppDialogs.toast(context, e.message(), success: false);
     } catch (_) {
-      if (mounted) AppDialogs.toast(context, 'Could not change the reminder. Try again.', success: false);
+      if (mounted) AppDialogs.toast(context, tr('Could not change the reminder. Try again.'), success: false);
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -166,7 +167,7 @@ class _EventDetailBodyState extends State<EventDetailBody> {
         if (_upcoming) ...[
           const SizedBox(height: AppSpacing.sm),
           AppButton(
-            label: 'Add to calendar',
+            label: tr('Add to calendar'),
             icon: Icons.event_available_outlined,
             variant: AppButtonVariant.secondary,
             fullWidth: true,
@@ -186,7 +187,7 @@ class _EventDetailBodyState extends State<EventDetailBody> {
         if (balitaPost != null) ...[
           const SizedBox(height: AppSpacing.sm),
           AppButton(
-            label: 'See it in Balita',
+            label: tr('See it in Balita'),
             icon: Icons.campaign_outlined,
             variant: AppButtonVariant.ghost,
             fullWidth: true,

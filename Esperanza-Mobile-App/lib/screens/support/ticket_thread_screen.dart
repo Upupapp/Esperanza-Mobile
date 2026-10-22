@@ -12,6 +12,7 @@ import '../../widgets/app_dialogs.dart';
 import '../../widgets/status_chip.dart';
 import 'report_problem_screen.dart';
 
+import '../../l10n/tr.dart';
 /// What the office is doing with a ticket, in a line (the website's
 /// statusNote).
 String ticketStatusNote(String status) => switch (status) {
@@ -78,7 +79,7 @@ class _TicketThreadScreenState extends State<TicketThreadScreen> {
       if (!mounted) return;
       _reply.clear();
       setState(() => _ticket = t);
-      AppDialogs.toast(context, 'Reply sent.');
+      AppDialogs.toast(context, tr('Reply sent.'));
     } on ApiException catch (e) {
       if (!mounted) return;
       if (e.code == 'TICKET_CLOSED' || e.status == 409) {
@@ -139,7 +140,7 @@ class _TicketThreadScreenState extends State<TicketThreadScreen> {
                   if (_error != null && !_loading) ...[
                     Text(_error!, style: AppTypography.helper.copyWith(color: AppColors.danger)),
                     const SizedBox(height: AppSpacing.sm),
-                    AppButton(label: 'Try again', variant: AppButtonVariant.secondary, onPressed: _load),
+                    AppButton(label: tr('Try again'), variant: AppButtonVariant.secondary, onPressed: _load),
                     const SizedBox(height: AppSpacing.lg),
                   ],
                   for (final m in t.conversation)
@@ -172,7 +173,7 @@ class _TicketThreadScreenState extends State<TicketThreadScreen> {
                         ),
                         const SizedBox(height: AppSpacing.sm),
                         AppButton(
-                          label: 'Open a new ticket',
+                          label: tr('Open a new ticket'),
                           variant: AppButtonVariant.secondary,
                           fullWidth: true,
                           onPressed: _startNew,
@@ -197,7 +198,7 @@ class _TicketThreadScreenState extends State<TicketThreadScreen> {
                         ),
                         const SizedBox(width: AppSpacing.sm),
                         IconButton.filled(
-                          tooltip: 'Send reply',
+                          tooltip: tr('Send reply'),
                           onPressed: _sending ? null : _send,
                           style: IconButton.styleFrom(
                             backgroundColor: AppColors.brand600,

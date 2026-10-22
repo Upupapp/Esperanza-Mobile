@@ -5,6 +5,7 @@ import '../models/document_preview.dart';
 import '../theme/app_colors.dart';
 import '../utils/esperanza_seal.dart';
 
+import '../l10n/tr.dart';
 /// A [DocumentSheet] as the website draws it: one A4 page (210 × 297 mm,
 /// 794 × 1123 at 96 dpi), laid out with the website's own sizes, colours and
 /// spacing (barangay-certificate-preview / municipal-request-preview and
@@ -231,7 +232,7 @@ class DocumentPage extends StatelessWidget {
                   const Icon(Icons.description_outlined, size: 12, color: AppColors.brand700),
                   const SizedBox(width: 6),
                   Text(
-                    'Request Slip',
+                    tr('Request Slip'),
                     style: t(10, color: AppColors.brand700, weight: FontWeight.w600),
                   ),
                 ],

@@ -10,6 +10,7 @@ import '../../widgets/async_state_view.dart';
 import '../../widgets/empty_state.dart';
 import '../../widgets/resident_record_tile.dart';
 
+import '../../l10n/tr.dart';
 /// "Dokyu & Tulong Received" (2026-10-13): every document and assistance on
 /// the resident's record - what the offices recorded for them and what they
 /// filed - with the assistance received in all. The resident's side of the
@@ -21,7 +22,7 @@ class ReceivedRecordsScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final service = context.read<RequestsService>();
     return Scaffold(
-      appBar: AppBar(title: const Text('Dokyu & Tulong Received')),
+      appBar: AppBar(title: Text(tr('Dokyu & Tulong Received'))),
       body: AsyncStateView<void>(
         // Their own requests too, so one they filed opens straight away.
         loader: () => Future.wait([service.loadRecords(), service.loadRequests()]),
@@ -41,17 +42,17 @@ class ReceivedRecordsScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: AppSpacing.lg),
                 if (requests.recordsPending)
-                  const EmptyState(
+                  EmptyState(
                     icon: Icons.hourglass_top_rounded,
-                    title: 'Waiting for your barangay',
-                    description: 'They appear here once your barangay confirms the record is yours.',
+                    title: tr('Waiting for your barangay'),
+                    description: tr('They appear here once your barangay confirms the record is yours.'),
                   )
                 else if (requests.recordsFailed)
                   EmptyState(
                     icon: Icons.cloud_off_rounded,
-                    title: 'Could not load them',
+                    title: tr('Could not load them'),
                     description: 'Check your connection, then pull down to try again.',
-                    action: OutlinedButton(onPressed: reload, child: const Text('Try Again')),
+                    action: OutlinedButton(onPressed: reload, child: Text(tr('Try Again'))),
                   )
                 else if (records.isEmpty)
                   const EmptyState(

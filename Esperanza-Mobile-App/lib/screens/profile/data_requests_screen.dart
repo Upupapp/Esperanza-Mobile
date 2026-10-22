@@ -12,6 +12,7 @@ import '../../widgets/app_card.dart';
 import '../../widgets/app_text_field.dart';
 import '../../widgets/status_chip.dart';
 
+import '../../l10n/tr.dart';
 /// My data requests: a citizen's rights under the Data Privacy Act (see, correct,
 /// delete, or take a copy of their personal data), against
 /// GET/POST /citizen/data-requests. Each request gets a reference and moves
@@ -92,7 +93,7 @@ class _DataRequestsScreenState extends State<DataRequestsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('My Data Requests')),
+      appBar: AppBar(title: Text(tr('My Data Requests'))),
       body: RefreshIndicator(
         onRefresh: _load,
         child: ListView(
@@ -147,7 +148,7 @@ class _DataRequestsScreenState extends State<DataRequestsScreen> {
         ),
         const SizedBox(height: AppSpacing.sm),
         AppTextField(
-          label: 'Details',
+          label: tr('Details'),
           hintText: 'e.g. My birthdate in the resident record is wrong; it should be 15 March 2001.',
           controller: _detail,
           maxLines: 4,
@@ -158,7 +159,7 @@ class _DataRequestsScreenState extends State<DataRequestsScreen> {
         ],
         const SizedBox(height: AppSpacing.lg),
         AppButton(
-          label: 'Send Request',
+          label: tr('Send Request'),
           icon: Icons.send_rounded,
           fullWidth: true,
           loading: _submitting,
@@ -184,7 +185,7 @@ class _DataRequestsScreenState extends State<DataRequestsScreen> {
         const SizedBox(height: AppSpacing.sm),
         Align(
           alignment: Alignment.centerLeft,
-          child: OutlinedButton(onPressed: _load, child: const Text('Try Again')),
+          child: OutlinedButton(onPressed: _load, child: Text(tr('Try Again'))),
         ),
       ];
     }

@@ -14,6 +14,7 @@ import '../../../widgets/resident_profile_lock_note.dart';
 import 'family_member_form_sheet.dart';
 import '../../../theme/app_typography.dart';
 
+import '../../../l10n/tr.dart';
 /// Step 2 — Family Information, as the website's Family tab: the family
 /// surname and the people in the family (not the resident), each with what
 /// the barangay keeps (GET/PUT /citizen/resident-profile `family`). Members
@@ -94,7 +95,7 @@ class _FamilyInformationScreenState extends State<FamilyInformationScreen> {
       context,
       title: 'Remove ${member.fullName}?',
       message: 'They will be removed from your Family Information.',
-      confirmLabel: 'Remove',
+      confirmLabel: tr('Remove'),
       danger: true,
     );
     if (ok && mounted) await _service.removeFamilyMember(_accountId, member.individualId);
@@ -112,8 +113,8 @@ class _FamilyInformationScreenState extends State<FamilyInformationScreen> {
         child: ListView(
           padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.md, AppSpacing.lg, AppSpacing.xxxl),
           children: [
-            const Text(
-              'Add the people in your family (not yourself).',
+            Text(
+              tr('Add the people in your family (not yourself).'),
               style: TextStyle(fontSize: AppTextSize.helper, color: AppColors.textMuted, height: 1.4),
             ),
             if (locked) ...[
@@ -140,8 +141,8 @@ class _FamilyInformationScreenState extends State<FamilyInformationScreen> {
                   ],
                 ),
                 const SizedBox(height: AppSpacing.xl),
-                const Text(
-                  'Family Members',
+                Text(
+                  tr('Family Members'),
                   style: TextStyle(fontSize: AppTextSize.helper, fontWeight: FontWeight.w600, color: AppColors.slate600),
                 ),
                 const SizedBox(height: AppSpacing.sm),

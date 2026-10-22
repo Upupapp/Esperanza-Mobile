@@ -13,6 +13,7 @@ import '../../theme/app_typography.dart';
 import '../../utils/office_name.dart';
 import '../../widgets/esperanza_art.dart';
 
+import '../../l10n/tr.dart';
 /// Step 1 of the request wizard — pick a document/assistance type, guided
 /// by progressive filtering (Barangay/LGU -> Department -> Specific
 /// Program) rather than one long flat list, per the filtering spec:
@@ -86,7 +87,7 @@ class _ServiceCatalogScreenState extends State<ServiceCatalogScreen> {
         title: Text(appBarTitle),
         leading: crumbs.isNotEmpty
             ? IconButton(
-                tooltip: 'Back',
+                tooltip: tr('Back'),
                 icon: const Icon(Icons.arrow_back_rounded),
                 onPressed: () => setState(() {
                   if (_department != null) {

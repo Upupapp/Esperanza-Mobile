@@ -32,10 +32,11 @@ final _schedule = {
 Map<String, dynamic> _appointment({String status = 'Booked', bool canCancel = true}) => {
   'ref': 'APT-2026-000101',
   'status': status,
-  'date': '2026-10-20',
+  // Ahead of any test run: a booking in the past is history, not upcoming.
+  'date': '2030-10-22',
   'start_time': '09:00',
   'end_time': '09:30',
-  'when': 'Tue, Oct 20, 2026, 9:00 AM',
+  'when': 'Tue, Oct 22, 2030, 9:00 AM',
   'office': 'Municipal Civil Registrar',
   'place': 'Municipal Civil Registrar',
   'schedule': 'Claiming of certificates',
@@ -189,7 +190,7 @@ void main() {
     });
     await _pump(tester, const AppointmentsScreen());
     expect(find.text('Booked'), findsOneWidget);
-    expect(find.text('Tue, Oct 20, 2026, 9:00 AM'), findsOneWidget);
+    expect(find.text('Tue, Oct 22, 2030, 9:00 AM'), findsOneWidget);
 
     await tester.tap(find.text('Cancel appointment'));
     await tester.pumpAndSettle();
@@ -202,5 +203,11 @@ void main() {
     expect(cancelled, isTrue);
     expect(find.text('You have no upcoming appointments.'), findsOneWidget);
     expect(find.text('Cancelled'), findsOneWidget);
+  });
+
+  test('a booking whose day has passed is not upcoming, as on the website', () {
+    final past = Appointment.fromApi({..._appointment(), 'date': '2020-01-07'})!;
+    expect(past.upcoming, isFalse);
+    expect(Appointment.fromApi(_appointment())!.upcoming, isTrue);
   });
 }

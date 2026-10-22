@@ -22,6 +22,7 @@ import '../events/event_detail_screen.dart';
 import 'request_detail_screen.dart';
 import 'service_catalog_screen.dart';
 
+import '../../l10n/tr.dart';
 /// Search (2026-10 design, "Search services, permits, or documents";
 /// widened for parity with the website's top-bar search, 2026-10-15): every
 /// Dokyu and Tulong service, the resident's own requests, Balita
@@ -37,7 +38,7 @@ class ServiceSearchScreen extends StatelessWidget {
     final requests = context.read<RequestsService>();
     final balita = context.read<BalitaService>();
     return Scaffold(
-      appBar: AppBar(title: const Text('Search')),
+      appBar: AppBar(title: Text(tr('Search'))),
       body: AsyncStateView<List<EventItem>>(
         loader: () async {
           final events = api
@@ -162,7 +163,7 @@ class _SearchBodyState extends State<_SearchBody> {
           )
         else ...[
           if (mine.isNotEmpty) ...[
-            const _Heading('My requests'),
+            _Heading(tr('My requests')),
             for (final r in mine) _RequestResult(request: r),
           ],
           if (results.isNotEmpty) ...[
@@ -174,7 +175,7 @@ class _SearchBodyState extends State<_SearchBody> {
             for (final p in news) _NewsResult(post: p),
           ],
           if (events.isNotEmpty) ...[
-            const _Heading('Events'),
+            _Heading(tr('Events')),
             for (final e in events) _EventResult(event: e),
           ],
         ],
@@ -260,7 +261,7 @@ class _RequestResult extends StatelessWidget {
             ),
             // StatusChip.request knows Tulong's own statuses; fromLabel showed
             // them as a grey "Draft" (parity check, 2026-10-22).
-            StatusChip.request(request.status, small: true),
+            StatusChip.request(request.status, small: true, label: request.statusLabel),
           ],
         ),
       ),

@@ -15,6 +15,7 @@ import '../../widgets/segmented_tabs.dart';
 import '../../widgets/esperanza_art.dart';
 import 'barangay_profile_screen.dart';
 
+import '../../l10n/tr.dart';
 /// The Government Directory: municipal offices (public GET /directory,
 /// CommunicationsController::directory) and barangays (public GET
 /// /barangays, CatalogController::barangays), the same two sources the
@@ -119,7 +120,7 @@ class _DirectoryBodyState extends State<_DirectoryBody> {
         ),
         children: [
           SegmentedTabs(
-            labels: const ['Offices', 'Barangays'],
+            labels: ['Offices', tr('Barangays')],
             selectedIndex: _tab,
             onChanged: (i) => setState(() => _tab = i),
           ),
@@ -146,7 +147,7 @@ class _DirectoryBodyState extends State<_DirectoryBody> {
               _BarangayTile(barangay: myBarangay, highlighted: true),
               // The tile's own 12 below it, plus 12: a section's 24.
               const SizedBox(height: AppSpacing.md),
-              const Text('All barangays', style: AppTypography.subsectionLabel),
+              Text(tr('All barangays'), style: AppTypography.subsectionLabel),
               const SizedBox(height: AppSpacing.headingGap),
             ],
             if (shownBarangays.isEmpty)

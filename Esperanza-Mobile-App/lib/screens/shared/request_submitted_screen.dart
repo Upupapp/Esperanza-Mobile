@@ -6,6 +6,7 @@ import 'request_detail_screen.dart';
 import '../../theme/app_typography.dart';
 import '../../widgets/esperanza_art.dart';
 
+import '../../l10n/tr.dart';
 /// "Show confirmation" step from Section 5 — a dedicated success screen
 /// (not just a toast) so the submission feels real and gives the citizen
 /// their reference number to note down, mirroring how a real government
@@ -50,8 +51,8 @@ class RequestSubmittedScreen extends StatelessWidget {
             children: [
               const SuccessIllustration(),
               const SizedBox(height: AppSpacing.lg),
-              const Text(
-                'Request Submitted',
+              Text(
+                tr('Request Submitted'),
                 style: TextStyle(fontSize: AppTextSize.section, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
               ),
               const SizedBox(height: AppSpacing.sm),

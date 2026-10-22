@@ -65,8 +65,9 @@ void main() {
     expect(tester.getSemantics(call).label, startsWith('Call Esperanza Police Station'));
     expect(tester.getSemantics(find.text('Evacuation Centers')).flagsCollection.isButton, isFalse);
 
-    expect(find.textContaining('120 of 300 occupied'), findsOneWidget);
-    expect(find.textContaining('Capacity: 80'), findsOneWidget);
+    // The website's wording: people, and capacity when there is no count.
+    expect(find.textContaining('120 of 300 people'), findsOneWidget);
+    expect(find.textContaining('Capacity: 80 people'), findsOneWidget);
     semantics.dispose();
   });
 }

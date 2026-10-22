@@ -14,6 +14,7 @@ import '../../theme/app_typography.dart';
 import '../../widgets/empty_state.dart';
 import '../../widgets/esperanza_art.dart';
 
+import '../../l10n/tr.dart';
 /// Events — previously a segmented sub-tab inside Balita
 /// (`BalitaScreen`'s `_EventsList`), promoted to its own bottom-nav
 /// destination now that the navbar is Home / Balita / + / Events /
@@ -34,7 +35,7 @@ class EventsScreen extends StatelessWidget {
       // Clear, over RootShell's GlassBackdrop: the glass cards show its colour.
       backgroundColor: AppColors.clear,
       appBar: AppBar(
-        leading: const ShellMenuButton(),title: const Text('Events'), actions: const [AlertsAction()]),
+        leading: const ShellMenuButton(),title: Text(tr('Events')), actions: const [AlertsAction()]),
       body: AsyncStateView<List<EventItem>>(
         loader: () async {
           final rows = await api.getAllPages('/events', query: {'per_page': 100}, maxPages: 5);

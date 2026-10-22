@@ -136,6 +136,17 @@ class NotificationsService extends ChangeNotifier {
     return null;
   }
 
+  /// The LGU's "your account is verified" notice, not yet shown as the
+  /// welcome pop-up on this phone (the website's `pendingWelcome`).
+  ServerNotification? get pendingWelcome {
+    for (final n in _server) {
+      if (n.category == 'account' && n.pill == 'Verified' && n.unread && !_shownAlerts.contains(n.id) && !isRead(n.feedId)) {
+        return n;
+      }
+    }
+    return null;
+  }
+
   /// The pop-up was shown: never again on this phone, and the notification is read.
   Future<void> alertShown(ServerNotification alert) async {
     _shownAlerts = {..._shownAlerts, alert.id};

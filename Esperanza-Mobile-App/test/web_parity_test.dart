@@ -377,7 +377,7 @@ void main() {
       await tester.enterText(find.byType(TextField), 'ABCD-EFGH-JKLM');
       await tester.tap(find.text('Check'));
       await _settle(tester);
-      expect(find.text('Genuine and valid'), findsOneWidget);
+      expect(find.text('This document is genuine and valid.'), findsOneWidget);
       expect(find.text('BC-2026-000042'), findsOneWidget);
 
       await tester.enterText(find.byType(TextField), 'NOPE');

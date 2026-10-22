@@ -4,8 +4,10 @@ import 'package:flutter/foundation.dart';
 
 import 'api_client.dart';
 import 'json_read.dart';
+import '../models/incident_status.dart';
 import '../models/incident_types.dart';
 import '../models/request_release.dart';
+import '../models/request_workflow.dart';
 import '../models/attachment.dart';
 import '../models/catalog_item.dart';
 import '../models/resident_record.dart';
@@ -68,6 +70,16 @@ class RequestsService extends ChangeNotifier {
       all.where((r) => r.category == category).toList()..sort((a, b) => b.submittedAt.compareTo(a.submittedAt));
 
   List<CatalogItem> get dokyuCatalog => List.unmodifiable(_dokyuCatalog);
+
+  /// The service's processing time ("3 working days"), for the expected
+  /// release date; null until the catalogue is loaded or when it names none.
+  String? processingDays(String? serviceKey) {
+    if (serviceKey == null) return null;
+    for (final c in [..._dokyuCatalog, ..._tulongCatalog]) {
+      if (c.key == serviceKey) return c.days.trim().isEmpty ? null : c.days;
+    }
+    return null;
+  }
   List<CatalogItem> get tulongCatalog => List.unmodifiable(_tulongCatalog);
 
   bool get loaded => _loaded;
@@ -265,12 +277,22 @@ class RequestsService extends ChangeNotifier {
       ].whereType<String>().join('\n\n'),
       submittedAt: base.submittedAt,
       status: base.status,
-      statusHistory: JsonRead.rows(timeline, (row) {
-        final status = JsonRead.nonEmpty(row['status']);
-        final at = JsonRead.date(row['at']);
-        if (status == null || at == null) return null;
-        return StatusHistoryEntry(status: status, at: at, actor: 'Esperanza LGU');
-      }),
+      // In residents' words, as the website's timeline: the report itself,
+      // then each step by the office's action ("Responders on the way").
+      statusHistory: [
+        StatusHistoryEntry(status: incidentStepLabel(verb: 'report'), at: base.submittedAt, actor: 'You'),
+        ...JsonRead.rows(timeline, (row) {
+          final status = JsonRead.nonEmpty(row['status']);
+          final verb = JsonRead.nonEmpty(row['verb']);
+          final at = JsonRead.date(row['at']);
+          if ((status == null && verb == null) || at == null) return null;
+          return StatusHistoryEntry(
+            status: incidentStepLabel(verb: verb, status: status),
+            at: at,
+            actor: 'Esperanza LGU',
+          );
+        }),
+      ],
       attachments: const [],
       expectedDays: base.expectedDays,
     )..incidentPhotos = [
@@ -461,7 +483,8 @@ class RequestsService extends ChangeNotifier {
       ..assistance = _assistanceFrom(JsonRead.map(json['assistance']), JsonRead.nonEmpty(json['office']))
       ..payment = _paymentFrom(JsonRead.map(json['payment']))
       ..pickup = RequestPickup.fromApi(JsonRead.map(json['pickup']))
-      ..issuedDocuments = JsonRead.rows(json['issued_documents'], IssuedDocumentInfo.fromApi);
+      ..issuedDocuments = JsonRead.rows(json['issued_documents'], IssuedDocumentInfo.fromApi)
+      ..workflow = RequestWorkflow.fromApi(JsonRead.map(json['workflow']));
   }
 
   /// A detail's `payment` (DescribesPayment): amount, status, receipt_no.

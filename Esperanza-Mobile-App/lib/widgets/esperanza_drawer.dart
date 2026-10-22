@@ -26,6 +26,7 @@ import 'app_dialogs.dart';
 import '../theme/app_typography.dart';
 import 'esperanza_art.dart';
 
+import '../l10n/tr.dart';
 /// The app's hamburger-menu drawer (Section 2) — hosts Profile and the
 /// screens that no longer have a dedicated bottom tab now that Balita and
 /// Emergency have taken two of the five slots. Content adapts to the
@@ -64,17 +65,17 @@ class EsperanzaDrawer extends StatelessWidget {
                     ),
                     _DrawerTile(
                       icon: Icons.settings_outlined,
-                      label: 'Settings',
+                      label: tr('Settings'),
                       onTap: () => _push(context, const SettingsScreen()),
                     ),
                     _DrawerTile(
                       icon: Icons.assignment_outlined,
-                      label: 'My Requests',
+                      label: tr('My Requests'),
                       onTap: () => _push(context, const MyRequestsScreen()),
                     ),
                     _DrawerTile(
                       icon: Icons.event_available_outlined,
-                      label: 'Appointments',
+                      label: tr('Appointments'),
                       onTap: () => _push(context, const AppointmentsScreen()),
                     ),
                     _DrawerTile(
@@ -84,13 +85,13 @@ class EsperanzaDrawer extends StatelessWidget {
                     ),
                     _DrawerTile(
                       icon: Icons.folder_open_outlined,
-                      label: 'Documents Uploaded',
+                      label: tr('Documents Uploaded'),
                       onTap: () => _push(context, const DocumentsUploadedScreen()),
                     ),
                   ] else ...[
                     _DrawerTile(
                       icon: Icons.login_rounded,
-                      label: 'Sign In',
+                      label: tr('Sign In'),
                       onTap: () => _goToAuth(context, register: false),
                     ),
                     _DrawerTile(
@@ -107,7 +108,7 @@ class EsperanzaDrawer extends StatelessWidget {
                   // Public, as on the website: anyone can check a document.
                   _DrawerTile(
                     icon: Icons.qr_code_scanner_rounded,
-                    label: 'Verify a Document',
+                    label: tr('Verify a Document'),
                     onTap: () => _push(context, const VerifyDocumentScreen()),
                   ),
                   _DrawerTile(
@@ -117,7 +118,7 @@ class EsperanzaDrawer extends StatelessWidget {
                   ),
                   _DrawerTile(
                     icon: Icons.privacy_tip_outlined,
-                    label: 'Privacy Policy',
+                    label: tr('Privacy Policy'),
                     onTap: () => _push(context, const PrivacyPolicyScreen()),
                   ),
                   _DrawerTile(
@@ -132,7 +133,7 @@ class EsperanzaDrawer extends StatelessWidget {
                     ),
                     _DrawerTile(
                       icon: Icons.logout_rounded,
-                      label: 'Sign Out',
+                      label: tr('Sign Out'),
                       danger: true,
                       onTap: () async {
                         Navigator.of(context).pop();
@@ -152,7 +153,7 @@ class EsperanzaDrawer extends StatelessWidget {
                           // "sign back in anytime" was a promise the app cannot keep.
                           message: 'Your profile, photo, requests and uploaded documents will be removed '
                               'from this device. You can register or sign in again anytime.',
-                          confirmLabel: 'Sign Out',
+                          confirmLabel: tr('Sign Out'),
                           danger: true,
                         );
                         if (ok) {

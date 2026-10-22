@@ -12,6 +12,7 @@ import '../../widgets/app_card.dart';
 import '../../widgets/expandable_panel.dart';
 import '../profile/data_requests_screen.dart';
 
+import '../../l10n/tr.dart';
 /// Privacy Policy — the one the Municipality publishes for the whole
 /// platform (web and mobile) from the Web Admin's Settings > Site Content,
 /// read from `GET /site-content/privacy`.
@@ -61,7 +62,7 @@ class _PrivacyPolicyScreenState extends State<PrivacyPolicyScreen> {
     ].join(' · ');
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Privacy Policy'),
+        title: Text(tr('Privacy Policy')),
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(52),
           child: Padding(

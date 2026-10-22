@@ -28,6 +28,14 @@ const String _defaultBaseUrl = 'https://esperanza.139-162-51-165.sslip.io/api/v1
 
 const String apiBaseUrl = String.fromEnvironment('API_BASE_URL', defaultValue: _defaultBaseUrl);
 
+/// The residents' website, for links a resident passes on (a Balita post's
+/// `?post=ID`). `WEB_BASE_URL` at build time; defaults to the staging site
+/// the staging backend's ESPERANZA_WEB_URL names.
+const String webBaseUrl = String.fromEnvironment(
+  'WEB_BASE_URL',
+  defaultValue: 'https://esperanza-web-platform-frontend.netlify.app',
+);
+
 /// One error, one shape, everywhere a request can fail. Mirrors the web
 /// client's `ApiError` (resources/js/api/errors.js) field for field, so the
 /// same backend contract (`{"error":{"code","message":{"fil","en"},"fields"}}`)
