@@ -30,7 +30,19 @@ class BarangayOfficial {
   final String? photoUrl;
 }
 
-/// The barangay's story, where the LGU has written it.
+/// One figure at the top of a barangay's history ("4 / Puroks (9–12)").
+class BarangayFact {
+  const BarangayFact({required this.value, required this.label});
+
+  final String value;
+  final String label;
+}
+
+/// The barangay's story, where the LGU has written it: the full text
+/// (founding, renaming, today), past leaders and landmarks, and - drawn from
+/// that text for a quick read (the redesign, 2026-10-22) - a one-line
+/// summary, a few facts, where the name comes from and what people live on.
+/// Every part is optional.
 class BarangayHistory {
   const BarangayHistory({
     this.founding,
@@ -38,6 +50,12 @@ class BarangayHistory {
     this.today,
     this.leadership = const [],
     this.landmarks = const [],
+    this.summary,
+    this.facts = const [],
+    this.nameTitle,
+    this.nameText,
+    this.livelihood = const [],
+    this.livelihoodNote,
   });
 
   final String? founding;
@@ -45,9 +63,22 @@ class BarangayHistory {
   final String? today;
   final List<BarangayLeader> leadership;
   final List<BarangayLandmark> landmarks;
+  final String? summary;
+  final List<BarangayFact> facts;
+  final String? nameTitle;
+  final String? nameText;
+  final List<String> livelihood;
+  final String? livelihoodNote;
+
+  bool get hasFullText => founding != null || renaming != null || today != null;
 
   bool get isEmpty =>
-      founding == null && renaming == null && today == null && leadership.isEmpty && landmarks.isEmpty;
+      !hasFullText &&
+      leadership.isEmpty &&
+      landmarks.isEmpty &&
+      facts.isEmpty &&
+      nameTitle == null &&
+      livelihood.isEmpty;
 
   static BarangayHistory? fromApi(Object? raw) {
     final m = JsonRead.map(raw);
@@ -70,6 +101,16 @@ class BarangayHistory {
           note: JsonRead.nonEmpty(l['note']),
         );
       }),
+      summary: JsonRead.nonEmpty(m['summary']),
+      facts: JsonRead.rows(m['facts'], (f) {
+        final value = JsonRead.nonEmpty(f['value']);
+        final label = JsonRead.nonEmpty(f['label']);
+        return value == null || label == null ? null : BarangayFact(value: value, label: label);
+      }),
+      nameTitle: JsonRead.nonEmpty(JsonRead.map(m['name_origin'])?['title']),
+      nameText: JsonRead.nonEmpty(JsonRead.map(m['name_origin'])?['text']),
+      livelihood: JsonRead.strings(JsonRead.map(m['livelihood'])?['items']),
+      livelihoodNote: JsonRead.nonEmpty(JsonRead.map(m['livelihood'])?['note']),
     );
     return h.isEmpty ? null : h;
   }

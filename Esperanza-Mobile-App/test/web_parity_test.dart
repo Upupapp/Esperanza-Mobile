@@ -127,9 +127,19 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.text('Brgy. Labangtaytay'));
       await tester.pumpAndSettle();
-      expect(find.text('FOUNDING'), findsOneWidget);
-      expect(find.text('Founded by synthetic settlers.'), findsOneWidget);
+      // The redesign (2026-10-22): leaders and places first, the full text
+      // behind "Read full history".
+      expect(find.text('Synthetic Leader'), findsOneWidget);
       expect(find.text('Synthetic Beach'), findsOneWidget);
+      expect(find.text('Founded by synthetic settlers.'), findsNothing);
+      await tester.ensureVisible(find.text('Read full history'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Read full history'));
+      await tester.pumpAndSettle();
+      await tester.scrollUntilVisible(find.text('Founded by synthetic settlers.'), 200);
+      expect(find.text('Founded by synthetic settlers.'), findsOneWidget);
+      await tester.scrollUntilVisible(find.text('Officials & Staff'), -300);
+      await tester.pumpAndSettle();
       await tester.tap(find.text('Officials & Staff'));
       await tester.pumpAndSettle();
       expect(find.text('BDRRMC'), findsOneWidget);

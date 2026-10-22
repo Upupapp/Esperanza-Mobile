@@ -8,8 +8,6 @@ import '../../theme/app_colors.dart';
 import '../../theme/app_spacing.dart';
 import '../../theme/app_typography.dart';
 import '../../widgets/app_button.dart';
-import '../../widgets/app_text_field.dart';
-import '../../widgets/segmented_tabs.dart';
 import '../../widgets/app_dialogs.dart';
 import '../../widgets/async_state_view.dart';
 import '../../widgets/empty_state.dart';
@@ -66,10 +64,10 @@ class BalitaScreen extends StatelessWidget {
 /// The website's Balita categories (scope-citizen.js), in its order.
 const balitaCategories = ['Community', 'Health', 'Public Service', 'Advisory', 'Livelihood', 'Governance'];
 
-/// The feed as the website shows it (announcements.blade.php): All or
-/// Barangay (the resident's own barangay's posts), a category, the count,
-/// and "Load more posts" at the end. The tabs and the category narrow what
-/// is loaded, as there.
+/// The feed: All or Barangay (the resident's own barangay's posts) as
+/// underlined tabs, a Filter that opens the categories beneath them (the
+/// redesign, 2026-10-22), and "Load more posts" at the end. The tabs and the
+/// category narrow what is loaded, as on the website.
 class _Feed extends StatefulWidget {
   const _Feed({required this.onRefresh});
 
@@ -82,6 +80,7 @@ class _Feed extends StatefulWidget {
 class _FeedState extends State<_Feed> {
   int _tab = 0; // 0 All, 1 Barangay
   String? _category;
+  bool _categoriesOpen = false;
 
   Future<void> _loadMore(BalitaService balita) async {
     try {
@@ -104,30 +103,57 @@ class _FeedState extends State<_Feed> {
     final header = Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        if (hasBarangay) ...[
-          SegmentedTabs(labels: const ['All', 'Barangay'], selectedIndex: tab, onChanged: (i) => setState(() => _tab = i)),
-          const SizedBox(height: AppSpacing.md),
-        ],
-        Row(
-          children: [
-            Expanded(
-              child: Text(
-                '${posts.length} post${posts.length == 1 ? '' : 's'}',
-                style: AppTypography.bodySmall.copyWith(color: AppColors.textMuted),
+        DecoratedBox(
+          decoration: const BoxDecoration(border: Border(bottom: BorderSide(color: AppColors.slate200))),
+          child: Row(
+            children: [
+              _FeedTab(label: 'All', selected: tab == 0, onTap: () => setState(() => _tab = 0)),
+              if (hasBarangay) _FeedTab(label: 'Barangay', selected: tab == 1, onTap: () => setState(() => _tab = 1)),
+              const Spacer(),
+              TextButton.icon(
+                onPressed: () => setState(() => _categoriesOpen = !_categoriesOpen),
+                style: TextButton.styleFrom(
+                  foregroundColor: AppColors.slate700,
+                  minimumSize: const Size(AppSizes.minTouchTarget, AppSizes.minTouchTarget),
+                  padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xs),
+                ),
+                icon: const Icon(Icons.filter_list_rounded, size: AppSizes.iconSm),
+                label: Text(_category ?? 'Filter', style: AppTypography.bodyMedium.copyWith(fontWeight: FontWeight.w600)),
               ),
-            ),
-            Flexible(
-              flex: 2,
-              child: AppSelectField<String>(
-                value: _category ?? 'All categories',
-                options: const ['All categories', ...balitaCategories],
-                labelBuilder: (c) => c,
-                hintText: 'Category',
-                onChanged: (c) => setState(() => _category = c == 'All categories' ? null : c),
-              ),
-            ),
-          ],
+            ],
+          ),
         ),
+        if (_categoriesOpen)
+          DecoratedBox(
+            decoration: const BoxDecoration(border: Border(bottom: BorderSide(color: AppColors.slate200))),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
+              child: Wrap(
+                spacing: AppSpacing.lg,
+                children: [
+                  for (final c in [null, ...balitaCategories])
+                    TextButton(
+                      onPressed: () => setState(() {
+                        _category = c;
+                        _categoriesOpen = false;
+                      }),
+                      style: TextButton.styleFrom(
+                        padding: EdgeInsets.zero,
+                        minimumSize: const Size(0, 40),
+                        tapTargetSize: MaterialTapTargetSize.padded,
+                        foregroundColor: c == _category ? AppColors.navy800 : AppColors.textMuted,
+                      ),
+                      child: Text(
+                        c ?? 'All categories',
+                        style: AppTypography.bodyMedium.copyWith(
+                          fontWeight: c == _category ? FontWeight.w700 : FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
         const SizedBox(height: AppSpacing.md),
       ],
     );
@@ -184,6 +210,44 @@ class _FeedState extends State<_Feed> {
             ),
           );
         },
+      ),
+    );
+  }
+}
+
+/// One underlined tab of the feed (All, Barangay).
+class _FeedTab extends StatelessWidget {
+  const _FeedTab({required this.label, required this.selected, required this.onTap});
+
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      selected: selected,
+      button: true,
+      child: InkWell(
+        onTap: onTap,
+        child: Container(
+          constraints: const BoxConstraints(minHeight: AppSizes.minTouchTarget),
+          margin: const EdgeInsets.only(right: AppSpacing.xl),
+          padding: const EdgeInsets.symmetric(horizontal: 2),
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            border: Border(
+              bottom: BorderSide(color: selected ? AppColors.navy800 : Colors.transparent, width: 2),
+            ),
+          ),
+          child: Text(
+            label,
+            style: AppTypography.bodyText.copyWith(
+              fontWeight: selected ? FontWeight.w700 : FontWeight.w600,
+              color: selected ? AppColors.textPrimary : AppColors.textMuted,
+            ),
+          ),
+        ),
       ),
     );
   }

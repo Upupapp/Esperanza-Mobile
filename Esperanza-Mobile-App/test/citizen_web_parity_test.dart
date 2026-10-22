@@ -14,6 +14,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:esperanza_mobile/models/citizen_account.dart';
 import 'package:esperanza_mobile/screens/balita/balita_screen.dart';
+import 'package:esperanza_mobile/screens/directory/barangay_profile_screen.dart';
 import 'package:esperanza_mobile/screens/profile/edit_profile_screen.dart';
 import 'package:esperanza_mobile/screens/profile/resident_profile/family_information_screen.dart';
 import 'package:esperanza_mobile/screens/profile/resident_profile/household_information_screen.dart';
@@ -21,6 +22,7 @@ import 'package:esperanza_mobile/screens/profile/resident_profile/personal_infor
 import 'package:esperanza_mobile/screens/support/report_problem_screen.dart';
 import 'package:esperanza_mobile/services/api_client.dart';
 import 'package:esperanza_mobile/services/balita_service.dart';
+import 'package:esperanza_mobile/services/barangay_service.dart';
 import 'package:esperanza_mobile/services/citizen_session_service.dart';
 import 'package:esperanza_mobile/services/master_file_service.dart';
 import 'package:esperanza_mobile/services/notifications_service.dart';
@@ -276,22 +278,119 @@ void main() {
       });
       await _pump(tester, const BalitaScreen(), account: _citizen());
 
-      expect(find.text('2 posts'), findsOneWidget);
+      // The redesign (2026-10-22): underlined tabs and a Filter, no count.
+      expect(find.text('Filter'), findsOneWidget);
+      expect(find.text('Synthetic post 3'), findsNothing);
       await _tapText(tester, 'Load more posts');
       expect(sent.any((s) => s.path == '/announcements' && s.method == 'GET'), isTrue);
-      expect(find.text('3 posts'), findsOneWidget);
+      await tester.scrollUntilVisible(find.text('Synthetic post 3'), 300);
+      expect(find.text('Synthetic post 3'), findsOneWidget);
       expect(find.text('Load more posts'), findsNothing);
 
+      await tester.scrollUntilVisible(find.text('Barangay'), -300);
       await _tapText(tester, 'Barangay');
-      expect(find.text('1 post'), findsOneWidget);
       expect(find.text('Synthetic post 1'), findsOneWidget);
+      expect(find.text('Synthetic post 2'), findsNothing);
 
       await _tapText(tester, 'All');
-      await _tapText(tester, 'All categories');
-      await tester.tap(find.text('Health').last);
-      await tester.pumpAndSettle();
-      expect(find.text('1 post'), findsOneWidget);
+      await _tapText(tester, 'Filter');
+      expect(find.text('All categories'), findsOneWidget);
+      await _tapText(tester, 'Health');
       expect(find.text('Synthetic post 2'), findsOneWidget);
+      expect(find.text('Synthetic post 1'), findsNothing);
+      // The Filter now names the category, and the list has closed.
+      expect(find.text('Health'), findsOneWidget);
+      expect(find.text('All categories'), findsNothing);
+    });
+  });
+
+  group('Barangay profile (the redesign)', () {
+    final labangtaytay = {
+      'name': 'Labangtaytay',
+      'contact': '(056) 000-0000',
+      'history': {
+        'summary': 'Puroks 9–12 · Formerly Barrio Tabunok',
+        'facts': [
+          {'value': '4', 'label': 'Puroks (9–12)'},
+          {'value': '1961', 'label': 'Became a barrio'},
+        ],
+        'name_origin': {'title': 'labang + taytayan', 'text': 'The bamboo bridge.'},
+        'livelihood': {'items': ['Fishing'], 'note': 'Synthetic gear'},
+        'founding': 'Founded by synthetic settlers.',
+        'leadership': [
+          {'name': 'Ana Una', 'title': 'Kapitan del Barrio', 'term': '1970 – 1982'},
+          {'name': 'Ben Dalawa', 'title': 'Punong Barangay', 'term': '1982 – 2001'},
+          {'name': 'Cora Tatlo', 'title': 'Punong Barangay', 'term': '2001 – 2010'},
+          {'name': 'Dan Apat', 'title': 'Punong Barangay', 'term': '2010 – Present'},
+        ],
+        'landmarks': [
+          {'name': 'Synthetic Chapel', 'location': 'Purok 9', 'note': 'Fiesta in May'},
+        ],
+      },
+      'officials_roster': [
+        {'name': 'Hon. Dan Apat', 'position': 'Punong Barangay', 'committee': 'Chairperson, BDRRMC'},
+        {'name': 'Eva Lima', 'position': 'Barangay Secretary', 'committee': 'Records'},
+        {'name': 'Cora Tatlo', 'position': 'Barangay Kagawad', 'committee': 'Environment'},
+      ],
+    };
+
+    testWidgets('History: facts, the name, livelihood, leaders newest first, places, and the full text', (tester) async {
+      await _pump(tester, BarangayProfileScreen(barangay: BarangayInfo.fromApi(labangtaytay)!));
+
+      expect(find.text('Puroks 9–12 · Formerly Barrio Tabunok'), findsOneWidget);
+      expect(find.text('1961'), findsOneWidget);
+      expect(find.text('labang + taytayan'), findsOneWidget);
+      expect(find.text('Fishing'), findsOneWidget);
+      // Newest first, three at a time, the current one marked.
+      await tester.scrollUntilVisible(find.text('Show all 4'), 300);
+      expect(find.text('Dan Apat'), findsOneWidget);
+      expect(find.text('Current'), findsOneWidget);
+      expect(find.text('Ana Una'), findsNothing);
+      await _tapText(tester, 'Show all 4');
+      expect(find.text('Ana Una'), findsOneWidget);
+      await tester.scrollUntilVisible(find.text('Read full history'), 300);
+      await tester.pumpAndSettle();
+      expect(find.text('Synthetic Chapel'), findsOneWidget);
+      expect(find.text('Founded by synthetic settlers.'), findsNothing);
+      await _tapText(tester, 'Read full history');
+      await tester.scrollUntilVisible(find.text('Founded by synthetic settlers.'), 200);
+      expect(find.text('Founded by synthetic settlers.'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('Officials: the Punong Barangay, officers, kagawad by committee, and a profile', (tester) async {
+      await _pump(tester, BarangayProfileScreen(barangay: BarangayInfo.fromApi(labangtaytay)!));
+      await _tapText(tester, 'Officials & Staff');
+
+      expect(find.text('PUNONG BARANGAY'), findsOneWidget);
+      expect(find.text('Officers'), findsOneWidget);
+      expect(find.text('1 · by committee'), findsOneWidget);
+      await _tapText(tester, 'Cora Tatlo');
+      // A kagawad who once led the barangay says so.
+      expect(find.text('Also served'), findsOneWidget);
+      expect(find.text('Punong Barangay, 2001 – 2010'), findsOneWidget);
+      expect(find.text('Committee'), findsOneWidget);
+      await tester.tap(find.byTooltip('Close profile'));
+      await tester.pumpAndSettle();
+      expect(find.text('Also served'), findsNothing);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('a barangay without the highlights shows what it has', (tester) async {
+      await _pump(
+        tester,
+        BarangayProfileScreen(
+          barangay: BarangayInfo.fromApi({
+            'name': 'Agoho',
+            'punong_barangay': 'Hon. Synthetic Captain',
+            'history': {'founding': 'Founded by synthetic settlers.'},
+          })!,
+        ),
+      );
+      expect(find.text('Punong Barangay: Hon. Synthetic Captain'), findsOneWidget);
+      expect(find.text('Read full history'), findsOneWidget);
+      expect(find.text('Leadership'), findsNothing);
+      expect(tester.takeException(), isNull);
     });
   });
 }
