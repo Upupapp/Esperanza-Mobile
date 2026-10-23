@@ -63,6 +63,36 @@ void main() {
     expect(stale, isEmpty, reason: 'run tool/l10n/build_filipino.py again');
   });
 
+  test('no phrase is fixed in the language the app opened in', () {
+    // A static or top-level value is worked out once: the bottom bar kept
+    // "Kaganapan" and "Sakuna" after switching to English (2026-10-23).
+    final once = RegExp(r'^\s*(?:static\s+)?(?:final|const)\s+(?:[\w<>?, ]+\s+)?\w+\s*=[^;]*?\btr\(', multiLine: true);
+    final typeOpener = RegExp(r'\b(?:class|mixin|extension|enum)\b[^;{}]*$');
+    for (final f in Directory('lib').listSync(recursive: true).whereType<File>()) {
+      if (!f.path.endsWith('.dart')) continue;
+      final source = f
+          .readAsStringSync()
+          .replaceAll(RegExp(r'//[^\n]*'), '')
+          .replaceAll(RegExp(r"'(?:[^'\\\n]|\\.)*'"), "''");
+      for (final m in once.allMatches(source)) {
+        // Which braces enclose it: none (top level) or a class's own body
+        // means it is worked out once; a function body runs each time.
+        final opened = <bool>[];
+        for (var i = 0; i < m.start; i++) {
+          if (source[i] == '{') {
+            opened.add(typeOpener.hasMatch(source.substring(i < 200 ? 0 : i - 200, i)));
+          } else if (source[i] == '}' && opened.isNotEmpty) {
+            opened.removeLast();
+          }
+        }
+        if (opened.isEmpty || opened.last) {
+          final line = source.substring(0, m.start).split('\n').length;
+          fail('${f.path}:$line works out tr() once; use a getter');
+        }
+      }
+    }
+  });
+
   test('status names are never translated, as on the website', () {
     for (final s in ['Submitted', 'Approved', 'Rejected', 'Released', 'Verified', 'Under Review', 'Cancelled']) {
       expect(filipinoText.containsKey(s), isFalse, reason: s);

@@ -255,7 +255,9 @@ class _RootShellState extends State<RootShell> with WidgetsBindingObserver {
     });
   }
 
-  static final _items = [
+  // A getter, not a field: the labels follow a change of language (a field
+  // kept the language the app opened in).
+  static List<NavItemData> get _items => [
     NavItemData(outlineIcon: Icons.home_outlined, filledIcon: Icons.home_rounded, label: 'Home'),
     NavItemData(outlineIcon: Icons.campaign_outlined, filledIcon: Icons.campaign_rounded, label: 'Balita'),
     NavItemData(outlineIcon: Icons.event_outlined, filledIcon: Icons.event_rounded, label: tr('Events')),

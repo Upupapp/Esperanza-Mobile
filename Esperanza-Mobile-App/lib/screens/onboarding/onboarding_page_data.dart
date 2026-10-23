@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../../l10n/tr.dart';
 /// One first-run scene: a photograph, two lines of headline, and a promise the
 /// app can keep.
 ///
@@ -115,7 +114,7 @@ final onboardingScenes = <OnboardingSceneSpec>[
         'Page 3 of 3: an emergency response team assisting a family during a flood',
     features: [
       OnboardingFeature(icon: Icons.campaign_rounded, label: 'Official Balita', motion: FeatureMotion.wobble),
-      OnboardingFeature(icon: Icons.calendar_month_rounded, label: tr('Upcoming Events')),
+      OnboardingFeature(icon: Icons.calendar_month_rounded, label: 'Upcoming Events'),
       OnboardingFeature(icon: Icons.health_and_safety_rounded, label: 'Emergency Help', motion: FeatureMotion.pulse),
     ],
   ),

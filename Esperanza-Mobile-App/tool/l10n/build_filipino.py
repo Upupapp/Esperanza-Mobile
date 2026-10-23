@@ -157,7 +157,7 @@ def main():
         '',
         'const Map<String, String> filipinoText = {',
     ]
-    for en in sorted(table, key=str.lower):
+    for en in sorted(table, key=lambda k: (k.lower(), k)):
         lines.append('  ' + dart(en) + ': ' + dart(table[en]) + ',')
     lines.append('};')
     os.makedirs(os.path.dirname(OUT), exist_ok=True)
