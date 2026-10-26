@@ -99,6 +99,8 @@ class MasterFileService extends ChangeNotifier {
   /// why that never disturbs an already-submitted request). Never called
   /// for a reused document — reuse only ever copies an existing entry's
   /// `attachment` onto a new request locally, it doesn't touch this store.
+  /// Kept on this phone only: nothing is sent to the resident's Papeles
+  /// (the website never did; 2026-10-23).
   Future<MasterFileDocument> saveOrUpdate({
     required String accountId,
     required String documentType,
@@ -108,7 +110,7 @@ class MasterFileService extends ChangeNotifier {
     String? serviceName,
   }) async {
     final existing = _byAccount[accountId] ?? [];
-    var doc = MasterFileDocument(
+    final doc = MasterFileDocument(
       id: 'mfd-${DateTime.now().microsecondsSinceEpoch}',
       documentType: documentType,
       label: label,
@@ -121,37 +123,6 @@ class MasterFileService extends ChangeNotifier {
     notifyListeners();
     await _persist();
 
-    // Also keep it in the resident's Papeles wallet on the server, so it
-    // survives a new phone. The local entry stands if the upload fails
-    // (offline): reuse on this device still works, and the next save retries.
-    final path = attachment.localPath;
-    if (path != null && path.isNotEmpty) {
-      try {
-        final res = await api.postMultipart(
-          '/citizen/papeles',
-          filePath: path,
-          fileField: 'file',
-          fields: {'name': label, 'type': documentType, 'category': origin},
-        );
-        final remoteId = JsonRead.integer(res.map['id']);
-        if (remoteId != null) {
-          doc = MasterFileDocument(
-            id: 'pap-$remoteId',
-            documentType: documentType,
-            label: label,
-            attachment: attachment,
-            uploadedAt: doc.uploadedAt,
-            origin: origin,
-            serviceName: serviceName,
-          );
-          _byAccount[accountId] = [...(_byAccount[accountId] ?? []).where((d) => d.documentType != documentType), doc];
-          notifyListeners();
-          await _persist();
-        }
-      } on ApiException {
-        // See above.
-      }
-    }
     return doc;
   }
 
@@ -179,11 +150,25 @@ class MasterFileService extends ChangeNotifier {
         uploadedAt: d.uploadedAt,
         origin: d.origin,
         serviceName: mine.serviceName,
+        status: d.status,
       );
     });
     _byAccount[accountId] = [...merged, ...local];
     notifyListeners();
     await _persist();
+  }
+
+  /// Reads the wallet again where a request can use it (the request form,
+  /// a request's page), as the website does each time Dokyu or Tulong opens:
+  /// "From My Papeles" listed only what Documents Uploaded last fetched
+  /// (parity check, 2026-10-26). Offline, it keeps what it has.
+  Future<void> refreshQuietly(String? accountId) async {
+    if (accountId == null) return;
+    try {
+      await syncFromServer(accountId);
+    } on ApiException {
+      // The saved copy stands.
+    }
   }
 
   /// Adds a file straight to the Papeles wallet, outside any request, as the
@@ -251,6 +236,7 @@ class MasterFileService extends ChangeNotifier {
       ),
       uploadedAt: uploaded,
       origin: JsonRead.nonEmpty(json['category']) ?? 'Papeles',
+      status: JsonRead.nonEmpty(json['status']),
     );
   }
 }

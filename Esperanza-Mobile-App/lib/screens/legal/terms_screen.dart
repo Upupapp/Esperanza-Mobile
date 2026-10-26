@@ -8,6 +8,7 @@ import '../../theme/app_typography.dart';
 import '../../widgets/app_button.dart';
 import '../../widgets/expandable_panel.dart';
 
+import '../../l10n/tr.dart';
 /// Terms and Conditions: the ones the Municipality publishes for web and
 /// mobile alike (`GET /site-content/terms`, the web portal's
 /// /citizen/legal/terms). Registration asks the resident to accept them, and
@@ -59,13 +60,17 @@ class _TermsScreenState extends State<TermsScreen> {
                 style: AppTypography.helper,
               ),
               const SizedBox(height: AppSpacing.md),
-              AppButton(label: 'Try again', variant: AppButtonVariant.secondary, onPressed: _load),
+              AppButton(label: tr('Try again'), variant: AppButtonVariant.secondary, onPressed: _load),
             ] else ...[
               Text(terms.title, style: AppTypography.sectionTitle),
-              if (terms.effectiveDate != null) ...[
+              if (terms.effectiveDate != null || terms.lastUpdated != null) ...[
                 const SizedBox(height: AppSpacing.xs),
                 Text(
-                  'Effective ${DateFormat('MMM d, yyyy').format(terms.effectiveDate!)}',
+                  [
+                    if (terms.effectiveDate != null) 'Effective ${DateFormat('MMM d, yyyy').format(terms.effectiveDate!)}',
+                    if (terms.lastUpdated != null)
+                      'Last updated ${DateFormat('MMM d, yyyy').format(terms.lastUpdated!.toLocal())}',
+                  ].join(' · '),
                   style: const TextStyle(fontSize: AppTextSize.label, fontWeight: FontWeight.w600, color: AppColors.textMuted),
                 ),
               ],

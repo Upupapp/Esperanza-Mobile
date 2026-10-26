@@ -33,7 +33,8 @@ import 'package:esperanza_mobile/theme/app_colors.dart';
 Widget _host(Widget child) => MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => RequestsService()),
-        ChangeNotifierProvider(create: (_) => CitizenSessionService()),
+        // Filing needs a verified account: the FAB is not offered before it.
+        ChangeNotifierProvider(create: (_) => CitizenSessionService()..login(MockCatalog.demoAccounts.last)),
         ChangeNotifierProvider(create: (_) => MasterFileService()),
         ChangeNotifierProvider(create: (_) => ResidentProfileService()),
         ChangeNotifierProvider(create: (_) => BalitaService()),

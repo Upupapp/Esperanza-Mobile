@@ -12,6 +12,7 @@ import '../../theme/app_spacing.dart';
 import '../../widgets/app_card.dart';
 import '../../theme/app_typography.dart';
 
+import '../../l10n/tr.dart';
 /// Basic account preferences. Kept intentionally small — matches what a
 /// citizen actually needs, not a copy of the Web Admin's admin-facing
 /// Settings module (General/Branding/Audit Logs are admin-only concerns
@@ -77,11 +78,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Settings')),
+      appBar: AppBar(title: Text(tr('Settings'))),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.md, AppSpacing.lg, AppSpacing.xxxl),
         children: [
-          const _SectionLabel('Notifications'),
+          _SectionLabel(tr('Notifications')),
           const Padding(
             padding: EdgeInsets.only(left: AppSpacing.xs, right: AppSpacing.xs, bottom: AppSpacing.md),
             child: Text(
@@ -100,11 +101,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ),
             ),
           const SizedBox(height: AppSpacing.xl),
-          const _SectionLabel('Language of Messages'),
-          const Padding(
-            padding: EdgeInsets.only(left: AppSpacing.xs, right: AppSpacing.xs, bottom: AppSpacing.md),
+          // The whole app, as the website's Settings > Language: its screens
+          // (in the website's wording) and the LGU's messages.
+          _SectionLabel(tr('Language')),
+          Padding(
+            padding: const EdgeInsets.only(left: AppSpacing.xs, right: AppSpacing.xs, bottom: AppSpacing.md),
             child: Text(
-              'Notifications and messages from the LGU come in Filipino and English. Choose which one to show.',
+              tr('Choose the language used across the app. Where the app has no Filipino yet, it shows the English.'),
               style: AppTypography.helper,
             ),
           ),
@@ -128,19 +131,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
               children: [
                 _LinkTile(
                   icon: Icons.lock_reset_rounded,
-                  label: 'Change Password',
+                  label: tr('Change Password'),
                   open: () => const ChangePasswordScreen(),
                 ),
                 const Divider(height: 1, indent: AppSpacing.lg, endIndent: AppSpacing.lg),
                 _LinkTile(
                   icon: Icons.manage_accounts_outlined,
-                  label: 'My Data Requests',
+                  label: tr('My Data Requests'),
                   open: () => const DataRequestsScreen(),
                 ),
                 const Divider(height: 1, indent: AppSpacing.lg, endIndent: AppSpacing.lg),
                 _LinkTile(
                   icon: Icons.privacy_tip_outlined,
-                  label: 'Privacy Policy',
+                  label: tr('Privacy Policy'),
                   open: () => const PrivacyPolicyScreen(),
                 ),
                 const Divider(height: 1, indent: AppSpacing.lg, endIndent: AppSpacing.lg),
@@ -196,7 +199,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           children: [
             Text(_loadError!, style: AppTypography.helper.copyWith(color: AppColors.danger)),
             const SizedBox(height: AppSpacing.sm),
-            OutlinedButton(onPressed: _load, child: const Text('Try Again')),
+            OutlinedButton(onPressed: _load, child: Text(tr('Try Again'))),
           ],
         ),
       );
@@ -231,8 +234,9 @@ class _PreferenceRow extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // The server's own Filipino label when Filipino is chosen.
           Text(
-            preference.labelEn,
+            MessageLanguage.pick(fil: preference.labelFil, en: preference.labelEn) ?? preference.labelEn,
             style: const TextStyle(fontSize: AppTextSize.body, fontWeight: FontWeight.w500),
           ),
           const SizedBox(height: AppSpacing.xs),

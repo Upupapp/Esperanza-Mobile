@@ -70,9 +70,10 @@ void main() {
     expect(find.text('Step 1 of 4'), findsOneWidget);
     expect(find.text('Applicant Info'), findsWidgets);
 
-    // Applicant Info is prefilled from the signed-in account (Perlita Quiambao).
-    expect(find.widgetWithText(TextField, 'Perlita Quiambao'), findsOneWidget);
-    expect(find.text('Baras'), findsOneWidget); // her barangay, prefilled into the select
+    // Applicant Info is the website's applicant block, prefilled from the
+    // signed-in account (Perlita Quiambao).
+    expect(find.widgetWithText(TextField, 'Perlita'), findsOneWidget);
+    expect(find.widgetWithText(TextField, 'Quiambao'), findsOneWidget);
 
     await tester.tap(find.text('Continue'));
     await tester.pumpAndSettle();

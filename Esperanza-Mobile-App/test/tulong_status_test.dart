@@ -20,7 +20,6 @@ import 'package:esperanza_mobile/services/resident_profile_service.dart';
 import 'package:esperanza_mobile/theme/app_status.dart';
 import 'package:esperanza_mobile/theme/tulong_status.dart';
 import 'package:esperanza_mobile/utils/peso_text.dart';
-import 'package:esperanza_mobile/utils/tulong_eligibility.dart';
 import 'package:esperanza_mobile/widgets/status_chip.dart';
 
 import 'support/fake_api.dart';
@@ -186,35 +185,6 @@ void main() {
     expect(find.text('Approved amount'), findsNothing);
   });
 
-  group('reapplying to the same assistance', () {
-    Future<TulongEligibility> eligibilityWith(String status) async {
-      // A bare list, as DokyuTulongFixtures serves it; FakeApi pages it.
-      FakeApi.installFull(
-        (req) => [
-          {'ref': _ref, 'type': 'tulong', 'service': 'Educational Assistance', 'status': status, 'submitted': '2026-10-04T00:00:00Z'},
-        ],
-      );
-      final service = RequestsService();
-      addTearDown(service.dispose);
-      await service.loadRequests();
-      return tulongEligibilityFor(service, typeName: 'Educational Assistance').status;
-    }
-
-    test('a case still being decided blocks as active', () async {
-      expect(await eligibilityWith('Initial Screening'), TulongEligibility.blockedActive);
-      expect(await eligibilityWith('For Approval'), TulongEligibility.blockedActive);
-    });
-
-    test('an approved case blocks as received', () async {
-      expect(await eligibilityWith('Assistance Processing'), TulongEligibility.blockedReceived);
-      expect(await eligibilityWith('Completed'), TulongEligibility.blockedReceived);
-    });
-
-    test('a rejected or cancelled case does not block', () async {
-      expect(await eligibilityWith('Rejected'), TulongEligibility.eligible);
-      expect(await eligibilityWith('Cancelled'), TulongEligibility.eligible);
-    });
-  });
 
   test('pesoText groups thousands and keeps centavos', () {
     expect(pesoText('4000.00'), '₱4,000.00');

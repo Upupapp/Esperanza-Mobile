@@ -4,12 +4,17 @@ import 'package:flutter/foundation.dart';
 
 import 'api_client.dart';
 import 'json_read.dart';
+import '../models/geo_point.dart';
+import '../models/incident_status.dart';
+import '../models/incident_types.dart';
 import '../models/request_release.dart';
+import '../models/request_workflow.dart';
 import '../models/attachment.dart';
 import '../models/catalog_item.dart';
 import '../models/resident_record.dart';
 import '../models/service_request.dart';
 import 'service_form_specs.dart';
+import '../l10n/tr.dart';
 
 /// Dokyu + Tulong: catalog, submission and tracking, against the real
 /// backend (production-readiness programme, 2026-09-25). Previously a
@@ -67,6 +72,16 @@ class RequestsService extends ChangeNotifier {
       all.where((r) => r.category == category).toList()..sort((a, b) => b.submittedAt.compareTo(a.submittedAt));
 
   List<CatalogItem> get dokyuCatalog => List.unmodifiable(_dokyuCatalog);
+
+  /// The service's processing time ("3 working days"), for the expected
+  /// release date; null until the catalogue is loaded or when it names none.
+  String? processingDays(String? serviceKey) {
+    if (serviceKey == null) return null;
+    for (final c in [..._dokyuCatalog, ..._tulongCatalog]) {
+      if (c.key == serviceKey) return c.days.trim().isEmpty ? null : c.days;
+    }
+    return null;
+  }
   List<CatalogItem> get tulongCatalog => List.unmodifiable(_tulongCatalog);
 
   bool get loaded => _loaded;
@@ -196,7 +211,9 @@ class RequestsService extends ChangeNotifier {
   /// filing a second one (201), so the caller must reuse it across retries of
   /// the same report. [barangay] must be one of the backend's canonical
   /// barangays (validated with `exists:barangays,name`). [photos], up to
-  /// three, go with it as a form (scope round 2026-10-15).
+  /// three, go with it as a form (scope round 2026-10-15). [location] is
+  /// where the emergency is on the map (2026-10-26): `lat` and `lng` go
+  /// together, or neither does.
   Future<ServiceRequest> reportIncident({
     required String type,
     required String title,
@@ -204,6 +221,7 @@ class RequestsService extends ChangeNotifier {
     required String barangay,
     String? sitio,
     String? description,
+    GeoPoint? location,
     required String clientUuid,
     List<({List<int> bytes, String filename})> photos = const [],
   }) async {
@@ -214,6 +232,7 @@ class RequestsService extends ChangeNotifier {
       'barangay': barangay,
       if (sitio != null && sitio.trim().isNotEmpty) 'sitio': sitio.trim(),
       if (description != null && description.trim().isNotEmpty) 'description': description.trim(),
+      ...?location?.toFields(),
       'client_uuid': clientUuid,
     };
     final res = photos.isEmpty
@@ -259,23 +278,39 @@ class RequestsService extends ChangeNotifier {
       // block (see its `usesMilestones` branch) -- severity stays visible
       // here too, not only in the list row's own copy, which this replaces.
       purpose: [
-        if (severity != null) 'Severity: $severity',
+        if (severity != null) '${tr('Severity')}: ${severityLabel(severity)}',
         description,
       ].whereType<String>().join('\n\n'),
       submittedAt: base.submittedAt,
       status: base.status,
-      statusHistory: JsonRead.rows(timeline, (row) {
-        final status = JsonRead.nonEmpty(row['status']);
-        final at = JsonRead.date(row['at']);
-        if (status == null || at == null) return null;
-        return StatusHistoryEntry(status: status, at: at, actor: 'Esperanza LGU');
-      }),
+      // In residents' words, as the website's timeline: the report itself,
+      // then each step by the office's action ("Responders on the way").
+      statusHistory: [
+        StatusHistoryEntry(status: incidentStepLabel(verb: 'report'), at: base.submittedAt, actor: 'You'),
+        ...JsonRead.rows(timeline, (row) {
+          final status = JsonRead.nonEmpty(row['status']);
+          final verb = JsonRead.nonEmpty(row['verb']);
+          final at = JsonRead.date(row['at']);
+          if ((status == null && verb == null) || at == null) return null;
+          return StatusHistoryEntry(
+            status: incidentStepLabel(verb: verb, status: status),
+            at: at,
+            actor: 'Esperanza LGU',
+          );
+        }),
+      ],
       attachments: const [],
       expectedDays: base.expectedDays,
-    )..incidentPhotos = [
+    )
+      ..incidentPhotos = [
         for (final photo in JsonRead.list(json['photos']))
           if (photo is Map) JsonRead.nonEmpty(photo['url']),
-      ];
+      ]
+      ..incidentPhotoRefused = [
+        for (final photo in JsonRead.list(json['photos']))
+          if (photo is Map) const {'infected', 'error'}.contains(JsonRead.string(photo['scan'])),
+      ]
+      ..incidentLocation = GeoPoint.fromJson(json);
   }
 
   /// incident(): ref/title/type/severity/barangay/status/source/reported.
@@ -290,12 +325,13 @@ class RequestsService extends ChangeNotifier {
       referenceNumber: ref,
       applicantId: '',
       applicantName: '',
-      typeName: JsonRead.nonEmpty(json['type']) ?? JsonRead.nonEmpty(json['title']) ?? 'Incident',
+      // An older report keeps the app's old name; read it under the shared one.
+      typeName: incidentTypeName(JsonRead.nonEmpty(json['type']) ?? JsonRead.nonEmpty(json['title']) ?? 'Incident'),
       category: ServiceCategory.sakunaIncident,
       office: '',
       purpose: [
         JsonRead.nonEmpty(json['title']),
-        if (severity != null) 'Severity: $severity',
+        if (severity != null) '${tr('Severity')}: ${severityLabel(severity)}',
         if (barangay != null) 'Barangay $barangay',
       ].whereType<String>().join(' · '),
       submittedAt: JsonRead.date(json['reported']) ?? DateTime.now(),
@@ -318,6 +354,16 @@ class RequestsService extends ChangeNotifier {
     }
   }
 
+  /// The purpose the resident filed: text, or a list of choices (the
+  /// server joins those with commas, CitizenRequestController::purposeText).
+  /// It was always left blank here, so the app never showed it (parity
+  /// check, 2026-10-22).
+  static String _purposeOf(Object? raw) {
+    final list = JsonRead.strings(raw);
+    if (list.isNotEmpty) return list.where((s) => s.trim().isNotEmpty).join(', ');
+    return JsonRead.nonEmpty(raw) ?? '';
+  }
+
   ServiceRequest _requestFromSummary(Map<String, dynamic> json) {
     final ref = JsonRead.nonEmpty(json['ref']) ?? '';
     return ServiceRequest(
@@ -328,7 +374,7 @@ class RequestsService extends ChangeNotifier {
       typeName: JsonRead.string(json['service']) ?? '',
       category: _categoryFromType(JsonRead.string(json['type'])),
       office: JsonRead.string(json['office']) ?? '',
-      purpose: '',
+      purpose: _purposeOf(json['purpose']),
       submittedAt: JsonRead.date(json['submitted']) ?? DateTime.now(),
       status: JsonRead.nonEmpty(json['status']) ?? 'Submitted',
       statusHistory: const [],
@@ -428,7 +474,7 @@ class RequestsService extends ChangeNotifier {
       typeName: JsonRead.string(json['service']) ?? '',
       category: _categoryFromType(JsonRead.string(json['type'])),
       office: JsonRead.string(json['office']) ?? '',
-      purpose: '',
+      purpose: _purposeOf(json['purpose']),
       submittedAt: JsonRead.date(json['submitted']) ?? DateTime.now(),
       status: JsonRead.nonEmpty(json['status']) ?? 'Submitted',
       statusHistory: history,
@@ -436,7 +482,10 @@ class RequestsService extends ChangeNotifier {
       adminRemarks: JsonRead.nonEmpty(json['decision_remarks']),
       flaggedRequirements: needsCorrection,
       expectedDays: '',
+      // What was filed, for "Your Document" (as the website's formSnapshot).
+      formFields: JsonRead.map(json['form_data']) ?? const {},
     )
+      ..serviceKey = JsonRead.nonEmpty(json['service_key'])
       ..canResubmit = JsonRead.boolean(json['can_resubmit']) ?? false
       ..canWithdraw = JsonRead.boolean(json['can_withdraw']) ?? false
       ..attachableRequirements = attachable
@@ -446,7 +495,8 @@ class RequestsService extends ChangeNotifier {
       ..assistance = _assistanceFrom(JsonRead.map(json['assistance']), JsonRead.nonEmpty(json['office']))
       ..payment = _paymentFrom(JsonRead.map(json['payment']))
       ..pickup = RequestPickup.fromApi(JsonRead.map(json['pickup']))
-      ..issuedDocuments = JsonRead.rows(json['issued_documents'], IssuedDocumentInfo.fromApi);
+      ..issuedDocuments = JsonRead.rows(json['issued_documents'], IssuedDocumentInfo.fromApi)
+      ..workflow = RequestWorkflow.fromApi(JsonRead.map(json['workflow']));
   }
 
   /// A detail's `payment` (DescribesPayment): amount, status, receipt_no.

@@ -226,7 +226,11 @@ void main() {
     // readiness programme, 2026-09-25: POST /citizen/requests has no
     // attachments field at all) -- so there is nothing left for a pre-filed
     // document to unblock.
-    SharedPreferences.setMockInitialValues({});
+    //
+    // English chosen, as a resident would in Settings: the walk finds screens
+    // by their English words, and the LGU's Default Language (Filipino unless
+    // set) would otherwise apply on a first run (2026-10-23).
+    SharedPreferences.setMockInitialValues({'esperanza_message_language': 'en'});
   });
 
   /// The walk itself, so it can be replayed under different conditions.

@@ -2,9 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/app_notification.dart';
 import '../models/notification_kind.dart';
-import '../models/request_milestones.dart';
 import '../theme/tulong_status.dart';
-import '../models/service_request.dart';
 import '../screens/balita/balita_post_screen.dart';
 import '../screens/events/event_detail_screen.dart';
 import '../screens/notifications/duplicate_account_details_screen.dart';
@@ -14,12 +12,14 @@ import '../screens/shared/request_detail_screen.dart';
 import 'citizen_session_service.dart';
 import 'mock_catalog.dart';
 import 'notifications_service.dart';
-import 'requests_service.dart';
-import 'resident_profile_service.dart';
 import '../utils/date_text.dart';
 import '../screens/shared/my_requests_screen.dart';
 import '../screens/profile/profile_screen.dart';
 import '../screens/support/help_support_screen.dart';
+import '../screens/appointments/appointments_screen.dart';
+import '../screens/profile/data_requests_screen.dart';
+import '../screens/home/root_shell.dart';
+import '../screens/support/support_tickets_screen.dart';
 
 /// Timestamp for evergreen/contextual notifications that have no real event
 /// of their own (a profile-completion reminder, a duplicate-account alert)
@@ -48,62 +48,28 @@ DateTime _evergreenNotificationTime([int priority = 0]) =>
 /// plain list with stable IDs — shared with [AlertsAction] (the bell icon)
 /// so both surfaces agree on exactly what counts as a notification and
 /// whether it's read, without keeping two separate copies of this
-/// derivation logic. Combines three sources, each visually distinguished
-/// by [NotificationKind] (icon + label, never color alone):
+/// derivation logic.
 ///
-/// 1. A profile-completion reminder — derived live from
-///    [ResidentProfileService], not a stored notification, so it appears
-///    exactly while the signed-in citizen's profile is incomplete and
-///    disappears the moment it reaches 100%, and never shown to a Guest.
-/// 2. Server notifications (GET /citizen/notifications, loaded by
-///    [NotificationsService.loadServer]) — every request status change,
-///    flagged document and account review the backend recorded. Tapping one
-///    that names a request opens it.
-/// 3. Correction actions — derived from a loaded request's flagged
-///    requirements, each deep-linking to the document to replace.
+/// What the website's Notifications page lists: the server's notifications
+/// (GET /citizen/notifications, loaded by [NotificationsService.loadServer]) —
+/// every request status change, flagged document and account review the
+/// backend recorded. Tapping one that names a request opens it. The app no
+/// longer adds reminders of its own (a profile-completion nudge, one per
+/// flagged document), which the website never showed (2026-10-22, app/web
+/// parity); the server already says when a document needs replacing.
 ///
-/// There are no illustrative samples any more: a feed a resident reads as
-/// real must only contain what really happened.
-///
-/// The returned list is always sorted newest-first by [AppNotification.at]
-/// — a single, uniform chronological ordering across every source above
-/// rather than sorting each source internally then concatenating, so a
-/// brand-new event (e.g. a just-flagged correction) always surfaces at the
-/// very top without needing to be specially pinned there.
+/// Pinned notifications first, then newest first, as on the website.
 List<AppNotification> buildNotificationFeed(BuildContext context) {
   final session = context.watch<CitizenSessionService>();
   final account = session.account;
-  final requests = context.watch<RequestsService>().all;
 
   final items = <AppNotification>[];
-
-  ResidentProfileService? profileService;
-  if (account != null) profileService = context.watch<ResidentProfileService>();
-  final profile = account != null ? profileService!.profileFor(account) : null;
-  if (profile != null && profile.overallCompletionPercent < 100) {
-    items.add(
-      AppNotification(
-        id: 'profile-reminder-${account!.id}',
-        kind: NotificationKind.actionRequired,
-        icon: Icons.badge_outlined,
-        title: 'Complete Your Profile',
-        body:
-            'Finish your Resident Profile so Esperanza LGU can verify your account and unlock full access. ${profile.overallCompletionPercent}% complete.',
-        at: _evergreenNotificationTime(0),
-        onTap: () =>
-            Navigator.of(context).push(MaterialPageRoute(builder: (_) => const ResidentProfileOverviewScreen())),
-        actionLabel: 'Complete Profile',
-      ),
-    );
-  }
 
   if (account != null) {
     final duplicateAlerts = context.watch<NotificationsService>();
     items.addAll(_duplicateAccountNotifications(context, account.id, duplicateAlerts));
     items.addAll(_unverifiedDuplicateNotifications(context, account.id, duplicateAlerts));
   }
-
-  items.addAll(_correctionNotifications(context, requests));
 
   // Server notifications: every request status change, flagged document and
   // account review the backend recorded for this citizen. They replaced two
@@ -124,6 +90,8 @@ List<AppNotification> buildNotificationFeed(BuildContext context) {
           time: [timeAgo(n.at), ?ref].join(' · '),
           at: n.at,
           status: n.pill,
+          category: n.category,
+          pinned: n.pinned,
           onTap: switch (serverNotificationDestination(n)) {
             final destination? => () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => destination)),
             null => null,
@@ -133,119 +101,9 @@ List<AppNotification> buildNotificationFeed(BuildContext context) {
     }
   }
 
-  items.sort((a, b) => b.at.compareTo(a.at));
+  // Pinned first, then newest first, as on the website.
+  items.sort((a, b) => a.pinned != b.pinned ? (a.pinned ? -1 : 1) : b.at.compareTo(a.at));
   return items;
-}
-
-/// One notification per Dokyu/Tulong request that has ever had a
-/// requirement flagged (works identically for both modules — nothing here
-/// is service-specific; every value comes from the request/requirement
-/// themselves) — see [FlaggedRequirement]'s own doc comment for why
-/// deriving straight from this durable, never-deleted list (rather than
-/// statusHistory) is what makes the notification set stable across app
-/// reopens (same id -> [NotificationsService] remembers it was already
-/// read) while still producing a genuinely new, unread notification the
-/// moment a requirement is flagged again in a later verification cycle (a
-/// new [FlaggedRequirement] with its own id/flaggedAt).
-///
-/// A request with exactly ONE currently-unresolved flag gets its own
-/// specific notification (id keyed by that flag's id) with a "Replace
-/// Document" action that jumps straight to that one requirement's own
-/// uploader. A request with MORE THAN ONE unresolved flag at once gets a
-/// single combined notification instead (id keyed by the sorted set of
-/// currently-unresolved flag ids, so it changes — a genuinely new
-/// notification — the moment that set changes, e.g. a new one is flagged or
-/// one is resolved) with a "Review Documents" action, since stacking one
-/// card per flagged item on the same request read as noisy/unclear rather
-/// than as one coherent correction request. Either way [onTap] (the whole
-/// card) always opens the request in general.
-///
-/// Once resolved, or once the request has moved on (approved/rejected/
-/// etc.), a flag's notification becomes read-only history — no action
-/// offered — see RequestsService.replaceFlaggedRequirement's own no-op
-/// guard for the matching safety net on the data side. Resolved entries are
-/// still shown individually (never bundled): there's no stacked-CTA
-/// confusion to avoid once nothing is actionable.
-List<AppNotification> _correctionNotifications(BuildContext context, List<ServiceRequest> requests) {
-  final items = <(DateTime sortKey, AppNotification notification)>[];
-
-  for (final r in requests) {
-    if (r.flaggedRequirements.isEmpty) continue;
-    final unresolved = r.flaggedRequirements.where((f) => !f.isResolved).toList();
-    final resolved = r.flaggedRequirements.where((f) => f.isResolved).toList();
-    final isActive = (r.status == RequestMilestones.underReview || r.status == TulongStatus.needsRequirements) && unresolved.isNotEmpty;
-
-    if (isActive && unresolved.length > 1) {
-      final sortedIds = unresolved.map((f) => f.id).toList()..sort();
-      final latest = unresolved.map((f) => f.flaggedAt).reduce((a, b) => a.isAfter(b) ? a : b);
-      items.add((
-        latest,
-        AppNotification(
-          id: 'correction-${r.id}-multi-${sortedIds.join('+')}',
-          kind: NotificationKind.actionRequired,
-          icon: Icons.description_outlined,
-          title: 'Application Needs Correction',
-          body:
-              '${r.typeName}\n\n'
-              '${unresolved.length} documents require correction.\n\n'
-              '${unresolved.map((f) => '${f.requirementLabel}\nReason: ${f.reason}').join('\n\n')}',
-          time: r.referenceNumber,
-          at: latest,
-          actionLabel: 'Review Documents',
-          onTap: () =>
-              Navigator.of(context).push(MaterialPageRoute(builder: (_) => RequestDetailScreen(requestId: r.id))),
-          onAction: () =>
-              Navigator.of(context).push(MaterialPageRoute(builder: (_) => RequestDetailScreen(requestId: r.id))),
-        ),
-      ));
-    } else {
-      // isActive is false here either because the request has moved past
-      // Under Review (rejected/approved/etc — nothing left to replace) or
-      // because there's at most one unresolved flag; only in the latter
-      // case is a replacement still actually offered.
-      for (final f in unresolved) {
-        items.add((f.flaggedAt, _correctionNotificationFor(context, r, f, canStillReplace: isActive)));
-      }
-    }
-    for (final f in resolved) {
-      items.add((f.flaggedAt, _correctionNotificationFor(context, r, f, canStillReplace: false)));
-    }
-  }
-
-  items.sort((a, b) => b.$1.compareTo(a.$1));
-  return [for (final (_, n) in items) n];
-}
-
-AppNotification _correctionNotificationFor(
-  BuildContext context,
-  ServiceRequest request,
-  FlaggedRequirement flagged, {
-  required bool canStillReplace,
-}) {
-  return AppNotification(
-    id: 'correction-${request.id}-${flagged.id}',
-    kind: NotificationKind.actionRequired,
-    icon: Icons.description_outlined,
-    title: 'Application Needs Correction',
-    body:
-        '${request.typeName}\n\n'
-        'Your ${request.typeName} application needs a correction.\n\n'
-        '${flagged.requirementLabel}\n'
-        'Reason: ${flagged.reason}\n\n'
-        '${canStillReplace ? 'Please replace the flagged document to continue your application.' : 'This item has already been addressed.'}',
-    time: request.referenceNumber,
-    at: flagged.flaggedAt,
-    actionLabel: canStillReplace ? 'Replace Document' : null,
-    onTap: () =>
-        Navigator.of(context).push(MaterialPageRoute(builder: (_) => RequestDetailScreen(requestId: request.id))),
-    onAction: canStillReplace
-        ? () => Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (_) => RequestDetailScreen(requestId: request.id, focusFlaggedRequirementId: flagged.id),
-            ),
-          )
-        : null,
-  );
 }
 
 /// Phase 6 — "One Person, One Account" duplicate-account demo (FRONTEND
@@ -447,6 +305,12 @@ Widget? serverNotificationDestination(ServerNotification n) {
   if (event != null) return EventLinkScreen(eventKey: Uri.decodeComponent(event.group(1)!));
   final incident = RegExp(r'^/citizen/incidents/([^/?#]+)$').firstMatch(link);
   if (incident != null) return RequestDetailScreen(requestId: Uri.decodeComponent(incident.group(1)!));
+  // An incident's update, as the server links it (IncidentLifecycle): the
+  // website's Emergency page with that report open.
+  final emergencyIncident = RegExp(r'^/citizen/emergency\?incident=([^&#]+)$').firstMatch(link);
+  if (emergencyIncident != null) {
+    return RequestDetailScreen(requestId: Uri.decodeComponent(emergencyIncident.group(1)!));
+  }
   final request = RegExp(r'^/citizen/(?:document|assistance)-requests/([^/?#]+)$').firstMatch(link);
   if (request != null) return RequestDetailScreen(requestId: Uri.decodeComponent(request.group(1)!));
   return switch (link) {
@@ -454,6 +318,15 @@ Widget? serverNotificationDestination(ServerNotification n) {
     '/citizen/profile' => const ProfileScreen(),
     // The barangay verified the Resident Profile, or sent it back.
     '/citizen/profile#resident-profile' => const ResidentProfileOverviewScreen(),
+    // A Sakuna alert (AlertService) and appointment changes (AppointmentBook)
+    // led nowhere in the app (parity check, 2026-10-22).
+    '/citizen/emergency' => const ShellTabLink(tab: 3),
+    '/citizen/appointments' => const AppointmentsScreen(),
+    // A data or name-change request answered (RecordsController): the
+    // website keeps them in Settings; the app, in My data requests.
+    '/citizen/settings' => const DataRequestsScreen(),
+    // An office's reply to a ticket (FeedbackDesk): the tickets, not the FAQs.
+    _ when link.startsWith('/citizen/help/support') => const SupportTicketsScreen(),
     _ when link.startsWith('/citizen/help') => const HelpSupportScreen(),
     _ => null,
   };

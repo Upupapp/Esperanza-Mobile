@@ -17,14 +17,19 @@ class StatusChip extends StatelessWidget {
   final String? requestStatus;
   final bool small;
 
-  const StatusChip({super.key, required AppStatus this.status, this.small = false}) : requestStatus = null;
+  /// Shown instead of the status name where residents use other words for
+  /// it (an incident's "Dispatched" for Processing); the colour still
+  /// follows [requestStatus].
+  final String? label;
 
-  const StatusChip.request(String this.requestStatus, {super.key, this.small = false}) : status = null;
+  const StatusChip({super.key, required AppStatus this.status, this.small = false}) : requestStatus = null, label = null;
+
+  const StatusChip.request(String this.requestStatus, {super.key, this.small = false, this.label}) : status = null;
 
   @override
   Widget build(BuildContext context) {
     final style = status?.style ?? RequestStatusView(requestStatus!).style;
-    final label = status?.label ?? requestStatus!;
+    final label = status?.label ?? this.label ?? requestStatus!;
     return Container(
       padding: EdgeInsets.symmetric(horizontal: small ? 8 : AppSpacing.sm, vertical: small ? 3 : AppSpacing.xs),
       decoration: BoxDecoration(

@@ -1,4 +1,9 @@
+import 'package:share_plus/share_plus.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:http/http.dart' as http;
+import 'dart:io';
 import 'package:flutter/material.dart';
+import '../../widgets/status_chip.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../../models/attachment.dart';
@@ -21,6 +26,7 @@ import '../../services/json_read.dart';
 import '../../widgets/app_dialogs.dart';
 import '../../widgets/image_viewer_scaffold.dart';
 
+import '../../l10n/tr.dart';
 /// Resident-facing history/library of every document uploaded through a
 /// Dokyu or Tulong requirement uploader (see widgets/requirement_uploader.dart)
 /// — read-only, no delete.
@@ -48,6 +54,9 @@ class _DocumentsUploadedScreenState extends State<DocumentsUploadedScreen> {
   int _tab = 0; // 0 = All, 1 = Dokyu, 2 = Tulong, 3 = Papeles
   bool _adding = false;
 
+  /// The website's file-type filter on Papeles: null = every type.
+  AttachmentCategory? _type;
+
   /// Adds a file to the Papeles wallet, outside any request (parity with the
   /// website's My Documents, 2026-10-15).
   Future<void> _add() async {
@@ -55,7 +64,8 @@ class _DocumentsUploadedScreenState extends State<DocumentsUploadedScreen> {
     if (accountId == null || _adding) return;
     final picked = await pickDocumentProtected(
       context,
-      allowedExtensions: const ['jpg', 'jpeg', 'png', 'pdf', 'docx'],
+      // What the server accepts (config esperanza.uploads.allowed_mime).
+      allowedExtensions: const ['jpg', 'jpeg', 'png', 'webp', 'pdf'],
       withData: false,
       explanation: 'Esperanza needs access to your files so you can keep a document in your Papeles.',
     );
@@ -88,13 +98,13 @@ class _DocumentsUploadedScreenState extends State<DocumentsUploadedScreen> {
           decoration: const InputDecoration(hintText: 'e.g. Barangay clearance 2026'),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Cancel')),
+          TextButton(onPressed: () => Navigator.of(context).pop(), child: Text(tr('Cancel'))),
           FilledButton(
             onPressed: () {
               final v = controller.text.trim();
               if (v.isNotEmpty) Navigator.of(context).pop(v);
             },
-            child: const Text('Add'),
+            child: Text(tr('Add')),
           ),
         ],
       ),
@@ -151,7 +161,7 @@ class _DocumentsUploadedScreenState extends State<DocumentsUploadedScreen> {
     final filtered = switch (_tab) {
       1 => documents.where((d) => d.origin == 'Dokyu').toList(),
       2 => documents.where((d) => d.origin == 'Tulong').toList(),
-      3 => documents.toList(),
+      3 => documents.where((d) => _type == null || d.attachment.category == _type).toList(),
       // documentsFor() returns an unmodifiable list — .toList() here makes
       // a fresh, sortable copy, same as the two branches above already do.
       _ => documents.toList(),
@@ -169,7 +179,7 @@ class _DocumentsUploadedScreenState extends State<DocumentsUploadedScreen> {
     final isEmpty = serverRows == null ? filtered.isEmpty : serverRows.isEmpty;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Documents Uploaded')),
+      appBar: AppBar(title: Text(tr('Documents Uploaded'))),
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.md, AppSpacing.lg, 0),
@@ -184,12 +194,28 @@ class _DocumentsUploadedScreenState extends State<DocumentsUploadedScreen> {
               ),
               const SizedBox(height: AppSpacing.lg),
               SegmentedTabs(
-                labels: const ['All', 'Dokyu', 'Tulong', 'Papeles'],
+                labels: [tr('All'), 'Dokyu', 'Tulong', 'Papeles'],
                 selectedIndex: _tab,
                 onChanged: (i) => setState(() => _tab = i),
               ),
               if (_tab == 3) ...[
                 const SizedBox(height: AppSpacing.md),
+                Wrap(
+                  spacing: AppSpacing.sm,
+                  children: [
+                    for (final (label, type) in [
+                      ('All types', null),
+                      ('Images', AttachmentCategory.image),
+                      ('PDF', AttachmentCategory.pdf),
+                    ])
+                      ChoiceChip(
+                        label: Text(label),
+                        selected: _type == type,
+                        onSelected: (_) => setState(() => _type = type),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: AppSpacing.sm),
                 AppButton(
                   label: 'Add a document',
                   icon: Icons.add_rounded,
@@ -222,9 +248,9 @@ class _DocumentsUploadedScreenState extends State<DocumentsUploadedScreen> {
                                         'Add an ID, a certificate or any document to keep it here and attach it to '
                                         'a request later.',
                                   )
-                                : const EmptyState(
+                                : EmptyState(
                                     icon: Icons.folder_open_outlined,
-                                    title: 'No documents uploaded yet',
+                                    title: tr('No documents uploaded yet'),
                                     description:
                                         'Documents you upload while submitting a Dokyu or Tulong request will '
                                         'appear here.',
@@ -242,7 +268,7 @@ class _DocumentsUploadedScreenState extends State<DocumentsUploadedScreen> {
                           physics: const AlwaysScrollableScrollPhysics(),
                           padding: const EdgeInsets.only(bottom: AppSpacing.xxl),
                           itemCount: filtered.length,
-                          itemBuilder: (context, i) => _DocumentCard(document: filtered[i]),
+                          itemBuilder: (context, i) => _DocumentCard(key: ValueKey(filtered[i].id), document: filtered[i]),
                         ),
                 ),
               ),
@@ -346,7 +372,7 @@ class _UploadCard extends StatelessWidget {
                       _tag(document.isDokyu ? 'Dokyu' : 'Tulong', document.isDokyu ? AppColors.brand600 : AppColors.purple700),
                       if (document.service != null) _tag(document.service!, AppColors.slate600),
                       _tag(document.ref, AppColors.slate600),
-                      if (!document.current) _tag('Replaced', AppColors.slate500),
+                      if (!document.current) _tag(tr('Replaced'), AppColors.slate500),
                       Text(
                         when == null
                             ? category.shortLabel
@@ -370,21 +396,111 @@ class _UploadCard extends StatelessWidget {
   }
 }
 
-class _DocumentCard extends StatelessWidget {
+/// A Papeles document, as the website shows it (parity check, 2026-10-26):
+/// a picture has its thumbnail and opens in the app to zoom; any file can be
+/// downloaded. A server copy is reached through a short-lived signed link.
+class _DocumentCard extends StatefulWidget {
   final MasterFileDocument document;
-  const _DocumentCard({required this.document});
+  const _DocumentCard({super.key, required this.document});
 
+  @override
+  State<_DocumentCard> createState() => _DocumentCardState();
+}
+
+class _DocumentCardState extends State<_DocumentCard> {
+  /// Signed links by document, kept a few minutes (they expire).
+  static final Map<String, (String, DateTime)> _links = {};
+
+  Future<String?>? _thumb;
+  bool _downloading = false;
+
+  MasterFileDocument get document => widget.document;
   bool get _isDokyu => document.origin == 'Dokyu';
+  bool get _isRemote => document.id.startsWith('pap-');
+  bool get _isImage => document.attachment.category == AttachmentCategory.image;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadThumb();
+  }
+
+  // A list row can be handed another document (a filter changed).
+  @override
+  void didUpdateWidget(_DocumentCard old) {
+    super.didUpdateWidget(old);
+    if (old.document.id != document.id) _loadThumb();
+  }
+
+  void _loadThumb() {
+    final local = pickedFileImageProvider(bytes: document.attachment.bytes, path: document.attachment.localPath);
+    _thumb = _isRemote && _isImage && local == null ? _link().catchError((Object _) => null) : null;
+  }
+
+  Future<String?> _link() async {
+    final cached = _links[document.id];
+    if (cached != null && DateTime.now().difference(cached.$2) < const Duration(minutes: 4)) return cached.$1;
+    final url = await context.read<MasterFileService>().downloadUrl(document);
+    if (url != null) _links[document.id] = (url, DateTime.now());
+    return url;
+  }
 
   Future<void> _openRemote(BuildContext context) async {
     try {
-      final url = await context.read<MasterFileService>().downloadUrl(document);
+      final url = await _link();
+      if (!context.mounted) return;
       final uri = url == null ? null : Uri.tryParse(url);
+      if (uri != null && _isImage) {
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            fullscreenDialog: true,
+            builder: (_) => _DocumentViewer(title: document.label, provider: NetworkImage(url!)),
+          ),
+        );
+        return;
+      }
       if (uri == null || !await launchUrl(uri, mode: LaunchMode.externalApplication)) {
         if (context.mounted) AppDialogs.toast(context, 'This document could not be opened.', success: false);
       }
     } on ApiException catch (e) {
       if (context.mounted) AppDialogs.toast(context, e.message(), success: false);
+    }
+  }
+
+  /// Saves a copy through the phone's share sheet ("Save to device", Drive,
+  /// a chat), as the website's Download saves it to the computer.
+  Future<void> _download(BuildContext context) async {
+    if (_downloading) return;
+    setState(() => _downloading = true);
+    try {
+      List<int>? bytes = document.attachment.bytes;
+      final local = document.attachment.localPath;
+      if (bytes == null && local != null && local.isNotEmpty && File(local).existsSync()) {
+        bytes = await File(local).readAsBytes();
+      }
+      if (bytes == null) {
+        final url = await _link();
+        final uri = url == null ? null : Uri.tryParse(url);
+        if (uri != null) {
+          final res = await http.get(uri);
+          if (res.statusCode == 200) bytes = res.bodyBytes;
+        }
+      }
+      if (!context.mounted) return;
+      if (bytes == null) {
+        AppDialogs.toast(context, 'This document could not be downloaded.', success: false);
+        return;
+      }
+      final dir = await getTemporaryDirectory();
+      final file = File('${dir.path}/${document.attachment.fileName.replaceAll(RegExp(r'[\\/:*?"<>|]'), '_')}');
+      await file.writeAsBytes(bytes, flush: true);
+      await SharePlus.instance.share(ShareParams(files: [XFile(file.path)], subject: document.label));
+    } on ApiException catch (e) {
+      if (context.mounted) AppDialogs.toast(context, e.message(), success: false);
+    } catch (_) {
+      if (context.mounted) AppDialogs.toast(context, 'This document could not be downloaded.', success: false);
+    } finally {
+      if (mounted) setState(() => _downloading = false);
     }
   }
 
@@ -402,13 +518,12 @@ class _DocumentCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final s = _styleFor(document.attachment.category);
     final isImage = document.attachment.category == AttachmentCategory.image;
-    final canPreview =
-        isImage &&
-        pickedFileImageProvider(bytes: document.attachment.bytes, path: document.attachment.localPath) != null;
+    final localImage = pickedFileImageProvider(bytes: document.attachment.bytes, path: document.attachment.localPath);
+    final canPreview = isImage && localImage != null;
 
     // A copy that lives only on the server opens through a short-lived
     // signed link (GET /citizen/papeles/{id}/download).
-    final isRemote = document.id.startsWith('pap-');
+    final isRemote = _isRemote;
     return Padding(
       padding: const EdgeInsets.only(bottom: AppSpacing.md),
       child: AppCard(
@@ -420,12 +535,31 @@ class _DocumentCard extends StatelessWidget {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Container(
-              width: 44,
-              height: 44,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(color: s.bg, borderRadius: BorderRadius.circular(AppRadius.sm)),
-              child: Icon(s.icon, size: 20, color: s.fg),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(AppRadius.sm),
+              child: Container(
+                width: 44,
+                height: 44,
+                alignment: Alignment.center,
+                color: s.bg,
+                // A picture's own thumbnail, as on the website.
+                child: localImage != null && isImage
+                    ? Image(image: localImage, width: 44, height: 44, fit: BoxFit.cover)
+                    : _thumb == null
+                    ? Icon(s.icon, size: 20, color: s.fg)
+                    : FutureBuilder<String?>(
+                        future: _thumb,
+                        builder: (context, snap) => snap.data == null
+                            ? Icon(s.icon, size: 20, color: s.fg)
+                            : Image.network(
+                                snap.data!,
+                                width: 44,
+                                height: 44,
+                                fit: BoxFit.cover,
+                                errorBuilder: (_, _, _) => Icon(s.icon, size: 20, color: s.fg),
+                              ),
+                      ),
+              ),
             ),
             const SizedBox(width: AppSpacing.md),
             Expanded(
@@ -464,7 +598,19 @@ class _DocumentCard extends StatelessWidget {
                 ],
               ),
             ),
-            if (canPreview) const Icon(Icons.chevron_right_rounded, size: 18, color: AppColors.slate400),
+            // The office's review, as the website's Documents on File shows it.
+            if (document.status != null) ...[
+              const SizedBox(width: AppSpacing.sm),
+              StatusChip.request(document.status!, small: true),
+            ],
+            if (isRemote || canPreview || document.attachment.localPath != null)
+              IconButton(
+                tooltip: 'Download',
+                onPressed: _downloading ? null : () => _download(context),
+                icon: _downloading
+                    ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                    : const Icon(Icons.download_rounded, size: 20, color: AppColors.slate500),
+              ),
           ],
         ),
       ),
@@ -473,8 +619,7 @@ class _DocumentCard extends StatelessWidget {
 }
 
 /// Same simple InteractiveViewer pattern as every other in-app document/ID
-/// viewer (see RequirementUploader's own _AttachmentImageViewer,
-/// GovernmentIdViewer). [provider] is null when this document's bytes
+/// viewer (see RequirementUploader's own _AttachmentImageViewer). [provider] is null when this document's bytes
 /// weren't persisted across an app restart (see Attachment's own doc
 /// comment on why `bytes` is excluded from JSON) — shown as a plain
 /// message instead of crashing.

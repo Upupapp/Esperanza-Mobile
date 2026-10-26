@@ -16,6 +16,7 @@ import '../../widgets/opening_waves.dart';
 import '../../widgets/seal_badge.dart';
 import 'onboarding_page_data.dart';
 
+import '../../l10n/tr.dart';
 /// How far the onboarding headline and wordmark follow the system text size.
 const headlineMaxTextScale = 1.4;
 const wordmarkMaxTextScale = 1.5;
@@ -459,7 +460,7 @@ class _Header extends StatelessWidget {
                 minimumSize: const Size(48, 48),
                 padding: const EdgeInsets.symmetric(horizontal: 12),
               ),
-              child: Text('Skip', style: AppTypography.onboardingSkip.copyWith(color: AppColors.surface, shadows: _shadow)),
+              child: Text(tr('Skip'), style: AppTypography.onboardingSkip.copyWith(color: AppColors.surface, shadows: _shadow)),
             ),
         ],
       ),

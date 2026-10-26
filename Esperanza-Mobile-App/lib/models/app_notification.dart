@@ -45,6 +45,14 @@ class AppNotification {
   /// wear an Approved badge.
   final String? status;
 
+  /// The server's category ('dokyu', 'tulong', 'account', ...), which the
+  /// Dokyu and Tulong tabs go by, as on the website. Null for a notification
+  /// the app makes itself.
+  final String? category;
+
+  /// Kept at the top, as on the website (a pinned server notification).
+  final bool pinned;
+
   const AppNotification({
     required this.id,
     required this.kind,
@@ -57,5 +65,7 @@ class AppNotification {
     this.actionLabel,
     this.onAction,
     this.status,
+    this.category,
+    this.pinned = false,
   });
 }

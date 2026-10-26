@@ -12,6 +12,7 @@ import '../../widgets/opening_waves.dart';
 import 'forgot_password_screen.dart';
 import 'register_screen.dart';
 
+import '../../l10n/tr.dart';
 /// The sign-in screen's photograph: the Esperanza Municipal Hall.
 const signInPhotoAsset = 'assets/images/municipal_hall.jpg';
 
@@ -142,7 +143,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.stretch,
                               children: [
-                                Text('Welcome back', style: AppTypography.signInTitle.copyWith(color: AppColors.surface)),
+                                Text(tr('Welcome back'), style: AppTypography.signInTitle.copyWith(color: AppColors.surface)),
                                 const SizedBox(height: 4),
                                 Text('Sign in to manage your requests.', style: muted),
                                 const SizedBox(height: 14),
@@ -183,8 +184,8 @@ class _LoginScreenState extends State<LoginScreen> {
                                       minimumSize: const Size(44, 44),
                                       padding: const EdgeInsets.symmetric(horizontal: 4),
                                     ),
-                                    child: const Text(
-                                      'Forgot password?',
+                                    child: Text(
+                                      tr('Forgot password?'),
                                       style: TextStyle(fontFamily: AppTypography.sans, fontSize: AppTextSize.body, fontWeight: FontWeight.w600),
                                     ),
                                   ),
@@ -198,7 +199,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                 ],
                                 const SizedBox(height: 2),
                                 GoldActionButton(
-                                  label: 'Sign In',
+                                  label: tr('Sign In'),
                                   textStyle: AppTypography.signInAction.copyWith(color: AppColors.navy900),
                                   height: 50,
                                   arrow: true,
@@ -329,7 +330,7 @@ class _Wordmark extends StatelessWidget {
           // capitals sit centred.
           Padding(
             padding: const EdgeInsets.only(left: 4.2),
-            child: Text('CITIZEN PORTAL', textAlign: TextAlign.center, style: AppTypography.signInEyebrow.copyWith(color: AppColors.gold400)),
+            child: Text(tr('CITIZEN PORTAL'), textAlign: TextAlign.center, style: AppTypography.signInEyebrow.copyWith(color: AppColors.gold400)),
           ),
           const SizedBox(height: 4),
           Row(

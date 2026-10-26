@@ -35,6 +35,17 @@ class JsonRead {
     return null;
   }
 
+  /// A finite number, as a double: a coordinate arrives as `11.73` or
+  /// `"11.7370000"` (Laravel's decimal columns serialise as strings).
+  static double? number(Object? v) {
+    final d = switch (v) {
+      num n => n.toDouble(),
+      String s => double.tryParse(s.trim()),
+      _ => null,
+    };
+    return d != null && d.isFinite ? d : null;
+  }
+
   static bool? boolean(Object? v) {
     if (v is bool) return v;
     if (v is num) return v != 0;

@@ -7,6 +7,7 @@ import '../theme/app_typography.dart';
 import 'app_button.dart';
 import 'app_card.dart';
 
+import '../l10n/tr.dart';
 /// The resident's IDENTITY status, beside (never inside) the residency panel
 /// (VerificationStatusPanel): whether the ID and selfie were confirmed, are
 /// being checked, need staff, failed, or were withdrawn by the LGU. Its own
@@ -111,7 +112,7 @@ extension on IdentityStatusPanel {
           ),
           if (onStart != null) ...[
             const SizedBox(height: AppSpacing.md),
-            AppButton(label: 'Verify My Identity', size: AppButtonSize.sm, onPressed: onStart),
+            AppButton(label: tr('Verify My Identity'), size: AppButtonSize.sm, onPressed: onStart),
           ],
         ],
       ),

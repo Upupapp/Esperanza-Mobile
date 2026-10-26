@@ -49,6 +49,7 @@ import '../../services/mock_catalog.dart';
 import '../../widgets/access_guard.dart';
 import '../shared/service_search_screen.dart';
 
+import '../../l10n/tr.dart';
 /// Mirrors citizen/dashboard.blade.php in what it shows: navy hero with
 /// greeting + barangay identity, quick actions, stat tiles, active-requests
 /// preview, the latest LGU announcements, upcoming events preview. Laid out
@@ -81,10 +82,14 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   Future<List<EventItem>> _loadEvents() async {
     try {
-      // Asks for more than the two it shows: the server's order is not
-      // calendar order, and the preview should lead with what is coming up
-      // next, not whichever two rows came back first.
-      final res = await api.get('/events', query: {'per_page': 20});
+      // From today, as the website asks (parity check, 2026-10-22): the
+      // server lists events oldest first, so without it 20 past events
+      // filled the page and nothing upcoming was left. More than the two it
+      // shows, since the server's order is not calendar order.
+      final now = DateTime.now();
+      final from =
+          '${now.year.toString().padLeft(4, '0')}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+      final res = await api.get('/events', query: {'from': from, 'per_page': 20});
       final events = EventItem.inCalendarOrder(JsonRead.rows(res.list, EventItem.fromApi).where((e) => e.title.isNotEmpty));
       // Upcoming only: under an "Upcoming Events" heading, a past event
       // (which calendar order puts after the upcoming ones) must not fill a
@@ -327,15 +332,15 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                     if (updates.isNotEmpty) ...[
                       SectionHeader(
                         title: 'Latest Updates',
-                        actionLabel: 'View all',
+                        actionLabel: tr('View all'),
                         onAction: () => RootShell.jumpTo(context, 1),
                       ),
                       for (final post in updates) _UpdateTile(post: post),
                       const SizedBox(height: AppSpacing.md),
                     ],
                     SectionHeader(
-                      title: 'Upcoming Events',
-                      actionLabel: 'View all',
+                      title: tr('Upcoming Events'),
+                      actionLabel: tr('View all'),
                       onAction: () => RootShell.jumpTo(context, 2), // Events — see RootShell's 4-tab index space
                     ),
                     FutureBuilder<List<EventItem>>(
@@ -544,7 +549,7 @@ class _Hero extends StatelessWidget {
             const SizedBox(width: AppSpacing.md),
             Expanded(
               child: AppButton(
-                label: 'Sign In',
+                label: tr('Sign In'),
                 variant: AppButtonVariant.secondary,
                 size: AppButtonSize.sm,
                 fullWidth: true,
@@ -735,6 +740,8 @@ class _QuickActions extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     void push(Widget screen) => Navigator.of(context).push(MaterialPageRoute(builder: (_) => screen));
+    // The English in both languages (owner, 2026-10-23): "Bagong
+    // Kahilingan sa Dokyu" was too long for a tile.
     final actions = [
       _QuickAction(
         label: 'New Dokyu Request',
@@ -747,11 +754,11 @@ class _QuickActions extends StatelessWidget {
         onTap: () => RootShell.openService(context, ServiceLauncherTarget.tulong),
       ),
       if (signedIn) ...[
-        _QuickAction(label: 'My Documents', glyph: ClayGlyph.folder, onTap: () => push(const DocumentsUploadedScreen())),
+        _QuickAction(label: tr('My Documents'), glyph: ClayGlyph.folder, onTap: () => push(const DocumentsUploadedScreen())),
         _QuickAction(label: 'Track Requests', glyph: ClayGlyph.pin, onTap: () => push(const MyRequestsScreen())),
       ] else ...[
-        _QuickAction(label: 'Directory', glyph: ClayGlyph.building, onTap: () => push(const DirectoryScreen())),
-        _QuickAction(label: 'Emergency', glyph: ClayGlyph.shield, onTap: () => RootShell.jumpTo(context, 3)),
+        _QuickAction(label: tr('Directory'), glyph: ClayGlyph.building, onTap: () => push(const DirectoryScreen())),
+        _QuickAction(label: tr('Emergency'), glyph: ClayGlyph.shield, onTap: () => RootShell.jumpTo(context, 3)),
       ],
     ];
     // Glass card + clay icons, the app's signature pairing. Subtle glass
@@ -1021,7 +1028,7 @@ class _RequestPreviewTile extends StatelessWidget {
                 ],
               ),
             ),
-            StatusChip.request(request.status, small: true),
+            StatusChip.request(request.status, small: true, label: request.statusLabel),
           ],
         ),
       ),

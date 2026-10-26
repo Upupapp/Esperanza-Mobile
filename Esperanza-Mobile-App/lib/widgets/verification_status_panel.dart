@@ -7,6 +7,7 @@ import 'app_card.dart';
 import 'status_chip.dart';
 import '../theme/app_typography.dart';
 
+import '../l10n/tr.dart';
 /// Explains an account's verification state in plain language, not just a
 /// status label — Section 10's "the mobile user should clearly understand
 /// what they need to do next." Reuses the same universal AppStatus
@@ -73,8 +74,8 @@ class VerificationStatusPanel extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
-                      'Account Verification',
+                    Text(
+                      tr('Account Verification'),
                       style: TextStyle(fontSize: AppTextSize.body, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
                     ),
                     const SizedBox(height: AppSpacing.xs),

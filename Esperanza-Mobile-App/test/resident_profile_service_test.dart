@@ -34,15 +34,15 @@ void main() {
 
   test('a freshly seeded profile is pre-filled from the account but not yet saved/complete', () {
     final profile = ResidentProfile.seedFrom(_demoAccount());
-    // Seeding pre-fills what the account already knows (name, mobile,
-    // barangay, purok, address) — 6/10 personal fields, family name
-    // defaulted, 3/8 household fields — so this is a specific, meaningful
-    // number, not 0 and not 100.
-    expect(profile.overallCompletionPercent, 65);
+    // Seeding pre-fills what the account already knows. Of the website's
+    // four required personal fields only Sitio / Purok is known (1/4), the
+    // family name is defaulted, and 2/7 household fields (Sitio, address):
+    // 0.25 x 40 + 1 x 30 + 2/7 x 30 = 49.
+    expect(profile.overallCompletionPercent, 49);
     expect(profile.personalStatus, SectionStatus.inProgress); // filled, but never explicitly Saved
     expect(profile.familyStatus, SectionStatus.inProgress); // familyName is pre-filled ("Resident Family")
     expect(profile.householdStatus, SectionStatus.inProgress); // barangay/address pre-filled from account
-    expect(profile.readyToSubmit, isFalse); // none of the three sections have been explicitly saved yet
+    expect(profile.readyToSubmit, isFalse); // sex, birthdate and civil status are still missing
   });
 
   test('overallCompletionPercent uses the documented 40/30/30 weighting, not just the household term', () {

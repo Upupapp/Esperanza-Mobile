@@ -10,6 +10,7 @@ import '../theme/app_spacing.dart';
 import '../theme/app_typography.dart';
 import '../widgets/app_dialogs.dart';
 
+import '../l10n/tr.dart';
 /// Something to put on the phone's calendar: an appointment or an event.
 class CalendarEntry {
   const CalendarEntry({
@@ -177,7 +178,7 @@ class CalendarExport {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const Text('Add to calendar', style: AppTypography.cardHeading),
+              Text(tr('Add to calendar'), style: AppTypography.cardHeading),
               const SizedBox(height: AppSpacing.xs),
               Text('A reminder comes the day before.', style: AppTypography.helper),
               const SizedBox(height: AppSpacing.md),

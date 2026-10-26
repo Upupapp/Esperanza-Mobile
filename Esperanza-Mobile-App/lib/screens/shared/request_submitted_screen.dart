@@ -6,6 +6,7 @@ import 'request_detail_screen.dart';
 import '../../theme/app_typography.dart';
 import '../../widgets/esperanza_art.dart';
 
+import '../../l10n/tr.dart';
 /// "Show confirmation" step from Section 5 — a dedicated success screen
 /// (not just a toast) so the submission feels real and gives the citizen
 /// their reference number to note down, mirroring how a real government
@@ -26,13 +27,22 @@ class RequestSubmittedScreen extends StatelessWidget {
   final Color accent;
   final String requestId;
 
+  /// An incident report, said as the website says it ("Your report was
+  /// sent."): it read like a document request, "review, approval, and
+  /// release" (parity check, 2026-10-26). [reportAnother] builds a fresh
+  /// report form; it must not use the context of the screen that pushed this.
+  final WidgetBuilder? reportAnother;
+
   const RequestSubmittedScreen({
     super.key,
     required this.referenceNumber,
     required this.typeName,
     required this.accent,
     required this.requestId,
+    this.reportAnother,
   });
+
+  bool get _incident => reportAnother != null;
 
   @override
   Widget build(BuildContext context) {
@@ -50,8 +60,9 @@ class RequestSubmittedScreen extends StatelessWidget {
             children: [
               const SuccessIllustration(),
               const SizedBox(height: AppSpacing.lg),
-              const Text(
-                'Request Submitted',
+              Text(
+                _incident ? tr('Your report was sent.') : tr('Request Submitted'),
+                textAlign: TextAlign.center,
                 style: TextStyle(fontSize: AppTextSize.section, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
               ),
               const SizedBox(height: AppSpacing.sm),
@@ -84,14 +95,16 @@ class RequestSubmittedScreen extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: AppSpacing.xl),
-              const Text(
-                'Your request status is now "Submitted". You\'ll be notified as it moves through review, approval, and release.',
+              Text(
+                _incident
+                    ? 'You can follow it under Incident Reports on the Emergency tab. You\'ll be notified as the office acts on it.'
+                    : 'Your request status is now "Submitted". You\'ll be notified as it moves through review, approval, and release.',
                 textAlign: TextAlign.center,
                 style: TextStyle(fontSize: AppTextSize.helper, color: AppColors.textMuted, height: 1.4),
               ),
               const SizedBox(height: AppSpacing.huge),
               AppButton(
-                label: 'Track This Request',
+                label: _incident ? tr('View the report') : 'Track This Request',
                 onPressed: () => Navigator.of(context).pushReplacement(
                   MaterialPageRoute(builder: (_) => RequestDetailScreen(requestId: requestId)),
                 ),
@@ -99,12 +112,20 @@ class RequestSubmittedScreen extends StatelessWidget {
                 size: AppButtonSize.lg,
               ),
               const SizedBox(height: AppSpacing.sm),
-              AppButton(
-                label: 'Back to Home',
-                variant: AppButtonVariant.ghost,
-                onPressed: () => Navigator.of(context).popUntil((r) => r.isFirst),
-                fullWidth: true,
-              ),
+              if (_incident)
+                AppButton(
+                  label: tr('Report another'),
+                  variant: AppButtonVariant.ghost,
+                  onPressed: () => Navigator.of(context).pushReplacement(MaterialPageRoute(builder: reportAnother!)),
+                  fullWidth: true,
+                )
+              else
+                AppButton(
+                  label: 'Back to Home',
+                  variant: AppButtonVariant.ghost,
+                  onPressed: () => Navigator.of(context).popUntil((r) => r.isFirst),
+                  fullWidth: true,
+                ),
             ],
           ),
           ),

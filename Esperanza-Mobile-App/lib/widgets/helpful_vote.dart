@@ -7,6 +7,7 @@ import '../theme/app_spacing.dart';
 import '../theme/app_typography.dart';
 import 'app_dialogs.dart';
 
+import '../l10n/tr.dart';
 /// "Was this helpful?" under a help article (parity with the website's Help,
 /// 2026-10-15; POST /citizen/help/feedback). The answer can be changed; the
 /// server keeps the latest one.
@@ -76,7 +77,7 @@ class _HelpfulVoteState extends State<HelpfulVote> {
             _vote == null ? 'Was this helpful?' : 'Thanks for your feedback.',
             style: AppTypography.helper,
           ),
-          Semantics(selected: _vote == true, child: _choice('Yes', Icons.thumb_up_alt_outlined, true)),
+          Semantics(selected: _vote == true, child: _choice(tr('Yes'), Icons.thumb_up_alt_outlined, true)),
           Semantics(selected: _vote == false, child: _choice('No', Icons.thumb_down_alt_outlined, false)),
         ],
       ),

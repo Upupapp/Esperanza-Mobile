@@ -1,10 +1,7 @@
-// Coverage for the "detect it early" requirement: a resident must never be
-// able to fill out an entire Tulong application only to discover at Submit
-// that they're not eligible to reapply for that assistance. ServiceCatalogScreen
-// checks tulongEligibilityFor before ever pushing the request screen — see
-// its own _ItemList._open. A blocked assistance never reaches
-// NewRequestScreen/ServiceRequestWizardScreen; a different, eligible
-// assistance is completely unaffected.
+// A Tulong form opens whatever the resident has filed before, as on the
+// website (2026-10-22, app/web parity): the app used to block a second
+// application for the same assistance on the phone, which the website and
+// the server never did, so the two let different things through.
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
@@ -12,7 +9,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:esperanza_mobile/models/service_request.dart';
 import 'package:esperanza_mobile/screens/shared/new_request_screen.dart';
-import 'package:esperanza_mobile/screens/shared/request_detail_screen.dart';
 import 'package:esperanza_mobile/screens/shared/service_catalog_screen.dart';
 import 'package:esperanza_mobile/screens/shared/service_request_wizard_screen.dart';
 import 'package:esperanza_mobile/services/citizen_session_service.dart';
@@ -79,9 +75,8 @@ Map<String, dynamic> _activeMedicalAssistance() => {
     };
 
 void main() {
-  testWidgets('an assistance with an active application is blocked at the catalog screen, before any form opens', (
-    tester,
-  ) async {
+
+  testWidgets('an assistance with an open application still opens its form, as on the website', (tester) async {
     await _pumpTulongCatalog(tester, seededRequests: [_activeMedicalAssistance()]);
 
     await tester.tap(find.text('Municipal Social Welfare and Development Office'));
@@ -89,24 +84,14 @@ void main() {
     await tester.tap(find.text('Medical Assistance (AICS)'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Active Application Exists'), findsOneWidget);
-    expect(find.text('You already have an active application for this assistance.'), findsOneWidget);
-    // Neither request screen was ever reached.
-    expect(find.byType(NewRequestScreen), findsNothing);
-    expect(find.byType(ServiceRequestWizardScreen), findsNothing);
-
-    await tester.tap(find.text('View Existing Request'));
-    await tester.pumpAndSettle();
-    expect(find.byType(RequestDetailScreen), findsOneWidget);
-    expect(tester.widget<RequestDetailScreen>(find.byType(RequestDetailScreen)).requestId, 'req-active-medical');
+    expect(find.byType(NewRequestScreen), findsOneWidget);
+    expect(find.text('Active Application Exists'), findsNothing);
   });
 
-  testWidgets('a different, eligible assistance still opens normally while another is blocked', (tester) async {
+  testWidgets('a different assistance opens normally too', (tester) async {
     await _pumpTulongCatalog(tester, seededRequests: [_activeMedicalAssistance()]);
 
-    // Educational Assistance is sourced/formSpec'd -> opens the wizard, and
-    // has no prior application of its own at all — fully unaffected by
-    // Medical Assistance's active block.
+    // Educational Assistance is sourced/formSpec'd -> opens the wizard.
     await tester.tap(find.text('Office of the Municipal Mayor'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Educational Assistance'));

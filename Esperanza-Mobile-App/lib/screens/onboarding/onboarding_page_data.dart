@@ -76,7 +76,7 @@ enum FeatureMotion { bob, swing, wobble, pulse }
 /// Page two used to carry a line of its own, "Dokyu and Tulong are available
 /// to verified residents."; the design has none, and Dokyu and Tulong still
 /// say so themselves to anyone not yet verified.
-const onboardingScenes = <OnboardingSceneSpec>[
+final onboardingScenes = <OnboardingSceneSpec>[
   OnboardingSceneSpec(
     id: 'scene_bayan',
     headline: 'Ang Esperanza,\nnasa iyong kamay.',

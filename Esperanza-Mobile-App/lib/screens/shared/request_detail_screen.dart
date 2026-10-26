@@ -1,11 +1,15 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import '../../widgets/app_text_field.dart';
+import '../../widgets/request_workflow_card.dart';
+import '../../utils/expected_release.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../models/attachment.dart';
 import '../../models/catalog_item.dart';
 import '../../models/request_milestones.dart';
+import '../../widgets/sakuna_map.dart';
 import '../../models/service_request.dart';
 import '../../services/api_client.dart';
 import '../../services/citizen_session_service.dart';
@@ -16,13 +20,13 @@ import '../../theme/app_haptics.dart';
 import '../../theme/app_spacing.dart';
 import '../../theme/app_typography.dart';
 import '../../theme/tulong_status.dart';
-import '../../utils/tulong_eligibility.dart';
 import '../../widgets/app_button.dart';
 import '../../widgets/app_card.dart';
 import '../../widgets/app_dialogs.dart';
 import '../../widgets/async_state_view.dart';
 import '../../widgets/image_viewer_scaffold.dart';
 import '../../widgets/request_milestone_timeline.dart';
+import 'document_view_screen.dart';
 import '../../widgets/request_release_cards.dart';
 import '../../widgets/request_survey_card.dart';
 import '../appointments/appointments_screen.dart';
@@ -37,6 +41,7 @@ import '../../utils/peso_text.dart';
 import '../../utils/request_sheets.dart';
 import '../../widgets/esperanza_art.dart';
 
+import '../../l10n/tr.dart';
 /// Full request detail + real status history, against
 /// GET /citizen/requests/{ref} (production-readiness programme,
 /// 2026-09-25). Previously showed [RequestsService]'s own local
@@ -104,6 +109,15 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
   void initState() {
     super.initState();
     _poll = Timer.periodic(const Duration(seconds: 30), (_) => _refreshQuietly());
+    // Attaching from Papeles offers what the wallet holds now.
+    unawaited(
+      context.read<MasterFileService?>()?.refreshQuietly(context.read<CitizenSessionService?>()?.account?.id),
+    );
+    // The catalogue gives the service's processing time (Expected release).
+    final service = context.read<RequestsService>();
+    if (service.dokyuCatalog.isEmpty && service.tulongCatalog.isEmpty) {
+      service.loadCatalog().catchError((Object _) {});
+    }
     final target = widget.focusFlaggedRequirementId;
     if (target == null) return;
     // One-shot, after the first frame this screen renders — by then the
@@ -199,18 +213,41 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
   }
 
   Future<void> _withdraw(RequestsService service, ServiceRequest request) async {
-    final ok = await AppDialogs.confirm(
-      context,
-      title: 'Withdraw this request?',
-      message: 'The office stops working on ${request.referenceNumber} and it cannot be reopened. To ask again, file a new request.',
-      confirmLabel: 'Withdraw',
-      cancelLabel: 'Keep it',
-      danger: true,
+    final reason = TextEditingController();
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Withdraw this request?'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'The office stops working on ${request.referenceNumber} and it cannot be reopened. '
+              'To ask again, file a new request.',
+              style: AppTypography.helper,
+            ),
+            const SizedBox(height: AppSpacing.md),
+            // Optional, as on the website: the office sees it.
+            AppTextField(label: tr('Reason (optional)'), controller: reason, maxLines: 2, maxLength: 500),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: Text(tr('Keep it'))),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: AppColors.danger),
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Withdraw'),
+          ),
+        ],
+      ),
     );
-    if (!ok || !mounted) return;
+    final why = reason.text;
+    reason.dispose();
+    if (ok != true || !mounted) return;
     setState(() => _busy = true);
     try {
-      final updated = await service.withdraw(widget.requestId);
+      final updated = await service.withdraw(widget.requestId, reason: why);
       if (mounted) {
         setState(() => _latest = updated);
         AppDialogs.toast(context, '${request.referenceNumber} withdrawn.');
@@ -226,12 +263,8 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
   /// reopens a brand-new application for the same catalog item, reusing the
   /// exact same routing ServiceCatalogScreen's own item list already uses
   /// (formSpec present -> the wizard, otherwise the older single-step
-  /// screen) rather than a second implementation. For Tulong, this still
-  /// goes through the same eligibility check as opening the item fresh
-  /// would (see utils/tulong_eligibility.dart) — a resident could have a
-  /// second, still-active application for this same assistance even while
-  /// looking at an earlier rejected one, and that must still block here
-  /// exactly as it would from the catalog. Dokyu has no such restriction.
+  /// screen) rather than a second implementation. Nothing is checked first,
+  /// as on the website: the office decides on a second application.
   /// The rejected request itself is never touched — submitting always
   /// creates a brand-new ServiceRequest with its own ref (see
   /// RequestsService.submit).
@@ -246,21 +279,6 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
     }
     if (item == null) return; // no matching catalog item to reopen against
 
-    if (request.category == ServiceCategory.tulong) {
-      final account = context.read<CitizenSessionService>().account;
-      if (account != null) {
-        final result = tulongEligibilityFor(service, typeName: item.name);
-        if (!result.isEligible) {
-          final viewRequest = await showTulongBlockedDialog(context, result);
-          if (viewRequest && context.mounted) {
-            Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => RequestDetailScreen(requestId: result.blockingRequest!.id)),
-            );
-          }
-          return;
-        }
-      }
-    }
 
     if (!context.mounted) return;
     final resolvedItem = item;
@@ -297,6 +315,7 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
       ServiceCategory.unknown => AppColors.slate600,
     };
     final usesMilestones = request.category != ServiceCategory.sakunaIncident;
+    final due = usesMilestones ? expectedRelease(request.submittedAt, service.processingDays(request.serviceKey)) : null;
 
     return ListView(
       padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.md, AppSpacing.lg, AppSpacing.xxxl),
@@ -322,7 +341,7 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
                   // service name from overflowing a narrow phone.
                   ConstrainedBox(
                     constraints: BoxConstraints(maxWidth: MediaQuery.sizeOf(context).width * 0.4),
-                    child: StatusChip.request(request.status),
+                    child: StatusChip.request(request.status, label: request.statusLabel),
                   ),
                 ],
               ),
@@ -335,22 +354,71 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
                 const SizedBox(height: AppSpacing.md),
                 Text(request.purpose, style: AppTypography.bodySmallRegular.copyWith(color: AppColors.textPrimary)),
               ],
+              // The purpose filed, under the title, as on the website.
+              if (request.category != ServiceCategory.sakunaIncident && request.purpose.isNotEmpty) ...[
+                const SizedBox(height: AppSpacing.xs),
+                Text(
+                  'Purpose: ${request.purpose}',
+                  style: AppTypography.bodySmallRegular.copyWith(color: AppColors.textPrimary),
+                ),
+              ],
               if (request.incidentPhotos.isNotEmpty) ...[
                 const SizedBox(height: AppSpacing.md),
-                _IncidentPhotos(urls: request.incidentPhotos),
+                _IncidentPhotos(urls: request.incidentPhotos, refused: request.incidentPhotoRefused),
+              ],
+              // Where the resident pinned it, as the website's My Report.
+              if (request.incidentLocation case final at?) ...[
+                const SizedBox(height: AppSpacing.md),
+                Text(tr('Map location'), style: AppTypography.cardTitle),
+                const SizedBox(height: AppSpacing.sm),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(AppRadius.md),
+                  child: SizedBox(
+                    height: 170,
+                    child: SakunaMap(
+                      center: at,
+                      zoom: 16,
+                      semanticLabel: tr('Map showing where you pinned the report'),
+                      pins: [MapPin(point: at, size: 36, tipAtPoint: true, child: const PlacePin(size: 36))],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.xs),
+                Text(at.text, style: AppTypography.helper),
               ],
               const Divider(height: AppSpacing.xxl),
               _infoRow('Submitted', dateAndTime(request.submittedAt)),
+              // As the website works it out, from the service's processing time.
+              if (due != null) _infoRow(tr('Expected release'), shortDate(due)),
               if (!usesMilestones && request.adminRemarks != null) _infoRow('Admin remarks', request.adminRemarks!),
             ],
           ),
         ),
         // Noticeable, but only ever for a genuinely Rejected request that
         // actually has a reason on file.
-        if (request.status == 'Rejected' && request.adminRemarks != null) ...[
+        // Cancelled: said plainly, as the website does. The reason itself
+        // is the timeline's "Reason for Cancellation" below (Dokyu too).
+        if (usesMilestones && request.status == 'Cancelled') ...[
+          const SizedBox(height: AppSpacing.xl),
+          AppCard(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(tr('This request was cancelled'), style: AppTypography.cardHeading),
+                const SizedBox(height: AppSpacing.xs),
+                Text(
+                  request.adminRemarks != null ? 'The reason is shown under Status below.' : 'No reason was given.',
+                  style: AppTypography.helper,
+                ),
+              ],
+            ),
+          ),
+        ],
+        // Without a reason on file too, as the website says it.
+        if (request.status == 'Rejected') ...[
           const SizedBox(height: AppSpacing.xl),
           _RejectedApplicationCard(
-            reason: request.adminRemarks!,
+            reason: request.adminRemarks ?? tr('Visit the office below for details.'),
             guidance: 'Submit a new ${request.typeName} application.',
             onApplyAgain: () => _applyAgain(context, service, request, accent),
           ),
@@ -390,6 +458,10 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
             _ManualVerificationCard(
               needsRequirements: request.status == TulongStatus.needsRequirements,
               reason: request.adminRemarks ?? 'The request requires additional verification.',
+              // Nothing flagged, nothing missing: the server takes a
+              // resubmit, and the website offers it (parity check, 2026-10-26).
+              busy: _busy,
+              onResubmit: request.canResubmit ? () => _resubmit(service) : null,
             ),
         ],
         // A Tulong case once approved: what was approved, then what was
@@ -402,6 +474,19 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
           const SizedBox(height: AppSpacing.xl),
           _FeeCard(payment: request.payment!),
         ],
+        if (request.workflow != null) ...[
+          const SizedBox(height: AppSpacing.xl),
+          RequestWorkflowCard(workflow: request.workflow!, accent: accent),
+        ],
+        // Where to claim it while the server sends no pickup details, as the
+        // website's fallback box does.
+        if (usesMilestones && request.pickup == null && request.office.isNotEmpty) ...[
+          const SizedBox(height: AppSpacing.xl),
+          WhereToClaimCard(
+            office: request.office,
+            barangay: context.read<CitizenSessionService>().account?.barangay ?? '',
+          ),
+        ],
         // To print, save or send, as on the website (parity, 2026-10-15).
         if (usesMilestones) ...[
           const SizedBox(height: AppSpacing.lg),
@@ -412,16 +497,22 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
               OutlinedButton.icon(
                 onPressed: () => _sheet(request, RequestSheet.slip),
                 icon: const Icon(Icons.print_outlined, size: 18),
-                label: const Text('Print request slip'),
+                label: Text(tr('Print request slip')),
               ),
               if (RequestSheets.noticeReady(request))
                 OutlinedButton.icon(
                   onPressed: () => _sheet(request, RequestSheet.notice),
                   icon: const Icon(Icons.task_alt_rounded, size: 18),
-                  label: const Text('Approval notice'),
+                  label: Text(tr('Approval notice')),
                 ),
             ],
           ),
+        ],
+        // Approved: the document itself, as the website's Document Ready card
+        // (2026-10-22, app/web parity).
+        if (request.category == ServiceCategory.dokyu && documentReadyStatuses.contains(request.status)) ...[
+          const SizedBox(height: AppSpacing.xl),
+          DocumentReadyCard(request: request, accent: accent),
         ],
         // Ready: where and how to claim it (2026-10-15).
         if (request.pickup != null) ...[
@@ -434,10 +525,26 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
                 MaterialPageRoute(builder: (_) => BookAppointmentScreen(requestRef: request.referenceNumber)),
               ),
               icon: const Icon(Icons.event_available_outlined, size: 18),
-              label: const Text('Book a time to claim it'),
+              label: Text(tr('Book a time to claim it')),
             ),
           ),
         ],
+        // Any active request can book a visit, as on the website (it was only
+        // offered once ready to claim): the office and purpose come filled in
+        // (parity check, 2026-10-26).
+        if (usesMilestones &&
+            request.pickup == null &&
+            !const {'Rejected', 'Cancelled', 'Released', 'Completed', 'Archived'}.contains(request.status))
+          Align(
+            alignment: Alignment.centerLeft,
+            child: TextButton.icon(
+              onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => BookAppointmentScreen(requestRef: request.referenceNumber)),
+              ),
+              icon: const Icon(Icons.event_available_outlined, size: 18),
+              label: Text(tr('Book an appointment')),
+            ),
+          ),
         // Issued: control number, verification QR and the signed copy (2026-10-15).
         if (request.issuedDocuments.isNotEmpty) ...[
           const SizedBox(height: AppSpacing.xl),
@@ -611,9 +718,9 @@ class _CorrectionsSection extends StatelessWidget {
             children: [
               const Icon(Icons.warning_amber_rounded, size: 18, color: AppColors.orange700),
               const SizedBox(width: AppSpacing.sm),
-              const Expanded(
+              Expanded(
                 child: Text(
-                  'Application Needs Correction',
+                  tr('Application Needs Correction'),
                   style: TextStyle(fontSize: AppTextSize.body, fontWeight: FontWeight.w700, color: AppColors.orange700),
                 ),
               ),
@@ -677,7 +784,7 @@ class _CorrectionsSection extends StatelessWidget {
             ),
           const SizedBox(height: AppSpacing.lg),
           AppButton(
-            label: 'Resubmit Application',
+            label: tr('Resubmit Application'),
             icon: Icons.send_rounded,
             fullWidth: true,
             loading: busy,
@@ -1061,7 +1168,7 @@ class _FeeCard extends StatelessWidget {
               Icon(icon, size: 18, color: fg),
               const SizedBox(width: AppSpacing.sm),
               Expanded(
-                child: Text('Fee', style: TextStyle(fontSize: AppTextSize.body, fontWeight: FontWeight.w700, color: fg)),
+                child: Text(tr('Fee'), style: TextStyle(fontSize: AppTextSize.body, fontWeight: FontWeight.w700, color: fg)),
               ),
               Text(
                 pesoText(payment.amount.toStringAsFixed(2)) ?? '',
@@ -1146,7 +1253,14 @@ class _ManualVerificationCard extends StatelessWidget {
   /// which is Dokyu's.
   final bool needsRequirements;
   final String reason;
-  const _ManualVerificationCard({required this.needsRequirements, required this.reason});
+  final bool busy;
+  final VoidCallback? onResubmit;
+  const _ManualVerificationCard({
+    required this.needsRequirements,
+    required this.reason,
+    this.busy = false,
+    this.onResubmit,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -1178,10 +1292,22 @@ class _ManualVerificationCard extends StatelessWidget {
             needsRequirements
                 ? 'The office needs more for this case. Read the remarks above, or contact the MSWDO. This is still an '
                       'active request, not a rejection.'
-                : 'The request requires additional verification. This is still an active request, not a rejection — no '
-                      'action is needed from you at this time.',
+                : onResubmit != null
+                    ? 'When you have done what the office asks, resubmit the request so they review it again.'
+                    : 'The request requires additional verification. This is still an active request, not a rejection — no '
+                          'action is needed from you at this time.',
             style: AppTypography.captionSmallRegular.copyWith(color: AppColors.slate500, height: 1.4),
           ),
+          if (onResubmit != null) ...[
+            const SizedBox(height: AppSpacing.lg),
+            AppButton(
+              label: tr('Resubmit Application'),
+              icon: Icons.send_rounded,
+              fullWidth: true,
+              loading: busy,
+              onPressed: busy ? null : onResubmit,
+            ),
+          ],
         ],
       ),
     );
@@ -1253,7 +1379,8 @@ class _TimelineRow extends StatelessWidget {
 /// still checking has no link yet and says so.
 class _IncidentPhotos extends StatelessWidget {
   final List<String?> urls;
-  const _IncidentPhotos({required this.urls});
+  final List<bool> refused;
+  const _IncidentPhotos({required this.urls, this.refused = const []});
 
   @override
   Widget build(BuildContext context) {
@@ -1273,7 +1400,7 @@ class _IncidentPhotos extends StatelessWidget {
                       padding: const EdgeInsets.all(AppSpacing.xs),
                       alignment: Alignment.center,
                       child: Text(
-                        'Being checked',
+                        i < refused.length && refused[i] ? tr('This photo could not be accepted.') : tr('Being checked'),
                         textAlign: TextAlign.center,
                         style: AppTypography.captionSmallRegular.copyWith(color: AppColors.textMuted),
                       ),
@@ -1322,7 +1449,7 @@ class _ReleaseProofCard extends StatelessWidget {
       await Navigator.of(context).push(
         MaterialPageRoute(
           builder: (_) => ImageViewerScaffold(
-            title: 'Proof of release',
+            title: tr('Proof of release'),
             image: NetworkImage(url),
             semanticLabel: 'Proof of release photo',
           ),
@@ -1347,8 +1474,8 @@ class _ReleaseProofCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  'Proof of release',
+                Text(
+                  tr('Proof of release'),
                   style: TextStyle(fontSize: AppTextSize.body, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
                 ),
                 const SizedBox(height: 2),
@@ -1356,7 +1483,7 @@ class _ReleaseProofCard extends StatelessWidget {
               ],
             ),
           ),
-          TextButton(onPressed: () => _open(context), child: const Text('View')),
+          TextButton(onPressed: () => _open(context), child: Text(tr('View'))),
         ],
       ),
     );

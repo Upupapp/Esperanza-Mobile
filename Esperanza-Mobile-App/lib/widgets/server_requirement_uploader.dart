@@ -78,19 +78,10 @@ class ServerRequirementUploader extends StatelessWidget {
                       ),
                     )
                   : null,
-              onAttachNew: (a) {
-                onPicked(a);
-                if (accountId != null) {
-                  masterFile.saveOrUpdate(
-                    accountId: accountId,
-                    documentType: requirement.documentType,
-                    label: requirement.label,
-                    attachment: a,
-                    origin: category == ServiceCategory.dokyu ? 'Dokyu' : 'Tulong',
-                    serviceName: serviceName,
-                  );
-                }
-              },
+              // The file goes with this request only, as on the website: it
+              // used to be copied into the resident's Papeles without asking
+              // (parity check, 2026-10-23). Papeles takes what they add there.
+              onAttachNew: onPicked,
               onUseExisting: () {
                 if (existing != null) {
                   onPicked(

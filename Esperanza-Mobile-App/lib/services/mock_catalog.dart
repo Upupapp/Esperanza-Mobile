@@ -2,7 +2,6 @@ import '../models/announcement.dart';
 import '../models/catalog_item.dart';
 import '../models/citizen_account.dart';
 import '../models/evacuation_center.dart';
-import '../models/government_id_record.dart';
 import '../models/resident_profile.dart';
 import '../models/service_form_spec.dart';
 
@@ -2498,77 +2497,9 @@ class MockCatalog {
     ),
   ];
 
-  /// Incident types a citizen can report — mirrors the Web Admin's Sakuna >
-  /// Incidents module intent (config/esperanza_rbac.php's 'sakuna_incidents'
-  /// submodule), scaled down to what a citizen-facing report form needs.
-  static const incidentTypes = <CatalogItem>[
-    CatalogItem(
-      key: 'incident_flood',
-      name: 'Flooding',
-      office: 'MDRRMO',
-      fee: 'Free',
-      days: 'Immediate — 24 hrs',
-      requirements: ['Location / landmark', 'Photo of the affected area if safe to take'],
-      process: ['Submit Report', 'MDRRMO Validation', 'Dispatch / Response', 'Close'],
-      icon: 'waves',
-    ),
-    CatalogItem(
-      key: 'incident_fire',
-      name: 'Fire',
-      office: 'BFP / MDRRMO',
-      fee: 'Free',
-      days: 'Immediate',
-      requirements: ['Location / landmark', 'Photo if safe to take'],
-      process: ['Submit Report', 'Dispatch', 'Response', 'Close'],
-      icon: 'flame',
-    ),
-    CatalogItem(
-      key: 'incident_landslide',
-      name: 'Landslide',
-      office: 'MDRRMO',
-      fee: 'Free',
-      days: 'Immediate — 24 hrs',
-      requirements: ['Location / landmark', 'Photo of the affected area if safe to take'],
-      process: ['Submit Report', 'MDRRMO Validation', 'Dispatch / Response', 'Close'],
-      icon: 'mountain',
-    ),
-    CatalogItem(
-      key: 'incident_medical',
-      name: 'Medical Emergency',
-      office: 'Municipal Health Office / MDRRMO',
-      fee: 'Free',
-      days: 'Immediate',
-      requirements: ['Location / landmark', 'Nature of emergency'],
-      process: ['Submit Report', 'Dispatch', 'Response', 'Close'],
-      icon: 'siren',
-    ),
-    CatalogItem(
-      key: 'incident_road',
-      name: 'Road Accident',
-      office: 'MDRRMO / PNP',
-      fee: 'Free',
-      days: 'Immediate',
-      requirements: ['Location / landmark', 'Photo if safe to take'],
-      process: ['Submit Report', 'Dispatch', 'Response', 'Close'],
-      icon: 'car-crash',
-    ),
-    CatalogItem(
-      key: 'incident_other',
-      name: 'Other Concern',
-      office: 'MDRRMO',
-      fee: 'Free',
-      days: '1-2 working days',
-      requirements: ['Description of the concern', 'Location / landmark'],
-      process: ['Submit Report', 'Validation', 'Response', 'Close'],
-      icon: 'flag',
-    ),
-  ];
-
-  /// `distanceKm` is a simulated value standing in for real device
-  /// geolocation (this app has no `geolocator`/location-permission
-  /// integration wired up — see EvacuationCenterDetailScreen's doc
-  /// comment for why, and what a real integration would need to
-  /// replace). `currentOccupancy` is deliberately left unset everywhere:
+  /// No `location`: these demo centres were never pinned, and a place is
+  /// never made up (Sakuna's map, 2026-10-26). `currentOccupancy` is
+  /// deliberately left unset everywhere:
   /// there is no live capacity feed, and the emergency spec explicitly
   /// forbids inventing one — the detail screen shows "Capacity
   /// information unavailable" instead.
@@ -2577,7 +2508,6 @@ class MockCatalog {
       name: 'Poblacion Covered Court',
       barangay: 'Poblacion',
       totalCapacity: 300,
-      distanceKm: 0.8,
       services: ['Emergency Shelter', 'Medical Aid Station', 'Relief Goods Distribution'],
       amenities: ['Restrooms', 'Drinking Water', 'Electricity', 'Covered Sleeping Area'],
       contactNumber: '(056) 333-1090',
@@ -2586,7 +2516,6 @@ class MockCatalog {
       name: 'Santiago Elementary School',
       barangay: 'Santiago',
       totalCapacity: 180,
-      distanceKm: 2.4,
       services: ['Emergency Shelter', 'Feeding Program'],
       amenities: ['Restrooms', 'Drinking Water', 'Classrooms for Families'],
       contactNumber: '(056) 333-1056',
@@ -2595,7 +2524,6 @@ class MockCatalog {
       name: 'Labangtaytay Barangay Hall',
       barangay: 'Labangtaytay',
       totalCapacity: 120,
-      distanceKm: 4.1,
       services: ['Emergency Shelter'],
       amenities: ['Restrooms', 'Drinking Water'],
       contactNumber: '(056) 333-1021',
@@ -2774,69 +2702,6 @@ class MockCatalog {
     // Verification stays blocked regardless of how the duplicate-alert
     // is resolved.
     status: 'Pending Review',
-  );
-
-  /// Perlita's one seeded government ID document — the asset placed at
-  /// assets/images/PERLITA DEMO ID.png, read by Profile > Personal
-  /// Information's Submitted Government ID section (see
-  /// utils/government_id.dart) so there is exactly one record, never two
-  /// unrelated copies. A PHLPost Postal ID, per the asset itself — a demo
-  /// watermark ("DEMO ID ONLY — NOT A VALID GOVERNMENT IDENTIFICATION") is
-  /// printed directly on the card image.
-  ///
-  /// The card's own printed name reads "Perlita Quiambao" — a leftover
-  /// from before this project's demo identity was corrected to Perlita
-  /// Quiambao's real Web Admin record. The printed address (Purok 2,
-  /// Barangay Baras) still matches exactly, but the printed date of birth
-  /// (September 3, 1988) is now STALE — the Master Profile alignment
-  /// passes have since corrected Perlita's actual birthdate to March 15,
-  /// 2001 (the synthetic verified-demo profile), and per this project's
-  /// rule against generating new ID images, this asset was intentionally
-  /// left untouched. This is a known, reported printed-vs-profile mismatch
-  /// (see this correction's own report), not an oversight; only a person
-  /// can supply a replacement image with the corrected name/birthdate.
-  static const verifiedDemoGovernmentId = GovernmentIdRecord(
-    accountId: 'ESP-RES-2024-9002',
-    idType: 'Postal ID (PHLPost)',
-    assetPath: 'assets/images/PERLITA DEMO ID.png',
-    idNumber: 'PRN 100141234567 P',
-    issuingOffice: 'Esperanza',
-  );
-
-  /// Nicanor's one seeded government ID document — the asset placed at
-  /// assets/images/NICANOR ID DEMO.png, a purpose-built "Esperanza Resident
-  /// ID" card (not a real Philippine ID type, unlike Perlita's Postal ID).
-  /// Every field printed on it — name, resident ID ESP-RES-2024-9001,
-  /// birthdate, address, sex, barangay/purok, civil status, occupation,
-  /// and "PENDING REVIEW" account status — matches his CitizenAccount
-  /// record exactly.
-  static const pendingDemoGovernmentId = GovernmentIdRecord(
-    accountId: 'ESP-RES-2024-9001',
-    idType: 'Esperanza Resident ID',
-    assetPath: 'assets/images/NICANOR ID DEMO.png',
-    idNumber: 'ESP-RES-2024-9001',
-    issuingOffice: 'Esperanza',
-  );
-
-  /// Anacleto's one seeded government ID document, shared by both his
-  /// duplicate registrations (see unverifiedDuplicateAccountA/B — same
-  /// resident, same submitted ID) — the asset placed at assets/images/
-  /// ANACLETO ID DEMO.png (note the asset's own filename spells his name
-  /// with an "h"; the card image itself correctly prints "Anacleto
-  /// Dimaculangan", matching the account data). Every other printed field —
-  /// birthdate, sex, civil status, address, occupation, mobile number, and
-  /// "PENDING REVIEW" status — matches the account records exactly, except
-  /// the printed Resident ID Number itself: the card reads
-  /// "ESP-RES-2024-9013", a leftover from before this asset was paired
-  /// with these specific seeded accounts (ESP-RES-2026-9003/-2102). Per
-  /// this project's rule against generating new ID images, the existing
-  /// asset is used as-is.
-  static const duplicateDemoGovernmentId = GovernmentIdRecord(
-    accountId: 'ESP-RES-2026-9003',
-    idType: 'Esperanza Resident ID',
-    assetPath: 'assets/images/ANACLETO ID DEMO.png',
-    idNumber: 'ESP-RES-2024-9013',
-    issuingOffice: 'Esperanza',
   );
 
   /// A second, independent duplicate-account demo (frontend simulation

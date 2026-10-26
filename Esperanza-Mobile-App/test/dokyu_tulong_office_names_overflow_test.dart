@@ -225,7 +225,8 @@ void main() {
       // the seeded demo requests.
       await _pumpWithProviders(tester, const RequestDetailScreen(requestId: 'demo-tulong-medical'));
 
-      expect(find.text('Municipal Social Welfare and Development Office'), findsOneWidget);
+      // Under the title, and again in Where to claim.
+      expect(find.text('Municipal Social Welfare and Development Office'), findsWidgets);
       expect(tester.takeException(), isNull);
     });
   }

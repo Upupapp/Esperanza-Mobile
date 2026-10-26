@@ -19,6 +19,7 @@ import '../../models/identity_status.dart';
 import '../../widgets/identity_status_panel.dart';
 import '../../services/identity_capture.dart';
 
+import '../../l10n/tr.dart';
 /// Valid ID verification after sign-up: the ID the LGU is checking, the
 /// officer's reason when it was not accepted, and sending a new one. The
 /// web portal's Profile has had this ("Verify ID" / "Send a new ID"); on the
@@ -210,7 +211,7 @@ class _IdVerificationScreenState extends State<IdVerificationScreen> {
         _back = null;
         _selfie = null;
       });
-      AppDialogs.toast(context, 'Valid ID sent. Checking your ID and selfie now.');
+      AppDialogs.toast(context, tr('Valid ID sent. Checking your ID and selfie now.'));
       await _awaitCheck();
     } on ApiException catch (e) {
       if (mounted) setState(() => _sendError = e.explain());
@@ -238,7 +239,7 @@ class _IdVerificationScreenState extends State<IdVerificationScreen> {
               else if (view == null) ...[
                 Text(_loadError!, style: AppTypography.helper.copyWith(color: AppColors.danger)),
                 const SizedBox(height: AppSpacing.md),
-                AppButton(label: 'Try again', variant: AppButtonVariant.secondary, onPressed: _load),
+                AppButton(label: tr('Try again'), variant: AppButtonVariant.secondary, onPressed: _load),
               ] else ...[
                 if (view.identity.status != null) ...[
                   _IdentityCard(identity: view.identity, checking: _checking),
@@ -310,7 +311,7 @@ class _IdVerificationScreenState extends State<IdVerificationScreen> {
     DropdownButtonFormField<String>(
       initialValue: _idType,
       isExpanded: true,
-      decoration: const InputDecoration(labelText: 'Type of ID'),
+      decoration: InputDecoration(labelText: tr('Type of ID')),
       items: [for (final t in view.idTypes) DropdownMenuItem(value: t, child: Text(t, overflow: TextOverflow.ellipsis))],
       onChanged: _sending ? null : (v) => setState(() => _idType = v),
     ),

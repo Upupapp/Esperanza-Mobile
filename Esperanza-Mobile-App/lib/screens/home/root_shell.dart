@@ -17,6 +17,7 @@ import '../../utils/banner_memory.dart';
 import '../../widgets/promotional_banner_dialog.dart';
 import '../../widgets/sakuna_alerts_ui.dart';
 import '../../widgets/service_launcher_menu.dart';
+import '../../widgets/verified_welcome_dialog.dart';
 import '../balita/balita_screen.dart';
 import '../dokyu/dokyu_screen.dart';
 import '../events/events_screen.dart';
@@ -29,6 +30,10 @@ import '../../theme/app_typography.dart';
 import '../../services/api_client.dart';
 import '../../widgets/esperanza_drawer.dart';
 
+import '../../l10n/tr.dart';
+import '../../widgets/popup_gate.dart';
+import '../../services/deep_links.dart';
+import '../balita/balita_post_screen.dart';
 /// Mobile bottom-nav IA: Home / Balita / + / Events / Emergency, laid out
 /// and animated as a direct port of the Servana Client App's curved main
 /// navigation (see widgets/esperanza_curved_navbar.dart's doc comment for
@@ -39,7 +44,9 @@ import '../../widgets/esperanza_drawer.dart';
 /// bubble rather than a separate panel or sheet.
 /// Profile lives in the hamburger drawer (see widgets/esperanza_drawer.dart)
 /// and Alerts is a top-right icon on each tab's AppBar. Dokyu and Tulong
-/// still require a Verified account (AccessLevel.verified); Emergency only
+/// open to any signed-in resident, as on the website: their requests and
+/// Papeles show, and only filing a new one waits for a Verified account
+/// (RequestListScreen; parity check, 2026-10-26). Emergency only
 /// requires being signed in — withholding emergency/incident reporting
 /// behind LGU verification would be poor public-safety practice, so an
 /// Unverified citizen can still use it. Home and Balita/Events stay open to
@@ -107,6 +114,13 @@ class _RootShellState extends State<RootShell> with WidgetsBindingObserver {
   @override
   void initState() {
     super.initState();
+    // Opened from a shared Balita link: the post, over the main screen.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final post = DeepLinks.takePendingPost();
+      if (post != null && mounted) {
+        Navigator.of(context).push(MaterialPageRoute(builder: (_) => BalitaPostScreen(announcementId: post)));
+      }
+    });
     // The bell's unread dot needs the server feed as soon as the shell
     // appears, not only once the Notifications screen is opened. After that
     // it refreshes every minute while the app is open and on every return to
@@ -118,6 +132,12 @@ class _RootShellState extends State<RootShell> with WidgetsBindingObserver {
       if (!mounted) return;
       _notifications = context.read<NotificationsService>()..addListener(_maybeShowAlert);
     });
+    PopupGate.open.addListener(_onPopupGate);
+  }
+
+  /// A greeting closed: an alert or welcome that waited for it opens now.
+  void _onPopupGate() {
+    if (!PopupGate.open.value) _maybeShowAlert();
   }
 
   @override
@@ -125,6 +145,7 @@ class _RootShellState extends State<RootShell> with WidgetsBindingObserver {
     WidgetsBinding.instance.removeObserver(this);
     _poll?.cancel();
     _notifications?.removeListener(_maybeShowAlert);
+    PopupGate.open.removeListener(_onPopupGate);
     super.dispose();
   }
 
@@ -152,15 +173,36 @@ class _RootShellState extends State<RootShell> with WidgetsBindingObserver {
   /// A new Sakuna alert opens as a dialog once, on whatever tab is showing.
   Future<void> _maybeShowAlert() async {
     final service = _notifications;
-    if (_alertOpen || !mounted || service == null) return;
+    // Not over a greeting that is open: it looks again when that closes.
+    if (_alertOpen || PopupGate.open.value || !mounted || service == null) return;
     final alert = service.pendingAlert;
-    if (alert == null) return;
+    if (alert != null) {
+      _alertOpen = true;
+      final openEmergency = await SakunaAlertDialog.show(context, alert);
+      await service.alertShown(alert);
+      _alertOpen = false;
+      if (openEmergency && mounted) setTab(3);
+      if (mounted) unawaited(_maybeShowAlert());
+      return;
+    }
+    // An alert first, then the welcome, as on the website.
+    final welcome = service.pendingWelcome;
+    if (welcome == null) return;
     _alertOpen = true;
-    final openEmergency = await SakunaAlertDialog.show(context, alert);
-    await service.alertShown(alert);
+    // Read the account again so Dokyu and Tulong open without a restart.
+    final session = context.read<CitizenSessionService>();
+    unawaited(session.refresh().catchError((Object _) {}));
+    final target = await VerifiedWelcomeDialog.show(context);
+    await service.alertShown(welcome);
     _alertOpen = false;
-    if (openEmergency && mounted) setTab(3);
-    if (mounted) unawaited(_maybeShowAlert());
+    if (target != null && mounted) {
+      try {
+        await session.refresh();
+      } on ApiException {
+        // Opens with what is known; the guard explains if still waiting.
+      }
+      if (mounted) openService(target);
+    }
   }
 
   Future<void> _loadNotifications() async {
@@ -179,8 +221,8 @@ class _RootShellState extends State<RootShell> with WidgetsBindingObserver {
     BalitaScreen(),
     EventsScreen(),
     AccessGuard(required: AccessLevel.unverified, featureName: 'Risk Reduction & Emergency', child: SakunaScreen()),
-    AccessGuard(required: AccessLevel.verified, featureName: 'Dokyu (Document Requests)', child: DokyuScreen()),
-    AccessGuard(required: AccessLevel.verified, featureName: 'Tulong (Assistance Requests)', child: TulongScreen()),
+    AccessGuard(required: AccessLevel.unverified, featureName: 'Dokyu (Document Requests)', child: DokyuScreen()),
+    AccessGuard(required: AccessLevel.unverified, featureName: 'Tulong (Assistance Requests)', child: TulongScreen()),
   ];
 
   // Maps a real nav tab (0-3) to its body page.
@@ -212,8 +254,8 @@ class _RootShellState extends State<RootShell> with WidgetsBindingObserver {
     // assets/images/Emergency.png is still declared and still shipped — it is
     // used elsewhere on that screen. Only the interstitial is suppressed, so
     // restoring it is re-adding this one line if the LGU decides otherwise.
-    4: ('assets/images/Dokyu Tab.png', 'Dokyu', AccessLevel.verified),
-    5: ('assets/images/Tulong Tab.png', 'Tulong', AccessLevel.verified),
+    4: ('assets/images/Dokyu Tab.png', 'Dokyu', AccessLevel.unverified),
+    5: ('assets/images/Tulong Tab.png', 'Tulong', AccessLevel.unverified),
   };
 
   void _maybeShowBanner(int bodyIndex) {
@@ -233,11 +275,13 @@ class _RootShellState extends State<RootShell> with WidgetsBindingObserver {
     });
   }
 
-  static const _items = [
+  // A getter, not a field: the labels follow a change of language (a field
+  // kept the language the app opened in).
+  static List<NavItemData> get _items => [
     NavItemData(outlineIcon: Icons.home_outlined, filledIcon: Icons.home_rounded, label: 'Home'),
     NavItemData(outlineIcon: Icons.campaign_outlined, filledIcon: Icons.campaign_rounded, label: 'Balita'),
-    NavItemData(outlineIcon: Icons.event_outlined, filledIcon: Icons.event_rounded, label: 'Events'),
-    NavItemData(outlineIcon: Icons.shield_outlined, filledIcon: Icons.shield_rounded, label: 'Emergency'),
+    NavItemData(outlineIcon: Icons.event_outlined, filledIcon: Icons.event_rounded, label: tr('Events')),
+    NavItemData(outlineIcon: Icons.shield_outlined, filledIcon: Icons.shield_rounded, label: tr('Emergency')),
   ];
 
   /// The nav's own index space (0-3: Home, Balita, Events, Emergency).
@@ -371,11 +415,44 @@ class _RootShellState extends State<RootShell> with WidgetsBindingObserver {
 
 /// The menu button at the leading edge of every tab's AppBar: opens the
 /// shell's side menu (see [RootShell.openDrawer]).
+/// A link to one of the shell's tabs from somewhere a screen is expected (a
+/// notification, or a push tapped): back to the shell, then that tab - the
+/// tab keeps its own AccessGuard, so nothing is opened around it.
+class ShellTabLink extends StatefulWidget {
+  const ShellTabLink({super.key, required this.tab});
+
+  /// Home=0, Balita=1, Events=2, Emergency=3.
+  final int tab;
+
+  @override
+  State<ShellTabLink> createState() => _ShellTabLinkState();
+}
+
+class _ShellTabLinkState extends State<ShellTabLink> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      Navigator.of(context).popUntil((route) => route.isFirst);
+      RootShell.jumpTo(context, widget.tab);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) => const Scaffold(body: SizedBox.shrink());
+}
+
 class ShellMenuButton extends StatelessWidget {
   const ShellMenuButton({super.key});
 
   @override
   Widget build(BuildContext context) {
+    // A tab's screen opened on its own (from a notification) has no shell
+    // and so no menu: it goes back instead.
+    if (context.findAncestorStateOfType<_RootShellState>() == null && Navigator.of(context).canPop()) {
+      return const BackButton();
+    }
     return IconButton(
       icon: const Icon(Icons.menu),
       tooltip: MaterialLocalizations.of(context).openAppDrawerTooltip,

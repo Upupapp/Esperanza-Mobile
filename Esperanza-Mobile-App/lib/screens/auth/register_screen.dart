@@ -3,6 +3,7 @@ import '../legal/terms_screen.dart';
 import '../legal/privacy_policy_screen.dart';
 
 import 'package:flutter/material.dart';
+import '../../widgets/registry_match_note.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import '../../services/api_client.dart';
@@ -28,6 +29,7 @@ import '../../models/identity_status.dart';
 import '../../widgets/identity_status_panel.dart';
 import '../../models/citizen_account.dart';
 
+import '../../l10n/tr.dart';
 /// Citizen registration, restructured (Section 9) from one long form into
 /// a step-by-step wizard: Personal Information -> Terms & Conditions ->
 /// Valid ID Upload -> Selfie -> Review -> Verification Status.
@@ -90,6 +92,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
   // Step 5 — Verification Status: the real account POST /auth/citizen/register
   // created, and the destination it sent the OTP to.
   String? _accountNo;
+
+  /// Recognised as a record the barangay already had (`registry_match`).
+  bool _foundInRegistry = false;
   String? _otpDestination;
 
   // Step 1 — Terms & Conditions
@@ -439,12 +444,18 @@ class _RegisterScreenState extends State<RegisterScreen> {
         'password': _password.text,
         'barangay': _barangay,
         'purok': _purok.text.trim().isEmpty ? null : _purok.text.trim(),
-        'address': '${_purok.text.trim()}, Barangay $_barangay, Esperanza, Masbate',
+        // Without a leading ", " when no purok was given, as the website does.
+        'address': [
+          if (_purok.text.trim().isNotEmpty) _purok.text.trim(),
+          'Barangay $_barangay',
+          'Esperanza, Masbate',
+        ].join(', '),
         'accepts_terms': true,
         'email_verification_token': _emailToken,
       });
       if (!mounted) return;
       final accountNo = JsonRead.nonEmpty(result['account_no']);
+      _foundInRegistry = JsonRead.nonEmpty(result['registry_match']) == 'pending';
       final verification = JsonRead.map(result['verification']);
       final needsCode = JsonRead.boolean(verification?['required']) ?? true;
       if (!needsCode && accountNo != null) {
@@ -528,7 +539,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     if (_step > 0)
                       Expanded(
                         child: AppButton(
-                          label: 'Back',
+                          label: tr('Back'),
                           variant: AppButtonVariant.secondary,
                           fullWidth: true,
                           onPressed: _back,
@@ -676,7 +687,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 child: SizedBox(
                   height: 48,
                   child: AppButton(
-                    label: 'Confirm',
+                    label: tr('Confirm'),
                     loading: _emailConfirming,
                     onPressed: _emailConfirming ? null : _confirmEmailCode,
                   ),
@@ -687,7 +698,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         ],
         const SizedBox(height: AppSpacing.lg),
         AppTextField(
-          label: 'Mobile number',
+          label: tr('Mobile number'),
           controller: _mobile,
           keyboardType: TextInputType.phone,
           inputFormatters: PhMobile.inputFormatters,
@@ -701,7 +712,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
           options: BarangayService.names,
           labelBuilder: (b) => b,
           onChanged: (v) => setState(() => _barangay = v),
-          hintText: 'Select your barangay',
+          hintText: tr('Select your barangay'),
         ),
         const SizedBox(height: AppSpacing.lg),
         AppTextField(label: 'Purok / Sitio', controller: _purok, icon: Icons.place_outlined),
@@ -711,7 +722,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
           controller: _password,
           obscureText: true,
           icon: Icons.lock_outline_rounded,
-          hintText: 'At least 8 characters',
+          hintText: tr('At least 8 characters'),
           onChanged: (_) => setState(() {}),
         ),
         const SizedBox(height: AppSpacing.sm),
@@ -728,8 +739,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const Text(
-          'Terms & Conditions',
+        Text(
+          tr('Terms & Conditions'),
           style: TextStyle(fontSize: AppTextSize.card, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
         ),
         const SizedBox(height: AppSpacing.sm),
@@ -755,11 +766,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
           children: [
             TextButton(
               onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const TermsScreen())),
-              child: const Text('Read the Terms and Conditions'),
+              child: Text(tr('Read the Terms and Conditions')),
             ),
             TextButton(
               onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const PrivacyPolicyScreen())),
-              child: const Text('Read the Privacy Policy'),
+              child: Text(tr('Read the Privacy Policy')),
             ),
           ],
         ),
@@ -777,11 +788,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   onChanged: (v) => setState(() => _termsAccepted = v ?? false),
                   activeColor: AppColors.brand500,
                 ),
-                const Expanded(
+                Expanded(
                   child: Padding(
                     padding: EdgeInsets.only(top: AppSpacing.md),
                     child: Text(
-                      'I have read and agree to the Terms & Conditions and Privacy Policy.',
+                      tr('I have read and agree to the Terms & Conditions and Privacy Policy.'),
                       style: TextStyle(fontSize: AppTextSize.helper, color: AppColors.slate700),
                     ),
                   ),
@@ -802,20 +813,20 @@ class _RegisterScreenState extends State<RegisterScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const Text(
-          'Valid ID Upload',
+        Text(
+          tr('Valid ID Upload'),
           style: TextStyle(fontSize: AppTextSize.card, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
         ),
         const SizedBox(height: AppSpacing.xs),
-        const Text(
-          'Upload a photo or scan of any valid government-issued ID. This helps Esperanza LGU verify your identity.',
+        Text(
+          tr('Upload a photo or scan of any valid government-issued ID. This helps Esperanza LGU verify your identity.'),
           style: TextStyle(fontSize: AppTextSize.helper, color: AppColors.textMuted, height: 1.4),
         ),
         const SizedBox(height: AppSpacing.xl),
         DropdownButtonFormField<String>(
           initialValue: _idType,
           isExpanded: true,
-          decoration: const InputDecoration(labelText: 'Type of ID'),
+          decoration: InputDecoration(labelText: tr('Type of ID')),
           items: [for (final t in _idTypes) DropdownMenuItem(value: t, child: Text(t, overflow: TextOverflow.ellipsis))],
           onChanged: (v) => setState(() {
             _idType = v;
@@ -826,10 +837,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
           const SizedBox(height: AppSpacing.xs),
           Row(
             children: [
-              const Expanded(
-                child: Text('The list of IDs could not be loaded.', style: TextStyle(fontSize: AppTextSize.fine, color: AppColors.textMuted)),
+              Expanded(
+                child: Text(tr('The list of IDs could not be loaded.'), style: TextStyle(fontSize: AppTextSize.fine, color: AppColors.textMuted)),
               ),
-              TextButton(onPressed: _loadIdTypes, child: const Text('Try again')),
+              TextButton(onPressed: _loadIdTypes, child: Text(tr('Try again'))),
             ],
           ),
         ],
@@ -859,7 +870,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     _idFilePath = null;
                     _idFileName = null;
                   }),
-                  child: const Text('Change'),
+                  child: Text(tr('Change')),
                 ),
               ],
             ),
@@ -876,12 +887,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 borderRadius: BorderRadius.circular(AppRadius.md),
                 border: Border.all(color: AppColors.brand200),
               ),
-              child: const Column(
+              child: Column(
                 children: [
                   Icon(Icons.badge_outlined, color: AppColors.brand500, size: 30),
                   SizedBox(height: AppSpacing.sm),
                   Text(
-                    'Upload Valid ID',
+                    tr('Upload Valid ID'),
                     style: TextStyle(fontSize: AppTextSize.helper, fontWeight: FontWeight.w700, color: AppColors.brand600),
                   ),
                   SizedBox(height: AppSpacing.xs),
@@ -891,8 +902,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
             ),
           ),
         const SizedBox(height: AppSpacing.sm),
-        const Text(
-          'Your ID and selfie are sent to the LGU when your account is created. Staff check them before verifying your account.',
+        Text(
+          tr('Your ID and selfie are sent to the LGU when your account is created. Staff check them before verifying your account.'),
           textAlign: TextAlign.center,
           style: TextStyle(fontSize: AppTextSize.fine, color: AppColors.textMuted),
         ),
@@ -913,8 +924,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
           style: TextStyle(fontSize: AppTextSize.card, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
         ),
         const SizedBox(height: AppSpacing.xs),
-        const Text(
-          'Take a clear photo of your face. The LGU staff who verify your account compare it with your ID.',
+        Text(
+          tr('Take a clear photo of your face. The LGU staff who verify your account compare it with your ID.'),
           style: TextStyle(fontSize: AppTextSize.helper, color: AppColors.textMuted, height: 1.4),
         ),
         const SizedBox(height: AppSpacing.xl),
@@ -934,7 +945,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
               child: Container(
                 color: _selfieBytes != null ? AppColors.emerald50 : AppColors.brand50,
                 child: _selfieBytes != null
-                    ? Image.memory(_selfieBytes!, fit: BoxFit.cover, semanticLabel: 'Your selfie')
+                    ? Image.memory(_selfieBytes!, fit: BoxFit.cover, semanticLabel: tr('Your selfie'))
                     : const Center(child: ClayIcon(ClayGlyph.camera, size: 76)),
               ),
             ),
@@ -966,18 +977,18 @@ class _RegisterScreenState extends State<RegisterScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const Text(
-          'Review Your Information',
+        Text(
+          tr('Review Your Information'),
           style: TextStyle(fontSize: AppTextSize.card, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
         ),
         const SizedBox(height: AppSpacing.xs),
-        const Text(
-          'Make sure everything looks correct before submitting for verification.',
+        Text(
+          tr('Make sure everything looks correct before submitting for verification.'),
           style: TextStyle(fontSize: AppTextSize.helper, color: AppColors.textMuted, height: 1.4),
         ),
         const SizedBox(height: AppSpacing.xl),
         _reviewRow(
-          'Name',
+          tr('Name'),
           '${_firstName.text.trim()} ${_lastName.text.trim()}',
           onEdit: () => setState(() => _step = 0),
         ),
@@ -989,19 +1000,19 @@ class _RegisterScreenState extends State<RegisterScreen> {
         ),
         _reviewRow('Barangay', _barangay ?? '—', onEdit: () => setState(() => _step = 0)),
         _reviewRow(
-          'Terms & Conditions',
+          tr('Terms & Conditions'),
           _termsAccepted ? 'Accepted' : 'Not accepted',
           onEdit: () => setState(() => _step = 1),
         ),
         if (!_hosted) ...[
-          _reviewRow('Type of ID', _idType ?? '—', onEdit: () => setState(() => _step = 2)),
+          _reviewRow(tr('Type of ID'), _idType ?? '—', onEdit: () => setState(() => _step = 2)),
           _reviewRow('Valid ID', _idFileName ?? '—', onEdit: () => setState(() => _step = 2)),
           _reviewRow('Selfie', _selfiePath != null ? 'Taken' : 'Not taken', onEdit: () => setState(() => _step = 3)),
         ] else
-          const Padding(
+          Padding(
             padding: EdgeInsets.only(bottom: AppSpacing.md),
             child: Text(
-              'Next: once your account is created, you will verify your identity by scanning your valid ID and doing a quick face check.',
+              tr('Next: once your account is created, you will verify your identity by scanning your valid ID and doing a quick face check.'),
               style: TextStyle(fontSize: AppTextSize.helper, color: AppColors.textMuted, height: 1.4),
             ),
           ),
@@ -1034,8 +1045,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
           ),
           GestureDetector(
             onTap: onEdit,
-            child: const Text(
-              'Edit',
+            child: Text(
+              tr('Edit'),
               style: TextStyle(fontSize: AppTextSize.helper, fontWeight: FontWeight.w600, color: AppColors.brand600),
             ),
           ),
@@ -1078,10 +1089,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
           Text(
             _accountNo != null && _otpDestination != null
                 ? 'Enter the 6-digit code sent to $_otpDestination to confirm your account.'
-                : 'Na-verify na ang iyong email. Naipasa na ang iyong impormasyon sa Esperanza LGU para ma-review.',
+                : 'Your email is verified. Your information has been sent to Esperanza LGU for review.',
             textAlign: TextAlign.center,
             style: const TextStyle(fontSize: AppTextSize.helper, color: AppColors.textMuted, height: 1.4),
           ),
+        if (_foundInRegistry && !_alreadyHasAccount) ...[
+          const SizedBox(height: AppSpacing.md),
+          const RegistryMatchNote(RegistryMatchNote.atSignUp),
+        ],
         if (_identityError != null && !_identitySent && !_alreadyHasAccount && account != null) ...[
           const SizedBox(height: AppSpacing.lg),
           Text(
@@ -1091,7 +1106,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
           ),
           const SizedBox(height: AppSpacing.sm),
           AppButton(
-            label: 'Send my ID again',
+            label: tr('Send my ID again'),
             icon: Icons.upload_rounded,
             fullWidth: true,
             loading: _sendingIdentity,
@@ -1112,7 +1127,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
           ],
           const SizedBox(height: AppSpacing.md),
           AppButton(
-            label: 'Confirm Code',
+            label: tr('Confirm Code'),
             fullWidth: true,
             loading: _submitting,
             onPressed: _submitting ? null : _verifyOtp,
@@ -1130,7 +1145,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         const SizedBox(height: AppSpacing.xxl),
         if (account != null)
         AppButton(
-          label: 'Continue to App',
+          label: tr('Continue to App'),
           icon: Icons.arrow_forward_rounded,
           iconTrailing: true,
           fullWidth: true,
@@ -1167,8 +1182,8 @@ extension on _RegisterScreenState {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         if (identity != null) ...[IdentityStatusPanel(status: identity), const SizedBox(height: AppSpacing.md)],
-        const Text(
-          'Verify your identity',
+        Text(
+          tr('Verify your identity'),
           style: TextStyle(fontSize: AppTextSize.card, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
         ),
         const SizedBox(height: AppSpacing.xs),

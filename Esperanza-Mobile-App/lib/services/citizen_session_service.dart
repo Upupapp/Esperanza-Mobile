@@ -363,7 +363,9 @@ class CitizenSessionService extends ChangeNotifier {
   /// The server locks the identifying fields of an APPROVED account - also
   /// while its identity is revoked, so they cannot be retyped before an
   /// officer looks again (CitizenPortalController, 2026-10-09).
-  bool get identityLocked => _account?.status == 'Approved';
+  /// The server's own flag, as the website reads it (parity check,
+  /// 2026-10-26); an account cached by an older build falls back to Approved.
+  bool get identityLocked => _account?.serverIdentityLocked ?? _account?.status == 'Approved';
 
   Future<void> _applyProfile(Map<String, dynamic> p) async {
     final accountNo = JsonRead.nonEmpty(p['account_no']);
@@ -382,6 +384,10 @@ class CitizenSessionService extends ChangeNotifier {
         id: accountNo,
         firstName: str('first_name'),
         lastName: str('last_name'),
+        middleName: str('middle_name'),
+        suffix: str('suffix'),
+        serverName: str('name'),
+        serverIdentityLocked: JsonRead.boolean(p['identity_locked']),
         email: str('email'),
         mobile: str('mobile'),
         barangay: str('barangay'),

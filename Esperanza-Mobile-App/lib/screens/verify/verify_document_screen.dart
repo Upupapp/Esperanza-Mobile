@@ -12,6 +12,7 @@ import '../../utils/protected_action.dart';
 import '../../widgets/app_button.dart';
 import '../../widgets/app_card.dart';
 
+import '../../l10n/tr.dart';
 /// What GET /verify/{code} says about an issued document
 /// (IssuanceService::verify).
 class VerifiedDocument {
@@ -28,7 +29,20 @@ class VerifiedDocument {
     this.revokedOn,
     this.revokedReason,
     this.isReprint = false,
+    this.holder,
+    this.purpose,
+    this.checkedByCode = false,
+    this.contentSha256,
   });
+
+  /// Who it was issued to and for what - only when checked by its code or
+  /// QR, never by the control number alone (privacy, as on the website).
+  final String? holder;
+  final String? purpose;
+  final bool checkedByCode;
+
+  /// Lets a holder confirm their copy is the record, without its contents.
+  final String? contentSha256;
 
   final bool authentic;
   final String controlNumber;
@@ -59,6 +73,10 @@ class VerifiedDocument {
       revokedOn: JsonRead.date(m['revoked_on']),
       revokedReason: JsonRead.nonEmpty(m['revoked_reason']),
       isReprint: JsonRead.boolean(m['is_reprint']) ?? false,
+      holder: JsonRead.nonEmpty(m['holder']),
+      purpose: JsonRead.nonEmpty(m['purpose']),
+      checkedByCode: JsonRead.nonEmpty(m['checked_by']) == 'code',
+      contentSha256: JsonRead.nonEmpty(m['content_sha256']),
     );
   }
 }
@@ -156,7 +174,7 @@ class _VerifyDocumentScreenState extends State<VerifyDocumentScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Verify a Document')),
+      appBar: AppBar(title: Text(tr('Verify a Document'))),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.md, AppSpacing.lg, AppSpacing.xxxl),
         children: [
@@ -177,8 +195,8 @@ class _VerifyDocumentScreenState extends State<VerifyDocumentScreen> {
             controller: _code,
             textInputAction: TextInputAction.search,
             onSubmitted: (_) => _check(),
-            decoration: const InputDecoration(
-              labelText: 'Verification code or control number',
+            decoration: InputDecoration(
+              labelText: tr('Verification code or control number'),
               hintText: 'e.g. ABCD-EFGH-JKLM',
             ),
           ),
@@ -211,21 +229,28 @@ class _Result extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final (String headline, Color fg, Color bg, IconData icon) = doc.revoked
-        ? ('Revoked — not valid', AppColors.rose700, AppColors.rose50, Icons.block_rounded)
+    // The website's three states, in its words (verify.blade.php).
+    final (String headline, String line, Color fg, Color bg, IconData icon) = doc.revoked
+        ? ('This document has been revoked and is no longer valid.', 'Reason: ${doc.revokedReason ?? 'Not stated.'}',
+            AppColors.rose700, AppColors.rose50, Icons.block_rounded)
         : doc.expired
-        ? ('Genuine, but expired', AppColors.amber700, AppColors.amber50, Icons.history_rounded)
-        : ('Genuine and valid', AppColors.emerald700, AppColors.emerald50, Icons.verified_rounded);
+        ? ('This document is genuine, but it has expired.',
+            'It was issued by LGU Esperanza, but its valid-until date has passed. Ask the office for a new one if needed.',
+            AppColors.amber700, AppColors.amber50, Icons.history_rounded)
+        : ('This document is genuine and valid.', 'It was issued by LGU Esperanza and has not been revoked.',
+            AppColors.emerald700, AppColors.emerald50, Icons.verified_rounded);
     final rows = <(String, String)>[
-      ('Control number', doc.controlNumber),
       if (doc.title != null) ('Document', doc.title!),
-      if (doc.office != null) ('Issued by', doc.office!),
+      ('Control number', doc.controlNumber),
+      if (doc.office != null) ('Issuing office', doc.office!),
       if (doc.barangay != null) ('Barangay', doc.barangay!),
-      if (doc.issuedOn != null) ('Issued on', shortDate(doc.issuedOn!)),
-      if (doc.validUntil != null) ('Valid until', shortDate(doc.validUntil!)),
+      ('Issued on', doc.issuedOn == null ? '—' : shortDate(doc.issuedOn!)),
+      // A revoked document's validity no longer counts: when it was revoked does.
+      if (doc.revoked)
+        ('Revoked on', doc.revokedOn == null ? '—' : shortDate(doc.revokedOn!))
+      else
+        ('Valid until', doc.validUntil == null ? '—' : shortDate(doc.validUntil!)),
       if (doc.isReprint) ('Copy', 'Reprint'),
-      if (doc.revoked && doc.revokedOn != null) ('Revoked on', shortDate(doc.revokedOn!)),
-      if (doc.revoked && doc.revokedReason != null) ('Reason', doc.revokedReason!),
     ];
     return Semantics(
       liveRegion: true,
@@ -238,15 +263,65 @@ class _Result extends StatelessWidget {
               padding: const EdgeInsets.all(AppSpacing.md),
               decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(AppRadius.md)),
               child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Icon(icon, color: fg),
                   const SizedBox(width: AppSpacing.sm),
                   Expanded(
-                    child: Text(headline, style: AppTypography.cardHeading.copyWith(color: fg)),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(headline, style: AppTypography.cardHeading.copyWith(color: fg)),
+                        const SizedBox(height: AppSpacing.xs),
+                        Text(line, style: AppTypography.helper.copyWith(color: fg)),
+                      ],
+                    ),
                   ),
                 ],
               ),
             ),
+            if (doc.holder != null || doc.purpose != null) ...[
+              const SizedBox(height: AppSpacing.md),
+              Text(tr('ISSUED TO'), style: AppTypography.eyebrow.copyWith(color: AppColors.textMuted)),
+              if (doc.holder != null) Text(doc.holder!, style: AppTypography.cardHeading),
+              if (doc.purpose != null) Text('Purpose: ${doc.purpose}', style: AppTypography.helper),
+            ],
+            const SizedBox(height: AppSpacing.md),
+            // The main defence against a code copied from someone else's paper.
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(AppSpacing.md),
+              decoration: BoxDecoration(color: AppColors.amber50, borderRadius: BorderRadius.circular(AppRadius.md)),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    tr('Compare with the paper in your hands'),
+                    style: AppTypography.bodySmallMedium.copyWith(color: AppColors.amber700, fontWeight: FontWeight.w700),
+                  ),
+                  const SizedBox(height: AppSpacing.xs),
+                  for (final line in const [
+                    'Is the name on the paper the same as here?',
+                    'Are the document type, control number and dates the same?',
+                    'If anything differs, do not accept the paper.',
+                  ])
+                    Text('• $line', style: AppTypography.helper.copyWith(color: AppColors.amber700)),
+                  const SizedBox(height: AppSpacing.xs),
+                  Text(
+                    "The QR or code may have been copied from someone else's document. Report it to the issuing office.",
+                    style: AppTypography.fine.copyWith(color: AppColors.amber700),
+                  ),
+                ],
+              ),
+            ),
+            if (!doc.checkedByCode) ...[
+              const SizedBox(height: AppSpacing.sm),
+              Text(
+                'For privacy, the name is not shown when only the control number is entered. To see who it was '
+                'issued to, scan the QR code or enter the 12-character verification code beside it.',
+                style: AppTypography.fine.copyWith(color: AppColors.textMuted),
+              ),
+            ],
             const SizedBox(height: AppSpacing.md),
             for (final (label, value) in rows)
               Padding(
@@ -257,6 +332,29 @@ class _Result extends StatelessWidget {
                     SizedBox(width: 120, child: Text(label, style: AppTypography.helper)),
                     Expanded(
                       child: Text(value, style: AppTypography.bodyText.copyWith(fontWeight: FontWeight.w600)),
+                    ),
+                  ],
+                ),
+              ),
+            const SizedBox(height: AppSpacing.sm),
+            Text(
+              'No other personal details (address, birth date) are shown here. The QR and verification code are '
+              'printed on the paper only.',
+              style: AppTypography.fine.copyWith(color: AppColors.textMuted),
+            ),
+            if (doc.contentSha256 != null)
+              Theme(
+                data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+                child: ExpansionTile(
+                  tilePadding: EdgeInsets.zero,
+                  title: Text(tr('Technical details'), style: AppTypography.helper.copyWith(fontWeight: FontWeight.w600)),
+                  children: [
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: SelectableText(
+                        "SHA-256 of the document's content:\n${doc.contentSha256}",
+                        style: AppTypography.fine.copyWith(color: AppColors.textMuted),
+                      ),
                     ),
                   ],
                 ),

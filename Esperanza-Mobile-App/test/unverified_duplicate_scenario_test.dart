@@ -11,6 +11,8 @@ import 'package:esperanza_mobile/services/citizen_session_service.dart';
 import 'package:esperanza_mobile/services/mock_catalog.dart';
 import 'support/start_app.dart';
 
+import 'support/fake_api.dart';
+
 /// The demo-account login cards (Account A/B included) were removed from
 /// LoginScreen (see PRODUCTION_READINESS.md 4(d)) as a credential-
 /// enumeration surface once the screen talks to a real backend. These
@@ -43,6 +45,16 @@ Future<void> _openBell(WidgetTester tester) async {
   await tester.pumpAndSettle();
 }
 
+
+/// Dokyu loads the resident's requests when the shell starts (every tab is
+/// built at once): empty lists for those, as an unverified resident sees
+/// Dokyu since 2026-10-26; anything else is unconfigured, as before.
+void _emptyRequestLists() => FakeApi.install(
+      (path, query) => const {'/services', '/citizen/requests', '/citizen/records'}.contains(path)
+          ? const []
+          : throw const FakeApiError(status: 503, code: 'NOT_CONFIGURED', messageEn: 'Not configured in this test.'),
+    );
+
 void main() {
   testWidgets('Sign In no longer offers Account A/B demo logins, though they still share the same underlying identity', (
     tester,
@@ -70,7 +82,9 @@ void main() {
     expect(a.address, b.address);
   });
 
-  testWidgets('Account A sees the duplicate-registration warning and remains restricted from Dokyu', (tester) async {
+  testWidgets('Account A sees the duplicate-registration warning and still cannot file in Dokyu', (tester) async {
+    _emptyRequestLists();
+    addTearDown(FakeApi.restore);
     SharedPreferences.setMockInitialValues({});
     _setPhoneViewport(tester);
     await pumpAppToSignIn(tester);
@@ -90,16 +104,17 @@ void main() {
       findsOneWidget,
     );
 
-    // Still restricted from Dokyu — the generic AccessGuard path (not the
-    // "confirmed duplicate" popup, which is specific to the *other*
-    // scenario's own known account id).
+    // Still cannot file in Dokyu: it opens with the approval notice and no
+    // New Request (as on the website, 2026-10-26) - not the "confirmed
+    // duplicate" popup, which is specific to the *other* scenario's account.
     Navigator.of(tester.element(find.text('Possible Duplicate Registration Detected'))).pop();
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const ValueKey('nav-center-action')));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Dokyu'));
     await tester.pumpAndSettle();
-    expect(find.textContaining('verification'), findsWidgets); // RestrictedFeatureNotice mentions verification
+    expect(find.textContaining('Your account is waiting for approval'), findsOneWidget);
+    expect(find.text('New Request'), findsNothing);
     expect(tester.takeException(), isNull);
   });
 

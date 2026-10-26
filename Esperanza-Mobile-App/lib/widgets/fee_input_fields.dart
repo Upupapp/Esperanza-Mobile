@@ -5,6 +5,7 @@ import '../theme/app_typography.dart';
 import '../utils/fee_inputs.dart';
 import 'app_text_field.dart';
 
+import '../l10n/tr.dart';
 /// One amount field per [names] (a service's `fee.required_inputs`), under a
 /// short note on why it is asked. Renders nothing for a service whose fee
 /// needs no declared amount.
@@ -20,8 +21,8 @@ class FeeInputFields extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const Text(
-          'Fee details',
+        Text(
+          tr('Fee details'),
           style: TextStyle(fontSize: AppTextSize.body, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
         ),
         const SizedBox(height: AppSpacing.xs),

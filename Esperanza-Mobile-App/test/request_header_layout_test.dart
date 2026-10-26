@@ -43,7 +43,7 @@ void main() {
     // the office line below it (the full row). A 50/50 split gave the title
     // about half; now it gets everything the capped badge does not take.
     final titleMax = tester.renderObject<RenderParagraph>(find.text('Barangay Clearance')).constraints.maxWidth;
-    final rowWidth = tester.renderObject<RenderParagraph>(find.text('Office')).constraints.maxWidth;
+    final rowWidth = tester.renderObject<RenderParagraph>(find.text('Office').first).constraints.maxWidth;
     expect(titleMax, greaterThan(rowWidth * 0.55));
     expect(tester.takeException(), isNull);
   });

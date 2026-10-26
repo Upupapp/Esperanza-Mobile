@@ -2,7 +2,7 @@
 // reason/guidance display, Apply Again opening a brand-new application
 // without touching the original rejected request, the new application
 // getting its own reference number, and Apply Again still respecting the
-// Tulong eligibility rule (see utils/tulong_eligibility.dart) when another
+// Tulong form when another
 // active application for the same assistance also exists.
 //
 // The old seeded Educational Assistance demo request this used to reach for
@@ -159,7 +159,7 @@ void main() {
       expect(reapplied.status, 'Submitted');
     });
 
-    testWidgets('Apply Again still respects the Tulong eligibility rule when another application is active', (
+    testWidgets('Apply Again opens the form even while another application is open, as on the website', (
       tester,
     ) async {
       final active = {
@@ -177,15 +177,14 @@ void main() {
       await tester.tap(find.text('Apply Again'));
       await tester.pumpAndSettle();
 
-      // Blocked by the OTHER, currently-active application for the same
-      // assistance — never reaches the wizard.
-      expect(find.text('Active Application Exists'), findsOneWidget);
-      expect(find.byType(ServiceRequestWizardScreen), findsNothing);
+      // The website files it; the office decides. Nothing blocks it here.
+      expect(find.text('Active Application Exists'), findsNothing);
+      expect(find.byType(ServiceRequestWizardScreen), findsOneWidget);
     });
   });
 
   group('Application Rejected panel gating', () {
-    testWidgets('does not show for a Rejected request with no decision_remarks on file', (tester) async {
+    testWidgets('a Rejected request with no reason on file says to visit the office, as the website does', (tester) async {
       final noReason = {
         'ref': 'DR-2026-0001',
         'type': 'dokyu',
@@ -200,8 +199,8 @@ void main() {
 
       await _pumpDetail(tester, requests, session, 'DR-2026-0001');
 
-      expect(find.text('Application Rejected'), findsNothing);
-      expect(find.text('Apply Again'), findsNothing);
+      expect(find.text('Application Rejected'), findsOneWidget);
+      expect(find.text('Visit the office below for details.'), findsOneWidget);
       expect(tester.takeException(), isNull);
     });
   });

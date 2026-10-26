@@ -4,6 +4,7 @@ import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
 import '../theme/app_typography.dart';
 
+import '../l10n/tr.dart';
 /// Mirrors `resources/views/components/ui/input.blade.php`: label above,
 /// optional leading icon, slate-50 fill, brand-colored focus ring, rose
 /// error state with helper text.
@@ -179,7 +180,7 @@ class FieldLabel extends StatelessWidget {
       children: [
         Flexible(child: Text(text, style: style)),
         Semantics(
-          label: 'required',
+          label: tr('required'),
           child: const Text(
             ' *',
             style: TextStyle(fontSize: AppTextSize.helper, fontWeight: FontWeight.w700, color: AppColors.rose600),

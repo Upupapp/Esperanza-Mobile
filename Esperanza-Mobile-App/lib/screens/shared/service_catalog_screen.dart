@@ -1,24 +1,19 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import '../../models/catalog_item.dart';
 import '../../models/request_filters.dart';
 import '../../models/service_request.dart';
-import '../../services/citizen_session_service.dart';
-import '../../services/requests_service.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_spacing.dart';
 import '../../utils/office_logo.dart';
-import '../../utils/tulong_eligibility.dart';
 import '../../widgets/app_card.dart';
 import '../../widgets/menu_tile.dart';
 import 'new_request_screen.dart';
-import 'request_detail_screen.dart';
 import 'service_request_wizard_screen.dart';
-import '../sakuna/report_incident_screen.dart';
 import '../../theme/app_typography.dart';
 import '../../utils/office_name.dart';
 import '../../widgets/esperanza_art.dart';
 
+import '../../l10n/tr.dart';
 /// Step 1 of the request wizard — pick a document/assistance type, guided
 /// by progressive filtering (Barangay/LGU -> Department -> Specific
 /// Program) rather than one long flat list, per the filtering spec:
@@ -92,7 +87,7 @@ class _ServiceCatalogScreenState extends State<ServiceCatalogScreen> {
         title: Text(appBarTitle),
         leading: crumbs.isNotEmpty
             ? IconButton(
-                tooltip: 'Back',
+                tooltip: tr('Back'),
                 icon: const Icon(Icons.arrow_back_rounded),
                 onPressed: () => setState(() {
                   if (_department != null) {
@@ -429,34 +424,11 @@ class _ItemListState extends State<_ItemList> {
 /// spec, the plain request screen otherwise, the incident form for Sakuna.
 /// Shared by the catalogue and Service Search, so both apply the same rules.
 ///
-/// Tulong's reapplication rule is checked here, before the request screen
-/// ever opens — the citizen must never fill out an entire application only
-/// to discover at Submit that it's blocked (see utils/tulong_eligibility.dart).
-/// Dokyu items open immediately; there is no such restriction for Dokyu (the
-/// same document may legitimately be requested again).
+/// Nothing is checked before a Tulong form opens: like the website, the app
+/// leaves it to the office whether a second application is accepted
+/// (2026-10-22, app/web parity).
 Future<void> openCatalogItem(BuildContext context, ServiceCategory category, CatalogItem item, Color accent) async {
-  if (category == ServiceCategory.tulong) {
-    final account = context.read<CitizenSessionService>().account;
-    if (account != null) {
-      final result = tulongEligibilityFor(context.read<RequestsService>(), typeName: item.name);
-      if (!result.isEligible) {
-        final viewRequest = await showTulongBlockedDialog(context, result);
-        if (viewRequest && context.mounted) {
-          Navigator.of(context).push(
-            MaterialPageRoute(builder: (_) => RequestDetailScreen(requestId: result.blockingRequest!.id)),
-          );
-        }
-        return;
-      }
-    }
-  }
   if (!context.mounted) return;
-  if (category == ServiceCategory.sakunaIncident) {
-    Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => ReportIncidentScreen(item: item, accent: accent)),
-    );
-    return;
-  }
   Navigator.of(context).push(
     MaterialPageRoute(
       builder: (_) => item.formSpec != null

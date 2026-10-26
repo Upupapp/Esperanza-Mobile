@@ -1,3 +1,6 @@
+import 'geo_point.dart';
+import 'incident_status.dart';
+import 'request_workflow.dart';
 import 'request_release.dart';
 import 'attachment.dart';
 
@@ -276,14 +279,35 @@ class ServiceRequest {
   /// scan of the signed paper once attached. Re-fetched with every detail.
   List<IssuedDocumentInfo> issuedDocuments = const [];
 
+  /// The service's key (the detail's `service_key`): which document a Dokyu
+  /// request is for. Null on a list row.
+  String? serviceKey;
+
   /// An incident's photos as the resident sent them: each a short-lived
   /// signed link, or null while the server is still checking the file.
   /// Re-fetched with every detail; empty on a list row.
   List<String?> incidentPhotos = const [];
 
+  /// For each of [incidentPhotos]: the upload check refused it (`scan`
+  /// infected or error). It said "Being checked" for ever (parity check,
+  /// 2026-10-26).
+  List<bool> incidentPhotoRefused = const [];
+
+  /// Where the resident pinned the incident on the map (2026-10-26), or
+  /// null when they did not. Read with every detail; null on a list row.
+  GeoPoint? incidentLocation;
+
   /// The fee, if the service has one; re-fetched with every detail, like
   /// [canResubmit]. The resident saw neither the fee nor the receipt before.
   RequestPayment? payment;
+
+  /// "Steps of your request": the service's own process on this request,
+  /// when it publishes one. Re-fetched with every detail, never stored.
+  RequestWorkflow? workflow;
+
+  /// The status as a resident reads it: an incident's in residents' words
+  /// (Dispatched, Resolved), as on the website; any other request's as is.
+  String get statusLabel => category == ServiceCategory.sakunaIncident ? incidentStatusLabel(status) : status;
 
   final String expectedDays;
   final Map<String, dynamic> formFields;

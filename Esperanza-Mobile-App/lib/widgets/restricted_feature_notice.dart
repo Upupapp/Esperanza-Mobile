@@ -7,6 +7,7 @@ import '../theme/app_spacing.dart';
 import 'app_button.dart';
 import '../theme/app_typography.dart';
 
+import '../l10n/tr.dart';
 /// Why a feature is being withheld — drives which message/actions
 /// [RestrictedFeatureNotice] shows. See Sections 6/7 of the nav-and-access
 /// spec for the exact copy.
@@ -106,7 +107,7 @@ class RestrictedFeatureNotice extends StatelessWidget {
     ),
     const SizedBox(height: AppSpacing.sm),
     AppButton(
-      label: 'Sign In',
+      label: tr('Sign In'),
       variant: AppButtonVariant.secondary,
       fullWidth: true,
       onPressed: () => _endGuestAndGoToRoot(context),

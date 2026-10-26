@@ -36,6 +36,11 @@ class MasterFileDocument {
   /// separate fields.
   final String? serviceName;
 
+  /// The office's review of a wallet document (Submitted, Verified...), as
+  /// the website's Documents on File badge shows it. Null for a file kept
+  /// only on this phone.
+  final String? status;
+
   const MasterFileDocument({
     required this.id,
     required this.documentType,
@@ -44,6 +49,7 @@ class MasterFileDocument {
     required this.uploadedAt,
     required this.origin,
     this.serviceName,
+    this.status,
   });
 
   Map<String, dynamic> toJson() => {
@@ -54,6 +60,7 @@ class MasterFileDocument {
         'uploadedAt': uploadedAt.toIso8601String(),
         'origin': origin,
         'serviceName': serviceName,
+        'status': status,
       };
 
   factory MasterFileDocument.fromJson(Map<String, dynamic> json) => MasterFileDocument(
@@ -64,5 +71,6 @@ class MasterFileDocument {
         uploadedAt: DateTime.parse(json['uploadedAt']),
         origin: json['origin'] ?? 'Manual',
         serviceName: json['serviceName'],
+        status: json['status'] is String ? json['status'] as String : null,
       );
 }

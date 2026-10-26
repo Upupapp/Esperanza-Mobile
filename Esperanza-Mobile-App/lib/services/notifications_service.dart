@@ -121,10 +121,33 @@ class NotificationsService extends ChangeNotifier {
 
   /// Newest first, pinned first (the server's order). Failures leave the
   /// previous list in place: a flaky connection must not blank the bell.
-  Future<void> loadServer() async {
+  Future<void> loadServer() {
+    final load = _loadServer();
+    _inFlight = load;
+    return load.whenComplete(() {
+      if (identical(_inFlight, load)) _inFlight = null;
+    });
+  }
+
+  Future<void> _loadServer() async {
     final rows = await api.getAllPages('/citizen/notifications', query: {'per_page': 100}, maxPages: 3);
     _server = JsonRead.rows(rows, ServerNotification.fromApi);
     notifyListeners();
+  }
+
+  Future<void>? _inFlight;
+
+  /// Waits for a load already under way, up to [limit], so a pop-up can see
+  /// a pending alert or welcome first (the website waits up to 10 s). Returns
+  /// at once when nothing is loading.
+  Future<void> settled({Duration limit = const Duration(seconds: 10)}) async {
+    final load = _inFlight;
+    if (load == null) return;
+    try {
+      await load.timeout(limit);
+    } catch (_) {
+      // Slow or failed: the pop-up goes ahead with what is known.
+    }
   }
 
   /// A Sakuna alert that arrived since the resident last looked and has not
@@ -132,6 +155,17 @@ class NotificationsService extends ChangeNotifier {
   ServerNotification? get pendingAlert {
     for (final n in _server) {
       if (n.category == 'sakuna' && n.popup && n.unread && !_shownAlerts.contains(n.id) && !isRead(n.feedId)) return n;
+    }
+    return null;
+  }
+
+  /// The LGU's "your account is verified" notice, not yet shown as the
+  /// welcome pop-up on this phone (the website's `pendingWelcome`).
+  ServerNotification? get pendingWelcome {
+    for (final n in _server) {
+      if (n.category == 'account' && n.pill == 'Verified' && n.unread && !_shownAlerts.contains(n.id) && !isRead(n.feedId)) {
+        return n;
+      }
     }
     return null;
   }

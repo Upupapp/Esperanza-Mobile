@@ -7,6 +7,7 @@ import '../../../theme/app_colors.dart';
 import '../../../theme/app_spacing.dart';
 import '../../../widgets/app_button.dart';
 import '../../../widgets/app_card.dart';
+import '../../../widgets/resident_profile_lock_note.dart';
 import '../../../widgets/section_status_chip.dart';
 import 'family_information_screen.dart';
 import 'household_information_screen.dart';
@@ -15,6 +16,7 @@ import 'submission_confirmation_screen.dart';
 import '../../../theme/app_typography.dart';
 import '../../../services/api_client.dart';
 
+import '../../../l10n/tr.dart';
 /// Final step — a read-only summary of all three sections with per-section
 /// Edit links, gated on all three being SectionStatus.complete. Submitting
 /// sends the profile to Esperanza LGU (PUT /citizen/resident-profile), where
@@ -55,6 +57,7 @@ class _ReviewSubmitScreenState extends State<ReviewSubmitScreen> {
   Widget build(BuildContext context) {
     final account = context.watch<CitizenSessionService>().account!;
     final profile = context.watch<ResidentProfileService>().profileFor(account);
+    final locked = !profile.editable;
 
     return Scaffold(
       appBar: AppBar(title: const Text('Review & Submit')),
@@ -66,12 +69,17 @@ class _ReviewSubmitScreenState extends State<ReviewSubmitScreen> {
               'Check your information before submitting it to Esperanza LGU for verification.',
               style: TextStyle(fontSize: AppTextSize.helper, color: AppColors.textMuted, height: 1.4),
             ),
+            if (locked) ...[
+              const SizedBox(height: AppSpacing.md),
+              ResidentProfileLockNote(status: profile.status),
+            ],
             const SizedBox(height: AppSpacing.lg),
             _SummaryCard(
-              title: 'Personal Information',
+              title: tr('Personal Information'),
               status: profile.personalStatus,
-              onEdit: () =>
-                  Navigator.of(context).push(MaterialPageRoute(builder: (_) => const PersonalInformationScreen())),
+              onEdit: locked
+                  ? null
+                  : () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const PersonalInformationScreen())),
               rows: [
                 profile.personal.fullName.trim().isEmpty ? '—' : profile.personal.fullName,
                 if (profile.personal.barangay.isNotEmpty) 'Brgy. ${profile.personal.barangay}',
@@ -81,8 +89,9 @@ class _ReviewSubmitScreenState extends State<ReviewSubmitScreen> {
             _SummaryCard(
               title: 'Family',
               status: profile.familyStatus,
-              onEdit: () =>
-                  Navigator.of(context).push(MaterialPageRoute(builder: (_) => const FamilyInformationScreen())),
+              onEdit: locked
+                  ? null
+                  : () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const FamilyInformationScreen())),
               rows: [
                 profile.familyName.trim().isEmpty ? '—' : profile.familyName,
                 'Head of Family: ${profile.headIndividual.fullName.isEmpty ? account.fullName : profile.headIndividual.fullName}',
@@ -93,8 +102,9 @@ class _ReviewSubmitScreenState extends State<ReviewSubmitScreen> {
             _SummaryCard(
               title: 'Household',
               status: profile.householdStatus,
-              onEdit: () =>
-                  Navigator.of(context).push(MaterialPageRoute(builder: (_) => const HouseholdInformationScreen())),
+              onEdit: locked
+                  ? null
+                  : () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const HouseholdInformationScreen())),
               rows: [
                 if (profile.household.barangay.isNotEmpty) 'Brgy. ${profile.household.barangay}',
                 if (profile.household.sitioPurok.isNotEmpty) 'Sitio ${profile.household.sitioPurok}',
@@ -102,27 +112,8 @@ class _ReviewSubmitScreenState extends State<ReviewSubmitScreen> {
                 '${profile.householdResidentCount} Resident${profile.householdResidentCount == 1 ? '' : 's'}',
               ],
             ),
-            const SizedBox(height: AppSpacing.itemGap),
-            AppCard(
-              child: Row(
-                children: [
-                  const Icon(Icons.attach_file_rounded, size: 18, color: AppColors.slate500),
-                  const SizedBox(width: AppSpacing.sm),
-                  const Expanded(
-                    child: Text(
-                      'Supporting Documents',
-                      style: TextStyle(fontSize: AppTextSize.body, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
-                    ),
-                  ),
-                  Text(
-                    '${profile.documentCount} Attached',
-                    style: const TextStyle(fontSize: AppTextSize.helper, color: AppColors.textMuted),
-                  ),
-                ],
-              ),
-            ),
             const SizedBox(height: AppSpacing.xxl),
-            if (!profile.readyToSubmit)
+            if (!locked && !profile.readyToSubmit)
               Container(
                 padding: const EdgeInsets.all(AppSpacing.md),
                 margin: const EdgeInsets.only(bottom: AppSpacing.md),
@@ -133,7 +124,7 @@ class _ReviewSubmitScreenState extends State<ReviewSubmitScreen> {
                     SizedBox(width: AppSpacing.sm),
                     Expanded(
                       child: Text(
-                        'Complete Personal, Family, and Household Information before submitting.',
+                        'Fill in your sex, birthdate, civil status and Sitio / Purok under Personal Information before submitting.',
                         style: TextStyle(fontSize: AppTextSize.label, color: AppColors.amber700, height: 1.35),
                       ),
                     ),
@@ -144,14 +135,15 @@ class _ReviewSubmitScreenState extends State<ReviewSubmitScreen> {
               Text(_error!, style: AppTypography.helper.copyWith(color: AppColors.danger)),
               const SizedBox(height: AppSpacing.md),
             ],
-            AppButton(
-              label: 'Submit for LGU Verification',
-              icon: Icons.send_rounded,
-              fullWidth: true,
-              size: AppButtonSize.lg,
-              loading: _submitting,
-              onPressed: profile.readyToSubmit ? () => _submit(account.id) : null,
-            ),
+            if (!locked)
+              AppButton(
+                label: 'Submit for LGU Verification',
+                icon: Icons.send_rounded,
+                fullWidth: true,
+                size: AppButtonSize.lg,
+                loading: _submitting,
+                onPressed: profile.readyToSubmit ? () => _submit(account.id) : null,
+              ),
           ],
         ),
       ),
@@ -162,7 +154,8 @@ class _ReviewSubmitScreenState extends State<ReviewSubmitScreen> {
 class _SummaryCard extends StatelessWidget {
   final String title;
   final SectionStatus status;
-  final VoidCallback onEdit;
+  /// Null while the profile cannot be changed (with the barangay).
+  final VoidCallback? onEdit;
   final List<String> rows;
 
   const _SummaryCard({required this.title, required this.status, required this.onEdit, required this.rows});
@@ -192,13 +185,14 @@ class _SummaryCard extends StatelessWidget {
               // also a flex participant.
               Flexible(child: SectionStatusChip(status: status)),
               const Spacer(),
-              GestureDetector(
-                onTap: onEdit,
-                child: const Text(
-                  'Edit',
-                  style: TextStyle(fontSize: AppTextSize.helper, fontWeight: FontWeight.w600, color: AppColors.brand600),
+              if (onEdit != null)
+                GestureDetector(
+                  onTap: onEdit,
+                  child: Text(
+                    tr('Edit'),
+                    style: TextStyle(fontSize: AppTextSize.helper, fontWeight: FontWeight.w600, color: AppColors.brand600),
+                  ),
                 ),
-              ),
             ],
           ),
           const SizedBox(height: AppSpacing.sm),

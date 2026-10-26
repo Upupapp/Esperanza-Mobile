@@ -371,25 +371,6 @@ class ResidentProfileService extends ChangeNotifier {
     await _save(p);
   }
 
-  /// Family Information's own Emergency Contact Edit action. Marks
-  /// [ResidentProfile.emergencyContactEdited] so the Perlita Master Profile
-  /// alignment's seeded default (Rogelio Escano / Brother / 0919 000 9012)
-  /// never overwrites this again on a later app launch — see that
-  /// alignment's own guard.
-  Future<void> saveEmergencyContact(
-    String accountId, {
-    required String name,
-    required String relationship,
-    required String number,
-  }) async {
-    final p = _profiles[accountId]!;
-    p.emergencyContactName = name;
-    p.emergencyContactRelationship = relationship;
-    p.emergencyContactNumber = number;
-    p.emergencyContactEdited = true;
-    await _save(p);
-  }
-
   Future<void> addFamilyMember(String accountId, Individual member) async {
     final p = _profiles[accountId]!;
     member.familyId = p.familyId;
@@ -447,14 +428,12 @@ class ResidentProfileService extends ChangeNotifier {
     await _save(p);
   }
 
-  /// Section 8 — simulated "join an existing family record" action. No
-  /// real matching/merge happens; this just marks the request as sent and
-  /// adopts the matched family's display name so the UI can show it was
-  /// acted on.
-  Future<void> requestJoinFamily(String accountId, ExistingFamilyMatch match) async {
+  /// The household's monthly income, asked on Personal Information as the
+  /// website asks it (sent as `personal.income_range`).
+  Future<void> setMonthlyIncome(String accountId, String income) async {
     final p = _profiles[accountId]!;
-    p.joinRequestSent = true;
-    if (p.familyName.trim().isEmpty) p.familyName = match.familyName;
+    if (p.household.monthlyIncome == income) return;
+    p.household.monthlyIncome = income;
     await _save(p);
   }
 
@@ -463,14 +442,29 @@ class ResidentProfileService extends ChangeNotifier {
   /// the record "For Validation" for barangay staff; nothing on this device
   /// can mark it verified any more (the old demo verifier panel is gone).
   ///
-  /// The mobile form collects more than the backend stores; the fields
-  /// without a server column (school details, emergency contact, place of
-  /// birth, ...) stay on this device. Throws [ApiException] on failure, and
+  /// The form asks only what the backend stores (as the website's does).
+  /// Throws [ApiException] on failure, and
   /// then the local status is left unchanged.
   Future<void> submit(String accountId) async {
     final p = _profiles[accountId]!;
+    if (!p.editable) {
+      throw const ApiException(
+        messageEn: 'Your barangay office has your Resident Profile. You can change it again if they send it back.',
+        messageFil: 'Nasa iyong barangay office ang iyong Resident Profile. Maaari mo itong baguhin kapag ibinalik nila.',
+      );
+    }
+    // The family members already on the server are matched first, so a
+    // resubmit updates them rather than adding them again (parity check,
+    // 2026-10-22: every resubmit from the app duplicated the family).
+    try {
+      final current = await api.get('/citizen/resident-profile');
+      if (current.data != null) _takeMemberRefs(p, current.map);
+    } on ApiException {
+      // Nothing on file yet, or unreachable: the PUT below says which.
+    }
     final res = await api.put('/citizen/resident-profile', body: _payloadFor(p));
     _applyServerStatus(p, res.map);
+    _takeMemberRefs(p, res.map);
     p.correctionMessage = null;
     p.submittedAt ??= DateTime.now();
     await _save(p);
@@ -556,6 +550,7 @@ class ResidentProfileService extends ChangeNotifier {
           if (name == null) continue;
           p.familyMembers.add(Individual(
             individualId: JsonRead.nonEmpty(m['ref']) ?? 'server-${p.familyMembers.length + 1}',
+            serverRef: JsonRead.nonEmpty(m['ref']),
             firstName: name,
             sex: fill('', m['sex'], ResidentProfileOptions.sex),
             birthdate: JsonRead.date(m['dob']),
@@ -571,6 +566,26 @@ class ResidentProfileService extends ChangeNotifier {
         }
       }
       p.familySaved = true;
+    }
+  }
+
+  /// Gives each family member here the server's reference for the same
+  /// person (matched by name), when it does not have one yet.
+  void _takeMemberRefs(ResidentProfile p, Map<String, dynamic> view) {
+    final members = JsonRead.list(JsonRead.map(view['family'])?['members']).map(JsonRead.map).whereType<Map<String, dynamic>>();
+    final taken = {for (final m in p.familyMembers) ?m.serverRef};
+    String key(String name) => name.trim().toLowerCase().replaceAll(RegExp(r'\s+'), ' ');
+    for (final row in members) {
+      final ref = JsonRead.nonEmpty(row['ref']);
+      final name = JsonRead.nonEmpty(row['name']);
+      if (ref == null || name == null || taken.contains(ref)) continue;
+      for (final m in p.familyMembers) {
+        if (m.serverRef == null && key(m.fullName) == key(name)) {
+          m.serverRef = ref;
+          taken.add(ref);
+          break;
+        }
+      }
     }
   }
 
@@ -591,12 +606,22 @@ class ResidentProfileService extends ChangeNotifier {
     if (_applyServerStatus(p, res.map)) await _save(p);
   }
 
+  /// The signed-in resident matched a record their barangay already had,
+  /// not yet confirmed by the barangay office (`registry_match.status`
+  /// pending): the Resident Profile says so, as the website's does.
+  bool registryMatchPending = false;
+
   /// Individual.verification: Unverified / For Validation / Verified, and the
   /// barangay's decision (`review`). A profile the barangay sent back is
   /// Unverified with `review.outcome` 'returned' and a note saying what to
   /// change: that is Needs Correction here, with the note as the message
   /// (2026-10-06: nothing could leave Pending Verification before).
   bool _applyServerStatus(ResidentProfile p, Map<String, dynamic> view) {
+    final match = JsonRead.nonEmpty(JsonRead.map(view['registry_match'])?['status']) == 'pending';
+    if (match != registryMatchPending) {
+      registryMatchPending = match;
+      notifyListeners();
+    }
     final individual = JsonRead.map(view['individual']);
     final verification = JsonRead.nonEmpty(individual?['verification']);
     final review = JsonRead.map(view['review']);
@@ -651,8 +676,7 @@ class ResidentProfileService extends ChangeNotifier {
           if (me.isFourPsBeneficiary) '4Ps',
         ],
       },
-      if (p.householdSaved)
-        'household': {
+      'household': {
           'sitio': _text(h.sitioPurok),
           'address': _text(h.completeAddress),
           'dwelling_type': _text(h.housingType),
@@ -661,13 +685,13 @@ class ResidentProfileService extends ChangeNotifier {
           'water': _text(h.waterSource),
           'toilet': _text(h.toiletFacility),
         },
-      if (p.familySaved)
-        'family': {
+      'family': {
           'surname': _text(p.familyName),
           'members': [
             for (final m in p.familyMembers)
               if (m.individualId != me.individualId && _text(m.fullName) != null)
                 {
+                  'ref': ?m.serverRef,
                   'name': m.fullName.trim(),
                   ..._personOf(m),
                   'relation': _text(m.relationshipToHead),

@@ -328,7 +328,7 @@ void main() {
       _ => throw const FakeApiError(status: 404),
     };
 
-    test('FAQs follow the chosen language; a tutorial without a video is hidden, as on the web portal', () async {
+    test('FAQs follow the chosen language; a tutorial with neither a link nor a write-up is hidden, as on the web portal', () async {
       FakeApi.installFull(helpHandler);
       addTearDown(() => MessageLanguage.filipino.value = false);
 
@@ -351,7 +351,12 @@ void main() {
       );
       await tester.pumpAndSettle();
 
+      // The website's tabs; the contact details are under Support.
+      expect(find.text('FAQs'), findsOneWidget);
+      expect(find.text('Tutorials'), findsOneWidget);
       expect(find.text('How do I request a document online?'), findsOneWidget);
+      await tester.tap(find.text('Support'));
+      await tester.pumpAndSettle();
       await tester.scrollUntilVisible(find.text('(056) 000-0000'), 300);
       expect(find.text('support@example.invalid'), findsOneWidget);
       expect(find.textContaining('TO BE PROVIDED'), findsNothing);
@@ -359,10 +364,46 @@ void main() {
       expect(find.text('Terms and Conditions'), findsOneWidget);
     });
 
+    testWidgets('FAQs are searched and filtered by the LGU\'s categories, as on the website', (tester) async {
+      FakeApi.installFull((r) => switch (r.path) {
+            '/site-content/faqs' => {
+              'sections': [
+                {'q': 'How do I request a document online?', 'a': 'Go to Dokyu.', 'category': 'Documents'},
+                {'q': 'Which files can I upload?', 'a': 'Photos and PDFs.', 'category': 'Mobile app'},
+              ],
+            },
+            _ => throw const FakeApiError(status: 404),
+          });
+      await tester.pumpWidget(
+        ChangeNotifierProvider(create: (_) => CitizenSessionService(), child: const MaterialApp(home: HelpSupportScreen())),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Tutorials'), findsNothing, reason: 'no tutorial is published');
+      expect(find.text('2 results'), findsOneWidget);
+      await tester.tap(find.widgetWithText(ChoiceChip, 'Mobile app'));
+      await tester.pumpAndSettle();
+      expect(find.text('Which files can I upload?'), findsOneWidget);
+      expect(find.text('How do I request a document online?'), findsNothing);
+
+      await tester.tap(find.widgetWithText(ChoiceChip, 'All'));
+      await tester.enterText(find.byType(TextField), 'dokyu');
+      await tester.pumpAndSettle();
+      expect(find.text('1 result'), findsOneWidget);
+      expect(find.text('How do I request a document online?'), findsOneWidget);
+
+      await tester.enterText(find.byType(TextField), 'nothing like this');
+      await tester.pumpAndSettle();
+      expect(find.text('No FAQs match your search.'), findsOneWidget);
+    });
+
     test('the app\'s own help no longer says a profile photo comes from the gallery', () {
+      // The app's own help answers are gone: every answer is the LGU's,
+      // the profile photo one included (2026-10-22).
       final src = File('lib/screens/support/help_support_screen.dart').readAsStringSync();
       expect(src, isNot(contains('choose a new one from')));
-      expect(src, contains('not chosen from your gallery'));
+      expect(src, isNot(contains('Troubleshooting')));
+      expect(src, isNot(contains('simulated Face Verification')));
     });
   });
 

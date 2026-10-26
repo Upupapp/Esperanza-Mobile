@@ -6,6 +6,7 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../widgets/app_dialogs.dart';
 
+import '../l10n/tr.dart';
 /// The kind of protected device resource an action needs — drives which
 /// explanation copy/permission this goes through. Every screen in the app
 /// that touches the camera, photo library, or a document picker routes
@@ -13,7 +14,7 @@ import '../widgets/app_dialogs.dart';
 /// [pickDocumentProtected]) rather than calling `image_picker`/
 /// `file_picker` directly, so this one file is the only place permission
 /// logic lives — never duplicated per screen.
-enum ProtectedResource { camera, photos, document }
+enum ProtectedResource { camera, photos, document, location }
 
 class _ResourceCopy {
   final String title;
@@ -37,6 +38,14 @@ const _copy = <ProtectedResource, _ResourceCopy>{
     title: 'Document Access',
     explanation: 'Esperanza needs permission to let you choose a document to attach to your request.',
     deniedMessage: 'Permission was not granted. You can continue using the app, but this feature requires access to choose a document.',
+  ),
+  // Sakuna's map (2026-10-26): asked only when the resident taps "Use my
+  // location" or "Find the nearest open centre".
+  ProtectedResource.location: _ResourceCopy(
+    title: 'Location Access',
+    explanation:
+        'Esperanza uses your location only for this: to pin where you are on the map, or to measure how far the evacuation centres are. It is not tracked in the background.',
+    deniedMessage: 'Location access was not allowed. You can still tap the map to choose the place.',
   ),
 };
 
@@ -88,7 +97,7 @@ Future<bool> _confirmExplanation(BuildContext context, ProtectedResource resourc
     title: copy.title,
     message: explanation ?? copy.explanation,
     cancelLabel: 'Not Now',
-    confirmLabel: 'Continue',
+    confirmLabel: tr('Continue'),
   );
   if (proceed) await _remember(resource);
   return proceed;
@@ -108,6 +117,15 @@ Future<void> _showPermanentlyDeniedDialog(BuildContext context) async {
 Future<void> _showDeniedDialog(BuildContext context, ProtectedResource resource) {
   return AppDialogs.info(context, title: _copy[resource]!.title, message: _copy[resource]!.deniedMessage);
 }
+
+/// The explanation before the phone is asked where it is (Sakuna's map,
+/// 2026-10-26). True when the resident tapped Continue, or already had;
+/// lib/services/device_location.dart then asks the operating system.
+Future<bool> confirmLocationUse(BuildContext context) => _confirmExplanation(context, ProtectedResource.location);
+
+/// The "turned off in Settings" dialog, for a permission the phone will not
+/// ask for again.
+Future<void> showPermissionSettingsDialog(BuildContext context) => _showPermanentlyDeniedDialog(context);
 
 /// Camera or gallery, gated by the explanation dialog and (native
 /// platforms only) the actual runtime permission. Returns the picked

@@ -13,6 +13,7 @@ import '../theme/app_typography.dart';
 import '../widgets/app_dialogs.dart';
 import 'esperanza_seal.dart';
 
+import '../l10n/tr.dart';
 /// Which printable sheet.
 enum RequestSheet { slip, notice }
 
@@ -145,11 +146,11 @@ class RequestSheets {
               row('Current status', r.status),
               if (r.purpose.isNotEmpty) row('Purpose', r.purpose),
               pw.SizedBox(height: 14),
-              pw.Text('What to bring', style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+              pw.Text(tr('What to bring'), style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
               for (final item in bring(r, sheet)) pw.Bullet(text: item),
               if (_where(r).isNotEmpty) ...[
                 pw.SizedBox(height: 10),
-                pw.Text('Where to go', style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+                pw.Text(tr('Where to go'), style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
                 pw.Text(_where(r)),
               ],
             ] else ...[
@@ -165,9 +166,9 @@ class RequestSheets {
               row('Status', r.status),
               if (r.status != 'Completed') ...[
                 pw.SizedBox(height: 12),
-                pw.Text('Where to claim', style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+                pw.Text(tr('Where to claim'), style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
                 pw.Text(_where(r)),
-                pw.Text('Bring this notice and a valid ID with your photo.'),
+                pw.Text(tr('Bring this notice and a valid ID with your photo.')),
               ],
             ],
             pw.Spacer(),

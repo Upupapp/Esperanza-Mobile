@@ -29,6 +29,7 @@ import '../../theme/app_typography.dart';
 import '../../models/identity_status.dart';
 import '../../widgets/identity_status_panel.dart';
 
+import '../../l10n/tr.dart';
 /// Profile hub — account summary + links to everything that doesn't get
 /// its own bottom-nav tab (Balita/Events, Directory, Risk Reduction,
 /// Settings), matching the Web Admin topbar's avatar-dropdown pattern
@@ -153,7 +154,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ),
                   const SizedBox(height: AppSpacing.lg),
                   AppButton(
-                    label: 'Edit Profile',
+                    label: tr('Edit Profile'),
                     icon: Icons.edit_outlined,
                     variant: AppButtonVariant.gold,
                     fullWidth: true,
@@ -221,7 +222,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             // What the offices recorded for them, and what they filed (2026-10-13).
             MenuListTile(
               icon: Icons.volunteer_activism_outlined,
-              label: 'Dokyu & Tulong Received',
+              label: tr('Dokyu & Tulong Received'),
               onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const ReceivedRecordsScreen())),
             ),
             MenuListTile(
@@ -231,7 +232,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
             MenuListTile(
               icon: Icons.settings_outlined,
-              label: 'Settings',
+              label: tr('Settings'),
               onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const SettingsScreen())),
             ),
             MenuListTile(
@@ -241,7 +242,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
             MenuListTile(
               icon: Icons.logout_rounded,
-              label: 'Sign Out',
+              label: tr('Sign Out'),
               danger: true,
               onTap: () async {
                 // Read the services BEFORE the await — `context` may be gone
@@ -261,7 +262,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   // app cannot keep.
                   message: 'Your profile, photo, requests and uploaded documents will be removed '
                       'from this device. You can register or sign in again anytime.',
-                  confirmLabel: 'Sign Out',
+                  confirmLabel: tr('Sign Out'),
                   danger: true,
                 );
                 if (ok) {

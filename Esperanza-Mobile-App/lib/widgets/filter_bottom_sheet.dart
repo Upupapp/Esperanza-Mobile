@@ -7,6 +7,7 @@ import 'app_text_field.dart';
 import '../theme/app_typography.dart';
 import '../utils/date_text.dart';
 
+import '../l10n/tr.dart';
 /// The shared filtering UI for Dokyu and Tulong (and reusable for any
 /// future request-style list) — keeps the main list screen clean per the
 /// nav spec's "don't display every possible filter directly on the main
@@ -92,7 +93,7 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       AppTextField(
-                        label: 'Search',
+                        label: tr('Search'),
                         hintText: 'Reference number, type...',
                         icon: Icons.search_rounded,
                         controller: _searchController,

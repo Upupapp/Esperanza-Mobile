@@ -2,25 +2,24 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../models/resident_profile.dart';
 import '../../../services/citizen_session_service.dart';
-import '../../../services/mock_catalog.dart';
 import '../../../services/resident_profile_service.dart';
 import '../../../theme/app_colors.dart';
 import '../../../theme/app_spacing.dart';
-import '../../../utils/ph_mobile.dart';
 import '../../../widgets/app_button.dart';
 import '../../../widgets/app_card.dart';
 import '../../../widgets/app_dialogs.dart';
 import '../../../widgets/app_text_field.dart';
 import '../../../widgets/form_section.dart';
+import '../../../widgets/resident_profile_lock_note.dart';
 import 'family_member_form_sheet.dart';
 import '../../../theme/app_typography.dart';
-import '../../../widgets/esperanza_art.dart';
 
-/// Step 2 — Family Information. Citizen-facing framing of the Web Admin's
-/// Constituents > Families module: members are added/edited/removed
-/// immediately (each is its own local action), while the family name and
-/// head-of-family selection are committed via Save & Continue / Save for
-/// Later, same two-button pattern as Personal Information.
+import '../../../l10n/tr.dart';
+/// Step 2 — Family Information, as the website's Family tab: the family
+/// surname and the people in the family (not the resident), each with what
+/// the barangay keeps (GET/PUT /citizen/resident-profile `family`). Members
+/// are added, edited and removed at once; the surname is committed with
+/// Save & Continue / Save for Later.
 class FamilyInformationScreen extends StatefulWidget {
   const FamilyInformationScreen({super.key});
 
@@ -52,10 +51,6 @@ class _FamilyInformationScreenState extends State<FamilyInformationScreen> {
   ResidentProfileService get _service => context.read<ResidentProfileService>();
 
   Future<void> _save({required bool markComplete}) async {
-    if (markComplete && _familyName.text.trim().isEmpty) {
-      setState(() => _error = 'Please enter a family name.');
-      return;
-    }
     setState(() {
       _saving = true;
       _error = null;
@@ -100,34 +95,17 @@ class _FamilyInformationScreenState extends State<FamilyInformationScreen> {
       context,
       title: 'Remove ${member.fullName}?',
       message: 'They will be removed from your Family Information.',
-      confirmLabel: 'Remove',
+      confirmLabel: tr('Remove'),
       danger: true,
     );
     if (ok && mounted) await _service.removeFamilyMember(_accountId, member.individualId);
-  }
-
-  Future<void> _changeHead(ResidentProfile profile) async {
-    final selected = await showModalBottomSheet<String>(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (_) =>
-          _HeadPickerSheet(individuals: profile.allFamilyIndividuals, currentHeadId: profile.headIndividualId),
-    );
-    if (selected != null && mounted) await _service.setHeadOfFamily(_accountId, selected);
-  }
-
-  Future<void> _joinFamily(ExistingFamilyMatch match) async {
-    await _service.requestJoinFamily(_accountId, match);
-    if (mounted) AppDialogs.toast(context, 'Request to join ${match.familyName} sent (demo).');
   }
 
   @override
   Widget build(BuildContext context) {
     final account = context.watch<CitizenSessionService>().account!;
     final profile = context.watch<ResidentProfileService>().profileFor(account);
-    final match = MockCatalog.existingFamilyMatches[profile.personal.barangay];
-    final showMatch =
-        match != null && profile.familyMembers.isEmpty && !profile.familySaved && !profile.joinRequestSent;
+    final locked = !profile.editable;
 
     return Scaffold(
       appBar: AppBar(title: const Text('Family Information')),
@@ -135,96 +113,81 @@ class _FamilyInformationScreenState extends State<FamilyInformationScreen> {
         child: ListView(
           padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.md, AppSpacing.lg, AppSpacing.xxxl),
           children: [
-            const Text(
-              'Tell us about your family members living with you.',
+            Text(
+              tr('Add the people in your family (not yourself).'),
               style: TextStyle(fontSize: AppTextSize.helper, color: AppColors.textMuted, height: 1.4),
             ),
-            if (showMatch) ...[
-              const SizedBox(height: AppSpacing.lg),
-              _ExistingMatchBanner(match: match, onJoin: () => _joinFamily(match)),
+            if (locked) ...[
+              const SizedBox(height: AppSpacing.md),
+              ResidentProfileLockNote(status: profile.status),
             ],
             const SizedBox(height: AppSpacing.lg),
-            FormSection(
-              title: 'Family Details',
-              children: [
-                AppTextField(label: 'Family name', controller: _familyName, icon: Icons.diversity_3_outlined),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
+            // View only, greyed out, while the barangay has it (as on the website).
+            ResidentProfileViewOnly(
+              locked: locked,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                FormSection(
+                  title: 'Family Details',
                   children: [
-                    _InfoRow(
-                      label: 'Head of Family',
-                      value: profile.headIndividual.fullName.isEmpty ? account.fullName : profile.headIndividual.fullName,
-                      actionLabel: profile.allFamilyIndividuals.length > 1 ? 'Change' : null,
-                      onAction: () => _changeHead(profile),
+                    AppTextField(label: 'Family name', controller: _familyName, icon: Icons.diversity_3_outlined),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        _InfoRow(label: 'Members', value: '${profile.allFamilyIndividuals.length}'),
+                      ],
                     ),
-                    _InfoRow(label: 'Members', value: '${profile.allFamilyIndividuals.length}'),
-                    _InfoRow(label: 'Family ID', value: profile.familyId, muted: true),
-                    _InfoRow(label: 'Household ID', value: profile.householdId, muted: true),
-                    // Mother's Maiden Name — a plain display fact sourced from
-                    // the seeded Mother family member's own maidenName (see
-                    // Individual.maidenName's own doc comment); shown only when
-                    // one is actually on file, never invented for a family
-                    // without this specific data point.
-                    if (profile.familyMembers.any(
-                      (m) => m.relationshipToHead == 'Mother' && m.maidenName.trim().isNotEmpty,
-                    ))
-                      _InfoRow(
-                        label: "Mother's Maiden Name",
-                        value: profile.familyMembers
-                            .firstWhere((m) => m.relationshipToHead == 'Mother' && m.maidenName.trim().isNotEmpty)
-                            .maidenName,
-                      ),
                   ],
                 ),
-              ],
-            ),
-            if (profile.emergencyContactName.trim().isNotEmpty) ...[
-              const SizedBox(height: AppSpacing.xl),
-              _EmergencyContactSection(accountId: _accountId, profile: profile),
-            ],
-            const SizedBox(height: AppSpacing.xl),
-            const Text(
-              'Family Members',
-              style: TextStyle(fontSize: AppTextSize.helper, fontWeight: FontWeight.w600, color: AppColors.slate600),
-            ),
-            const SizedBox(height: AppSpacing.sm),
-            if (profile.familyMembers.isEmpty)
-              Container(
-                margin: const EdgeInsets.only(bottom: AppSpacing.itemGap),
-                padding: const EdgeInsets.all(AppSpacing.lg),
-                decoration: BoxDecoration(color: AppColors.slate50, borderRadius: BorderRadius.circular(AppRadius.md)),
-                child: const Text(
-                  'No family members added yet. Add anyone living with you — even if they don\'t have an Esperanza account.',
-                  style: TextStyle(fontSize: AppTextSize.helper, color: AppColors.textMuted, height: 1.4),
+                const SizedBox(height: AppSpacing.xl),
+                Text(
+                  tr('Family Members'),
+                  style: TextStyle(fontSize: AppTextSize.helper, fontWeight: FontWeight.w600, color: AppColors.slate600),
                 ),
-              )
-            else
-              for (final member in profile.familyMembers)
-                _MemberTile(member: member, onEdit: () => _editMember(member), onRemove: () => _removeMember(member)),
-            OutlinedButton.icon(
-              onPressed: _addMember,
-              icon: const Icon(Icons.person_add_alt_1_rounded, size: 17),
-              label: const Text('Add Family Member'),
+                const SizedBox(height: AppSpacing.sm),
+                if (profile.familyMembers.isEmpty)
+                  Container(
+                    margin: const EdgeInsets.only(bottom: AppSpacing.itemGap),
+                    padding: const EdgeInsets.all(AppSpacing.lg),
+                    decoration: BoxDecoration(color: AppColors.slate50, borderRadius: BorderRadius.circular(AppRadius.md)),
+                    child: const Text(
+                      'No family members added yet. Add anyone living with you — even if they don\'t have an Esperanza account.',
+                      style: TextStyle(fontSize: AppTextSize.helper, color: AppColors.textMuted, height: 1.4),
+                    ),
+                  )
+                else
+                  for (final member in profile.familyMembers)
+                    _MemberTile(member: member, onEdit: () => _editMember(member), onRemove: () => _removeMember(member)),
+                OutlinedButton.icon(
+                  onPressed: _addMember,
+                  icon: const Icon(Icons.person_add_alt_1_rounded, size: 17),
+                  label: const Text('Add Family Member'),
+                ),
+                ],
+              ),
             ),
             if (_error != null) ...[
               const SizedBox(height: AppSpacing.md),
               Text(_error!, style: const TextStyle(fontSize: AppTextSize.helper, color: AppColors.rose600)),
             ],
-            const SizedBox(height: AppSpacing.xxl),
-            AppButton(
-              label: 'Save & Continue',
-              onPressed: () => _save(markComplete: true),
-              loading: _saving,
-              fullWidth: true,
-              size: AppButtonSize.lg,
-            ),
-            const SizedBox(height: AppSpacing.sm),
-            AppButton(
-              label: 'Save for Later',
-              variant: AppButtonVariant.ghost,
-              onPressed: _saving ? null : () => _save(markComplete: false),
-              fullWidth: true,
-            ),
+            if (!locked) ...[
+              const SizedBox(height: AppSpacing.xxl),
+              AppButton(
+                label: 'Save & Continue',
+                onPressed: () => _save(markComplete: true),
+                loading: _saving,
+                fullWidth: true,
+                size: AppButtonSize.lg,
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              AppButton(
+                label: 'Save for Later',
+                variant: AppButtonVariant.ghost,
+                onPressed: _saving ? null : () => _save(markComplete: false),
+                fullWidth: true,
+              ),
+            ],
           ],
         ),
       ),
@@ -235,10 +198,7 @@ class _FamilyInformationScreenState extends State<FamilyInformationScreen> {
 class _InfoRow extends StatelessWidget {
   final String label;
   final String value;
-  final String? actionLabel;
-  final VoidCallback? onAction;
-  final bool muted;
-  const _InfoRow({required this.label, required this.value, this.actionLabel, this.onAction, this.muted = false});
+  const _InfoRow({required this.label, required this.value});
 
   @override
   Widget build(BuildContext context) {
@@ -254,196 +214,9 @@ class _InfoRow extends StatelessWidget {
           Expanded(
             child: Text(
               value,
-              style: TextStyle(
-                fontSize: AppTextSize.helper,
-                fontWeight: FontWeight.w600,
-                color: muted ? AppColors.textMuted : AppColors.slate700,
-              ),
+              style: const TextStyle(fontSize: AppTextSize.helper, fontWeight: FontWeight.w600, color: AppColors.slate700),
             ),
           ),
-          if (actionLabel != null)
-            GestureDetector(
-              onTap: onAction,
-              child: Text(
-                actionLabel!,
-                style: const TextStyle(fontSize: AppTextSize.label, fontWeight: FontWeight.w600, color: AppColors.brand600),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-}
-
-/// Family Information's own Emergency Contact block — displays the current
-/// Name/Relationship/Contact Number (seeded default for Perlita: Rogelio
-/// Escano / Brother / 0919 000 9012 — see ResidentProfileService's Perlita
-/// Master Profile alignment) with an Edit action that swaps in real
-/// editable fields, pre-populated with the currently saved values, never
-/// hint text. Cancel discards in-progress edits and restores the saved
-/// values; Save persists via ResidentProfileService.saveEmergencyContact
-/// and marks the profile as having a citizen-edited contact, so the seeded
-/// default never overwrites it again on a later launch. Deliberately
-/// self-contained (not FamilyMemberFormSheet, not the family members list
-/// above) — family members themselves stay untouched by this section.
-class _EmergencyContactSection extends StatefulWidget {
-  final String accountId;
-  final ResidentProfile profile;
-  const _EmergencyContactSection({required this.accountId, required this.profile});
-
-  @override
-  State<_EmergencyContactSection> createState() => _EmergencyContactSectionState();
-}
-
-class _EmergencyContactSectionState extends State<_EmergencyContactSection> {
-  bool _editing = false;
-  bool _saving = false;
-  String? _error;
-  late final TextEditingController _name;
-  late final TextEditingController _relationship;
-  late final TextEditingController _number;
-
-  @override
-  void initState() {
-    super.initState();
-    _name = TextEditingController(text: widget.profile.emergencyContactName);
-    _relationship = TextEditingController(text: widget.profile.emergencyContactRelationship);
-    _number = TextEditingController(text: PhMobile.normalise(widget.profile.emergencyContactNumber));
-  }
-
-  @override
-  void dispose() {
-    _name.dispose();
-    _relationship.dispose();
-    _number.dispose();
-    super.dispose();
-  }
-
-  void _startEdit() {
-    setState(() {
-      // Always seed the fields from the currently saved values, never a
-      // stale in-progress edit from a previous Cancel.
-      _name.text = widget.profile.emergencyContactName;
-      _relationship.text = widget.profile.emergencyContactRelationship;
-      _number.text = PhMobile.normalise(widget.profile.emergencyContactNumber);
-      _error = null;
-      _editing = true;
-    });
-  }
-
-  void _cancel() {
-    setState(() {
-      _name.text = widget.profile.emergencyContactName;
-      _relationship.text = widget.profile.emergencyContactRelationship;
-      _number.text = PhMobile.normalise(widget.profile.emergencyContactNumber);
-      _error = null;
-      _editing = false;
-    });
-  }
-
-  Future<void> _save() async {
-    final name = _name.text.trim();
-    final relationship = _relationship.text.trim();
-    final number = _number.text.trim();
-    if (name.isEmpty) {
-      setState(() => _error = "Please enter the emergency contact's name.");
-      return;
-    }
-    if (relationship.isEmpty) {
-      setState(() => _error = 'Please enter their relationship to you.');
-      return;
-    }
-    // The app's one mobile-number rule (utils/ph_mobile.dart).
-    final numberError = PhMobile.validate(number, required: true);
-    if (numberError != null) {
-      setState(() => _error = numberError);
-      return;
-    }
-    setState(() {
-      _saving = true;
-      _error = null;
-    });
-    await context.read<ResidentProfileService>().saveEmergencyContact(
-      widget.accountId,
-      name: name,
-      relationship: relationship,
-      number: number,
-    );
-    if (!mounted) return;
-    setState(() {
-      _saving = false;
-      _editing = false;
-    });
-    AppDialogs.toast(context, 'Emergency contact updated.');
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final profile = widget.profile;
-    return AppCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              const Expanded(
-                child: Text(
-                  'Emergency Contact',
-                  style: TextStyle(fontSize: AppTextSize.body, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
-                ),
-              ),
-              if (!_editing)
-                GestureDetector(
-                  onTap: _startEdit,
-                  child: const Text(
-                    'Edit',
-                    style: TextStyle(fontSize: AppTextSize.label, fontWeight: FontWeight.w600, color: AppColors.brand600),
-                  ),
-                ),
-            ],
-          ),
-          const SizedBox(height: AppSpacing.lg),
-          if (_editing) ...[
-            AppTextField(label: 'Name', controller: _name, icon: Icons.person_outline_rounded),
-            const SizedBox(height: AppSpacing.lg),
-            AppTextField(label: 'Relationship', controller: _relationship, icon: Icons.people_outline_rounded),
-            const SizedBox(height: AppSpacing.lg),
-            AppTextField(
-              label: 'Contact number',
-              controller: _number,
-              keyboardType: TextInputType.phone,
-              inputFormatters: PhMobile.inputFormatters,
-              icon: Icons.phone_outlined,
-              hintText: PhMobile.hint,
-            ),
-            if (_error != null) ...[
-              const SizedBox(height: AppSpacing.md),
-              Text(_error!, style: const TextStyle(fontSize: AppTextSize.helper, color: AppColors.rose600)),
-            ],
-            const SizedBox(height: AppSpacing.lg),
-            Row(
-              children: [
-                Expanded(
-                  child: AppButton(
-                    label: 'Cancel',
-                    variant: AppButtonVariant.secondary,
-                    onPressed: _saving ? null : _cancel,
-                    fullWidth: true,
-                  ),
-                ),
-                const SizedBox(width: AppSpacing.md),
-                Expanded(
-                  child: AppButton(label: 'Save', onPressed: _saving ? null : _save, loading: _saving, fullWidth: true),
-                ),
-              ],
-            ),
-          ] else ...[
-            _InfoRow(label: 'Name', value: profile.emergencyContactName),
-            if (profile.emergencyContactRelationship.trim().isNotEmpty)
-              _InfoRow(label: 'Relationship', value: profile.emergencyContactRelationship),
-            if (profile.emergencyContactNumber.trim().isNotEmpty)
-              _InfoRow(label: 'Contact Number', value: profile.emergencyContactNumber),
-          ],
         ],
       ),
     );
@@ -506,93 +279,3 @@ class _MemberTile extends StatelessWidget {
   }
 }
 
-class _ExistingMatchBanner extends StatelessWidget {
-  final ExistingFamilyMatch match;
-  final VoidCallback onJoin;
-  const _ExistingMatchBanner({required this.match, required this.onJoin});
-
-  @override
-  Widget build(BuildContext context) {
-    return GlassSurface(
-      radius: AppRadius.xl,
-      padding: const EdgeInsets.all(AppSpacing.lg),
-      tint: AppColors.brand50,
-      tintEnd: AppColors.brand50,
-      rim: AppColors.brand200,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Row(
-            children: [
-              Icon(Icons.info_outline_rounded, size: 17, color: AppColors.brand600),
-              SizedBox(width: AppSpacing.sm),
-              Expanded(
-                child: Text(
-                  'We found a possible existing family record.',
-                  style: TextStyle(fontSize: AppTextSize.helper, fontWeight: FontWeight.w600, color: AppColors.brand700),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          Text(
-            match.familyName,
-            style: const TextStyle(fontSize: AppTextSize.body, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
-          ),
-          Text('Brgy. ${match.barangay}', style: const TextStyle(fontSize: AppTextSize.label, color: AppColors.textMuted)),
-          const SizedBox(height: AppSpacing.md),
-          AppButton(label: 'Request to Join Family', size: AppButtonSize.sm, onPressed: onJoin),
-        ],
-      ),
-    );
-  }
-}
-
-class _HeadPickerSheet extends StatelessWidget {
-  final List<Individual> individuals;
-  final String currentHeadId;
-  const _HeadPickerSheet({required this.individuals, required this.currentHeadId});
-
-  @override
-  Widget build(BuildContext context) {
-    return SafeArea(
-      child: Container(
-        margin: const EdgeInsets.all(AppSpacing.md),
-        padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
-        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(AppRadius.xl)),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: AppSpacing.lg),
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  'Head of Family',
-                  style: TextStyle(fontSize: AppTextSize.body, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
-                ),
-              ),
-            ),
-            const SizedBox(height: AppSpacing.xs),
-            for (final i in individuals)
-              ListTile(
-                leading: CircleAvatar(
-                  radius: 16,
-                  backgroundColor: AppColors.slate100,
-                  child: Text(
-                    i.firstName.isNotEmpty ? i.firstName.substring(0, 1).toUpperCase() : '?',
-                    style: const TextStyle(fontSize: AppTextSize.label, fontWeight: FontWeight.w700, color: AppColors.slate600),
-                  ),
-                ),
-                title: Text(i.fullName, style: const TextStyle(fontSize: AppTextSize.body, fontWeight: FontWeight.w600)),
-                trailing: i.individualId == currentHeadId
-                    ? const Icon(Icons.check_circle_rounded, color: AppColors.brand600, size: 20)
-                    : null,
-                onTap: () => Navigator.of(context).pop(i.individualId),
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-}

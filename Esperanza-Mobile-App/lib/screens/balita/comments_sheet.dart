@@ -9,6 +9,7 @@ import '../../theme/app_typography.dart';
 import '../../utils/date_text.dart';
 import '../../widgets/app_dialogs.dart';
 
+import '../../l10n/tr.dart';
 /// Bottom sheet for viewing a post's real comments (GET .../comments) and
 /// posting a new one (POST .../comments) as the signed-in citizen.
 class CommentsSheet extends StatefulWidget {
@@ -70,7 +71,7 @@ class _CommentsSheetState extends State<CommentsSheet> {
       context,
       title: 'Delete your comment?',
       message: 'It is removed for everyone.',
-      confirmLabel: 'Delete',
+      confirmLabel: tr('Delete'),
       danger: true,
     );
     if (!sure || !mounted) return;
@@ -257,7 +258,7 @@ class _CommentsSheetState extends State<CommentsSheet> {
                             : null,
                         style: const TextStyle(fontSize: AppTextSize.body),
                         decoration: InputDecoration(
-                          hintText: 'Write a comment…',
+                          hintText: tr('Write a comment…'),
                           filled: true,
                           fillColor: AppColors.slate50,
                           contentPadding: const EdgeInsets.symmetric(

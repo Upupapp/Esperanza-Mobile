@@ -39,7 +39,9 @@ class RequestMilestoneTimeline extends StatelessWidget {
     // No recorded history is not a rejection — `.last` on an empty list threw
     // here, which would have moved the decode crash into the timeline.
     final isTulong = request.category == ServiceCategory.tulong;
-    final isCancelledCase = isTulong && request.status == TulongStatus.cancelled;
+    // Cancelled on Dokyu too: the office's reason was shown only for Tulong
+    // (parity check, 2026-10-26).
+    final isCancelledCase = request.status == TulongStatus.cancelled;
     final isRejected = request.statusHistory.lastOrNull?.status == RequestMilestones.rejected || isCancelledCase;
     bool needsAction(String status) =>
         status == RequestMilestones.underReview || (isTulong && status == TulongStatus.needsRequirements);
@@ -87,7 +89,7 @@ class RequestMilestoneTimeline extends StatelessWidget {
             const SizedBox(height: AppSpacing.md),
             _RejectionReasonCard(
               reason: request.adminRemarks!,
-              title: isCancelledCase ? 'Reason for Cancellation' : 'Reason for Rejection',
+              title: request.status == TulongStatus.cancelled ? 'Reason for Cancellation' : 'Reason for Rejection',
             ),
           ],
         ],

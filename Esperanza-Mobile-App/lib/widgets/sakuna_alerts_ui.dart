@@ -12,6 +12,7 @@ import '../theme/app_spacing.dart';
 import '../theme/app_typography.dart';
 import 'esperanza_art.dart';
 
+import '../l10n/tr.dart';
 /// A Sakuna alert the LGU published for the resident's barangay, opened as a
 /// dialog the moment the app picks it up (it refreshes every minute while
 /// open, and on return to the app). Before, an alert reached only someone who
@@ -40,7 +41,7 @@ class SakunaAlertDialog {
         ),
         content: Text(alert.body, style: AppTypography.bodyText),
         actions: [
-          TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('Close')),
+          TextButton(onPressed: () => Navigator.of(context).pop(false), child: Text(tr('Close'))),
           FilledButton(
             style: FilledButton.styleFrom(backgroundColor: AppColors.rose600),
             onPressed: () => Navigator.of(context).pop(true),
@@ -124,9 +125,9 @@ class _ActiveAlertsCardState extends State<ActiveAlertsCard> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              if (alert.level != null)
+                              if (alert.levelLabel != null)
                                 Text(
-                                  alert.level!.toUpperCase(),
+                                  alert.levelLabel!.toUpperCase(),
                                   style: const TextStyle(fontSize: AppTextSize.fine, fontWeight: FontWeight.w700, color: AppColors.rose700, letterSpacing: 0.6),
                                 ),
                               Text(alert.title, style: const TextStyle(fontSize: AppTextSize.body, fontWeight: FontWeight.w700, color: AppColors.rose700)),

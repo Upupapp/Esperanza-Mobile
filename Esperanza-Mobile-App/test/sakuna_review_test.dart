@@ -14,6 +14,7 @@ import 'package:esperanza_mobile/services/mock_catalog.dart';
 import 'package:esperanza_mobile/services/notifications_service.dart';
 import 'package:esperanza_mobile/services/requests_service.dart';
 import 'package:esperanza_mobile/services/resident_profile_service.dart';
+import 'package:esperanza_mobile/services/message_language.dart';
 import 'package:esperanza_mobile/services/sakuna_alerts.dart';
 import 'package:esperanza_mobile/widgets/restricted_feature_notice.dart';
 
@@ -81,7 +82,7 @@ void main() {
   setUp(() => SharedPreferences.setMockInitialValues({}));
   tearDown(FakeApi.restore);
 
-  test('an alert is read in Filipino first; a row without a ref or title is skipped', () async {
+  test('an alert is read in the chosen language; a row without a ref or title is skipped', () async {
     FakeApi.installFull(
       (r) => [
         _alert(),
@@ -90,7 +91,11 @@ void main() {
     );
     final alerts = await SakunaAlerts.load();
     expect(alerts, hasLength(1));
-    expect(alerts.single.title, 'Bagyong Ompong: Signal No. 2');
+    // English unless Filipino is chosen in Settings, as the website does.
+    expect(alerts.single.title, 'Typhoon Ompong: Signal No. 2');
+    MessageLanguage.filipino.value = true;
+    addTearDown(() => MessageLanguage.filipino.value = false);
+    expect((await SakunaAlerts.load()).single.title, 'Bagyong Ompong: Signal No. 2');
   });
 
   testWidgets('a published alert is at the top of the Emergency tab', (tester) async {
@@ -102,10 +107,10 @@ void main() {
     );
     expect(find.text('Active Alerts'), findsOneWidget);
     expect(find.text('Typhoon · Signal No. 2'), findsOneWidget);
-    expect(find.text('Bagyong Ompong: Signal No. 2'), findsOneWidget);
+    expect(find.text('Typhoon Ompong: Signal No. 2'), findsOneWidget);
     expect(find.textContaining('Brgy. Baras'), findsWidgets);
     expect(
-      tester.getTopLeft(find.text('Bagyong Ompong: Signal No. 2')).dy,
+      tester.getTopLeft(find.text('Typhoon Ompong: Signal No. 2')).dy,
       lessThan(tester.getTopLeft(find.text('Report an Incident')).dy),
     );
   });
@@ -154,7 +159,7 @@ void main() {
     await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 50)));
     await tester.pumpAndSettle();
     expect(calls, 2);
-    expect(find.text('Bagyong Ompong: Signal No. 2'), findsOneWidget);
+    expect(find.text('Typhoon Ompong: Signal No. 2'), findsOneWidget);
   });
 
   testWidgets('the "call 911" banner is itself a call button', (tester) async {

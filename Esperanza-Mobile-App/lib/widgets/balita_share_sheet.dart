@@ -3,12 +3,14 @@ import '../theme/app_elevation.dart';
 import 'package:flutter/services.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../services/api_client.dart';
 import '../models/announcement.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
 import 'app_dialogs.dart';
 import '../theme/app_typography.dart';
 
+import '../l10n/tr.dart';
 /// Social-share chooser opened from Balita's Share action — a small sheet
 /// of practical destinations rather than jumping straight to the OS share
 /// sheet. There's no real share-count endpoint (a citizen's own like and
@@ -39,9 +41,26 @@ class BalitaShareSheet {
 /// Every Balita post is the LGU's own (owner, 2026-10-20).
 const _who = 'Esperanza LGU';
 
+/// The post on the website, as the website's own Share gives it: anyone
+/// who opens it lands on that post.
+String balitaPostLink(Announcement post) {
+  final base = webBaseUrl.endsWith('/') ? webBaseUrl.substring(0, webBaseUrl.length - 1) : webBaseUrl;
+  return '$base/citizen/announcements?post=${post.remoteId}';
+}
+
+/// Title, then up to 200 characters of the post, then its link (the
+/// website shares the same).
 String _shareText(Announcement post) {
-  final excerpt = post.body.trim();
-  return ['$_who — Balita, Esperanza', if (excerpt.isNotEmpty) excerpt].join('\n\n');
+  final title = post.title?.trim() ?? '';
+  var excerpt = post.body.trim();
+  // The body carries the title as its first line (Announcement._withTitle).
+  if (title.isNotEmpty && excerpt.startsWith(title)) excerpt = excerpt.substring(title.length).trim();
+  if (excerpt.length > 200) excerpt = '${excerpt.substring(0, 200).trimRight()}…';
+  return [
+    if (title.isNotEmpty) title else '$_who — Balita, Esperanza',
+    if (excerpt.isNotEmpty) excerpt,
+    balitaPostLink(post),
+  ].join('\n\n');
 }
 
 class _ShareSheet extends StatelessWidget {
@@ -66,8 +85,8 @@ class _ShareSheet extends StatelessWidget {
   }
 
   Future<void> _copyLink(BuildContext context) async {
-    await Clipboard.setData(ClipboardData(text: _shareText(post)));
-    if (context.mounted) AppDialogs.toast(context, 'Link copied');
+    await Clipboard.setData(ClipboardData(text: balitaPostLink(post)));
+    if (context.mounted) AppDialogs.toast(context, tr('Link copied'));
   }
 
   @override
@@ -97,7 +116,11 @@ class _ShareSheet extends StatelessWidget {
                     Navigator.of(context).pop();
                     _launchOrFallback(
                       context,
-                      Uri.parse('https://www.facebook.com/sharer/sharer.php?quote=$text'),
+                      // Facebook shares a link (`u`); the text alone posts nothing.
+                      Uri.parse(
+                        'https://www.facebook.com/sharer/sharer.php'
+                        '?u=${Uri.encodeComponent(balitaPostLink(post))}&quote=$text',
+                      ),
                     );
                   },
                 ),

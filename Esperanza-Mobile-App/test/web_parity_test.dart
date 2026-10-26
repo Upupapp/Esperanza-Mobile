@@ -127,9 +127,19 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.text('Brgy. Labangtaytay'));
       await tester.pumpAndSettle();
-      expect(find.text('FOUNDING'), findsOneWidget);
-      expect(find.text('Founded by synthetic settlers.'), findsOneWidget);
+      // The redesign (2026-10-22): leaders and places first, the full text
+      // behind "Read full history".
+      expect(find.text('Synthetic Leader'), findsOneWidget);
       expect(find.text('Synthetic Beach'), findsOneWidget);
+      expect(find.text('Founded by synthetic settlers.'), findsNothing);
+      await tester.ensureVisible(find.text('Read full history'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Read full history'));
+      await tester.pumpAndSettle();
+      await tester.scrollUntilVisible(find.text('Founded by synthetic settlers.'), 200);
+      expect(find.text('Founded by synthetic settlers.'), findsOneWidget);
+      await tester.scrollUntilVisible(find.text('Officials & Staff'), -300);
+      await tester.pumpAndSettle();
       await tester.tap(find.text('Officials & Staff'));
       await tester.pumpAndSettle();
       expect(find.text('BDRRMC'), findsOneWidget);
@@ -338,7 +348,8 @@ void main() {
     await tester.tap(find.text('Brgy. Labangtaytay only'));
     await tester.pumpAndSettle();
     expect(find.text('Synthetic fiesta'), findsNothing, reason: "Another barangay's event drops out.");
-    expect(find.text('Synthetic clean-up'), findsOneWidget, reason: 'A municipality-wide one stays.');
+    expect(find.text('Synthetic clean-up'), findsNothing,
+        reason: 'Only the barangay\'s own, as the website\'s "Barangay only" (2026-10-26).');
   });
 
   group('Verify a document', () {
@@ -367,7 +378,7 @@ void main() {
       await tester.enterText(find.byType(TextField), 'ABCD-EFGH-JKLM');
       await tester.tap(find.text('Check'));
       await _settle(tester);
-      expect(find.text('Genuine and valid'), findsOneWidget);
+      expect(find.text('This document is genuine and valid.'), findsOneWidget);
       expect(find.text('BC-2026-000042'), findsOneWidget);
 
       await tester.enterText(find.byType(TextField), 'NOPE');

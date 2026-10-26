@@ -96,14 +96,19 @@ void main() {
     );
   });
 
-  test('document and assistance requests DO require a verified account', () {
+  test('Dokyu and Tulong open to a signed-in resident; filing needs a verified account', () {
+    // As on the website (parity check, 2026-10-26): the requests and Papeles
+    // show before approval, and only a new request waits for it.
     final guards = _declaredGuards();
     for (final module in ['Dokyu', 'Tulong']) {
       final entry = guards.entries.firstWhere(
         (e) => e.key.contains(module),
         orElse: () => throw StateError('no $module AccessGuard found: ${guards.keys}'),
       );
-      expect(entry.value, AccessLevel.verified.name, reason: '$module must stay verified-only');
+      expect(entry.value, AccessLevel.unverified.name, reason: '$module needs a signed-in resident, not a guest');
     }
+    final list = File('lib/screens/shared/request_list_screen.dart').readAsStringSync();
+    expect(list, contains('accessLevel == AccessLevel.verified'), reason: 'filing stays verified-only');
+    expect(list, contains('floatingActionButton: !canFile ? null'));
   });
 }

@@ -15,6 +15,8 @@ import '../theme/app_spacing.dart';
 import '../theme/app_typography.dart';
 import 'birthday_popup.dart';
 
+import '../l10n/tr.dart';
+import 'popup_gate.dart';
 /// An occasion pop-up from the LGU (2026-10-19; its own server feature since
 /// 2026-10-21) - a fiesta, a holiday, an LGU event, the resident's birthday -
 /// popping up when the resident opens the app, as an officer wrote,
@@ -39,7 +41,21 @@ class OccasionGreetingPopup extends StatelessWidget {
     if (account == null) return false;
     final greeting = await GreetingService.active();
     if (greeting == null || !context.mounted) return false;
-    if (context.read<NotificationsService>().pendingAlert != null) return false;
+    // An alert and the "verified" welcome come first, as on the website; it
+    // waits for the notifications being loaded to know of them.
+    final notifications = context.read<NotificationsService>();
+    await notifications.settled();
+    if (!context.mounted) return false;
+    if (PopupGate.open.value || notifications.pendingAlert != null || notifications.pendingWelcome != null) return false;
+    PopupGate.open.value = true;
+    try {
+      return await _show(context, greeting);
+    } finally {
+      PopupGate.open.value = false;
+    }
+  }
+
+  static Future<bool> _show(BuildContext context, OccasionGreeting greeting) async {
     // Counted as shown now, as the website does: an app closed with the
     // pop-up still open has still shown it.
     GreetingService.markSeen(greeting.id);
@@ -243,7 +259,7 @@ class OccasionGreetingPopup extends StatelessWidget {
                     shape: const CircleBorder(),
                     child: IconButton(
                       onPressed: () => Navigator.of(context).pop(),
-                      tooltip: 'Close',
+                      tooltip: tr('Close'),
                       constraints: const BoxConstraints.tightFor(
                         width: AppSizes.minTouchTarget,
                         height: AppSizes.minTouchTarget,

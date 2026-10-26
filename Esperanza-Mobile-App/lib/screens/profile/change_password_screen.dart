@@ -10,6 +10,7 @@ import '../../widgets/app_button.dart';
 import '../../widgets/app_text_field.dart';
 import '../../widgets/password_requirements.dart';
 
+import '../../l10n/tr.dart';
 /// Change password, against PUT /citizen/password. The new password is held
 /// to the same standard as sign-up ([PasswordStandard], the mobile copy of
 /// the backend's StrongPassword rule), checked while typing.
@@ -81,7 +82,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Change Password')),
+      appBar: AppBar(title: Text(tr('Change Password'))),
       body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.fromLTRB(
@@ -129,7 +130,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
             ],
             const SizedBox(height: AppSpacing.xxl),
             AppButton(
-              label: 'Change Password',
+              label: tr('Change Password'),
               fullWidth: true,
               size: AppButtonSize.lg,
               loading: _saving,

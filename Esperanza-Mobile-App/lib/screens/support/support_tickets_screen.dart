@@ -13,6 +13,7 @@ import '../../widgets/status_chip.dart';
 import 'report_problem_screen.dart';
 import 'ticket_thread_screen.dart';
 
+import '../../l10n/tr.dart';
 /// The resident's support tickets: what they reported, where it stands and
 /// the office's reply. The web portal's Help > Support lists the same
 /// tickets; on the phone a ticket could be filed but never seen again.
@@ -56,7 +57,7 @@ class _SupportTicketsScreenState extends State<SupportTicketsScreen> {
   Widget build(BuildContext context) {
     final tickets = _tickets;
     return Scaffold(
-      appBar: AppBar(title: const Text('My Support Tickets')),
+      appBar: AppBar(title: Text(tr('My Support Tickets'))),
       body: RefreshIndicator(
         onRefresh: _load,
         child: ListView(
@@ -70,7 +71,7 @@ class _SupportTicketsScreenState extends State<SupportTicketsScreen> {
             else if (tickets == null) ...[
               Text(_error!, style: AppTypography.helper.copyWith(color: AppColors.danger)),
               const SizedBox(height: AppSpacing.md),
-              AppButton(label: 'Try again', variant: AppButtonVariant.secondary, onPressed: _load),
+              AppButton(label: tr('Try again'), variant: AppButtonVariant.secondary, onPressed: _load),
             ] else if (tickets.isEmpty)
               const Padding(
                 padding: EdgeInsets.symmetric(vertical: AppSpacing.xl),
@@ -121,7 +122,7 @@ class _TicketCard extends StatelessWidget {
             ),
             const SizedBox(height: AppSpacing.xs),
             Text(
-              [ticket.ref, ticket.category, if (ticket.createdAt != null) date.format(ticket.createdAt!.toLocal())].join(' · '),
+              [ticket.ref, ticket.category, ?ticket.requestRef, if (ticket.createdAt != null) date.format(ticket.createdAt!.toLocal())].join(' · '),
               style: AppTypography.fine,
             ),
             if (ticket.body.isNotEmpty) ...[

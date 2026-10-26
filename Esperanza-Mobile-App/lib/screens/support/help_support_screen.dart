@@ -8,27 +8,27 @@ import '../../utils/phone_dial.dart';
 import '../../utils/app_version.dart';
 import '../../theme/app_spacing.dart';
 import '../../theme/app_typography.dart';
+import '../../widgets/app_button.dart';
 import '../../widgets/app_card.dart';
+import '../../widgets/app_text_field.dart';
+import '../../widgets/empty_state.dart';
 import '../../widgets/expandable_panel.dart';
 import '../../widgets/helpful_vote.dart';
-import '../../widgets/section_header.dart';
+import '../../widgets/segmented_tabs.dart';
 import '../legal/privacy_policy_screen.dart';
 import '../legal/terms_screen.dart';
+import '../sakuna/report_incident_screen.dart';
 import 'report_problem_screen.dart';
 import 'support_tickets_screen.dart';
-import '../../widgets/esperanza_art.dart';
 
-/// Suporta (the website's name for it) — accessible from the hamburger drawer (and the Profile
-/// menu's matching entry). FAQ copy below only describes behavior actually
-/// present in this codebase (registration wizard, Dokyu/Tulong request
-/// flow + attachment picker, the universal AppStatus vocabulary, the
-/// notifications red-dot rule, Balita's guest-vs-signed-in restriction,
-/// etc.) — see each section for what it's grounded in.
-///
-/// Above that app help, what the web portal's Help page shows from the LGU
-/// itself (Settings > Site Content): its FAQs, video tutorials, and the
-/// support team's contact channels and office hours. The contact card used
-/// to say "[TO BE PROVIDED]" while the LGU had published all of them.
+import '../../l10n/tr.dart';
+/// Suporta, as the website's Help & Support page (citizen/help): FAQs,
+/// Tutorials and Support. Every answer is the LGU's own, published in
+/// Settings > Site Content, so the website and the app say the same thing
+/// and the office corrects it in one place. The app used to carry its own
+/// answers as well, and they drifted (a "simulated" face check long after it
+/// was real; files the server does not accept); its phone troubleshooting now
+/// lives in the FAQ under "Mobile app" (2026-10-22).
 class HelpSupportScreen extends StatefulWidget {
   const HelpSupportScreen({super.key});
 
@@ -36,14 +36,15 @@ class HelpSupportScreen extends StatefulWidget {
   State<HelpSupportScreen> createState() => _HelpSupportScreenState();
 }
 
+enum _HelpTab { faqs, tutorials, support }
+
 class _HelpSupportScreenState extends State<HelpSupportScreen> {
-  final _accountKey = GlobalKey();
-  final _dokyuKey = GlobalKey();
-  final _tulongKey = GlobalKey();
-  final _uploadKey = GlobalKey();
-  final _notificationsKey = GlobalKey();
-  final _troubleshootingKey = GlobalKey();
   HelpContent? _content;
+  _HelpTab _tab = _HelpTab.faqs;
+  String _faqSearch = '';
+  String? _faqCategory;
+  String _tutorialSearch = '';
+  String? _tutorialCategory;
 
   @override
   void initState() {
@@ -52,30 +53,37 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
   }
 
   Future<void> _loadContent() async {
+    if (_content != null) setState(() => _content = null);
     final content = await SiteContentService.help();
     if (mounted) setState(() => _content = content);
   }
 
-  void _jumpTo(GlobalKey key) {
-    final ctx = key.currentContext;
-    if (ctx == null) return;
-    Scrollable.ensureVisible(ctx, duration: const Duration(milliseconds: 300), curve: Curves.easeOut, alignment: 0.05);
+  bool _matches(String search, Iterable<String?> texts) {
+    final q = search.trim().toLowerCase();
+    return q.isEmpty || texts.whereType<String>().join(' ').toLowerCase().contains(q);
   }
 
   @override
   Widget build(BuildContext context) {
+    final content = _content;
+    // The Tutorials tab shows only while a tutorial has something behind it.
+    final tabs = [_HelpTab.faqs, if (content?.tutorials.isNotEmpty ?? false) _HelpTab.tutorials, _HelpTab.support];
+    final tab = tabs.contains(_tab) ? _tab : _HelpTab.faqs;
     return Scaffold(
       appBar: AppBar(
         title: const Text('Suporta'),
         bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(52),
+          preferredSize: const Size.fromHeight(36),
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: AppSpacing.xs),
-            child: Text(
-              'Find answers, learn how to use Esperanza Mobile, or get help with a problem.',
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(fontSize: AppTextSize.label, color: AppColors.textMuted),
+            padding: const EdgeInsets.fromLTRB(AppSpacing.lg, 0, AppSpacing.lg, AppSpacing.sm),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                'FAQs, tutorials, and support from the ICT Office.',
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: AppTypography.helper.copyWith(color: AppColors.textMuted),
+              ),
             ),
           ),
         ),
@@ -83,507 +91,315 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
       body: ListView(
         padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.md, AppSpacing.lg, AppSpacing.xxxl),
         children: [
-          const SectionHeader(title: 'Quick Help'),
-          _QuickHelpGrid(
-            onAccount: () => _jumpTo(_accountKey),
-            onDokyu: () => _jumpTo(_dokyuKey),
-            onTulong: () => _jumpTo(_tulongKey),
-            onUpload: () => _jumpTo(_uploadKey),
-            onNotifications: () => _jumpTo(_notificationsKey),
-            onTechnical: () => _jumpTo(_troubleshootingKey),
+          SegmentedTabs(
+            labels: [
+              for (final t in tabs)
+                switch (t) {
+                  _HelpTab.faqs => tr('FAQs'),
+                  _HelpTab.tutorials => tr('Tutorials'),
+                  _HelpTab.support => tr('Support'),
+                },
+            ],
+            selectedIndex: tabs.indexOf(tab),
+            onChanged: (i) => setState(() => _tab = tabs[i]),
           ),
-          const SizedBox(height: AppSpacing.sectionGap),
+          const SizedBox(height: AppSpacing.lg),
+          ...switch (tab) {
+            _HelpTab.faqs => _faqs(context, content),
+            _HelpTab.tutorials => _tutorials(content!),
+            _HelpTab.support => _support(context, content),
+          },
+        ],
+      ),
+    );
+  }
 
-          if (_content?.faqs.isNotEmpty ?? false) ...[
-            const SectionHeader(title: 'Frequently Asked Questions'),
-            for (final faq in _content!.faqs)
-              ExpandablePanel(
-                title: faq.question,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(faq.answer, style: AppTypography.body),
-                    // Signed in only: the server counts one answer per resident.
-                    if (context.watch<CitizenSessionService>().account != null)
-                      HelpfulVote(docKey: 'faqs', item: faq.key),
-                  ],
-                ),
-              ),
-            const SizedBox(height: AppSpacing.lg),
-          ],
-          if (_content?.tutorials.isNotEmpty ?? false) ...[
-            const SectionHeader(title: 'Video Tutorials'),
-            for (final t in _content!.tutorials)
-              Padding(
-                padding: const EdgeInsets.only(bottom: AppSpacing.itemGap),
-                child: AppCard(
-                  onTap: () {
-                    final uri = Uri.tryParse(t.videoUrl);
-                    if (uri != null) launchUrl(uri, mode: LaunchMode.externalApplication);
-                  },
-                  child: Row(
-                    children: [
-                      const Icon(Icons.play_circle_outline_rounded, color: AppColors.brand600),
-                      const SizedBox(width: AppSpacing.md),
-                      Expanded(child: Text(t.title, style: AppTypography.bodyMedium)),
-                      if (t.duration != null) Text(t.duration!, style: AppTypography.fine),
-                    ],
-                  ),
-                ),
-              ),
-            const SizedBox(height: AppSpacing.lg),
-          ],
-
-          SectionHeader(key: _accountKey, title: 'Account & Profile'),
-          const ExpandablePanel(
-            title: 'How do I create an account?',
-            child: Text(
-              'From the Sign In screen, tap Create Account. Registration walks you through Personal Information, '
-              'Terms & Conditions, Valid ID Upload, a simulated Face Verification step, and a final Review before '
-              'your account is submitted for verification.',
-              style: AppTypography.body,
-            ),
-          ),
-          const ExpandablePanel(
-            title: 'How do I update my Resident Profile?',
-            child: Text(
-              'Open your Resident Profile from Profile > Household & Family, or from the "Complete Your Profile" '
-              'notification, then update the Personal Information, Family Information, or Household Information '
-              'sections and save your changes.',
-              style: AppTypography.body,
-            ),
-          ),
-          const ExpandablePanel(
-            title: 'Why should I complete my Resident Profile?',
-            child: Text(
-              'Completing your Resident Profile helps Esperanza LGU verify your account and unlocks full access '
-              'to Esperanza Mobile’s services.',
-              style: AppTypography.body,
-            ),
-          ),
-          const ExpandablePanel(
-            title: 'How do I update my Family Information?',
-            child: Text(
-              'In your Resident Profile, open Family Information to add, edit, or remove family members and set '
-              'your family name.',
-              style: AppTypography.body,
-            ),
-          ),
-          const ExpandablePanel(
-            title: 'What is Household Information?',
+  /// A search box, the categories the LGU used, the count, and the answers.
+  List<Widget> _faqs(BuildContext context, HelpContent? content) {
+    if (content == null) {
+      return const [
+        Padding(padding: EdgeInsets.all(AppSpacing.xxl), child: Center(child: CircularProgressIndicator())),
+      ];
+    }
+    if (content.faqsFailed) {
+      return [
+        EmptyState(
+          icon: Icons.cloud_off_rounded,
+          title: tr('Could not load'),
+          description: tr('Could not load the FAQs.'),
+          action: AppButton(label: tr('Try again'), variant: AppButtonVariant.secondary, onPressed: _loadContent),
+        ),
+      ];
+    }
+    final categories = {for (final f in content.faqs) ?f.category}.toList();
+    final shown = [
+      for (final f in content.faqs)
+        if ((_faqCategory == null || f.category == _faqCategory) && _matches(_faqSearch, [f.question, f.answer])) f,
+    ];
+    final signedIn = context.watch<CitizenSessionService>().account != null;
+    return [
+      AppTextField(hintText: tr('Search FAQs...'), icon: Icons.search_rounded, onChanged: (v) => setState(() => _faqSearch = v)),
+      const SizedBox(height: AppSpacing.md),
+      _CategoryChips(
+        categories: categories,
+        selected: _faqCategory,
+        onSelected: (c) => setState(() => _faqCategory = c),
+      ),
+      const SizedBox(height: AppSpacing.sm),
+      Text('${shown.length} ${shown.length == 1 ? 'result' : 'results'}', style: AppTypography.fine.copyWith(color: AppColors.textMuted)),
+      const SizedBox(height: AppSpacing.sm),
+      if (shown.isEmpty)
+        EmptyState(
+          icon: Icons.help_outline_rounded,
+          title: content.faqs.isEmpty
+              ? 'No FAQs are published yet. Submit a support ticket if you need help.'
+              : 'No FAQs match your search.',
+        )
+      else
+        for (final faq in shown)
+          ExpandablePanel(
+            title: faq.question,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  'Household Information and Family Information cover two different things:',
-                  style: AppTypography.body,
-                ),
-                SizedBox(height: AppSpacing.sm),
-                BulletList([
-                  "Family Information — information about your own family: your family name, and your family members.",
-                  'Household Information — your household details (address, housing, utilities), plus other family '
-                      'groups that share the same physical household with you, where applicable.',
-                ]),
+                Text(faq.answer, style: AppTypography.body),
+                // Signed in only: the server counts one answer per resident.
+                if (signedIn) HelpfulVote(docKey: 'faqs', item: faq.key),
               ],
             ),
           ),
-          const ExpandablePanel(
-            title: 'How do I change my profile picture?',
-            child: Text(
-              'Open Personal Information in your Resident Profile and tap the camera button on your photo. The '
-              'photo is taken with your camera, not chosen from your gallery, and the LGU approves it before it '
-              'appears on your Digital ID. It can be changed once every 6 months.',
-              style: AppTypography.body,
-            ),
-          ),
-          const SizedBox(height: AppSpacing.lg),
+    ];
+  }
 
-          SectionHeader(key: _dokyuKey, title: 'Dokyu'),
-          const ExpandablePanel(
-            title: 'What is Dokyu?',
-            child: Text(
-              'Dokyu is the section of Esperanza Mobile used to request and track supported municipal documents, '
-              'such as barangay clearances and certificates.',
-              style: AppTypography.body,
-            ),
-          ),
-          const ExpandablePanel(
-            title: 'How do I submit a Dokyu request?',
-            child: Text(
-              'Open Dokyu, choose the document you need, and complete the multi-step request form. You can '
-              'attach any required documents before submitting.',
-              style: AppTypography.body,
-            ),
-          ),
-          const ExpandablePanel(
-            title: 'How do I attach a requirement?',
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('When attaching a file, you can:', style: AppTypography.body),
-                SizedBox(height: AppSpacing.sm),
-                BulletList(['Take a photo', 'Choose from gallery', 'Choose a document (PDF/DOCX)']),
-              ],
-            ),
-          ),
-          const ExpandablePanel(
-            title: 'How do I know the status of my request?',
-            child: Text(
-              'Open the request from Dokyu to see its current status — such as Pending Review, Under '
-              'Verification, Processing, Approved, or Rejected — along with a history of status updates.',
-              style: AppTypography.body,
-            ),
-          ),
-          const ExpandablePanel(
-            title: 'What happens if my request is rejected?',
-            child: Text(
-              'Check the request’s details or the related notification for any information provided. '
-              'Esperanza Mobile does not currently include a formal appeal process within the app.',
-              style: AppTypography.body,
-            ),
-          ),
-          const SizedBox(height: AppSpacing.lg),
-
-          SectionHeader(key: _tulongKey, title: 'Tulong'),
-          const ExpandablePanel(
-            title: 'What is Tulong?',
-            child: Text(
-              'Tulong is the section of Esperanza Mobile used to request supported municipal assistance programs.',
-              style: AppTypography.body,
-            ),
-          ),
-          const ExpandablePanel(
-            title: 'How do I request assistance?',
-            child: Text(
-              'Open Tulong, choose the assistance program you need, and complete the request form.',
-              style: AppTypography.body,
-            ),
-          ),
-          const ExpandablePanel(
-            title: 'What documents do I need?',
-            child: Text(
-              'Requirements depend on the specific assistance program you are applying for — the request form '
-              'will show what’s needed for that program.',
-              style: AppTypography.body,
-            ),
-          ),
-          const ExpandablePanel(
-            title: 'How do I track my Tulong request?',
-            child: Text(
-              'Open the request from Tulong to see its current status and status history.',
-              style: AppTypography.body,
-            ),
-          ),
-          const ExpandablePanel(
-            title: 'What do Pending, Approved and Rejected mean?',
-            child: Text(
-              'These reflect where your request is in the review process. A request may also show other '
-              'statuses, such as Under Verification, Processing, or Under Review, depending on how far '
-              'along it is.',
-              style: AppTypography.body,
-            ),
-          ),
-          const SizedBox(height: AppSpacing.lg),
-
-          SectionHeader(key: _uploadKey, title: 'Uploading Documents and Photos'),
-          const ExpandablePanel(
-            title: 'Why does Esperanza ask for camera permission?',
-            child: Text(
-              'Camera access is requested only when you choose Take a photo, so you can attach a picture '
-              'directly to your request.',
-              style: AppTypography.body,
-            ),
-          ),
-          const ExpandablePanel(
-            title: 'Why does Esperanza ask for photo access?',
-            child: Text(
-              'Photo/gallery access may be requested when you choose Choose from gallery, so you can select an '
-              'existing image to attach.',
-              style: AppTypography.body,
-            ),
-          ),
-          const ExpandablePanel(
-            title: 'How do I upload a PDF or DOCX?',
-            child: Text(
-              'When attaching a file, choose Choose a document (PDF/DOCX) and select the file from your '
-              'device’s document picker.',
-              style: AppTypography.body,
-            ),
-          ),
-          const ExpandablePanel(
-            title: 'What should I do if I denied permission?',
-            child: Text(
-              'You can try the action again — Esperanza will ask again if needed. If the permission was '
-              'permanently disabled, you may need to enable it from your device’s Settings; Esperanza will '
-              'offer to take you there.',
-              style: AppTypography.body,
-            ),
-          ),
-          const SizedBox(height: AppSpacing.lg),
-
-          SectionHeader(key: _notificationsKey, title: 'Notifications'),
-          const ExpandablePanel(
-            title: 'What notifications will I receive?',
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Esperanza Mobile may show notifications for:', style: AppTypography.body),
-                SizedBox(height: AppSpacing.sm),
-                BulletList([
-                  'Dokyu updates',
-                  'Tulong updates',
-                  'Status changes',
-                  'Municipal announcements',
-                  'Relevant municipal information',
-                  'Emergency/safety alerts, where applicable',
-                ]),
-              ],
-            ),
-          ),
-          const ExpandablePanel(
-            title: 'What does the red dot mean?',
-            child: Text(
-              'The red indicator means there is at least one notification you have not yet viewed.',
-              style: AppTypography.body,
-            ),
-          ),
-          const ExpandablePanel(
-            title: 'Why am I not receiving notifications?',
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('A few things to check:', style: AppTypography.body),
-                SizedBox(height: AppSpacing.sm),
-                BulletList([
-                  'Check notification permission for Esperanza',
-                  'Check your device’s notification settings',
-                  'Check your internet connection',
-                  'Restart or reopen the app',
-                  'Check whether notifications are disabled for Esperanza',
-                ]),
-              ],
-            ),
-          ),
-          const SizedBox(height: AppSpacing.lg),
-
-          const SectionHeader(title: 'Balita & Events'),
-          const ExpandablePanel(
-            title: 'What is Balita?',
-            child: Text(
-              'Balita provides municipal and community news and updates published by Esperanza LGU.',
-              style: AppTypography.body,
-            ),
-          ),
-          const ExpandablePanel(
-            title: 'What is Events?',
-            child: Text(
-              'Events shows upcoming events, activities, and celebrations in Esperanza.',
-              style: AppTypography.body,
-            ),
-          ),
-          const ExpandablePanel(
-            title: 'Can I react, comment, or share?',
-            child: Text(
-              'Signed-in users can react to, comment on, and share Balita posts. Guests browsing without an '
-              'account are asked to sign in or create an account first.',
-              style: AppTypography.body,
-            ),
-          ),
-          const SizedBox(height: AppSpacing.lg),
-
-          const SectionHeader(title: 'Emergency'),
-          const ExpandablePanel(
-            title: 'What is the Emergency section?',
-            child: Text(
-              'The Risk Reduction & Emergency section provides disaster-risk-reduction information such as '
-              'emergency hotlines and evacuation center details, and lets you report an incident and track its '
-              'status.',
-              style: AppTypography.body,
-            ),
-          ),
-          const ExpandablePanel(
-            title: 'Are emergency notices the same as regular Balita posts?',
-            child: Text(
-              'No. Emergency/Risk Reduction is a separate area intended for urgent, safety-related information '
-              'and hotlines, while Balita is Esperanza’s general community news and updates feed. In a '
-              'life-threatening emergency, call 911 or MDRRMO directly — Esperanza Mobile is not a substitute '
-              'for emergency services.',
-              style: AppTypography.body,
-            ),
-          ),
-          const SizedBox(height: AppSpacing.lg),
-
-          SectionHeader(key: _troubleshootingKey, title: 'Troubleshooting'),
-          const ExpandablePanel(
-            title: 'Camera won’t open',
-            child: Text(
-              'Make sure you allowed camera access when prompted. If you previously denied it, you may need to '
-              'enable Camera permission for Esperanza from your device Settings, then try again.',
-              style: AppTypography.body,
-            ),
-          ),
-          const ExpandablePanel(
-            title: 'Cannot select photo',
-            child: Text(
-              'Make sure you allowed photo/gallery access when prompted, then try again. On some devices you '
-              'may need to choose "Allow" rather than "Allow once" for repeated use.',
-              style: AppTypography.body,
-            ),
-          ),
-          const ExpandablePanel(
-            title: 'Cannot upload PDF/DOCX',
-            child: Text(
-              'Confirm the file is a supported type (PDF or DOCX) and try selecting it again from your device’s '
-              'document picker.',
-              style: AppTypography.body,
-            ),
-          ),
-          const ExpandablePanel(
-            title: 'Upload failed',
-            child: Text(
-              'Check the file’s size and format, then try attaching it again. If the problem continues, try a '
-              'different photo or document.',
-              style: AppTypography.body,
-            ),
-          ),
-          const ExpandablePanel(
-            title: 'Request won’t submit',
-            child: Text(
-              'Make sure all required fields are filled in and any required attachments are added, then try '
-              'submitting again.',
-              style: AppTypography.body,
-            ),
-          ),
-          const ExpandablePanel(
-            title: 'Notifications not appearing',
-            child: Text(
-              'Check that notification permission is enabled for Esperanza in your device Settings, and that '
-              'you’re connected to the internet.',
-              style: AppTypography.body,
-            ),
-          ),
-          const ExpandablePanel(
-            title: 'App content isn’t loading',
-            child: Text(
-              'Try closing and reopening the app. If the issue continues, check your internet connection.',
-              style: AppTypography.body,
-            ),
-          ),
-          const ExpandablePanel(
-            title: 'Sign-in problem',
-            child: Text(
-              'Double-check your registered email and try again. If you’re a returning user without an '
-              'account on this device, use Sign In rather than Create Account. Forgot your password? Tap '
-              '“Forgot password?” on the sign-in screen to reset it with a code.',
-              style: AppTypography.body,
-            ),
-          ),
-          const SizedBox(height: AppSpacing.lg),
-
-          const SectionHeader(title: 'Contact Support'),
-          AppCard(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text('Municipality of Esperanza Support', style: AppTypography.subsectionLabel),
-                const SizedBox(height: AppSpacing.md),
-                if (_content == null)
-                  const Text('Loading contact details…', style: AppTypography.helper)
-                else if (_content!.channels.isEmpty && _content!.officeHours == null)
-                  Row(
-                    children: [
-                      const Expanded(
-                        child: Text('Contact details could not be loaded.', style: AppTypography.helper),
-                      ),
-                      TextButton(onPressed: _loadContent, child: const Text('Try again')),
-                    ],
-                  )
-                else ...[
-                  for (final c in _content!.channels)
-                    _ContactRow(icon: _channelIcon(c.key), label: c.label, value: c.value, onTap: _channelAction(c)),
-                  if (_content!.officeHours != null)
-                    _ContactRow(icon: Icons.schedule_outlined, label: 'Office Hours', value: _content!.officeHours!),
-                ],
-              ],
-            ),
-          ),
-          const SizedBox(height: AppSpacing.md),
-          AppCard(
-            onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const ReportProblemScreen())),
-            child: Row(
-              children: [
-                Container(
-                  width: 38,
-                  height: 38,
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(color: AppColors.rose50, borderRadius: BorderRadius.circular(AppRadius.md)),
-                  child: const Icon(Icons.flag_outlined, size: 19, color: AppColors.rose600),
-                ),
-                const SizedBox(width: AppSpacing.md),
-                const Expanded(
-                  child: Text(
-                    'Report a Problem',
-                    style: TextStyle(fontSize: AppTextSize.body, fontWeight: FontWeight.w600, color: AppColors.slate700),
-                  ),
-                ),
-                const Icon(Icons.chevron_right_rounded, color: AppColors.slate300),
-              ],
-            ),
-          ),
-          if (context.watch<CitizenSessionService>().isSignedIn) ...[
-            const SizedBox(height: AppSpacing.md),
-            AppCard(
-              onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const SupportTicketsScreen())),
+  List<Widget> _tutorials(HelpContent content) {
+    final categories = {for (final t in content.tutorials) ?t.category}.toList();
+    final shown = [
+      for (final t in content.tutorials)
+        if ((_tutorialCategory == null || t.category == _tutorialCategory) &&
+            _matches(_tutorialSearch, [t.title, t.description, t.category]))
+          t,
+    ];
+    return [
+      AppTextField(
+        hintText: tr('Search tutorials...'),
+        icon: Icons.search_rounded,
+        onChanged: (v) => setState(() => _tutorialSearch = v),
+      ),
+      const SizedBox(height: AppSpacing.md),
+      _CategoryChips(
+        categories: categories,
+        selected: _tutorialCategory,
+        onSelected: (c) => setState(() => _tutorialCategory = c),
+      ),
+      const SizedBox(height: AppSpacing.sm),
+      Text('${shown.length} ${shown.length == 1 ? 'result' : 'results'}', style: AppTypography.fine.copyWith(color: AppColors.textMuted)),
+      const SizedBox(height: AppSpacing.sm),
+      if (shown.isEmpty)
+        EmptyState(icon: Icons.school_outlined, title: tr('No tutorials match your search.'))
+      else
+        for (final t in shown)
+          Padding(
+            padding: const EdgeInsets.only(bottom: AppSpacing.itemGap),
+            child: AppCard(
+              onTap: t.link == null
+                  ? null
+                  : () {
+                      final uri = Uri.tryParse(t.link!);
+                      if (uri != null) launchUrl(uri, mode: LaunchMode.externalApplication);
+                    },
               child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Container(
-                    width: 38,
-                    height: 38,
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(color: AppColors.brand50, borderRadius: BorderRadius.circular(AppRadius.md)),
-                    child: const Icon(Icons.confirmation_number_outlined, size: 19, color: AppColors.brand600),
+                  Icon(
+                    t.link == null ? Icons.article_outlined : Icons.play_circle_outline_rounded,
+                    color: AppColors.brand600,
                   ),
                   const SizedBox(width: AppSpacing.md),
-                  const Expanded(
-                    child: Text(
-                      'My Support Tickets',
-                      style: TextStyle(fontSize: AppTextSize.body, fontWeight: FontWeight.w600, color: AppColors.slate700),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        if (t.category != null)
+                          Text(t.category!, style: AppTypography.fine.copyWith(color: AppColors.textMuted)),
+                        Text(t.title, style: AppTypography.bodyMedium),
+                        if (t.description != null) ...[
+                          const SizedBox(height: AppSpacing.xs),
+                          Text(t.description!, style: AppTypography.helper),
+                        ],
+                      ],
                     ),
                   ),
-                  const Icon(Icons.chevron_right_rounded, color: AppColors.slate300),
+                  if (t.duration != null) Text(t.duration!, style: AppTypography.fine),
                 ],
               ),
             ),
-          ],
-          const SizedBox(height: AppSpacing.xxl),
+          ),
+    ];
+  }
 
-          Wrap(
-            alignment: WrapAlignment.center,
+  /// The website's Support tab: an incident is not a ticket; a new ticket;
+  /// the tickets so far; then how to reach the office.
+  List<Widget> _support(BuildContext context, HelpContent? content) {
+    final signedIn = context.watch<CitizenSessionService>().isSignedIn;
+    return [
+      if (signedIn) ...[
+        AppCard(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              TextButton(
-                onPressed: () =>
-                    Navigator.of(context).push(MaterialPageRoute(builder: (_) => const PrivacyPolicyScreen())),
-                child: const Text(
-                  'Privacy Policy',
-                  style: TextStyle(fontSize: AppTextSize.helper, fontWeight: FontWeight.w600, color: AppColors.brand600),
-                ),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Icon(Icons.warning_amber_rounded, color: AppColors.rose600),
+                  const SizedBox(width: AppSpacing.sm),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(tr('Flooding, fire, a landslide or an accident?'), style: AppTypography.cardHeading),
+                        const SizedBox(height: AppSpacing.xs),
+                        Text(
+                          "Don't file it as a ticket: report an incident so the MDRRMO sees it at once.",
+                          style: AppTypography.helper.copyWith(color: AppColors.textMuted),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
-              TextButton(
-                onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const TermsScreen())),
-                child: const Text(
-                  'Terms and Conditions',
-                  style: TextStyle(fontSize: AppTextSize.helper, fontWeight: FontWeight.w600, color: AppColors.brand600),
+              const SizedBox(height: AppSpacing.md),
+              AppButton(
+                label: tr('Report an incident'),
+                variant: AppButtonVariant.secondary,
+                onPressed: () => Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const ReportIncidentScreen(accent: AppColors.rose600)),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: AppSpacing.xs),
-          const Center(
+        ),
+        const SizedBox(height: AppSpacing.md),
+      ],
+      _LinkCard(
+        icon: Icons.flag_outlined,
+        tint: AppColors.rose50,
+        color: AppColors.rose600,
+        label: tr('Submit a Support Ticket'),
+        onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const ReportProblemScreen())),
+      ),
+      if (signedIn) ...[
+        const SizedBox(height: AppSpacing.md),
+        _LinkCard(
+          icon: Icons.confirmation_number_outlined,
+          tint: AppColors.brand50,
+          color: AppColors.brand600,
+          label: tr('My Support Tickets'),
+          onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const SupportTicketsScreen())),
+        ),
+      ],
+      const SizedBox(height: AppSpacing.md),
+      AppCard(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Municipality of Esperanza Support', style: AppTypography.subsectionLabel),
+            const SizedBox(height: AppSpacing.md),
+            if (content == null)
+              const Text('Loading contact details…', style: AppTypography.helper)
+            else if (content.channels.isEmpty && content.officeHours == null)
+              Row(
+                children: [
+                  const Expanded(child: Text('Contact details could not be loaded.', style: AppTypography.helper)),
+                  TextButton(onPressed: _loadContent, child: Text(tr('Try again'))),
+                ],
+              )
+            else ...[
+              for (final c in content.channels)
+                _ContactRow(icon: _channelIcon(c.key), label: c.label, value: c.value, onTap: _channelAction(c)),
+              if (content.officeHours != null)
+                _ContactRow(icon: Icons.schedule_outlined, label: tr('Office Hours'), value: content.officeHours!),
+            ],
+          ],
+        ),
+      ),
+      const SizedBox(height: AppSpacing.xxl),
+      Wrap(
+        alignment: WrapAlignment.center,
+        children: [
+          TextButton(
+            onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const PrivacyPolicyScreen())),
+            child: Text(tr('Privacy Policy'), style: AppTypography.helper.copyWith(fontWeight: FontWeight.w600, color: AppColors.brand600)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const TermsScreen())),
             child: Text(
-              'Esperanza Mobile — Version $appVersion',
-              style: TextStyle(fontSize: AppTextSize.label, color: AppColors.textMuted),
+              'Terms and Conditions',
+              style: AppTypography.helper.copyWith(fontWeight: FontWeight.w600, color: AppColors.brand600),
             ),
           ),
+        ],
+      ),
+      const SizedBox(height: AppSpacing.xs),
+      Center(
+        child: Text('Esperanza Mobile — Version $appVersion', style: AppTypography.fine.copyWith(color: AppColors.textMuted)),
+      ),
+    ];
+  }
+}
+
+/// "All" and each category, as the website's filter row.
+class _CategoryChips extends StatelessWidget {
+  const _CategoryChips({required this.categories, required this.selected, required this.onSelected});
+
+  final List<String> categories;
+  final String? selected;
+  final ValueChanged<String?> onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        children: [
+          for (final c in [null, ...categories]) ...[
+            ChoiceChip(
+              label: Text(c ?? 'All'),
+              selected: selected == c,
+              onSelected: (_) => onSelected(c),
+            ),
+            const SizedBox(width: AppSpacing.sm),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _LinkCard extends StatelessWidget {
+  const _LinkCard({required this.icon, required this.tint, required this.color, required this.label, required this.onTap});
+
+  final IconData icon;
+  final Color tint;
+  final Color color;
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return AppCard(
+      onTap: onTap,
+      child: Row(
+        children: [
+          Container(
+            width: 38,
+            height: 38,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(color: tint, borderRadius: BorderRadius.circular(AppRadius.md)),
+            child: Icon(icon, size: AppSizes.iconSm, color: color),
+          ),
+          const SizedBox(width: AppSpacing.md),
+          Expanded(child: Text(label, style: AppTypography.bodyMedium.copyWith(color: AppColors.slate700))),
+          const Icon(Icons.chevron_right_rounded, color: AppColors.slate300),
         ],
       ),
     );
@@ -642,103 +458,3 @@ class _ContactRow extends StatelessWidget {
   }
 }
 
-class _QuickHelpGrid extends StatelessWidget {
-  final VoidCallback onAccount;
-  final VoidCallback onDokyu;
-  final VoidCallback onTulong;
-  final VoidCallback onUpload;
-  final VoidCallback onNotifications;
-  final VoidCallback onTechnical;
-
-  const _QuickHelpGrid({
-    required this.onAccount,
-    required this.onDokyu,
-    required this.onTulong,
-    required this.onUpload,
-    required this.onNotifications,
-    required this.onTechnical,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final items = [
-      (icon: Icons.person_outline_rounded, label: 'Account & Profile', color: AppColors.brand600, onTap: onAccount),
-      (icon: Icons.description_outlined, label: 'Dokyu', color: AppColors.brand600, onTap: onDokyu),
-      (icon: Icons.volunteer_activism_outlined, label: 'Tulong', color: AppColors.purple700, onTap: onTulong),
-      (icon: Icons.add_photo_alternate_outlined, label: 'Uploading Files', color: AppColors.teal700, onTap: onUpload),
-      (icon: Icons.notifications_outlined, label: 'Notifications', color: AppColors.amber700, onTap: onNotifications),
-      (icon: Icons.build_outlined, label: 'Technical Problems', color: AppColors.rose600, onTap: onTechnical),
-    ];
-
-    // A Row of Expanded cards (same idiom as SegmentedTabs) rather than a
-    // fixed-aspect-ratio GridView — each card's height follows its own
-    // content, so a 2-line label at a larger text scale simply grows the
-    // row instead of overflowing a height GridView had already fixed.
-    return Column(
-      children: [
-        _QuickHelpRow(items: items.sublist(0, 3)),
-        const SizedBox(height: AppSpacing.sm),
-        _QuickHelpRow(items: items.sublist(3, 6)),
-      ],
-    );
-  }
-}
-
-class _QuickHelpRow extends StatelessWidget {
-  final List<({IconData icon, String label, Color color, VoidCallback onTap})> items;
-  const _QuickHelpRow({required this.items});
-
-  @override
-  Widget build(BuildContext context) {
-    return IntrinsicHeight(
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          for (int i = 0; i < items.length; i++) ...[
-            if (i > 0) const SizedBox(width: AppSpacing.sm),
-            Expanded(child: _QuickHelpCard(item: items[i])),
-          ],
-        ],
-      ),
-    );
-  }
-}
-
-class _QuickHelpCard extends StatelessWidget {
-  final ({IconData icon, String label, Color color, VoidCallback onTap}) item;
-  const _QuickHelpCard({required this.item});
-
-  @override
-  Widget build(BuildContext context) {
-    return AppCard(
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: AppSpacing.md),
-      onTap: item.onTap,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          // A clay icon for the topic (2026-10 design).
-          ClayIcon(
-            switch (item.icon) {
-              Icons.person_outline_rounded => ClayGlyph.person,
-              Icons.description_outlined => ClayGlyph.document,
-              Icons.volunteer_activism_outlined => ClayGlyph.heart,
-              Icons.add_photo_alternate_outlined => ClayGlyph.folder,
-              Icons.notifications_outlined => ClayGlyph.bell,
-              _ => ClayGlyph.warning,
-            },
-            size: 38,
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          Text(
-            item.label,
-            textAlign: TextAlign.center,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(fontSize: AppTextSize.fine, fontWeight: FontWeight.w600, color: AppColors.slate700, height: 1.2),
-          ),
-        ],
-      ),
-    );
-  }
-}

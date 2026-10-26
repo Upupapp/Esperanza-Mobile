@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../widgets/registry_match_note.dart';
 import 'package:provider/provider.dart';
 import '../../../models/resident_profile.dart';
 import '../../../services/citizen_session_service.dart';
@@ -16,6 +17,7 @@ import '../../../theme/app_typography.dart';
 import '../../../services/api_client.dart';
 import '../../../widgets/esperanza_art.dart';
 
+import '../../../l10n/tr.dart';
 /// Resident Profile hub — the mobile-side entry point that maps to the Web
 /// Admin's Constituents module. Guides the citizen through Personal ->
 /// Family -> Household -> Review & Submit, letting them jump straight to
@@ -49,7 +51,8 @@ class _ResidentProfileOverviewScreenState extends State<ResidentProfileOverviewS
   @override
   Widget build(BuildContext context) {
     final account = context.watch<CitizenSessionService>().account!;
-    final profile = context.watch<ResidentProfileService>().profileFor(account);
+    final profiles = context.watch<ResidentProfileService>();
+    final profile = profiles.profileFor(account);
 
     return Scaffold(
       appBar: AppBar(title: const Text('Resident Profile')),
@@ -63,6 +66,10 @@ class _ResidentProfileOverviewScreenState extends State<ResidentProfileOverviewS
             ),
             const SizedBox(height: AppSpacing.lg),
             _ProgressCard(profile: profile),
+            if (profiles.registryMatchPending) ...[
+              const SizedBox(height: AppSpacing.md),
+              const RegistryMatchNote(RegistryMatchNote.onProfile),
+            ],
             if (profile.status == VerificationStatus.needsCorrection) ...[
               const SizedBox(height: AppSpacing.lg),
               _CorrectionBanner(
@@ -83,7 +90,7 @@ class _ResidentProfileOverviewScreenState extends State<ResidentProfileOverviewS
             const SizedBox(height: AppSpacing.itemGap),
             _SectionCard(
               icon: Icons.badge_outlined,
-              title: 'Personal Information',
+              title: tr('Personal Information'),
               description: 'Your basic, contact, and address details.',
               status: profile.personalStatus,
               onTap: () =>
@@ -111,9 +118,11 @@ class _ResidentProfileOverviewScreenState extends State<ResidentProfileOverviewS
             _SectionCard(
               icon: Icons.fact_check_outlined,
               title: 'Review & Submit',
-              description: profile.readyToSubmit
+              description: !profile.editable
+                  ? 'Sent to your barangay office. See what you sent.'
+                  : profile.readyToSubmit
                   ? 'Everything looks good — review and submit for verification.'
-                  : 'Complete all sections above to submit.',
+                  : 'Fill in Personal Information to submit; Family and Household are optional.',
               status: null,
               onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const ReviewSubmitScreen())),
             ),

@@ -11,6 +11,7 @@ import '../theme/app_typography.dart';
 import 'image_viewer_scaffold.dart';
 import 'esperanza_art.dart';
 
+import '../l10n/tr.dart';
 /// One requirement's own upload section — the standard per-requirement
 /// attachment architecture shared by every Dokyu and Tulong service (see
 /// docs on the "each requirement gets its own uploader" change). Reuses the
@@ -121,7 +122,9 @@ class RequirementUploader extends StatelessWidget {
           ),
         );
       case _UploadSource.document:
-        final result = await pickDocumentProtected(context, allowedExtensions: ['pdf', 'doc', 'docx', 'jpg', 'jpeg', 'png']);
+        // What the server accepts (config esperanza.uploads.allowed_mime):
+        // a Word file was offered here and then refused on upload.
+        final result = await pickDocumentProtected(context, allowedExtensions: ['pdf', 'jpg', 'jpeg', 'png', 'webp']);
         if (result == null || result.files.isEmpty) return;
         final f = result.files.single;
         if (f.bytes == null) return;
@@ -250,7 +253,7 @@ class _UploadSourceSheet extends StatelessWidget {
                 const Divider(height: 1),
                 ListTile(
                   leading: const Icon(Icons.close_rounded, color: AppColors.rose600),
-                  title: const Text('Cancel', style: TextStyle(fontSize: AppTextSize.body, fontWeight: FontWeight.w500, color: AppColors.rose600)),
+                  title: Text(tr('Cancel'), style: TextStyle(fontSize: AppTextSize.body, fontWeight: FontWeight.w500, color: AppColors.rose600)),
                   onTap: () => Navigator.pop(context),
                 ),
               ],
@@ -319,7 +322,7 @@ class _PapelesPickerSheet extends StatelessWidget {
               const Divider(height: 1),
               ListTile(
                 leading: const Icon(Icons.close_rounded, color: AppColors.rose600),
-                title: const Text('Cancel', style: TextStyle(fontSize: AppTextSize.body, fontWeight: FontWeight.w500, color: AppColors.rose600)),
+                title: Text(tr('Cancel'), style: TextStyle(fontSize: AppTextSize.body, fontWeight: FontWeight.w500, color: AppColors.rose600)),
                 onTap: () => Navigator.pop(context),
               ),
             ],
@@ -526,12 +529,12 @@ class _AttachedTile extends StatelessWidget {
           const SizedBox(height: AppSpacing.sm),
           Row(
             children: [
-              if (isImage) _actionButton('View', onView, color: accent),
+              if (isImage) _actionButton(tr('View'), onView, color: accent),
               if (isImage) const SizedBox(width: AppSpacing.md),
-              _actionButton('Replace', onReplace, color: accent),
+              _actionButton(tr('Replace'), onReplace, color: accent),
               if (onRemove != null) ...[
                 const SizedBox(width: AppSpacing.md),
-                _actionButton('Remove', onRemove!, color: AppColors.rose600),
+                _actionButton(tr('Remove'), onRemove!, color: AppColors.rose600),
               ],
             ],
           ),

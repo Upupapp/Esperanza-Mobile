@@ -9,6 +9,7 @@ import 'app_button.dart';
 import 'app_card.dart';
 import 'app_dialogs.dart';
 
+import '../l10n/tr.dart';
 /// "How was the service?" once a request is released or completed (parity
 /// with the website's Track Request, 2026-10-15): a 1-5 rating and an
 /// optional comment, asked once. Hidden when this phone already answered or
@@ -53,7 +54,7 @@ class _RequestSurveyCardState extends State<RequestSurveyCard> {
       await FeedbackService.rate(widget.reference, _rating, _comment.text);
       if (!mounted) return;
       setState(() => _settled = true);
-      AppDialogs.toast(context, 'Thank you for rating the service!');
+      AppDialogs.toast(context, tr('Thank you for rating the service!'));
     } on ApiException catch (e) {
       if (mounted) AppDialogs.toast(context, e.message(), success: false);
     } finally {
@@ -75,12 +76,12 @@ class _RequestSurveyCardState extends State<RequestSurveyCard> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('How was the service?', style: AppTypography.cardHeading),
+            Text(tr('How was the service?'), style: AppTypography.cardHeading),
             const SizedBox(height: AppSpacing.xs),
-            Text('Rate your experience with this request. We ask only once.', style: AppTypography.helper),
+            Text(tr('Rate your experience with this request. We ask only once.'), style: AppTypography.helper),
             const SizedBox(height: AppSpacing.md),
             Semantics(
-              label: 'Rating, 1 to 5',
+              label: tr('Rating, 1 to 5'),
               container: true,
               child: Row(
                 children: [
@@ -107,14 +108,14 @@ class _RequestSurveyCardState extends State<RequestSurveyCard> {
               maxLength: 1000,
               minLines: 2,
               maxLines: 4,
-              decoration: const InputDecoration(labelText: 'Comment (optional)', counterText: ''),
+              decoration: InputDecoration(labelText: tr('Comment (optional)'), counterText: ''),
             ),
             const SizedBox(height: AppSpacing.md),
             Row(
               children: [
                 Expanded(
                   child: AppButton(
-                    label: 'Skip',
+                    label: tr('Skip'),
                     variant: AppButtonVariant.secondary,
                     onPressed: _sending ? null : _skip,
                   ),
@@ -122,7 +123,7 @@ class _RequestSurveyCardState extends State<RequestSurveyCard> {
                 const SizedBox(width: AppSpacing.sm),
                 Expanded(
                   child: AppButton(
-                    label: 'Send rating',
+                    label: tr('Send rating'),
                     loading: _sending,
                     onPressed: _rating == 0 || _sending ? null : _send,
                   ),

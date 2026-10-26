@@ -8,6 +8,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:esperanza_mobile/models/incident_types.dart';
 import 'package:esperanza_mobile/models/service_request.dart';
 import 'package:esperanza_mobile/screens/sakuna/report_incident_screen.dart';
 import 'package:esperanza_mobile/services/citizen_session_service.dart';
@@ -130,13 +131,17 @@ void main() {
     expect(detail.office, 'Poblacion · Sitio Purok 3');
     expect(detail.purpose, contains('Severity: High'));
     expect(detail.purpose, contains('Water rising fast near the covered court.'));
-    expect(detail.statusHistory, hasLength(1));
-    expect(detail.statusHistory.single.status, 'Under Verification');
-    expect(detail.statusHistory.single.actor, isNotEmpty);
+    // In residents' words, as the website's timeline: the report itself,
+    // then the office's step (the validate step).
+    expect(detail.statusHistory, hasLength(2));
+    expect(detail.statusHistory.first.status, 'You reported it');
+    expect(detail.statusHistory.last.status, 'Report confirmed by the office');
+    expect(detail.statusHistory.last.actor, isNotEmpty);
+    expect(detail.statusLabel, isNot('Processing'));
 
     // The server's own citizen-safe shape has no staff note or responder
     // identity to begin with; this just confirms nothing here invents one.
-    expect(detail.statusHistory.single.remarks, isNull);
+    expect(detail.statusHistory.last.remarks, isNull);
 
     // Replaces the matching list-row entry rather than duplicating it.
     expect(service.byCategory(ServiceCategory.sakunaIncident), hasLength(1));
@@ -151,7 +156,8 @@ void main() {
 
     expect(detail.office, 'Poblacion'); // no sitio on the row -> no trailing separator
     expect(detail.purpose, 'Severity: High'); // no description -> just the severity line
-    expect(detail.statusHistory, isEmpty);
+    // Only the report itself: the office has done nothing yet.
+    expect(detail.statusHistory.map((e) => e.status), ['You reported it']);
   });
 
   test('Dokyu/Tulong reloads do not drop incidents', () async {
@@ -197,18 +203,20 @@ void main() {
     expect(detail.incidentPhotos, ['https://example.invalid/files/a?signature=x', null]);
   });
 
-  testWidgets('the form requires severity and barangay, then submits once with a stable client_uuid', (tester) async {
-    // A phone-tall screen: the form (with its photos field) is longer than
-    // the test's default 800x600 view.
-    tester.view.physicalSize = const Size(390, 1400);
+  testWidgets('what, how serious and where are required; a retry reuses the client_uuid', (tester) async {
+    // A phone-tall screen: the form (with its map location and photos
+    // fields) is longer than the test's default 800x600 view.
+    tester.view.physicalSize = const Size(390, 1800);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
     final uuids = <String>[];
+    final sentBodies = <Map<String, dynamic>>[];
     var fail = true;
     FakeApi.installFull((r) {
       if (r.path == '/citizen/incidents' && r.method == 'POST') {
         uuids.add(r.body!['client_uuid'] as String);
+        sentBodies.add(r.body!);
         if (fail) {
           fail = false;
           throw const FakeApiError(
@@ -229,14 +237,19 @@ void main() {
           ChangeNotifierProvider(create: (_) => CitizenSessionService()),
           ChangeNotifierProvider(create: (_) => RequestsService()),
         ],
-        child: MaterialApp(
-          home: ReportIncidentScreen(item: MockCatalog.incidentTypes.first, accent: AppColors.rose600),
-        ),
+        child: MaterialApp(home: const ReportIncidentScreen(accent: AppColors.rose600)),
       ),
     );
     await tester.pumpAndSettle();
 
     final submit = find.text('Submit Report');
+    await tester.ensureVisible(submit);
+    await tester.tap(submit);
+    await tester.pumpAndSettle();
+    expect(find.text('Choose what is happening.'), findsOneWidget);
+    expect(uuids, isEmpty);
+
+    await tester.tap(find.text('Flood'));
     await tester.ensureVisible(submit);
     await tester.tap(submit);
     await tester.pumpAndSettle();
@@ -260,10 +273,46 @@ void main() {
 
     expect(uuids, hasLength(2));
     expect(uuids.toSet(), hasLength(1));
+    // The names the website and the server use.
+    expect(sentBodies.last['type'], 'Flood');
+    expect(sentBodies.last['severity'], 'High');
     expect(
       RegExp(r'^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$').hasMatch(uuids.first),
       isTrue,
     );
     expect(find.textContaining('INC-2026-00009'), findsWidgets);
+  });
+
+  test("the kinds and severities are the website's, in its order", () {
+    // resources/js/scope-citizen.js INCIDENT_TYPES + MORE_INCIDENT_TYPES and
+    // SEVERITIES; esperanza-backend SakunaVocabulary.
+    expect(incidentTypes.map((t) => t.name), [
+      'Flood',
+      'Fire',
+      'Landslide',
+      'Medical Emergency',
+      'Vehicular Accident',
+      'Other',
+    ]);
+    expect(moreIncidentTypes.map((t) => t.name), [
+      'Rescue Request',
+      'Earthquake',
+      'Missing Person',
+      'Stranded Resident',
+      'Drowning or Water Rescue',
+      'Fallen Tree',
+      'Downed Power Line',
+      'Road Obstruction',
+      'Damaged Bridge',
+      'Structural Damage',
+      'Agricultural Damage',
+      'Water Interruption',
+      'Power Interruption',
+      'Public Health Emergency',
+    ]);
+    expect(allIncidentTypes.map((t) => t.key).toSet(), hasLength(20));
+    expect(incidentSeverities, ['Low', 'Medium', 'High', 'Critical']);
+    expect(incidentTypeName('Flooding'), 'Flood');
+    expect(incidentTypeName('Fire'), 'Fire');
   });
 }

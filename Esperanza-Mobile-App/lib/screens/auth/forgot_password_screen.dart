@@ -11,6 +11,7 @@ import '../../widgets/app_button.dart';
 import '../../widgets/app_text_field.dart';
 import '../../widgets/password_requirements.dart';
 
+import '../../l10n/tr.dart';
 enum _Step { request, reset, done }
 
 /// Forgot password, the web portal's /citizen/password-reset on the phone:
@@ -181,7 +182,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   List<Widget> _doneStep() => [
     const Icon(Icons.check_circle_rounded, size: 56, color: AppColors.emerald500),
     const SizedBox(height: AppSpacing.lg),
-    const Text('Password reset', textAlign: TextAlign.center, style: AppTypography.sectionTitle),
+    Text(tr('Password reset'), textAlign: TextAlign.center, style: AppTypography.sectionTitle),
     const SizedBox(height: AppSpacing.sm),
     const Text(
       'Sign in with your new password.',
@@ -189,7 +190,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
       style: AppTypography.helper,
     ),
     const SizedBox(height: AppSpacing.xxl),
-    AppButton(label: 'Back to Sign In', fullWidth: true, size: AppButtonSize.lg, onPressed: () => Navigator.of(context).pop()),
+    AppButton(label: tr('Back to Sign In'), fullWidth: true, size: AppButtonSize.lg, onPressed: () => Navigator.of(context).pop()),
   ];
 
   List<Widget> _errorLine() => [

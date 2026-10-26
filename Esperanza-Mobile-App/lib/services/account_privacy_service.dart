@@ -14,6 +14,8 @@ class DataRequest {
     this.resolution,
     this.submittedAt,
     this.resolvedAt,
+    this.reason,
+    this.requestedName,
   });
 
   final String ref;
@@ -25,6 +27,13 @@ class DataRequest {
   final String? resolution;
   final DateTime? submittedAt;
   final DateTime? resolvedAt;
+
+  /// A change of name: why ([NameChangeReason.key]) and the name asked for.
+  final String? reason;
+  final String? requestedName;
+
+  /// A change of name still waiting for the barangay: then no second.
+  bool get openNameChange => kind == AccountPrivacyService.nameChangeKind && const {'Submitted', 'Under Review'}.contains(status);
 
   static DataRequest? fromJson(Map<String, dynamic> row) {
     final ref = JsonRead.nonEmpty(row['ref']);
@@ -38,8 +47,27 @@ class DataRequest {
       resolution: JsonRead.nonEmpty(row['resolution']),
       submittedAt: JsonRead.date(row['submitted_at']),
       resolvedAt: JsonRead.date(row['resolved_at']),
+      reason: JsonRead.nonEmpty(row['reason']),
+      requestedName: _name(JsonRead.map(row['requested'])),
     );
   }
+}
+
+String? _name(Map<String, dynamic>? n) {
+  if (n == null) return null;
+  final parts = ['first_name', 'middle_name', 'last_name', 'suffix'].map((k) => JsonRead.nonEmpty(n[k])).nonNulls;
+  return parts.isEmpty ? null : parts.join(' ');
+}
+
+/// Why a verified resident's name changes, and the proof the barangay checks
+/// (the website's NAME_REASONS; esperanza-backend
+/// DataSubjectRequest::NAME_CHANGE_REASONS).
+class NameChangeReason {
+  const NameChangeReason(this.key, this.label, this.proof);
+
+  final String key;
+  final String label;
+  final String proof;
 }
 
 /// One kind of data request, in the words a resident would use.
@@ -72,8 +100,62 @@ class AccountPrivacyService {
     ),
   ];
 
-  static String kindTitle(String key) =>
-      kinds.firstWhere((k) => k.key == key, orElse: () => DataRequestKind(key, key, '')).title;
+  static String kindTitle(String key) => key == nameChangeKind
+      ? 'Change my name'
+      : kinds.firstWhere((k) => k.key == key, orElse: () => DataRequestKind(key, key, '')).title;
+
+  /// A verified resident's change of name, filed from Edit Profile.
+  static const nameChangeKind = 'name_change';
+
+  static const nameChangeReasons = [
+    NameChangeReason('marriage', 'Marriage (taking my spouse’s surname)', 'PSA marriage certificate'),
+    NameChangeReason(
+      'annulment',
+      'Annulment or nullity of marriage (back to my former surname)',
+      'PSA marriage certificate with the annotation, or the court decision',
+    ),
+    NameChangeReason('court_order', 'Court order (a legal change of name)', 'Certified copy of the court order or decision'),
+    NameChangeReason(
+      'clerical',
+      'My name is misspelled (typo)',
+      'PSA birth certificate, or a valid ID showing the right spelling',
+    ),
+  ];
+
+  /// POST /citizen/data-requests, kind name_change (multipart): the reason,
+  /// the new name and the proof. A second while one waits is a 409
+  /// NAME_CHANGE_PENDING.
+  static Future<DataRequest> fileNameChange({
+    required String reason,
+    required String firstName,
+    String middleName = '',
+    required String lastName,
+    String note = '',
+    required List<int> proofBytes,
+    required String proofName,
+  }) async {
+    final res = await api.postMultipart(
+      '/citizen/data-requests',
+      fields: {
+        'kind': nameChangeKind,
+        'reason': reason,
+        'first_name': firstName.trim(),
+        if (middleName.trim().isNotEmpty) 'middle_name': middleName.trim(),
+        'last_name': lastName.trim(),
+        if (note.trim().isNotEmpty) 'detail': note.trim(),
+      },
+      bytesFiles: {'proof': (bytes: proofBytes, filename: proofName)},
+    );
+    final row = DataRequest.fromJson(res.map);
+    if (row == null) {
+      throw const ApiException(
+        messageEn: 'Your request may not have been received. Please check My data requests before trying again.',
+        messageFil:
+            'Maaaring hindi natanggap ang iyong kahilingan. Tingnan muna ang My data requests bago subukang muli.',
+      );
+    }
+    return row;
+  }
 
   /// The backend's cap on `detail` (`max:2000`).
   static const detailMaxLength = 2000;
