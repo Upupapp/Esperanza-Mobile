@@ -124,7 +124,10 @@ class _ServiceRequestWizardScreenState extends State<ServiceRequestWizardScreen>
   // correction-flow upload, which stays real). The wizard's Purpose/Notes
   // field is still real -- it flows into form_data.
   final _notesController = TextEditingController();
-  late final List<RequirementInfo> _requirementInfos = resolveRequirements(widget.item.requirements);
+  /// The documents owed for the answers so far: a requirement asked only for
+  /// some answers (the Solo Parent ID's category documents) shows once they
+  /// call for it.
+  List<RequirementInfo> get _requirementInfos => resolveRequirements(widget.item.requirementsFor(_values));
 
   // Every request takes its documents while it is filled in, Dokyu as well
   // as Tulong (live test 2026-10-07, UX-16): a Dokyu request said 'no need
@@ -633,7 +636,13 @@ class _ServiceRequestWizardScreenState extends State<ServiceRequestWizardScreen>
           for (final name in widget.item.feeInputs) name: ?_feeValue(name),
         },
       );
-      final notUploaded = await requestsService.attachPicked(request, _picked);
+      // Only the files of documents still owed: an answer changed after a
+      // file was picked can make one not apply.
+      final owed = {for (final r in _requirementInfos) r.label};
+      final notUploaded = await requestsService.attachPicked(request, {
+        for (final e in _picked.entries)
+          if (owed.contains(e.key)) e.key: e.value,
+      });
 
       if (!mounted) return;
       setState(() => _submitting = false);

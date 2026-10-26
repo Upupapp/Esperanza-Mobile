@@ -288,6 +288,55 @@ class WalletIdType {
   }
 }
 
+/// A Senior Citizen, PWD or Solo Parent ID the LGU released to the resident,
+/// with the number the office wrote on it (MSWDO forms, 2026-10-26).
+class WalletSectorId {
+  const WalletSectorId({
+    required this.sector,
+    required this.name,
+    required this.idNumber,
+    this.issuer,
+    this.holderName,
+    this.category,
+    this.issuedOn,
+    this.validUntil,
+    this.status = 'active',
+    this.verifyUrl,
+  });
+
+  /// senior, pwd or solo_parent.
+  final String sector;
+  final String name;
+  final String idNumber;
+  final String? issuer;
+  final String? holderName;
+  final String? category;
+  final DateTime? issuedOn;
+  final DateTime? validUntil;
+
+  /// active, expired or revoked.
+  final String status;
+  final String? verifyUrl;
+
+  static WalletSectorId? fromApi(Map<String, dynamic> json) {
+    final number = JsonRead.nonEmpty(json['id_number']);
+    final name = JsonRead.nonEmpty(json['name']);
+    if (number == null || name == null) return null;
+    return WalletSectorId(
+      sector: JsonRead.nonEmpty(json['sector']) ?? '',
+      name: name,
+      idNumber: number,
+      issuer: JsonRead.nonEmpty(json['issuer']),
+      holderName: JsonRead.nonEmpty(json['holder_name']),
+      category: JsonRead.nonEmpty(json['category']),
+      issuedOn: JsonRead.date(json['issued_on']),
+      validUntil: JsonRead.date(json['valid_until']),
+      status: JsonRead.nonEmpty(json['status']) ?? 'active',
+      verifyUrl: JsonRead.nonEmpty(json['verify_url']),
+    );
+  }
+}
+
 /// GET /citizen/wallet (esperanza-backend CitizenWallet): identity,
 /// residency, the Resident ID, the resident's uploaded IDs and the ID types,
 /// each with a status of its own. Read-only: nothing the app sends sets one.
@@ -300,6 +349,7 @@ class CitizenWallet {
     required this.documents,
     required this.idTypes,
     this.diditKinds = const [],
+    this.sectorIds = const [],
   });
 
   final WalletIdentity identity;
@@ -313,6 +363,9 @@ class CitizenWallet {
   /// empty while the LGU has not set it up.
   final List<String> diditKinds;
 
+  /// The Senior Citizen, PWD and Solo Parent IDs the LGU released.
+  final List<WalletSectorId> sectorIds;
+
   static CitizenWallet fromApi(Map<String, dynamic> json) {
     Map<String, dynamic> map(Object? v) => v is Map<String, dynamic> ? v : const {};
     final residency = map(json['residency']);
@@ -323,6 +376,7 @@ class CitizenWallet {
       residentId: WalletResidentId.fromApi(map(json['resident_id'])),
       documents: JsonRead.rows(json['documents'], WalletDocument.fromApi),
       idTypes: JsonRead.rows(json['id_types'], WalletIdType.fromApi),
+      sectorIds: JsonRead.rows(json['sector_ids'], WalletSectorId.fromApi),
       diditKinds: [
         for (final k in (map(json['didit_check'])['kinds'] as List?) ?? const [])
           ?JsonRead.nonEmpty(k),

@@ -1,5 +1,6 @@
 import 'service_form_spec.dart';
 import '../services/json_read.dart';
+import '../utils/show_if.dart';
 
 /// A selectable document type (Dokyu) or assistance program (Tulong).
 ///
@@ -31,6 +32,11 @@ class CatalogItem {
 
   final String days;
   final List<String> requirements;
+
+  /// [requirements] with the rule of each one owed only for some answers
+  /// (the Solo Parent ID's category documents, MSWDO forms 2026-10-26), from
+  /// the server's `requirement_rules`. Empty means every requirement applies.
+  final List<RequirementRule> requirementRules;
   final List<String> process;
 
   /// 'dokyu' or 'tulong' -- the server's own `type`, real, needed to route
@@ -92,6 +98,7 @@ class CatalogItem {
     required this.days,
     required this.requirements,
     required this.process,
+    this.requirementRules = const [],
     this.type = '',
     this.feeInputs = const [],
     this.policyBlocked = false,
@@ -120,6 +127,7 @@ class CatalogItem {
           .map((e) => e is Map ? (JsonRead.string(e['label']) ?? '') : e.toString())
           .where((e) => e.isNotEmpty)
           .toList(),
+      requirementRules: RequirementRule.parse(json['requirement_rules'] ?? json['requirements']),
       process: JsonRead.strings(json['process']),
       type: str('type') ?? '',
       feeInputs: fee is Map ? JsonRead.strings(fee['required_inputs']) : const [],
@@ -131,4 +139,13 @@ class CatalogItem {
       icon: icon,
     );
   }
+
+  /// The documents owed for these answers: each requirement whose rule the
+  /// answers meet, in the catalog's order. The server files the same ones.
+  List<String> requirementsFor(Map<String, dynamic> answers) => requirementRules.isEmpty
+      ? requirements
+      : [
+          for (final r in requirementRules)
+            if (showIfMet(r.showIf, answers)) r.label,
+        ];
 }

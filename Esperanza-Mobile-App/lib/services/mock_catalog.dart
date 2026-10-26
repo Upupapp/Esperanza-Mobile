@@ -1435,6 +1435,159 @@ class MockCatalog {
       },
       demoPurpose: 'Locational clearance for a proposed structure.',
     ),
+    CatalogItem(
+      key: 'msw_solo_parent_id',
+      name: 'Solo Parent ID (SPIC)',
+      office: 'Municipal Social Welfare & Development Office',
+      fee: 'Free',
+      days: '5-7 working days',
+      // The server's list carries each category's own documents with its rule
+      // (requirement_rules); these are only the ones every applicant owes.
+      requirements: [
+        'Sworn affidavit: not cohabiting with a partner or co-parent, and with sole parental care and support of the child or children',
+        "Affidavit of a barangay official: a resident of the barangay, with the child or children under the solo parent's care",
+        '1x1 ID pictures (two for a new or renewed ID, one for a lost ID)',
+      ],
+      process: ['Submit Application', 'Interview / Home Visit', 'MSWDO Assessment', 'SPIC Release'],
+      icon: 'id-card',
+      // Sourced: MSWD - Solo Parent application form, DSWD Annex B (2023),
+      // with its second sheet of categories and their documents (MSWDO
+      // forms, 2026-10-26). The keys are the server's, as its document rules
+      // read application_type and solo_parent_category.
+      formSpec: ServiceFormSpec(
+        steps: [
+          ServiceFormStep(
+            label: 'Application',
+            description: 'The documents you need depend on these two answers.',
+            fields: [
+              ServiceFormField(
+                key: 'application_type',
+                label: 'Application',
+                type: ServiceFieldType.select,
+                options: ['New', 'Renewal', 'Lost ID (replacement)'],
+              ),
+              ServiceFormField(
+                key: 'solo_parent_category',
+                label: 'Category (Dahilan bakit naging solo parent)',
+                type: ServiceFieldType.select,
+                options: [
+                  '(a1) Birth of a child as a consequence of rape',
+                  '(a2) Widow / widower',
+                  '(a3) Spouse of a person deprived of liberty',
+                  '(a4) Spouse of a person with physical or mental incapacity',
+                  '(a5) Legal or de facto separation',
+                  '(a6) Nullity or annulment of marriage',
+                  '(a7) Abandonment by the spouse',
+                  '(b1) Spouse of an OFW',
+                  '(b2) Relative of an OFW',
+                  '(c) Unmarried person',
+                  '(d) Legal guardian, adoptive or foster parent',
+                  '(e) Relative within the fourth civil degree',
+                  '(f) Pregnant woman',
+                ],
+              ),
+              ServiceFormField(
+                key: 'previous_spic_number',
+                label: 'Current Solo Parent ID No.',
+                type: ServiceFieldType.text,
+                required: false,
+                visibleWhenKey: 'application_type',
+                visibleWhenValueIn: ['Renewal', 'Lost ID (replacement)'],
+              ),
+            ],
+          ),
+          ServiceFormStep(
+            label: 'Personal Information',
+            fields: [
+              ServiceFormField(key: 'date_of_birth', label: 'Date of Birth', type: ServiceFieldType.date),
+              ServiceFormField(key: 'age', label: 'Age', type: ServiceFieldType.derivedAge, derivedFromKey: 'date_of_birth'),
+              ServiceFormField(key: 'sex', label: 'Sex', type: ServiceFieldType.select, options: ['Male', 'Female']),
+              ServiceFormField(key: 'place_of_birth', label: 'Place of Birth', type: ServiceFieldType.text, required: false),
+              ServiceFormField(
+                key: 'civil_status',
+                label: 'Civil Status',
+                type: ServiceFieldType.select,
+                options: ['Single', 'Married', 'Widowed', 'Separated', 'Annulled'],
+              ),
+              ServiceFormField(
+                key: 'educational_attainment',
+                label: 'Educational Attainment',
+                type: ServiceFieldType.select,
+                required: false,
+                options: ['None', 'Elementary', 'High School', 'Vocational', 'College', 'Post Graduate'],
+              ),
+              ServiceFormField(key: 'religion', label: 'Religion', type: ServiceFieldType.text, required: false),
+            ],
+          ),
+          ServiceFormStep(
+            label: 'Work and Income',
+            fields: [
+              ServiceFormField(
+                key: 'employment_status',
+                label: 'Employment Status',
+                type: ServiceFieldType.select,
+                options: ['Employed', 'Self-employed', 'Not employed'],
+              ),
+              ServiceFormField(key: 'occupation', label: 'Occupation', type: ServiceFieldType.text, required: false),
+              ServiceFormField(key: 'company_agency', label: 'Company / Agency', type: ServiceFieldType.text, required: false),
+              ServiceFormField(key: 'monthly_income', label: 'Monthly Income', type: ServiceFieldType.text, required: false),
+              ServiceFormField(
+                key: 'is_pantawid_beneficiary',
+                label: 'Pantawid (4Ps) Beneficiary?',
+                type: ServiceFieldType.select,
+                options: ['Yes', 'No'],
+              ),
+              ServiceFormField(
+                key: 'is_indigenous_person',
+                label: 'Indigenous Person?',
+                type: ServiceFieldType.select,
+                options: ['Yes', 'No'],
+              ),
+              ServiceFormField(
+                key: 'is_lgbtq',
+                label: 'LGBTQ+?',
+                type: ServiceFieldType.select,
+                required: false,
+                options: ['Yes', 'No'],
+              ),
+            ],
+          ),
+          ServiceFormStep(
+            label: 'Your Situation',
+            description: 'The MSWDO records your family members at the interview or home visit.',
+            fields: [
+              ServiceFormField(
+                key: 'solo_parent_circumstance',
+                label: 'Circumstances of being a solo parent',
+                type: ServiceFieldType.textarea,
+                required: false,
+              ),
+              ServiceFormField(
+                key: 'solo_parent_needs',
+                label: 'Needs / problems of being a solo parent (Kinakailangan / Problema)',
+                type: ServiceFieldType.textarea,
+                required: false,
+              ),
+            ],
+          ),
+          ServiceFormStep(
+            label: 'In Case of Emergency',
+            fields: [
+              ServiceFormField(key: 'emergency_contact_name', label: 'Name', type: ServiceFieldType.text),
+              ServiceFormField(key: 'emergency_contact_relationship', label: 'Relationship', type: ServiceFieldType.text),
+              ServiceFormField(key: 'emergency_contact_address', label: 'Address', type: ServiceFieldType.text, required: false),
+              ServiceFormField(key: 'emergency_contact_number', label: 'Contact Number', type: ServiceFieldType.phone),
+              ServiceFormField(
+                key: 'certify_and_consent',
+                label:
+                    'I certify that the information above is true and correct, and I consent to sharing it with the member agencies of the Inter-Agency Coordinating and Monitoring Committee on solo parents.',
+                type: ServiceFieldType.checkbox,
+              ),
+            ],
+          ),
+        ],
+      ),
+    ),
   ];
 
   static const assistanceTypes = <CatalogItem>[
@@ -1888,6 +2041,9 @@ class MockCatalog {
                 options: ['Single', 'Married', 'Widowed', 'Separated'],
               ),
               ServiceFormField(key: 'bloodType', label: 'Blood Type', type: ServiceFieldType.text, required: false),
+              // PRPWD items 8 and 9 (MSWDO forms, 2026-10-26).
+              ServiceFormField(key: 'ethnicGroup', label: 'Ethnic Group', type: ServiceFieldType.text, required: false),
+              ServiceFormField(key: 'landlineNo', label: 'Landline No.', type: ServiceFieldType.text, required: false),
             ],
           ),
           ServiceFormStep(
@@ -1940,7 +2096,36 @@ class MockCatalog {
                 type: ServiceFieldType.select,
                 options: ['Employed', 'Unemployed', 'Self-Employed', 'Student', 'Not Applicable'],
               ),
+              // PRPWD items 13-15: whom and how the applicant works for.
+              ServiceFormField(
+                key: 'employmentCategory',
+                label: 'Category of Employment',
+                type: ServiceFieldType.select,
+                required: false,
+                options: ['Government', 'Private'],
+                visibleWhenKey: 'employmentStatus',
+                visibleWhenValueIn: ['Employed'],
+              ),
+              ServiceFormField(
+                key: 'employmentType',
+                label: 'Type of Employment',
+                type: ServiceFieldType.select,
+                required: false,
+                options: ['Permanent/Regular', 'Seasonal', 'Casual', 'Emergency'],
+                visibleWhenKey: 'employmentStatus',
+                visibleWhenValueIn: ['Employed'],
+              ),
               ServiceFormField(key: 'occupation', label: 'Occupation', type: ServiceFieldType.text, required: false),
+            ],
+          ),
+          ServiceFormStep(
+            label: 'Organization',
+            description: 'PRPWD item 16, if you belong to a PWD organization.',
+            fields: [
+              ServiceFormField(key: 'orgAffiliated', label: 'Organization Affiliated', type: ServiceFieldType.text, required: false),
+              ServiceFormField(key: 'orgContactPerson', label: 'Contact Person', type: ServiceFieldType.text, required: false),
+              ServiceFormField(key: 'orgOfficeAddress', label: 'Office Address', type: ServiceFieldType.text, required: false),
+              ServiceFormField(key: 'orgTelNo', label: 'Tel. Nos.', type: ServiceFieldType.text, required: false),
             ],
           ),
           ServiceFormStep(

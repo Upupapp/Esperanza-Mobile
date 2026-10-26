@@ -215,6 +215,10 @@ class _WalletViewState extends State<_WalletView> {
             padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.sm, AppSpacing.lg, AppSpacing.page),
             children: [
               if (active) _FlipResidentId(card: card) else _ResidentIdCard(wallet: wallet),
+              if (wallet.sectorIds.isNotEmpty) ...[
+                const SizedBox(height: AppSpacing.xl),
+                _LguIds(ids: wallet.sectorIds),
+              ],
               const SizedBox(height: AppSpacing.xl),
               _MyIds(
                 wallet: wallet,
@@ -235,6 +239,146 @@ String _date(DateTime d) => DateFormat('MMM d, yyyy').format(d);
 
 /// The eyebrow over a field on the card: NAME, BARANGAY, ISSUED.
 Widget _fieldLabel(String text) => Text(text, style: AppTypography.eyebrow.copyWith(color: AppColors.slate600));
+
+// ─────────────────────────────────────────────────────────── IDs from the LGU
+
+/// The Senior Citizen, PWD and Solo Parent IDs the LGU released: the number
+/// the office wrote on the card, how long it is valid, and a QR code that
+/// opens the public Verify page (MSWDO forms, 2026-10-26).
+class _LguIds extends StatelessWidget {
+  const _LguIds({required this.ids});
+
+  final List<WalletSectorId> ids;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text('IDs from the LGU', style: AppTypography.sectionTitle.copyWith(fontWeight: FontWeight.w800)),
+        const SizedBox(height: AppSpacing.md),
+        for (final id in ids) ...[_LguIdCard(id: id), const SizedBox(height: AppSpacing.itemGap)],
+      ],
+    );
+  }
+}
+
+class _LguIdCard extends StatelessWidget {
+  const _LguIdCard({required this.id});
+
+  final WalletSectorId id;
+
+  @override
+  Widget build(BuildContext context) {
+    final band = switch (id.sector) {
+      'senior' => AppColors.amber700,
+      'pwd' => AppColors.sky700,
+      'solo_parent' => AppColors.rose600,
+      _ => AppColors.slate700,
+    };
+    final until = id.validUntil;
+    final (statusText, statusFg, statusBg) = switch (id.status) {
+      'active' => (
+        until == null ? 'Valid, no expiry' : 'Valid until ${_date(until)}',
+        AppColors.emerald700,
+        AppColors.emerald50,
+      ),
+      'expired' => (
+        until == null ? 'Expired: renew it in Dokyu' : 'Expired ${_date(until)}: renew it in Dokyu',
+        AppColors.amber700,
+        AppColors.amber50,
+      ),
+      _ => ('Revoked', AppColors.slate600, AppColors.slate100),
+    };
+    final issuer = id.issuer ?? 'LGU';
+    return Semantics(
+      container: true,
+      label: '${id.name}, number ${id.idNumber}',
+      child: Container(
+        clipBehavior: Clip.antiAlias,
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(AppRadius.lg),
+          border: Border.all(color: AppColors.slate200),
+          boxShadow: AppShadows.float,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Container(
+              color: band,
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: 10),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      id.name,
+                      style: AppTypography.cardHeading.copyWith(color: AppColors.surface, fontWeight: FontWeight.w800),
+                    ),
+                  ),
+                  Text('$issuer \u00b7 Esperanza', style: AppTypography.eyebrow.copyWith(color: AppColors.surface)),
+                ],
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(AppSpacing.lg),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _fieldLabel('NUMBER'),
+                        const SizedBox(height: 2),
+                        SelectableText(
+                          id.idNumber,
+                          style: AppTypography.cardHeading.copyWith(fontFamily: 'monospace', fontWeight: FontWeight.w700),
+                        ),
+                        if (id.holderName != null) ...[
+                          const SizedBox(height: 6),
+                          Text(id.holderName!, style: AppTypography.helper.copyWith(color: AppColors.navy900)),
+                        ],
+                        if (id.category != null) Text(id.category!, style: AppTypography.helper),
+                        const SizedBox(height: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          decoration: BoxDecoration(color: statusBg, borderRadius: BorderRadius.circular(99)),
+                          child: Text(
+                            statusText,
+                            style: AppTypography.helper.copyWith(color: statusFg, fontWeight: FontWeight.w700),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (id.verifyUrl != null && id.status != 'revoked') ...[
+                    const SizedBox(width: AppSpacing.md),
+                    Semantics(
+                      label: 'QR code to verify ${id.name}',
+                      image: true,
+                      child: QrImageView(
+                        data: id.verifyUrl!,
+                        size: 88,
+                        padding: EdgeInsets.zero,
+                        backgroundColor: AppColors.surface,
+                        eyeStyle: const QrEyeStyle(eyeShape: QrEyeShape.square, color: AppColors.navy900),
+                        dataModuleStyle: const QrDataModuleStyle(
+                          dataModuleShape: QrDataModuleShape.square,
+                          color: AppColors.navy900,
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
 
 // ─────────────────────────────────────────────────────────── Resident ID
 
