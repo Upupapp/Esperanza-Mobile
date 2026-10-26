@@ -28,6 +28,9 @@ import '../../utils/date_text.dart';
 import '../../widgets/esperanza_art.dart';
 
 import '../../l10n/tr.dart';
+import '../../models/access_level.dart';
+import '../../services/citizen_session_service.dart';
+import '../profile/profile_screen.dart';
 // This screen's own FAB-clearance constants — not navbar geometry. Pair
 // with `MediaQuery.paddingOf(context).bottom`, which RootShell's
 // `extendBody: true` keeps in sync with whatever the bottom nav bar
@@ -130,6 +133,10 @@ class _RequestListScreenState extends State<RequestListScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // An incident is reported by any signed-in resident; a Dokyu or Tulong
+    // request needs a Verified account (the server's ACCOUNT_NOT_VERIFIED).
+    final canFile = widget.category == ServiceCategory.sakunaIncident ||
+        context.watch<CitizenSessionService>().accessLevel == AccessLevel.verified;
     final requests = context.watch<RequestsService>();
     final categoryRequests = requests.byCategory(widget.category);
     final activeAll = categoryRequests.where((r) => !RequestStatusView(r.status).isDone).toList();
@@ -171,7 +178,9 @@ class _RequestListScreenState extends State<RequestListScreen> {
       // inset (see _kFloatingElementGap's doc comment above) plus a
       // visual gap keeps it clearly above the bar, staying correct across
       // screen sizes/safe-area insets since neither value is hardcoded.
-      floatingActionButton: Padding(
+      // Filing waits for a Verified account; the requests already filed and
+      // Papeles show before that, as on the website.
+      floatingActionButton: !canFile ? null : Padding(
         padding: EdgeInsets.only(bottom: MediaQuery.paddingOf(context).bottom + _kFloatingElementGap),
         child: NewRequestFab(
           accent: widget.accent,
@@ -198,6 +207,11 @@ class _RequestListScreenState extends State<RequestListScreen> {
       ),
       body: Column(
         children: [
+          if (!canFile)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.md, AppSpacing.lg, 0),
+              child: _ApprovalNotice(service: widget.category == ServiceCategory.tulong ? 'Tulong' : 'Dokyu'),
+            ),
           Padding(
             padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.md, AppSpacing.lg, AppSpacing.xs),
             child: SegmentedTabs(
@@ -509,4 +523,54 @@ class _RequestTile extends StatelessWidget {
     );
   }
 
+}
+
+
+/// The website's approval notice (components/citizen/approval-notice): a
+/// resident sees their requests and Papeles, and files once verified.
+class _ApprovalNotice extends StatelessWidget {
+  final String service;
+  const _ApprovalNotice({required this.service});
+
+  @override
+  Widget build(BuildContext context) {
+    final status = context.watch<CitizenSessionService>().account?.status;
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.md),
+      decoration: BoxDecoration(
+        color: AppColors.orange50,
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+        border: Border.all(color: AppColors.orange500.withValues(alpha: 0.35)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(Icons.hourglass_top_rounded, size: 18, color: AppColors.orange700),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  [tr('Your account is waiting for approval'), ?status].join(' · '),
+                  style: AppTypography.labelStrong.copyWith(color: AppColors.orange700),
+                ),
+                const SizedBox(height: AppSpacing.xs),
+                Text(
+                  'You can file a $service request once the LGU has checked your valid ID and verified your account. '
+                  'You will be notified when that is done.',
+                  style: AppTypography.helper.copyWith(color: AppColors.slate700),
+                ),
+                TextButton(
+                  style: TextButton.styleFrom(padding: EdgeInsets.zero, minimumSize: const Size(0, 44)),
+                  onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const ProfileScreen())),
+                  child: Text(tr('View my account')),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }

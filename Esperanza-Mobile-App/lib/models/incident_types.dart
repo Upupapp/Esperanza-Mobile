@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../services/message_language.dart';
 
 /// The kinds of incident a resident can report, the same list and names the
 /// website's Emergency page offers (INCIDENT_TYPES and MORE_INCIDENT_TYPES in
@@ -14,6 +15,10 @@ class IncidentType {
   final String name;
   final String fil;
   final IconData icon;
+
+  /// As shown: Filipino when it is chosen, as the website does ([name] is
+  /// what is sent).
+  String get label => MessageLanguage.filipino.value ? fil : name;
 }
 
 const incidentTypes = <IncidentType>[
@@ -56,6 +61,15 @@ const allIncidentTypes = <IncidentType>[...incidentTypes, ...moreIncidentTypes];
 
 /// The severities, sent as they are (SakunaVocabulary::SEVERITIES).
 const incidentSeverities = ['Low', 'Medium', 'High', 'Critical'];
+
+/// The website's words for a severity (scope-citizen.js SEVERITIES); an old
+/// "Moderate" reads as Medium.
+const _severityFil = {'Low': 'Mababa', 'Medium': 'Katamtaman', 'High': 'Mataas', 'Critical': 'Kritikal'};
+
+String severityLabel(String severity) {
+  final s = severity == 'Moderate' ? 'Medium' : severity;
+  return MessageLanguage.filipino.value ? (_severityFil[s] ?? s) : s;
+}
 
 /// Reports filed under the app's older names, read under the shared name
 /// (the website's OLD_INCIDENT_TYPES).

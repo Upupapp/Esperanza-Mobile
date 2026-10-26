@@ -12,6 +12,18 @@ class CitizenAccount {
   /// As the server keeps it; '' when there is none (or for an account saved
   /// by an older build). Kept so a name change starts from the whole name.
   final String middleName;
+
+  /// Jr., III...; '' when there is none.
+  final String suffix;
+
+  /// The whole name as the server writes it (`name`), first, middle, last
+  /// and suffix; '' on an account saved by an older build.
+  final String serverName;
+
+  /// The server's `identity_locked`: name, birthdate, sex and barangay are
+  /// corrected by the barangay office. Null on an account saved by an older
+  /// build, which then falls back to `status`.
+  final bool? serverIdentityLocked;
   final String email;
   final String mobile;
   final String barangay;
@@ -40,6 +52,9 @@ class CitizenAccount {
     required this.firstName,
     required this.lastName,
     this.middleName = '',
+    this.suffix = '',
+    this.serverName = '',
+    this.serverIdentityLocked,
     required this.email,
     required this.mobile,
     required this.barangay,
@@ -55,7 +70,12 @@ class CitizenAccount {
     this.serverAccessLevel,
   });
 
-  String get fullName => '$firstName $lastName';
+  /// The whole name, as the website shows it: the middle name and suffix
+  /// were left out (parity check, 2026-10-26).
+  String get fullName {
+    if (serverName.trim().isNotEmpty) return serverName.trim();
+    return [firstName, middleName, lastName, suffix].where((p) => p.trim().isNotEmpty).join(' ');
+  }
   String get initials => ((firstName.isNotEmpty ? firstName[0] : '') + (lastName.isNotEmpty ? lastName[0] : '')).toUpperCase();
 
   Map<String, dynamic> toJson() => {
@@ -63,6 +83,9 @@ class CitizenAccount {
         'firstName': firstName,
         'lastName': lastName,
         'middleName': middleName,
+        'suffix': suffix,
+        'serverName': serverName,
+        'serverIdentityLocked': serverIdentityLocked,
         'email': email,
         'mobile': mobile,
         'barangay': barangay,
@@ -83,6 +106,9 @@ class CitizenAccount {
         firstName: json['firstName'],
         lastName: json['lastName'],
         middleName: json['middleName'] is String ? json['middleName'] as String : '',
+        suffix: json['suffix'] is String ? json['suffix'] as String : '',
+        serverName: json['serverName'] is String ? json['serverName'] as String : '',
+        serverIdentityLocked: json['serverIdentityLocked'] is bool ? json['serverIdentityLocked'] as bool : null,
         email: json['email'],
         mobile: json['mobile'],
         barangay: json['barangay'],

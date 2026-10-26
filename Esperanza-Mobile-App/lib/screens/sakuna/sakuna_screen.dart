@@ -128,15 +128,17 @@ class _SakunaScreenState extends State<SakunaScreen> {
                 child: InkWell(
                   borderRadius: BorderRadius.circular(AppRadius.lg),
                   onTap: () => launchUrl(Uri.parse('tel:911')),
-                  child: const Padding(
+                  child: Padding(
                     padding: EdgeInsets.all(AppSpacing.lg),
                     child: Row(
                       children: [
                         Icon(Icons.warning_amber_rounded, color: Colors.white, size: 22),
                         SizedBox(width: AppSpacing.md),
                         Expanded(
+                          // The website's two lines, in the chosen language.
                           child: Text(
-                            'In a life-threatening emergency, call 911 or MDRRMO directly.',
+                            '${tr('In a life-threatening emergency, call 911.')} '
+                            '${tr('Or call the MDRRMO directly, or one of the hotlines below.')}',
                             style: TextStyle(
                               color: Colors.white,
                               fontSize: AppTextSize.helper,
@@ -517,7 +519,7 @@ class _AlertCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final kind = [?alert.type, ?alert.levelLabel].join(' · ');
-    final where = alert.barangays.isEmpty ? 'All barangays' : alert.barangays.map((b) => 'Brgy. $b').join(', ');
+    final where = alert.barangays.isEmpty ? tr('All barangays') : alert.barangays.map((b) => 'Brgy. $b').join(', ');
     return Semantics(
       container: true,
       label: tr('Emergency alert'),

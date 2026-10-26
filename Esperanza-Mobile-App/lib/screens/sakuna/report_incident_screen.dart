@@ -122,6 +122,7 @@ class _ReportIncidentScreenState extends State<ReportIncidentScreen> {
         photos: [for (final p in _photos) (bytes: p.bytes, filename: p.name)],
       );
       if (!mounted) return;
+      final accent = widget.accent;
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(
           builder: (_) => RequestSubmittedScreen(
@@ -129,6 +130,7 @@ class _ReportIncidentScreenState extends State<ReportIncidentScreen> {
             typeName: incident.typeName,
             accent: widget.accent,
             requestId: incident.id,
+            reportAnother: (_) => ReportIncidentScreen(accent: accent),
           ),
         ),
       );
@@ -165,7 +167,7 @@ class _ReportIncidentScreenState extends State<ReportIncidentScreen> {
               label: tr('More kinds'),
               value: moreIncidentTypes.contains(_type) ? _type : null,
               options: moreIncidentTypes,
-              labelBuilder: (t) => t.name,
+              labelBuilder: (t) => t.label,
               hintText: tr('Choose if it is not above'),
               onChanged: (t) => setState(() => _type = t),
             ),
@@ -181,7 +183,7 @@ class _ReportIncidentScreenState extends State<ReportIncidentScreen> {
               children: [
                 for (final s in incidentSeverities)
                   ChoiceChip(
-                    label: Text(s),
+                    label: Text(severityLabel(s)),
                     selected: _severity == s,
                     selectedColor: AppColors.rose50,
                     onSelected: (_) => setState(() => _severity = s),
@@ -283,7 +285,7 @@ class _IncidentTypeTile extends StatelessWidget {
     return Semantics(
       button: true,
       selected: selected,
-      label: type.name,
+      label: type.label,
       excludeSemantics: true,
       child: Material(
         color: selected ? AppColors.rose50 : AppColors.surface,
@@ -304,7 +306,7 @@ class _IncidentTypeTile extends StatelessWidget {
                   const SizedBox(width: AppSpacing.sm),
                   Expanded(
                     child: Text(
-                      type.name,
+                      type.label,
                       style: TextStyle(
                         fontSize: AppTextSize.helper,
                         fontWeight: FontWeight.w600,

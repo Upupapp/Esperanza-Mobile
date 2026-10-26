@@ -184,7 +184,7 @@ void main() {
   });
 
   group('Application Rejected panel gating', () {
-    testWidgets('does not show for a Rejected request with no decision_remarks on file', (tester) async {
+    testWidgets('a Rejected request with no reason on file says to visit the office, as the website does', (tester) async {
       final noReason = {
         'ref': 'DR-2026-0001',
         'type': 'dokyu',
@@ -199,8 +199,8 @@ void main() {
 
       await _pumpDetail(tester, requests, session, 'DR-2026-0001');
 
-      expect(find.text('Application Rejected'), findsNothing);
-      expect(find.text('Apply Again'), findsNothing);
+      expect(find.text('Application Rejected'), findsOneWidget);
+      expect(find.text('Visit the office below for details.'), findsOneWidget);
       expect(tester.takeException(), isNull);
     });
   });

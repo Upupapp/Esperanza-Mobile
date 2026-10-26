@@ -117,7 +117,8 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
-      expect(find.text('Effective Oct 1, 2026 · Version 2'), findsOneWidget);
+      // As the website: the effective date (and the last update, when sent).
+      expect(find.text('Effective Oct 1, 2026'), findsOneWidget);
       expect(find.text('9. Contact Us'), findsOneWidget);
       expect(find.text('Make a Data Request'), findsNothing, reason: 'signed out');
     });

@@ -9,6 +9,8 @@ import 'package:esperanza_mobile/services/api_client.dart';
 import 'package:esperanza_mobile/utils/ambient_motion.dart';
 
 import 'support/fake_api.dart';
+import 'package:esperanza_mobile/widgets/popup_gate.dart';
+import 'package:flutter_test/flutter_test.dart';
 
 Future<void> testExecutable(FutureOr<void> Function() testMain) async {
   FakeApi.installDefault();
@@ -21,5 +23,8 @@ Future<void> testExecutable(FutureOr<void> Function() testMain) async {
   // Tests keep the token in the (mocked) plain store; the secure store's
   // own tests install a fake one (citizen_app_scope_test.dart).
   ApiClient.secureStore = null;
+  // One pop-up at a time is a flag shared across the app: a test that ends
+  // with a pop-up open must not hold back the next test's.
+  setUp(() => PopupGate.open.value = false);
   await testMain();
 }

@@ -234,8 +234,9 @@ class _PreferenceRow extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // The server's own Filipino label when Filipino is chosen.
           Text(
-            preference.labelEn,
+            MessageLanguage.pick(fil: preference.labelFil, en: preference.labelEn) ?? preference.labelEn,
             style: const TextStyle(fontSize: AppTextSize.body, fontWeight: FontWeight.w500),
           ),
           const SizedBox(height: AppSpacing.xs),

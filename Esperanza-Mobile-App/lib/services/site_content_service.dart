@@ -36,9 +36,14 @@ class PublishedDocument {
     required this.intro,
     required this.sections,
     required this.source,
+    this.lastUpdated,
   });
 
   final int? version;
+
+  /// When the LGU last changed it (`last_updated`), shown as the website
+  /// does (parity check, 2026-10-26).
+  final DateTime? lastUpdated;
   final String title;
   final DateTime? effectiveDate;
   final String? intro;
@@ -62,6 +67,7 @@ class PublishedDocument {
       version: JsonRead.integer(json['version']),
       title: JsonRead.nonEmpty(json['title']) ?? fallbackTitle,
       effectiveDate: JsonRead.date(json['effective_date']),
+      lastUpdated: JsonRead.date(json['last_updated']),
       intro: JsonRead.nonEmpty(json['intro']),
       sections: sections,
       source: source,

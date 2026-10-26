@@ -13,6 +13,7 @@ import '../models/catalog_item.dart';
 import '../models/resident_record.dart';
 import '../models/service_request.dart';
 import 'service_form_specs.dart';
+import '../l10n/tr.dart';
 
 /// Dokyu + Tulong: catalog, submission and tracking, against the real
 /// backend (production-readiness programme, 2026-09-25). Previously a
@@ -272,7 +273,7 @@ class RequestsService extends ChangeNotifier {
       // block (see its `usesMilestones` branch) -- severity stays visible
       // here too, not only in the list row's own copy, which this replaces.
       purpose: [
-        if (severity != null) 'Severity: $severity',
+        if (severity != null) '${tr('Severity')}: ${severityLabel(severity)}',
         description,
       ].whereType<String>().join('\n\n'),
       submittedAt: base.submittedAt,
@@ -295,9 +296,14 @@ class RequestsService extends ChangeNotifier {
       ],
       attachments: const [],
       expectedDays: base.expectedDays,
-    )..incidentPhotos = [
+    )
+      ..incidentPhotos = [
         for (final photo in JsonRead.list(json['photos']))
           if (photo is Map) JsonRead.nonEmpty(photo['url']),
+      ]
+      ..incidentPhotoRefused = [
+        for (final photo in JsonRead.list(json['photos']))
+          if (photo is Map) const {'infected', 'error'}.contains(JsonRead.string(photo['scan'])),
       ];
   }
 
@@ -319,7 +325,7 @@ class RequestsService extends ChangeNotifier {
       office: '',
       purpose: [
         JsonRead.nonEmpty(json['title']),
-        if (severity != null) 'Severity: $severity',
+        if (severity != null) '${tr('Severity')}: ${severityLabel(severity)}',
         if (barangay != null) 'Barangay $barangay',
       ].whereType<String>().join(' · '),
       submittedAt: JsonRead.date(json['reported']) ?? DateTime.now(),

@@ -67,8 +67,9 @@ enum _Period { upcoming, past, calendar }
 class _EventsBodyState extends State<_EventsBody> {
   _Period _period = _Period.upcoming;
 
-  /// Only the resident's own barangay's events, with the municipality-wide
-  /// ones (parity with the website's events calendar, 2026-10-15).
+  /// Only the resident's own barangay's events, as the website's "Barangay
+  /// only" shows them: the municipality-wide ones were kept in the app and
+  /// not on the website (parity check, 2026-10-26).
   bool _mine = false;
 
   @override
@@ -77,7 +78,7 @@ class _EventsBodyState extends State<_EventsBody> {
     final home = context.watch<CitizenSessionService>().account?.barangay;
     final events = [
       for (final e in widget.events)
-        if (!_mine || e.barangay == null || e.barangay == home) e,
+        if (!_mine || (e.barangay != null && e.barangay == home)) e,
     ];
     final list = [
       for (final e in events)

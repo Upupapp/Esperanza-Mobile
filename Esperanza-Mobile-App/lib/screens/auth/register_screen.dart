@@ -444,7 +444,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
         'password': _password.text,
         'barangay': _barangay,
         'purok': _purok.text.trim().isEmpty ? null : _purok.text.trim(),
-        'address': '${_purok.text.trim()}, Barangay $_barangay, Esperanza, Masbate',
+        // Without a leading ", " when no purok was given, as the website does.
+        'address': [
+          if (_purok.text.trim().isNotEmpty) _purok.text.trim(),
+          'Barangay $_barangay',
+          'Esperanza, Masbate',
+        ].join(', '),
         'accepts_terms': true,
         'email_verification_token': _emailToken,
       });

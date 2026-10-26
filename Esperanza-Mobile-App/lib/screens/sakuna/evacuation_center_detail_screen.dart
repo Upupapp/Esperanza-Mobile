@@ -155,53 +155,42 @@ class EvacuationCenterDetailScreen extends StatelessWidget {
                       color: AppColors.textPrimary,
                     ),
                   ),
-                  const SizedBox(height: AppSpacing.sm),
-                  Row(
-                    children: [
-                      const Icon(Icons.groups_outlined, size: 16, color: AppColors.slate500),
-                      const SizedBox(width: AppSpacing.sm),
-                      Text(
-                        'Total design capacity: ${center.totalCapacity} people',
-                        style: const TextStyle(fontSize: AppTextSize.helper, color: AppColors.slate700),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: AppSpacing.sm),
-                  if (center.hasLiveCapacityData)
-                    Row(
-                      children: [
-                        const Icon(Icons.people_alt_outlined, size: 16, color: AppColors.slate500),
-                        const SizedBox(width: AppSpacing.sm),
-                        Text(
-                          'Currently occupied: ${center.currentOccupancy}',
-                          style: const TextStyle(fontSize: AppTextSize.helper, color: AppColors.slate700),
-                        ),
-                      ],
-                    )
-                  else
-                    Row(
-                      children: [
-                        Icon(Icons.info_outline_rounded, size: 16, color: AppColors.slate400),
-                        SizedBox(width: AppSpacing.sm),
-                        Expanded(
-                          child: Text(
-                            tr('Capacity information unavailable'),
-                            style: TextStyle(
-                              fontSize: AppTextSize.helper,
-                              color: AppColors.textMuted,
-                              fontStyle: FontStyle.italic,
-                            ),
-                          ),
-                        ),
-                      ],
+                  // As the website: capacity only when listed, the people
+                  // (and families) here now when counted, "unavailable" only
+                  // when neither is known (parity check, 2026-10-26).
+                  if (center.totalCapacity > 0) ...[
+                    const SizedBox(height: AppSpacing.sm),
+                    _InfoRow(icon: Icons.groups_outlined, text: 'Capacity: ${center.totalCapacity} people'),
+                  ],
+                  if (center.hasLiveCapacityData) ...[
+                    const SizedBox(height: AppSpacing.sm),
+                    _InfoRow(
+                      icon: Icons.people_alt_outlined,
+                      text: [
+                        'Now here: ${center.currentOccupancy} people',
+                        if (center.families != null) '${center.families} families',
+                      ].join(', '),
                     ),
+                  ],
+                  if (center.occupancyWarning != null) ...[
+                    const SizedBox(height: AppSpacing.sm),
+                    _InfoRow(icon: Icons.warning_amber_rounded, text: center.occupancyWarning!, warning: true),
+                  ],
+                  if (center.totalCapacity <= 0 && !center.hasLiveCapacityData) ...[
+                    const SizedBox(height: AppSpacing.sm),
+                    _InfoRow(icon: Icons.info_outline_rounded, text: tr('Capacity information unavailable'), muted: true),
+                  ],
                 ],
               ),
             ),
             const SizedBox(height: AppSpacing.lg),
             _ListCard(title: tr('Available Services'), icon: Icons.medical_services_outlined, items: center.services),
-            const SizedBox(height: AppSpacing.lg),
-            _ListCard(title: 'Amenities', icon: Icons.checklist_rounded, items: center.amenities),
+            // The server keeps no amenities: the card only ever said "No
+            // information available yet."
+            if (center.amenities.isNotEmpty) ...[
+              const SizedBox(height: AppSpacing.lg),
+              _ListCard(title: 'Amenities', icon: Icons.checklist_rounded, items: center.amenities),
+            ],
             const SizedBox(height: AppSpacing.lg),
             if (center.contactNumber != null)
               AppCard(
@@ -238,6 +227,37 @@ class EvacuationCenterDetailScreen extends StatelessWidget {
     );
     final uri = Uri.parse('https://www.google.com/maps/search/?api=1&query=$query');
     await launchUrl(uri, mode: LaunchMode.externalApplication);
+  }
+}
+
+class _InfoRow extends StatelessWidget {
+  final IconData icon;
+  final String text;
+  final bool warning;
+  final bool muted;
+  const _InfoRow({required this.icon, required this.text, this.warning = false, this.muted = false});
+
+  @override
+  Widget build(BuildContext context) {
+    final colour = warning ? AppColors.rose700 : (muted ? AppColors.textMuted : AppColors.slate700);
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, size: 16, color: warning ? AppColors.rose600 : AppColors.slate500),
+        const SizedBox(width: AppSpacing.sm),
+        Expanded(
+          child: Text(
+            text,
+            style: TextStyle(
+              fontSize: AppTextSize.helper,
+              color: colour,
+              fontWeight: warning ? FontWeight.w600 : FontWeight.w400,
+              fontStyle: muted ? FontStyle.italic : FontStyle.normal,
+            ),
+          ),
+        ),
+      ],
+    );
   }
 }
 

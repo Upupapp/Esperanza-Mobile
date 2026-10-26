@@ -348,7 +348,8 @@ void main() {
     await tester.tap(find.text('Brgy. Labangtaytay only'));
     await tester.pumpAndSettle();
     expect(find.text('Synthetic fiesta'), findsNothing, reason: "Another barangay's event drops out.");
-    expect(find.text('Synthetic clean-up'), findsOneWidget, reason: 'A municipality-wide one stays.');
+    expect(find.text('Synthetic clean-up'), findsNothing,
+        reason: 'Only the barangay\'s own, as the website\'s "Barangay only" (2026-10-26).');
   });
 
   group('Verify a document', () {

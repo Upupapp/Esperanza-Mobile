@@ -287,6 +287,11 @@ class ServiceRequest {
   /// Re-fetched with every detail; empty on a list row.
   List<String?> incidentPhotos = const [];
 
+  /// For each of [incidentPhotos]: the upload check refused it (`scan`
+  /// infected or error). It said "Being checked" for ever (parity check,
+  /// 2026-10-26).
+  List<bool> incidentPhotoRefused = const [];
+
   /// The fee, if the service has one; re-fetched with every detail, like
   /// [canResubmit]. The resident saw neither the fee nor the receipt before.
   RequestPayment? payment;

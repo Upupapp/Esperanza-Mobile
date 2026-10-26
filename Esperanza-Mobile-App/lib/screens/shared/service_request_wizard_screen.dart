@@ -38,6 +38,8 @@ import '../../theme/app_typography.dart';
 import '../../widgets/esperanza_art.dart';
 
 import '../../l10n/tr.dart';
+import 'dart:async';
+import '../../services/master_file_service.dart';
 /// "Sir Paul's Required Form Experience" — a data-driven, multi-step
 /// service-request wizard mirroring `RegisterScreen`'s step pattern
 /// (indicator, per-step validation, Back/Continue, a Review step with
@@ -183,6 +185,8 @@ class _ServiceRequestWizardScreenState extends State<ServiceRequestWizardScreen>
   void initState() {
     super.initState();
     final account = context.read<CitizenSessionService>().account;
+    // "From My Papeles" offers what the wallet holds now.
+    unawaited(context.read<MasterFileService?>()?.refreshQuietly(account?.id));
     if (account != null) {
       _firstName.text = account.firstName;
       _lastName.text = account.lastName;

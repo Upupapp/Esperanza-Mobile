@@ -31,7 +31,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   late final TextEditingController _lastName;
   late final TextEditingController _mobile;
   late final TextEditingController _occupation;
-  late final TextEditingController _purok;
+  late final TextEditingController _address;
   late String _barangay;
   bool _saving = false;
 
@@ -43,7 +43,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     _lastName = TextEditingController(text: _original.lastName);
     _mobile = TextEditingController(text: PhMobile.normalise(_original.mobile));
     _occupation = TextEditingController(text: _original.occupation == '—' ? '' : _original.occupation);
-    _purok = TextEditingController(text: _original.purok == '—' ? '' : _original.purok);
+    _address = TextEditingController(text: _original.address == '—' ? '' : _original.address);
     _barangay = _original.barangay;
   }
 
@@ -53,7 +53,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     _lastName.dispose();
     _mobile.dispose();
     _occupation.dispose();
-    _purok.dispose();
+    _address.dispose();
     super.dispose();
   }
 
@@ -79,15 +79,14 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       if (first != _original.firstName.trim()) changes['first_name'] = first;
       if (last != _original.lastName.trim()) changes['last_name'] = last;
     }
-    if (_purok.text.trim() != orig(_original.purok).trim()) changes['purok'] = blankToNull(_purok.text);
+    // The whole address as typed, as the website edits it: it kept a purok
+    // and rebuilt the address, overwriting one typed on the website
+    // (parity check, 2026-10-26). Barangay goes on its own.
+    if (_address.text.trim() != orig(_original.address).trim()) changes['address'] = blankToNull(_address.text);
     if (_occupation.text.trim() != orig(_original.occupation).trim()) {
       changes['occupation'] = blankToNull(_occupation.text);
     }
     if (!session.identityLocked && _barangay != _original.barangay) changes['barangay'] = _barangay;
-    if (changes.containsKey('purok') || changes.containsKey('barangay')) {
-      final purok = _purok.text.trim();
-      changes['address'] = [if (purok.isNotEmpty) purok, 'Barangay $_barangay', 'Esperanza, Masbate'].join(', ');
-    }
     final newMobile = _mobile.text.trim();
     final mobileChanged = newMobile.isNotEmpty && newMobile != PhMobile.normalise(_original.mobile.trim());
     final mobileError = mobileChanged ? PhMobile.validate(newMobile) : null;
@@ -225,7 +224,13 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                   onChanged: (v) => setState(() => _barangay = v ?? _barangay),
                 ),
               const SizedBox(height: AppSpacing.lg),
-              AppTextField(label: 'Purok / Sitio', controller: _purok, icon: Icons.place_outlined),
+              AppTextField(
+                label: tr('Complete address'),
+                controller: _address,
+                icon: Icons.home_outlined,
+                hintText: 'Street / Sitio, Barangay, Esperanza, Masbate',
+                maxLength: 255,
+              ),
               const SizedBox(height: AppSpacing.lg),
               AppTextField(label: tr('Occupation'), controller: _occupation, icon: Icons.work_outline_rounded),
               const SizedBox(height: AppSpacing.xxl),

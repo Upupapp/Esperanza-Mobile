@@ -18,6 +18,7 @@ import 'theme/app_colors.dart';
 import 'theme/app_theme.dart';
 import 'widgets/language_scope.dart';
 import 'widgets/offline_notice.dart';
+import 'services/deep_links.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -66,7 +67,15 @@ class EsperanzaMobileApp extends StatelessWidget {
           // the *root* route (index 0) for RootShell/RestrictedFeatureNotice's
           // `popUntil((route) => route.isFirst)` calls to keep working — see
           // AuthGate's own doc comment for the history behind that.
-          home: const SplashScreen(),
+          // The first route is the splash (it was `home`). A shared Balita
+          // link (DeepLinks): opened from it, the app starts as usual and
+          // opens the post once the main screen shows; while it runs, the
+          // post opens at once.
+          onGenerateInitialRoutes: (initialRoute) {
+            DeepLinks.rememberInitial(initialRoute);
+            return [MaterialPageRoute<void>(settings: const RouteSettings(name: '/'), builder: (_) => const SplashScreen())];
+          },
+          onGenerateRoute: DeepLinks.routeFor,
         ),
       ),
     );

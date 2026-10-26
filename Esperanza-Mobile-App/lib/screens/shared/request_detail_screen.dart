@@ -108,6 +108,10 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
   void initState() {
     super.initState();
     _poll = Timer.periodic(const Duration(seconds: 30), (_) => _refreshQuietly());
+    // Attaching from Papeles offers what the wallet holds now.
+    unawaited(
+      context.read<MasterFileService?>()?.refreshQuietly(context.read<CitizenSessionService?>()?.account?.id),
+    );
     // The catalogue gives the service's processing time (Expected release).
     final service = context.read<RequestsService>();
     if (service.dokyuCatalog.isEmpty && service.tulongCatalog.isEmpty) {
@@ -359,7 +363,7 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
               ],
               if (request.incidentPhotos.isNotEmpty) ...[
                 const SizedBox(height: AppSpacing.md),
-                _IncidentPhotos(urls: request.incidentPhotos),
+                _IncidentPhotos(urls: request.incidentPhotos, refused: request.incidentPhotoRefused),
               ],
               const Divider(height: AppSpacing.xxl),
               _infoRow('Submitted', dateAndTime(request.submittedAt)),
@@ -371,8 +375,8 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
         ),
         // Noticeable, but only ever for a genuinely Rejected request that
         // actually has a reason on file.
-        // Cancelled: said plainly, as the website's Tulong page does. The
-        // reason itself is the timeline's "Reason for Cancellation" below.
+        // Cancelled: said plainly, as the website does. The reason itself
+        // is the timeline's "Reason for Cancellation" below (Dokyu too).
         if (usesMilestones && request.status == 'Cancelled') ...[
           const SizedBox(height: AppSpacing.xl),
           AppCard(
@@ -389,10 +393,11 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
             ),
           ),
         ],
-        if (request.status == 'Rejected' && request.adminRemarks != null) ...[
+        // Without a reason on file too, as the website says it.
+        if (request.status == 'Rejected') ...[
           const SizedBox(height: AppSpacing.xl),
           _RejectedApplicationCard(
-            reason: request.adminRemarks!,
+            reason: request.adminRemarks ?? tr('Visit the office below for details.'),
             guidance: 'Submit a new ${request.typeName} application.',
             onApplyAgain: () => _applyAgain(context, service, request, accent),
           ),
@@ -432,6 +437,10 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
             _ManualVerificationCard(
               needsRequirements: request.status == TulongStatus.needsRequirements,
               reason: request.adminRemarks ?? 'The request requires additional verification.',
+              // Nothing flagged, nothing missing: the server takes a
+              // resubmit, and the website offers it (parity check, 2026-10-26).
+              busy: _busy,
+              onResubmit: request.canResubmit ? () => _resubmit(service) : null,
             ),
         ],
         // A Tulong case once approved: what was approved, then what was
@@ -499,6 +508,22 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
             ),
           ),
         ],
+        // Any active request can book a visit, as on the website (it was only
+        // offered once ready to claim): the office and purpose come filled in
+        // (parity check, 2026-10-26).
+        if (usesMilestones &&
+            request.pickup == null &&
+            !const {'Rejected', 'Cancelled', 'Released', 'Completed', 'Archived'}.contains(request.status))
+          Align(
+            alignment: Alignment.centerLeft,
+            child: TextButton.icon(
+              onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => BookAppointmentScreen(requestRef: request.referenceNumber)),
+              ),
+              icon: const Icon(Icons.event_available_outlined, size: 18),
+              label: Text(tr('Book an appointment')),
+            ),
+          ),
         // Issued: control number, verification QR and the signed copy (2026-10-15).
         if (request.issuedDocuments.isNotEmpty) ...[
           const SizedBox(height: AppSpacing.xl),
@@ -1207,7 +1232,14 @@ class _ManualVerificationCard extends StatelessWidget {
   /// which is Dokyu's.
   final bool needsRequirements;
   final String reason;
-  const _ManualVerificationCard({required this.needsRequirements, required this.reason});
+  final bool busy;
+  final VoidCallback? onResubmit;
+  const _ManualVerificationCard({
+    required this.needsRequirements,
+    required this.reason,
+    this.busy = false,
+    this.onResubmit,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -1239,10 +1271,22 @@ class _ManualVerificationCard extends StatelessWidget {
             needsRequirements
                 ? 'The office needs more for this case. Read the remarks above, or contact the MSWDO. This is still an '
                       'active request, not a rejection.'
-                : 'The request requires additional verification. This is still an active request, not a rejection — no '
-                      'action is needed from you at this time.',
+                : onResubmit != null
+                    ? 'When you have done what the office asks, resubmit the request so they review it again.'
+                    : 'The request requires additional verification. This is still an active request, not a rejection — no '
+                          'action is needed from you at this time.',
             style: AppTypography.captionSmallRegular.copyWith(color: AppColors.slate500, height: 1.4),
           ),
+          if (onResubmit != null) ...[
+            const SizedBox(height: AppSpacing.lg),
+            AppButton(
+              label: tr('Resubmit Application'),
+              icon: Icons.send_rounded,
+              fullWidth: true,
+              loading: busy,
+              onPressed: busy ? null : onResubmit,
+            ),
+          ],
         ],
       ),
     );
@@ -1314,7 +1358,8 @@ class _TimelineRow extends StatelessWidget {
 /// still checking has no link yet and says so.
 class _IncidentPhotos extends StatelessWidget {
   final List<String?> urls;
-  const _IncidentPhotos({required this.urls});
+  final List<bool> refused;
+  const _IncidentPhotos({required this.urls, this.refused = const []});
 
   @override
   Widget build(BuildContext context) {
@@ -1334,7 +1379,7 @@ class _IncidentPhotos extends StatelessWidget {
                       padding: const EdgeInsets.all(AppSpacing.xs),
                       alignment: Alignment.center,
                       child: Text(
-                        tr('Being checked'),
+                        i < refused.length && refused[i] ? tr('This photo could not be accepted.') : tr('Being checked'),
                         textAlign: TextAlign.center,
                         style: AppTypography.captionSmallRegular.copyWith(color: AppColors.textMuted),
                       ),

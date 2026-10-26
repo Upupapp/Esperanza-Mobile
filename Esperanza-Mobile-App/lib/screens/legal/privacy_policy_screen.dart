@@ -57,8 +57,9 @@ class _PrivacyPolicyScreenState extends State<PrivacyPolicyScreen> {
     final policy = _policy;
     final signedIn = context.watch<CitizenSessionService>().isSignedIn;
     final meta = [
+      // As the website: when it took effect and when it was last changed.
       if (policy.effectiveDate != null) 'Effective ${DateFormat('MMM d, yyyy').format(policy.effectiveDate!)}',
-      if (policy.version != null) 'Version ${policy.version}',
+      if (policy.lastUpdated != null) 'Last updated ${DateFormat('MMM d, yyyy').format(policy.lastUpdated!.toLocal())}',
     ].join(' · ');
     return Scaffold(
       appBar: AppBar(

@@ -86,7 +86,7 @@ void main() {
     // Real occupancy now exists (individuals: 40 from the fake /sakuna/centers
     // response above) -- the honest-capacity design still applies, but the
     // live number is what it must show, not the "unavailable" fallback.
-    expect(find.textContaining('Currently occupied'), findsOneWidget);
+    expect(find.textContaining('Now here:'), findsOneWidget);
     expect(find.text('Capacity information unavailable'), findsNothing);
     expect(find.text('Directions'), findsOneWidget);
     // SakunaCenter has no contact-number column at all -- unlike the old
@@ -109,7 +109,12 @@ void main() {
 
     expect(find.textContaining('km away'), findsNothing);
     expect(find.text('Nearest Evacuation Center'), findsNothing);
-    expect(find.text('Capacity information unavailable'), findsOneWidget);
+    // Its capacity is known, so nothing reads "unavailable"; no headcount is
+    // made up either (as on the website, 2026-10-26).
+    expect(find.text('Capacity: 50 people'), findsOneWidget);
+    expect(find.textContaining('Now here'), findsNothing);
+    expect(find.text('Capacity information unavailable'), findsNothing);
+    expect(find.text('Amenities'), findsNothing, reason: 'the server keeps none');
     expect(tester.takeException(), isNull);
   });
 }

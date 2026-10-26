@@ -155,7 +155,9 @@ void main() {
     // built reactively) or orphan _AuthGate outright.
     await _loginAs(tester, MockCatalog.demoAccounts.first); // Nicanor Sarmiento
     await _dismissWelcomeBanner(tester);
-    await _openService(tester, 'Dokyu'); // verification-gated -> RestrictedFeatureNotice
+    // Search is verification-gated -> RestrictedFeatureNotice (Dokyu itself
+    // opens to an unverified resident since 2026-10-26, as on the website).
+    await _tapVisible(tester, find.text('Search services, permits, or documents'));
     await _tapVisible(tester, find.text('Continue Verification'));
     expect(find.text('Verification Status'), findsOneWidget); // RegisterScreen's AppBar title for this path
 
@@ -171,6 +173,10 @@ void main() {
     // The real proof _AuthGate is still alive and reactive: sign out from
     // here and confirm we land on an actual, working LoginScreen — not a
     // dead screen, and no crash from a duplicated/collided RootShell.
+    // (Reaching the search box scrolled Home: back to its top, where the
+    // menu button is.)
+    await tester.drag(find.byType(Scrollable).first, const Offset(0, 1500));
+    await tester.pumpAndSettle();
     await tester.tap(find.byIcon(Icons.menu_rounded));
     await tester.pumpAndSettle();
     // The menu scrolls: Sign Out is its last item.

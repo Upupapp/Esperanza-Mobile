@@ -315,6 +315,32 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
   final _purpose = TextEditingController();
   bool _sending = false;
   bool _tried = false;
+
+  /// Booked from a request: its office is chosen and the purpose filled in
+  /// once the offices are known, as the website does (parity check,
+  /// 2026-10-26). [_hint] says when no office's schedule matches it.
+  bool _preselected = false;
+  String? _hint;
+
+  void _preselect(List<AppointmentSchedule> schedules) {
+    final ref = widget.requestRef;
+    if (ref == null || !mounted) return;
+    final mine = context.read<RequestsService>().all.where((r) => r.referenceNumber == ref);
+    if (mine.isEmpty) return;
+    final request = mine.first;
+    if (_purpose.text.trim().isEmpty) {
+      _purpose.text = 'About my request $ref (${request.typeName})';
+    }
+    final key = request.serviceKey;
+    final match = schedules.where((s) => key != null && s.serviceKey == key).followedBy(
+          schedules.where((s) => s.office != null && s.office == request.office),
+        );
+    if (match.isNotEmpty) {
+      _pickSchedule(match.first);
+    } else {
+      setState(() => _hint = 'No office schedule is open for request $ref yet. You can choose another office below.');
+    }
+  }
   String? _error;
   Appointment? _booked;
 
@@ -423,6 +449,10 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
           const SizedBox(height: AppSpacing.sectionGap),
         ],
         _Step(number: 1, title: tr('Choose an office')),
+        if (_hint != null) ...[
+          Text(_hint!, style: AppTypography.helper.copyWith(color: AppColors.amber700)),
+          const SizedBox(height: AppSpacing.sm),
+        ],
         FutureBuilder<List<AppointmentSchedule>>(
           future: _schedules,
           builder: (context, snap) {
@@ -440,6 +470,10 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
               );
             }
             final schedules = snap.data ?? const [];
+            if (!_preselected && widget.requestRef != null) {
+              _preselected = true;
+              WidgetsBinding.instance.addPostFrameCallback((_) => _preselect(schedules));
+            }
             if (schedules.isEmpty) {
               return const Text(
                 'No office is taking appointments online yet. Visit or call the office, or check again another day.',

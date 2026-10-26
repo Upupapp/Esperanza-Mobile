@@ -158,6 +158,19 @@ class MasterFileService extends ChangeNotifier {
     await _persist();
   }
 
+  /// Reads the wallet again where a request can use it (the request form,
+  /// a request's page), as the website does each time Dokyu or Tulong opens:
+  /// "From My Papeles" listed only what Documents Uploaded last fetched
+  /// (parity check, 2026-10-26). Offline, it keeps what it has.
+  Future<void> refreshQuietly(String? accountId) async {
+    if (accountId == null) return;
+    try {
+      await syncFromServer(accountId);
+    } on ApiException {
+      // The saved copy stands.
+    }
+  }
+
   /// Adds a file straight to the Papeles wallet, outside any request, as the
   /// website's My Documents does (parity, 2026-10-15; POST /citizen/papeles
   /// with the same type and category), then reads the wallet again.

@@ -69,6 +69,16 @@ Future<void> _openService(WidgetTester tester, String label) async {
   await tester.pumpAndSettle();
 }
 
+
+/// Dokyu loads the resident's requests when the shell starts (every tab is
+/// built at once): empty lists for those, as an unverified resident sees
+/// Dokyu since 2026-10-26; anything else is unconfigured, as before.
+void _emptyRequestLists() => FakeApi.install(
+      (path, query) => const {'/services', '/citizen/requests', '/citizen/records'}.contains(path)
+          ? const []
+          : throw const FakeApiError(status: 503, code: 'NOT_CONFIGURED', messageEn: 'Not configured in this test.'),
+    );
+
 void main() {
   tearDown(FakeApi.restore);
 
@@ -116,7 +126,9 @@ void main() {
     );
   });
 
-  testWidgets('Scenario B — Nicanor Sarmiento: registered but unverified, restricted from Dokyu, allowed into Emergency', (tester) async {
+  testWidgets('Scenario B — Nicanor Sarmiento: registered but unverified, sees Dokyu but cannot file, allowed into Emergency', (tester) async {
+    _emptyRequestLists();
+    addTearDown(FakeApi.restore);
     // Onboarding-complete pre-seeded: these scenarios exercise the normal
     // returning-user flow, not the first-run Onboarding screens — see
     // onboarding_flow_test.dart for that.
@@ -142,15 +154,14 @@ void main() {
     await tester.pageBack();
     await tester.pumpAndSettle();
 
-    // 4. Attempt to use a verification-restricted feature (Dokyu).
     await _openService(tester, 'Dokyu');
+    await _dismissWelcomeBanner(tester); // Dokyu's own promotional popup
 
-    // 5. Confirm prompted to complete verification, NOT treated as a
-    // Guest (different message/action than Scenario A).
-    expect(find.text('Continue Verification'), findsOneWidget);
-    expect(find.text('Complete your account verification to access this service.'), findsOneWidget);
+    // 5. Dokyu opens with the approval notice, as on the website: the
+    // requests show, and filing waits for verification (2026-10-26).
+    expect(find.text('Your account is waiting for approval · Pending Review'), findsOneWidget);
+    expect(find.text('New Request'), findsNothing);
     expect(find.text('Create Account'), findsNothing); // guest-only copy must not appear
-    expect(find.text('Sign In'), findsNothing);
 
     // Emergency only requires being signed in (not verified) — Nicanor
     // must reach the real screen, not another notice.

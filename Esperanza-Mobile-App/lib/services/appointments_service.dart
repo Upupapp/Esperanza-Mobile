@@ -9,6 +9,8 @@ class AppointmentSchedule {
     required this.place,
     required this.label,
     this.service,
+    this.serviceKey,
+    this.office,
     this.weekdays = const [],
     this.startTime,
     this.endTime,
@@ -23,6 +25,11 @@ class AppointmentSchedule {
   final String place;
   final String label;
   final String? service;
+
+  /// The service this schedule is for, and its office: a request's booking
+  /// picks the schedule that matches it, as on the website.
+  final String? serviceKey;
+  final String? office;
 
   /// ISO weekdays it is open, 1 = Monday.
   final List<int> weekdays;
@@ -60,6 +67,8 @@ class AppointmentSchedule {
       place: place,
       label: JsonRead.nonEmpty(json['label']) ?? place,
       service: JsonRead.nonEmpty(json['service']),
+      serviceKey: JsonRead.nonEmpty(json['service_key']),
+      office: JsonRead.nonEmpty(json['office']),
       weekdays: [for (final d in JsonRead.list(json['weekdays'])) ?JsonRead.integer(d)],
       startTime: JsonRead.nonEmpty(json['start_time']),
       endTime: JsonRead.nonEmpty(json['end_time']),
