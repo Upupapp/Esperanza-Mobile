@@ -1,3 +1,4 @@
+import 'geo_point.dart';
 import 'incident_status.dart';
 import 'request_workflow.dart';
 import 'request_release.dart';
@@ -291,6 +292,10 @@ class ServiceRequest {
   /// infected or error). It said "Being checked" for ever (parity check,
   /// 2026-10-26).
   List<bool> incidentPhotoRefused = const [];
+
+  /// Where the resident pinned the incident on the map (2026-10-26), or
+  /// null when they did not. Read with every detail; null on a list row.
+  GeoPoint? incidentLocation;
 
   /// The fee, if the service has one; re-fetched with every detail, like
   /// [canResubmit]. The resident saw neither the fee nor the receipt before.

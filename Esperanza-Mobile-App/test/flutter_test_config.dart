@@ -6,6 +6,8 @@
 import 'dart:async';
 
 import 'package:esperanza_mobile/services/api_client.dart';
+import 'package:esperanza_mobile/services/device_location.dart';
+import 'package:esperanza_mobile/widgets/sakuna_map.dart';
 import 'package:esperanza_mobile/utils/ambient_motion.dart';
 
 import 'support/fake_api.dart';
@@ -23,6 +25,11 @@ Future<void> testExecutable(FutureOr<void> Function() testMain) async {
   // Tests keep the token in the (mocked) plain store; the secure store's
   // own tests install a fake one (citizen_app_scope_test.dart).
   ApiClient.secureStore = null;
+  // Sakuna's map (2026-10-26): no tiles from the network, and no GPS. A test
+  // that taps "Use my location" sets DeviceLocation.locate itself; one that
+  // forgets gets "could not find its location", never a real position.
+  MapTiles.enabled = false;
+  DeviceLocation.locate = () async => const LocationResult.failed(LocationProblem.unavailable);
   // One pop-up at a time is a flag shared across the app: a test that ends
   // with a pop-up open must not hold back the next test's.
   setUp(() => PopupGate.open.value = false);

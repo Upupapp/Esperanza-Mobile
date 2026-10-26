@@ -3,6 +3,10 @@ import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../models/access_level.dart';
 import '../../models/evacuation_center.dart';
+import '../../models/geo_point.dart';
+import '../../services/device_location.dart';
+import '../../widgets/sakuna_map.dart';
+import 'location_picker_screen.dart';
 import '../../utils/balita_post_actions.dart';
 import '../../models/service_request.dart';
 import '../../services/api_client.dart';
@@ -42,7 +46,7 @@ Future<List<(String, String, String?)>> _loadHotlines() async {
 /// empty/null rather than fabricated (matching EvacuationCenter's own
 /// existing "never invent a fake occupancy number" design). `currentOccupancy`
 /// is finally live data instead of always null, now that a real endpoint
-/// exists.
+/// exists; `lat`/`lng` (2026-10-26) where staff pinned the centre, or none.
 Future<List<EvacuationCenter>> _loadEvacuationCenters() async {
   final rows = await api.getAllPages('/sakuna/centers', query: {'per_page': 100});
   return JsonRead.rows(rows, (m) {
@@ -60,6 +64,7 @@ Future<List<EvacuationCenter>> _loadEvacuationCenters() async {
       families: JsonRead.integer(m['families']),
       address: JsonRead.nonEmpty(m['address']),
       isOpen: JsonRead.nonEmpty(m['status']) == 'Processing',
+      location: GeoPoint.fromJson(m),
     );
   });
 }
@@ -233,15 +238,14 @@ class _SakunaScreenState extends State<SakunaScreen> {
   }
 }
 
-/// Sorted by [EvacuationCenter.distanceKm] (a simulated stand-in for real
-/// device geolocation — see EvacuationCenterDetailScreen's doc comment)
-/// so the nearest center leads the list and is clearly labeled — not
-/// merely color-coded — with a badge, per the emergency spec's "do not
-/// rely only on color" requirement. Centers without a distance value
-/// (the state a real "location permission denied" fallback would produce)
-/// still render normally, just without a distance line or nearest badge —
-/// manual browsing always works regardless of location availability.
-class _EvacuationCentersSection extends StatelessWidget {
+/// The evacuation centres, as on the website (2026-10-26): a list or a map,
+/// by barangay, and the nearest open centre. A distance is a straight line
+/// from a point the resident chose -- the phone's GPS or a tap on the map --
+/// to a centre staff pinned; never from an address or a barangay name. A
+/// centre without a pin stays in the list and is never measured. "Nearest"
+/// is said in words (a badge), not colour alone, and only among open
+/// centres; it is not offered as the safest or quickest way to go.
+class _EvacuationCentersSection extends StatefulWidget {
   const _EvacuationCentersSection({required this.centers, this.mine});
 
   final List<EvacuationCenter> centers;
@@ -249,14 +253,37 @@ class _EvacuationCentersSection extends StatelessWidget {
   /// The resident's barangay: its centres lead, as on the website.
   final String? mine;
 
-  bool _isMine(EvacuationCenter c) => mine != null && mine!.isNotEmpty && c.barangay == mine;
-
   @override
-  Widget build(BuildContext context) {
-    // The website's order: the resident's barangay first, open ones first,
-    // then by barangay and name (a distance, if one ever exists, after that).
+  State<_EvacuationCentersSection> createState() => _EvacuationCentersSectionState();
+}
+
+class _EvacuationCentersSectionState extends State<_EvacuationCentersSection> {
+  bool _showMap = false;
+  String? _barangay;
+  GeoPoint? _here;
+  bool _hereFromGps = false;
+  double? _accuracy;
+  bool _locating = false;
+  LocationProblem? _problem;
+
+  bool _isMine(EvacuationCenter c) => widget.mine != null && widget.mine!.isNotEmpty && c.barangay == widget.mine;
+
+  double? _distance(EvacuationCenter c) {
+    final here = _here;
+    final at = c.location;
+    return here == null || at == null ? null : here.distanceKmTo(at);
+  }
+
+  List<EvacuationCenter> get _placed => widget.centers.where((c) => c.location != null).toList();
+
+  List<String> get _barangays => {for (final c in widget.centers) if (c.barangay.isNotEmpty) c.barangay}.toList()..sort();
+
+  /// The website's order: the resident's barangay first, open ones first,
+  /// then by barangay and name. With a point to measure from, the open
+  /// centres on the map come first, nearest first.
+  List<EvacuationCenter> get _shown {
     int flag(bool v) => v ? 0 : 1;
-    final sorted = [...centers]
+    final rows = widget.centers.where((c) => _barangay == null || c.barangay == _barangay).toList()
       ..sort((a, b) {
         final byMine = flag(_isMine(a)).compareTo(flag(_isMine(b)));
         if (byMine != 0) return byMine;
@@ -265,124 +292,435 @@ class _EvacuationCentersSection extends StatelessWidget {
         final byBarangay = a.barangay.compareTo(b.barangay);
         return byBarangay != 0 ? byBarangay : a.name.compareTo(b.name);
       });
-    // No center ever carries a real distanceKm today (this app has no
-    // geolocation wired up, and SakunaCenter has no lat/lng at all) -- the
-    // old orElse fallback used to badge whichever center happened to sort
-    // first as "Nearest" regardless, which is exactly the fabricated-signal
-    // mistake this app's own design principle exists to prevent. `nearest`
-    // must stay null, and no badge shows, unless a real distance exists.
-    final withDistance = sorted.where((c) => c.distanceKm != null);
-    final nearest = withDistance.isEmpty ? null : withDistance.first;
+    if (_here == null) return rows;
+    final order = {for (var i = 0; i < rows.length; i++) rows[i]: i};
+    return rows
+      ..sort((a, b) {
+        final da = a.isOpen ? _distance(a) : null;
+        final db = b.isOpen ? _distance(b) : null;
+        final measured = flag(da != null).compareTo(flag(db != null));
+        if (measured != 0) return measured;
+        if (da != null && db != null) return da.compareTo(db);
+        return order[a]!.compareTo(order[b]!);
+      });
+  }
 
+  /// The nearest OPEN centre with a pin, across every barangay.
+  ({EvacuationCenter centre, double km})? get _nearest {
+    ({EvacuationCenter centre, double km})? best;
+    for (final c in widget.centers) {
+      if (!c.isOpen) continue;
+      final d = _distance(c);
+      if (d != null && (best == null || d < best.km)) best = (centre: c, km: d);
+    }
+    return best;
+  }
+
+  String _distanceLabel(EvacuationCenter c) {
+    final d = _distance(c);
+    return d == null ? '' : '${distanceText(d)} ${tr('away, in a straight line')}';
+  }
+
+  Future<void> _findNearest() async {
+    if (_locating) return;
+    setState(() => _locating = true);
+    final result = await DeviceLocation.ask(context);
+    if (!mounted) return;
+    setState(() {
+      _locating = false;
+      if (result.point case final p?) {
+        _here = p;
+        _hereFromGps = true;
+        _accuracy = result.accuracyM;
+        _problem = null;
+      } else if (result.problem case final problem?) {
+        _problem = problem;
+      }
+    });
+  }
+
+  Future<void> _pickHere() async {
+    final picked = await Navigator.of(context).push<GeoPoint>(
+      MaterialPageRoute(builder: (_) => LocationPickerScreen(initial: _here, purpose: PickPurpose.here)),
+    );
+    if (!mounted || picked == null) return;
+    setState(() {
+      _here = picked;
+      _hereFromGps = false;
+      _accuracy = null;
+      _problem = null;
+    });
+  }
+
+  void _open(EvacuationCenter c) => Navigator.of(context).push(
+    MaterialPageRoute(
+      builder: (_) => EvacuationCenterDetailScreen(
+        center: c,
+        isNearest: _nearest?.centre == c,
+        distanceKm: _distance(c),
+      ),
+    ),
+  );
+
+  @override
+  Widget build(BuildContext context) {
+    final shown = _shown;
+    final placed = _placed;
+    final nearest = _nearest;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('Evacuation Centers', style: AppTypography.subsectionLabel),
+        Text(tr('Evacuation Centres'), style: AppTypography.subsectionLabel),
         const SizedBox(height: AppSpacing.md),
-        if (sorted.isEmpty)
-          const Padding(
-            padding: EdgeInsets.symmetric(vertical: AppSpacing.md),
-            child: Text('No evacuation centers listed yet.', style: TextStyle(color: AppColors.textMuted)),
-          ),
-        for (final c in sorted) ...[
+        if (widget.centers.isEmpty)
           Padding(
-            padding: const EdgeInsets.only(bottom: AppSpacing.itemGap),
-            child: AppCard(
-              onTap: () => Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (_) => EvacuationCenterDetailScreen(center: c, isNearest: c == nearest),
+            padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
+            child: Text(tr('No evacuation centres listed yet.'), style: const TextStyle(color: AppColors.textMuted)),
+          )
+        else ...[
+          Wrap(
+            spacing: AppSpacing.sm,
+            runSpacing: AppSpacing.sm,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              SegmentedButton<bool>(
+                showSelectedIcon: false,
+                segments: [
+                  ButtonSegment(value: false, icon: const Icon(Icons.list_rounded, size: 18), label: Text(tr('List'))),
+                  ButtonSegment(value: true, icon: const Icon(Icons.map_outlined, size: 18), label: Text(tr('Map'))),
+                ],
+                selected: {_showMap},
+                onSelectionChanged: (v) => setState(() => _showMap = v.first),
+              ),
+              DropdownButton<String?>(
+                value: _barangay,
+                hint: Text(tr('All barangays')),
+                underline: const SizedBox.shrink(),
+                borderRadius: BorderRadius.circular(AppRadius.md),
+                items: [
+                  DropdownMenuItem<String?>(value: null, child: Text(tr('All barangays'))),
+                  for (final b in _barangays) DropdownMenuItem<String?>(value: b, child: Text('Brgy. $b')),
+                ],
+                onChanged: (v) => setState(() => _barangay = v),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.md),
+          if (placed.isEmpty)
+            _Note(tr('No centre is on the map yet, so distances cannot be measured. Use the list and the barangay filter.'))
+          else
+            _NearestPanel(
+              locating: _locating,
+              here: _here,
+              hereFromGps: _hereFromGps,
+              accuracy: _accuracy,
+              problem: _problem,
+              nearest: nearest,
+              distanceLabel: _distanceLabel,
+              onFind: _findNearest,
+              onPick: _pickHere,
+              onClear: () => setState(() {
+                _here = null;
+                _problem = null;
+              }),
+              onOpen: _open,
+            ),
+          const SizedBox(height: AppSpacing.md),
+          if (_showMap)
+            _CentresMap(
+              centres: shown.where((c) => c.location != null).toList(),
+              unplaced: widget.centers.length - placed.length,
+              here: _here,
+              onOpen: _open,
+              onShowList: () => setState(() => _showMap = false),
+            )
+          else if (shown.isEmpty)
+            _Note(tr('No centre in this barangay.'))
+          else
+            for (final c in shown)
+              Padding(
+                padding: const EdgeInsets.only(bottom: AppSpacing.itemGap),
+                child: _CentreCard(
+                  centre: c,
+                  mine: _isMine(c),
+                  nearest: nearest?.centre == c,
+                  distanceLabel: _distanceLabel(c),
+                  onTap: () => _open(c),
                 ),
               ),
-              child: Row(
-                children: [
-                  Container(
-                    width: 38,
-                    height: 38,
-                    decoration: BoxDecoration(
-                      color: AppColors.brand50,
-                      borderRadius: BorderRadius.circular(AppRadius.sm),
-                    ),
-                    child: const Icon(Icons.home_work_outlined, size: 17, color: AppColors.brand600),
-                  ),
-                  const SizedBox(width: AppSpacing.md),
-                  Expanded(
+        ],
+      ],
+    );
+  }
+}
+
+class _Note extends StatelessWidget {
+  const _Note(this.text);
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
+    child: Text(text, style: AppTypography.helper),
+  );
+}
+
+/// "Find the nearest open centre": the phone's GPS, or a point chosen on
+/// the map when the phone cannot or may not say. The answer, and what a
+/// straight line does and does not mean.
+class _NearestPanel extends StatelessWidget {
+  const _NearestPanel({
+    required this.locating,
+    required this.here,
+    required this.hereFromGps,
+    required this.accuracy,
+    required this.problem,
+    required this.nearest,
+    required this.distanceLabel,
+    required this.onFind,
+    required this.onPick,
+    required this.onClear,
+    required this.onOpen,
+  });
+
+  final bool locating;
+  final GeoPoint? here;
+  final bool hereFromGps;
+  final double? accuracy;
+  final LocationProblem? problem;
+  final ({EvacuationCenter centre, double km})? nearest;
+  final String Function(EvacuationCenter) distanceLabel;
+  final VoidCallback onFind;
+  final VoidCallback onPick;
+  final VoidCallback onClear;
+  final void Function(EvacuationCenter) onOpen;
+
+  @override
+  Widget build(BuildContext context) {
+    final best = nearest;
+    return AppCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          AppButton(
+            // The website's shorter phrase: the long one is cut off in Filipino.
+            label: locating ? tr('Finding you…') : tr('Nearest open centre'),
+            icon: Icons.my_location_rounded,
+            fullWidth: true,
+            loading: locating,
+            onPressed: locating ? null : onFind,
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: onPick,
+                  icon: const Icon(Icons.map_outlined, size: 17),
+                  label: Text(tr('Choose my place on the map')),
+                ),
+              ),
+              if (here != null) TextButton(onPressed: onClear, child: Text(tr('Clear'))),
+            ],
+          ),
+          if (here == null && problem == null) ...[
+            const SizedBox(height: AppSpacing.xs),
+            Text(
+              tr('Your device asks before sharing your location; it is used only to measure distances.'),
+              style: AppTypography.captionSmallRegular.copyWith(color: AppColors.textMuted),
+            ),
+          ],
+          if (problem != null && here == null) ...[
+            const SizedBox(height: AppSpacing.xs),
+            Text(
+              locationProblemText(problem!, incident: false),
+              style: AppTypography.captionSmallRegular.copyWith(color: AppColors.amber700, fontWeight: FontWeight.w600),
+            ),
+          ],
+          if (here != null) ...[
+            const SizedBox(height: AppSpacing.xs),
+            Text(
+              hereFromGps
+                  ? locationFoundText(incident: false, accuracyM: accuracy)
+                  : tr('Measured from the point you chose on the map.'),
+              style: AppTypography.captionSmallRegular.copyWith(color: AppColors.textMuted),
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            if (best != null)
+              Material(
+                color: AppColors.emerald50,
+                borderRadius: BorderRadius.circular(AppRadius.md),
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(AppRadius.md),
+                  onTap: () => onOpen(best.centre),
+                  child: Padding(
+                    padding: const EdgeInsets.all(AppSpacing.md),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Row(
-                          children: [
-                            Flexible(
-                              child: Text(
-                                c.name,
-                                style: const TextStyle(fontSize: AppTextSize.helper, fontWeight: FontWeight.w600),
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                            if (c == nearest) ...[
-                              const SizedBox(width: AppSpacing.xs),
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xs, vertical: AppSpacing.xs),
-                                decoration: BoxDecoration(
-                                  color: AppColors.emerald50,
-                                  borderRadius: BorderRadius.circular(AppRadius.full),
-                                ),
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: const [
-                                    Icon(Icons.near_me_rounded, size: 10, color: AppColors.emerald700),
-                                    SizedBox(width: AppSpacing.xs),
-                                    Text(
-                                      'Nearest',
-                                      style: TextStyle(
-                                        fontSize: AppTextSize.fine,
-                                        fontWeight: FontWeight.w700,
-                                        color: AppColors.emerald700,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ],
-                        ),
-                        const SizedBox(height: AppSpacing.xs),
-                        Wrap(
-                          spacing: AppSpacing.xs,
-                          runSpacing: AppSpacing.xs,
-                          children: [
-                            _OpenChip(isOpen: c.isOpen),
-                            if (_isMine(c)) _Tag(tr('In your barangay'), AppColors.brand50, AppColors.brand700),
-                            if (c.occupancyWarning case final w?) _Tag(w, AppColors.amber50, AppColors.amber700),
-                          ],
-                        ),
-                        const SizedBox(height: AppSpacing.xs),
                         Text(
-                          [
-                            if (c.address != null) c.address!,
-                            'Brgy. ${c.barangay}',
-                            if (c.distanceKm != null) '${c.distanceKm!.toStringAsFixed(1)} km',
-                            // "Is there room?" is the question during an
-                            // evacuation: the live headcount when the backend
-                            // has one, capacity alone when it does not.
-                            c.hasLiveCapacityData && c.totalCapacity > 0
-                                ? '${c.currentOccupancy} of ${c.totalCapacity} people'
-                                : c.totalCapacity > 0
-                                ? 'Capacity: ${c.totalCapacity} people'
-                                : 'Capacity not listed',
-                            if (c.families != null) '${c.families} ${c.families == 1 ? 'family' : 'families'}',
-                          ].join(' · '),
-                          style: AppTypography.helper,
+                          tr('Nearest open centre').toUpperCase(),
+                          style: const TextStyle(fontSize: AppTextSize.fine, fontWeight: FontWeight.w700, color: AppColors.emerald700),
+                        ),
+                        const SizedBox(height: AppSpacing.xs),
+                        Text(best.centre.name, style: AppTypography.cardTitle),
+                        Text(
+                          '${distanceLabel(best.centre)} · Brgy. ${best.centre.barangay}',
+                          style: AppTypography.helper.copyWith(color: AppColors.emerald700),
                         ),
                       ],
                     ),
                   ),
-                  const Icon(Icons.chevron_right_rounded, color: AppColors.slate300),
-                ],
-              ),
+                ),
+              )
+            else
+              Text(tr('No open centre is on the map right now.'), style: AppTypography.helper),
+            const SizedBox(height: AppSpacing.sm),
+            Text(
+              tr('Distances are straight lines, not by road. The nearest is not always the safest or quickest to reach — follow the MDRRMO and your barangay officials.'),
+              style: AppTypography.captionSmallRegular.copyWith(color: AppColors.textMuted),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+/// The centres on a map: teal while open, slate when not; the resident's
+/// point in blue. A centre without a pin is not drawn and is counted below.
+class _CentresMap extends StatelessWidget {
+  const _CentresMap({required this.centres, required this.unplaced, required this.here, required this.onOpen, required this.onShowList});
+
+  final List<EvacuationCenter> centres;
+  final int unplaced;
+  final GeoPoint? here;
+  final void Function(EvacuationCenter) onOpen;
+  final VoidCallback onShowList;
+
+  @override
+  Widget build(BuildContext context) {
+    if (centres.isEmpty) {
+      return Row(
+        children: [
+          Expanded(child: _Note(tr('No centre is on the map yet. They are all in the list.'))),
+          TextButton(onPressed: onShowList, child: Text(tr('Show the list'))),
+        ],
+      );
+    }
+    final points = [for (final c in centres) c.location!, ?here];
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        ClipRRect(
+          borderRadius: BorderRadius.circular(AppRadius.lg),
+          child: SizedBox(
+            height: 340,
+            child: SakunaMap(
+              key: ValueKey(Object.hashAll(points)),
+              center: points.first,
+              fit: points,
+              semanticLabel: tr('Map of evacuation centres'),
+              pins: [
+                for (final c in centres)
+                  MapPin(
+                    point: c.location!,
+                    size: 30,
+                    label: '${c.name}, ${c.isOpen ? tr('Open now') : tr('Not open')}',
+                    onTap: () => onOpen(c),
+                    child: CentreMarker(open: c.isOpen),
+                  ),
+                if (here != null) MapPin(point: here!, size: 18, label: tr('You'), child: const HereMarker()),
+              ],
             ),
           ),
-        ],
+        ),
+        const SizedBox(height: AppSpacing.xs),
+        Text(
+          tr('Select a centre for its details. Green: open now. Grey: not open.'),
+          style: AppTypography.captionSmallRegular.copyWith(color: AppColors.textMuted),
+        ),
+        if (unplaced > 0)
+          Text(
+            '$unplaced ${tr('listed centre(s) are not on the map yet; they are in the list.')}',
+            style: AppTypography.captionSmallRegular.copyWith(color: AppColors.textMuted),
+          ),
       ],
+    );
+  }
+}
+
+class _CentreCard extends StatelessWidget {
+  const _CentreCard({required this.centre, required this.mine, required this.nearest, required this.distanceLabel, required this.onTap});
+
+  final EvacuationCenter centre;
+  final bool mine;
+  final bool nearest;
+  final String distanceLabel;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = centre;
+    return AppCard(
+      onTap: onTap,
+      child: Row(
+        children: [
+          Container(
+            width: 38,
+            height: 38,
+            decoration: BoxDecoration(color: AppColors.brand50, borderRadius: BorderRadius.circular(AppRadius.sm)),
+            child: const Icon(Icons.home_work_outlined, size: 17, color: AppColors.brand600),
+          ),
+          const SizedBox(width: AppSpacing.md),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  c.name,
+                  style: const TextStyle(fontSize: AppTextSize.helper, fontWeight: FontWeight.w600),
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: AppSpacing.xs),
+                Wrap(
+                  spacing: AppSpacing.xs,
+                  runSpacing: AppSpacing.xs,
+                  children: [
+                    _OpenChip(isOpen: c.isOpen),
+                    if (nearest) _Tag(tr('Nearest open'), AppColors.emerald50, AppColors.emerald700),
+                    if (mine) _Tag(tr('In your barangay'), AppColors.brand50, AppColors.brand700),
+                    if (c.occupancyWarning case final w?) _Tag(w, AppColors.amber50, AppColors.amber700),
+                  ],
+                ),
+                if (distanceLabel.isNotEmpty) ...[
+                  const SizedBox(height: AppSpacing.xs),
+                  Text(distanceLabel, style: AppTypography.helper.copyWith(fontWeight: FontWeight.w600, color: AppColors.textPrimary)),
+                ],
+                const SizedBox(height: AppSpacing.xs),
+                Text(
+                  [
+                    if (c.address != null) c.address!,
+                    'Brgy. ${c.barangay}',
+                    // "Is there room?" is the question during an
+                    // evacuation: the live headcount when the backend
+                    // has one, capacity alone when it does not.
+                    c.hasLiveCapacityData && c.totalCapacity > 0
+                        ? '${c.currentOccupancy} of ${c.totalCapacity} people'
+                        : c.totalCapacity > 0
+                        ? 'Capacity: ${c.totalCapacity} people'
+                        : 'Capacity not listed',
+                    if (c.families != null) '${c.families} ${c.families == 1 ? 'family' : 'families'}',
+                  ].join(' · '),
+                  style: AppTypography.helper,
+                ),
+              ],
+            ),
+          ),
+          const Icon(Icons.chevron_right_rounded, color: AppColors.slate300),
+        ],
+      ),
     );
   }
 }

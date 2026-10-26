@@ -204,9 +204,9 @@ void main() {
   });
 
   testWidgets('what, how serious and where are required; a retry reuses the client_uuid', (tester) async {
-    // A phone-tall screen: the form (with its photos field) is longer than
-    // the test's default 800x600 view.
-    tester.view.physicalSize = const Size(390, 1400);
+    // A phone-tall screen: the form (with its map location and photos
+    // fields) is longer than the test's default 800x600 view.
+    tester.view.physicalSize = const Size(390, 1800);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);

@@ -69,6 +69,13 @@
          request before this. -->
     <uses-permission android:name="android.permission.INTERNET" />
 
+    <!-- Sakuna's map (2026-10-26): "Use my location" pins an emergency, and
+         the nearest evacuation centre is measured from the phone. Asked for
+         only when the resident taps one of those, with an explanation first
+         (lib/services/device_location.dart); never in the background. -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+
     <!-- Required to query activities that can process text, see:
          https://developer.android.com/training/package-visibility and
          https://developer.android.com/reference/android/content/Intent#ACTION_PROCESS_TEXT.

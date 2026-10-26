@@ -46,7 +46,10 @@ status (Pending, In Progress, Verified, Failed, Requires Review, Revoked) is its
 apart from the residency `status`; never route it through AppStatus. Dokyu and Tulong need both a
 Verified identity and an approved account - the app takes `access_level` from the server.
 **iOS:** `didit_sdk` adds a native dependency and `NSMicrophoneUsageDescription`; the macOS lane
-must build and check iOS before the next iOS release.
+must build and check iOS before the next iOS release. The same holds for `geolocator`
+(Sakuna's map, 2026-10-26: `NSLocationWhenInUseUsageDescription`); see
+`Esperanza-Mobile-App/docs/SAKUNA_MAPS.md`. Map points are the backend's `lat`/`lng` pair
+(`lib/models/geo_point.dart`), both or neither; never place a record at a guessed point.
 
 **Check routes against the backend, not the spec.** Citizen-only routes live under
 `/citizen/...` in esperanza-backend `routes/api.php` (Balita likes and comments

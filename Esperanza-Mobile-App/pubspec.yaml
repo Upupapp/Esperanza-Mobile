@@ -62,6 +62,14 @@ dependencies:
   firebase_messaging: ^16.7.0
   flutter_local_notifications: ^22.3.2
   video_player: ^2.14.1
+  # Sakuna on a real map (2026-10-26): flutter_map draws OpenStreetMap tiles
+  # (pure Dart, no native map SDK, no API key); geolocator reads the phone's
+  # position for "Use my location" and the nearest centre. geolocator is a
+  # native plugin: the macOS lane builds and checks iOS before the next
+  # iOS release (NSLocationWhenInUseUsageDescription is in Info.plist).
+  flutter_map: ^8.3.2
+  latlong2: ^0.10.1
+  geolocator: ^14.0.2
 
 # Launcher icons are GENERATED, never hand-edited. Regenerate on either lane with:
 #

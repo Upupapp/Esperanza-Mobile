@@ -5,8 +5,10 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 
+import '../../models/geo_point.dart';
 import '../../models/incident_types.dart';
 import '../../services/api_client.dart';
+import '../../services/device_location.dart';
 import '../../services/citizen_session_service.dart';
 import '../../services/barangay_service.dart';
 import '../../services/requests_service.dart';
@@ -16,7 +18,9 @@ import '../../utils/cross_platform_image.dart';
 import '../../utils/protected_action.dart';
 import '../../widgets/app_button.dart';
 import '../../widgets/app_text_field.dart';
+import '../../widgets/sakuna_map.dart';
 import '../shared/request_submitted_screen.dart';
+import 'location_picker_screen.dart';
 import '../../theme/app_typography.dart';
 
 import '../../l10n/tr.dart';
@@ -53,6 +57,14 @@ class _ReportIncidentScreenState extends State<ReportIncidentScreen> {
   String? _barangay;
   bool _submitting = false;
   String? _error;
+
+  /// Where the emergency is on the map (2026-10-26): pinned by hand or from
+  /// the phone. Optional, so a phone that cannot find itself never holds a
+  /// report up; the barangay and the written place go either way.
+  GeoPoint? _location;
+  bool _locating = false;
+  String? _locationNote;
+  bool _locationTrouble = false;
 
   /// Photos of what is happening, so responders see it before they set out
   /// (scope round 2026-10-15). Optional: a report must never wait on one.
@@ -95,6 +107,36 @@ class _ReportIncidentScreenState extends State<ReportIncidentScreen> {
     setState(() => _photos.add((bytes: bytes, name: file.name.isEmpty ? 'incident-photo.jpg' : file.name)));
   }
 
+  Future<void> _pinOnMap() async {
+    final picked = await Navigator.of(context).push<GeoPoint>(
+      MaterialPageRoute(builder: (_) => LocationPickerScreen(initial: _location)),
+    );
+    if (!mounted || picked == null) return;
+    setState(() {
+      _location = picked;
+      _locationNote = null;
+      _locationTrouble = false;
+    });
+  }
+
+  Future<void> _useMyLocation() async {
+    if (_locating) return;
+    setState(() => _locating = true);
+    final result = await DeviceLocation.ask(context);
+    if (!mounted) return;
+    setState(() {
+      _locating = false;
+      if (result.point case final p?) {
+        _location = p;
+        _locationTrouble = false;
+        _locationNote = locationFoundText(incident: true, accuracyM: result.accuracyM);
+      } else if (result.problem case final problem?) {
+        _locationTrouble = true;
+        _locationNote = locationProblemText(problem, incident: true);
+      }
+    });
+  }
+
   Future<void> _submit() async {
     if (_type == null) {
       setState(() => _error = 'Choose what is happening.');
@@ -118,6 +160,7 @@ class _ReportIncidentScreenState extends State<ReportIncidentScreen> {
         barangay: _barangay!,
         sitio: sitio,
         description: _description.text,
+        location: _location,
         clientUuid: _clientUuid,
         photos: [for (final p in _photos) (bytes: p.bytes, filename: p.name)],
       );
@@ -204,6 +247,21 @@ class _ReportIncidentScreenState extends State<ReportIncidentScreen> {
             ),
             const SizedBox(height: AppSpacing.lg),
             AppTextField(label: tr('Sitio / purok / landmark (optional)'), controller: _sitio),
+            const SizedBox(height: AppSpacing.lg),
+            _IncidentLocationField(
+              location: _location,
+              locating: _locating,
+              note: _locationNote,
+              trouble: _locationTrouble,
+              enabled: !_submitting,
+              onPin: _pinOnMap,
+              onUseMyLocation: _useMyLocation,
+              onRemove: () => setState(() {
+                _location = null;
+                _locationNote = null;
+                _locationTrouble = false;
+              }),
+            ),
             const SizedBox(height: AppSpacing.lg),
             AppTextField(
               label: tr('What is happening? (optional)'),
@@ -320,6 +378,118 @@ class _IncidentTypeTile extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// Where the emergency is on the map: a pin, the phone's location, or none.
+/// Says plainly when nothing is pinned, and that the report goes anyway.
+class _IncidentLocationField extends StatelessWidget {
+  const _IncidentLocationField({
+    required this.location,
+    required this.locating,
+    required this.note,
+    required this.trouble,
+    required this.enabled,
+    required this.onPin,
+    required this.onUseMyLocation,
+    required this.onRemove,
+  });
+
+  final GeoPoint? location;
+  final bool locating;
+  final String? note;
+  final bool trouble;
+  final bool enabled;
+  final VoidCallback onPin;
+  final VoidCallback onUseMyLocation;
+  final VoidCallback onRemove;
+
+  @override
+  Widget build(BuildContext context) {
+    final point = location;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text.rich(
+          TextSpan(
+            text: tr('Map location'),
+            children: [
+              TextSpan(
+                text: ' ${tr('(optional)')}',
+                style: const TextStyle(fontWeight: FontWeight.w400, color: AppColors.textMuted),
+              ),
+            ],
+          ),
+          style: const TextStyle(fontSize: AppTextSize.body, fontWeight: FontWeight.w600),
+        ),
+        const SizedBox(height: AppSpacing.xs),
+        if (point == null)
+          Text(
+            tr('No map location selected. The barangay and the place you typed are still sent.'),
+            style: AppTypography.captionSmallRegular.copyWith(color: AppColors.textMuted),
+          )
+        else ...[
+          Text(
+            '${tr('Pinned at')} ${point.text}',
+            style: AppTypography.captionSmallRegular.copyWith(color: AppColors.emerald700, fontWeight: FontWeight.w600),
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          // The pin, small; tapping it opens the map to move it.
+          Semantics(
+            button: true,
+            label: tr('Show on map'),
+            child: GestureDetector(
+              onTap: enabled ? onPin : null,
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(AppRadius.md),
+                child: SizedBox(
+                  height: 150,
+                  child: AbsorbPointer(
+                    child: SakunaMap(
+                      key: ValueKey(point),
+                      center: point,
+                      zoom: 16,
+                      interactive: false,
+                      pins: [MapPin(point: point, size: 36, tipAtPoint: true, child: const PlacePin(size: 36))],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+        if (note != null) ...[
+          const SizedBox(height: AppSpacing.xs),
+          Text(
+            note!,
+            style: AppTypography.captionSmallRegular.copyWith(
+              color: trouble ? AppColors.amber700 : AppColors.textMuted,
+              fontWeight: trouble ? FontWeight.w600 : FontWeight.w400,
+            ),
+          ),
+        ],
+        const SizedBox(height: AppSpacing.sm),
+        Wrap(
+          spacing: AppSpacing.sm,
+          runSpacing: AppSpacing.sm,
+          children: [
+            OutlinedButton.icon(
+              onPressed: enabled ? onPin : null,
+              icon: const Icon(Icons.map_outlined, size: 17),
+              label: Text(point == null ? tr('Pin on map') : tr('Show on map')),
+            ),
+            OutlinedButton.icon(
+              onPressed: enabled && !locating ? onUseMyLocation : null,
+              icon: locating
+                  ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                  : const Icon(Icons.my_location_rounded, size: 17),
+              label: Text(locating ? tr('Finding you…') : tr('Use my location')),
+            ),
+            if (point != null) TextButton(onPressed: enabled ? onRemove : null, child: Text(tr('Remove pin'))),
+          ],
+        ),
+      ],
     );
   }
 }

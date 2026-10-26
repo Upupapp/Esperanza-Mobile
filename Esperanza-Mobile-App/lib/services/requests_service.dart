@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 
 import 'api_client.dart';
 import 'json_read.dart';
+import '../models/geo_point.dart';
 import '../models/incident_status.dart';
 import '../models/incident_types.dart';
 import '../models/request_release.dart';
@@ -210,7 +211,9 @@ class RequestsService extends ChangeNotifier {
   /// filing a second one (201), so the caller must reuse it across retries of
   /// the same report. [barangay] must be one of the backend's canonical
   /// barangays (validated with `exists:barangays,name`). [photos], up to
-  /// three, go with it as a form (scope round 2026-10-15).
+  /// three, go with it as a form (scope round 2026-10-15). [location] is
+  /// where the emergency is on the map (2026-10-26): `lat` and `lng` go
+  /// together, or neither does.
   Future<ServiceRequest> reportIncident({
     required String type,
     required String title,
@@ -218,6 +221,7 @@ class RequestsService extends ChangeNotifier {
     required String barangay,
     String? sitio,
     String? description,
+    GeoPoint? location,
     required String clientUuid,
     List<({List<int> bytes, String filename})> photos = const [],
   }) async {
@@ -228,6 +232,7 @@ class RequestsService extends ChangeNotifier {
       'barangay': barangay,
       if (sitio != null && sitio.trim().isNotEmpty) 'sitio': sitio.trim(),
       if (description != null && description.trim().isNotEmpty) 'description': description.trim(),
+      ...?location?.toFields(),
       'client_uuid': clientUuid,
     };
     final res = photos.isEmpty
@@ -304,7 +309,8 @@ class RequestsService extends ChangeNotifier {
       ..incidentPhotoRefused = [
         for (final photo in JsonRead.list(json['photos']))
           if (photo is Map) const {'infected', 'error'}.contains(JsonRead.string(photo['scan'])),
-      ];
+      ]
+      ..incidentLocation = GeoPoint.fromJson(json);
   }
 
   /// incident(): ref/title/type/severity/barangay/status/source/reported.

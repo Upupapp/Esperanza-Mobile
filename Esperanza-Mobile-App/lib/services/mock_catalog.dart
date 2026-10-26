@@ -2312,11 +2312,9 @@ class MockCatalog {
     ),
   ];
 
-  /// `distanceKm` is a simulated value standing in for real device
-  /// geolocation (this app has no `geolocator`/location-permission
-  /// integration wired up — see EvacuationCenterDetailScreen's doc
-  /// comment for why, and what a real integration would need to
-  /// replace). `currentOccupancy` is deliberately left unset everywhere:
+  /// No `location`: these demo centres were never pinned, and a place is
+  /// never made up (Sakuna's map, 2026-10-26). `currentOccupancy` is
+  /// deliberately left unset everywhere:
   /// there is no live capacity feed, and the emergency spec explicitly
   /// forbids inventing one — the detail screen shows "Capacity
   /// information unavailable" instead.
@@ -2325,7 +2323,6 @@ class MockCatalog {
       name: 'Poblacion Covered Court',
       barangay: 'Poblacion',
       totalCapacity: 300,
-      distanceKm: 0.8,
       services: ['Emergency Shelter', 'Medical Aid Station', 'Relief Goods Distribution'],
       amenities: ['Restrooms', 'Drinking Water', 'Electricity', 'Covered Sleeping Area'],
       contactNumber: '(056) 333-1090',
@@ -2334,7 +2331,6 @@ class MockCatalog {
       name: 'Santiago Elementary School',
       barangay: 'Santiago',
       totalCapacity: 180,
-      distanceKm: 2.4,
       services: ['Emergency Shelter', 'Feeding Program'],
       amenities: ['Restrooms', 'Drinking Water', 'Classrooms for Families'],
       contactNumber: '(056) 333-1056',
@@ -2343,7 +2339,6 @@ class MockCatalog {
       name: 'Labangtaytay Barangay Hall',
       barangay: 'Labangtaytay',
       totalCapacity: 120,
-      distanceKm: 4.1,
       services: ['Emergency Shelter'],
       amenities: ['Restrooms', 'Drinking Water'],
       contactNumber: '(056) 333-1021',

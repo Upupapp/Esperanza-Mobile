@@ -63,7 +63,7 @@ void main() {
 
     // Each hotline is its own node, not merged into the section around it.
     expect(tester.getSemantics(call).label, startsWith('Call Esperanza Police Station'));
-    expect(tester.getSemantics(find.text('Evacuation Centers')).flagsCollection.isButton, isFalse);
+    expect(tester.getSemantics(find.text('Evacuation Centres')).flagsCollection.isButton, isFalse);
 
     // The website's wording: people, and capacity when there is no count.
     expect(find.textContaining('120 of 300 people'), findsOneWidget);

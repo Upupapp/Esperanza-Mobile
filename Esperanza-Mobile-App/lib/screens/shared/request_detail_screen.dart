@@ -9,6 +9,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../models/attachment.dart';
 import '../../models/catalog_item.dart';
 import '../../models/request_milestones.dart';
+import '../../widgets/sakuna_map.dart';
 import '../../models/service_request.dart';
 import '../../services/api_client.dart';
 import '../../services/citizen_session_service.dart';
@@ -364,6 +365,26 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
               if (request.incidentPhotos.isNotEmpty) ...[
                 const SizedBox(height: AppSpacing.md),
                 _IncidentPhotos(urls: request.incidentPhotos, refused: request.incidentPhotoRefused),
+              ],
+              // Where the resident pinned it, as the website's My Report.
+              if (request.incidentLocation case final at?) ...[
+                const SizedBox(height: AppSpacing.md),
+                Text(tr('Map location'), style: AppTypography.cardTitle),
+                const SizedBox(height: AppSpacing.sm),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(AppRadius.md),
+                  child: SizedBox(
+                    height: 170,
+                    child: SakunaMap(
+                      center: at,
+                      zoom: 16,
+                      semanticLabel: tr('Map showing where you pinned the report'),
+                      pins: [MapPin(point: at, size: 36, tipAtPoint: true, child: const PlacePin(size: 36))],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.xs),
+                Text(at.text, style: AppTypography.helper),
               ],
               const Divider(height: AppSpacing.xxl),
               _infoRow('Submitted', dateAndTime(request.submittedAt)),
