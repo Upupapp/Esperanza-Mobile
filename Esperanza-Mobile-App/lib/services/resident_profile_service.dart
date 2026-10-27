@@ -288,6 +288,7 @@ class ResidentProfileService extends ChangeNotifier {
       monthlyIncome: household.monthlyIncome,
       familyIds: [_verifiedDemoFamilyId],
       otherFamilies: household.otherFamilies,
+      registryCode: household.registryCode,
     );
     _profiles[_verifiedDemoAccountId] = ResidentProfile(
       citizenAccountId: p.citizenAccountId,
@@ -465,6 +466,8 @@ class ResidentProfileService extends ChangeNotifier {
     final res = await api.put('/citizen/resident-profile', body: _payloadFor(p));
     _applyServerStatus(p, res.map);
     _takeMemberRefs(p, res.map);
+    // Sending the household part is what creates its code on the server.
+    _takeHouseholdCode(p, res.map);
     p.correctionMessage = null;
     p.submittedAt ??= DateTime.now();
     await _save(p);
@@ -481,6 +484,7 @@ class ResidentProfileService extends ChangeNotifier {
     final res = await api.get('/citizen/resident-profile');
     if (res.data == null) return;
     var changed = _applyServerStatus(p, res.map);
+    changed = _takeHouseholdCode(p, res.map) || changed;
     final onServer = p.status == VerificationStatus.verified ||
         p.status == VerificationStatus.pendingVerification ||
         p.status == VerificationStatus.needsCorrection;
@@ -567,6 +571,15 @@ class ResidentProfileService extends ChangeNotifier {
       }
       p.familySaved = true;
     }
+  }
+
+  /// The household's registry code, always as the server has it now (it is
+  /// assigned there, never typed here); true when it changed.
+  bool _takeHouseholdCode(ResidentProfile p, Map<String, dynamic> view) {
+    final code = JsonRead.nonEmpty(JsonRead.map(view['household'])?['ref']);
+    if (code == p.household.registryCode) return false;
+    p.household.registryCode = code;
+    return true;
   }
 
   /// Gives each family member here the server's reference for the same

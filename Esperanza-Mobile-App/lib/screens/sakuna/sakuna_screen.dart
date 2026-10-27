@@ -19,6 +19,7 @@ import '../../widgets/async_state_view.dart';
 import '../home/root_shell.dart';
 import '../shared/request_list_screen.dart';
 import 'evacuation_center_detail_screen.dart';
+import 'my_shelter_screen.dart';
 import '../../services/json_read.dart';
 import '../../utils/phone_dial.dart';
 import '../../services/requests_service.dart';
@@ -200,6 +201,21 @@ class _SakunaScreenState extends State<SakunaScreen> {
                     ),
                   ),
                 ),
+              ),
+            ),
+            const SizedBox(height: AppSpacing.itemGap),
+            // The family's own stays and relief, confirming an item came, and
+            // a household list kept ready (2026-10-27, Phase 3).
+            AppButton(
+              label: tr('My Shelter and Relief'),
+              icon: Icons.family_restroom_rounded,
+              variant: AppButtonVariant.secondary,
+              fullWidth: true,
+              onPressed: () => requireAccountForBalita(
+                context,
+                'Your shelter and relief records',
+                minLevel: AccessLevel.unverified,
+                () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const MyShelterScreen())),
               ),
             ),
             const SizedBox(height: AppSpacing.xxl),

@@ -32,7 +32,12 @@ class _AsyncStateViewState<T> extends State<AsyncStateView<T>> {
     _future = widget.loader();
   }
 
-  void _reload() => setState(() => _future = widget.loader());
+  // A block, not an arrow: an arrow returns the assigned Future, which
+  // setState refuses (an assertion in debug builds, hit by every Retry and
+  // by a screen reloading itself, 2026-10-27).
+  void _reload() => setState(() {
+    _future = widget.loader();
+  });
 
   @override
   Widget build(BuildContext context) {

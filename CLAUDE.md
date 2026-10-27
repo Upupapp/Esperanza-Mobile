@@ -38,7 +38,10 @@ likes, comments; only the LGU posts, owner 2026-10-20), events, directory, hotli
 centres, Sakuna incident reports, notifications, profile edits (with verify-by-code contact
 changes), resident profile submission and status, the Digital ID (with its signed QR), Report
 a Problem (support tickets), notification preferences, change password and data-subject
-requests (Settings), the published Privacy Policy and the Master File (the Papeles wallet). Nothing citizen-facing
+requests (Settings), the published Privacy Policy, the Master File (the Papeles wallet), and the
+family's own shelter stays and relief (Sakuna > My Shelter and Relief, 2026-10-27:
+`lib/services/shelter_records_service.dart`; confirming an item sits beside the paper
+signature, never replaces it; the household list stays off until the LGU's DPO agrees). Nothing citizen-facing
 is simulated any more: since 2026-10-09 the registration ID and face check is real too - Didit's
 capture screen (`didit_sdk`, `lib/services/identity_capture.dart`) when the server's
 `identity_capture` is `hosted`, the app's own ID and selfie steps when it is `own`. The identity

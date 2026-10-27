@@ -8,6 +8,7 @@ import '../../../theme/app_colors.dart';
 import '../../../theme/app_spacing.dart';
 import '../../../widgets/app_button.dart';
 import '../../../widgets/app_card.dart';
+import '../../../widgets/household_code_card.dart';
 import '../../../widgets/section_status_chip.dart';
 import 'family_information_screen.dart';
 import 'household_information_screen.dart';
@@ -66,6 +67,14 @@ class _ResidentProfileOverviewScreenState extends State<ResidentProfileOverviewS
             ),
             const SizedBox(height: AppSpacing.lg),
             _ProgressCard(profile: profile),
+            // The household's registry code, once the server has one (2026-10-27).
+            if (profile.household.registryCode != null) ...[
+              const SizedBox(height: AppSpacing.md),
+              HouseholdCodeCard(
+                code: profile.household.registryCode!,
+                verified: profile.status == VerificationStatus.verified,
+              ),
+            ],
             if (profiles.registryMatchPending) ...[
               const SizedBox(height: AppSpacing.md),
               const RegistryMatchNote(RegistryMatchNote.onProfile),

@@ -118,8 +118,10 @@ def app_phrases():
     for path in files(LIB, ('.dart',)):
         if path == OUT:
             continue
-        for m in re.finditer(r'\btr\(\s*' + SQ + r'\s*\)', open(path, encoding='utf-8').read()):
-            found.add(unjs(m.group(1)))
+        # Single or double quotes: a phrase with an apostrophe is written
+        # tr("Your family's ...") and was missed (2026-10-27).
+        for m in re.finditer(r'\btr\(\s*(?:' + SQ + '|' + DQ + r')\s*\)', open(path, encoding='utf-8').read()):
+            found.add(unjs(m.group(1) if m.group(1) is not None else m.group(2)))
     return found
 
 

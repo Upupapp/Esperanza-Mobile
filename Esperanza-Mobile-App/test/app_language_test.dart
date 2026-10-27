@@ -52,11 +52,13 @@ void main() {
 
   test('every Filipino entry is a phrase the app shows through tr()', () {
     final used = <String>{};
-    final literal = RegExp(r"\btr\(\s*'((?:[^'\\]|\\.)*)'\s*\)");
+    // Single or double quotes, as tool/l10n/build_filipino.py reads them: a
+    // phrase with an apostrophe is written tr("Your family's ...").
+    final literal = RegExp(r"""\btr\(\s*(?:'((?:[^'\\]|\\.)*)'|"((?:[^"\\]|\\.)*)")\s*\)""");
     for (final f in Directory('lib').listSync(recursive: true).whereType<File>()) {
       if (!f.path.endsWith('.dart')) continue;
       for (final m in literal.allMatches(f.readAsStringSync())) {
-        used.add(m.group(1)!.replaceAllMapped(RegExp(r'\\(.)'), (x) => x.group(1)!));
+        used.add((m.group(1) ?? m.group(2))!.replaceAllMapped(RegExp(r'\\(.)'), (x) => x.group(1)!));
       }
     }
     final stale = filipinoText.keys.where((k) => !used.contains(k)).toList();

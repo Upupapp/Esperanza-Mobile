@@ -9,6 +9,7 @@ import '../../../widgets/app_button.dart';
 import '../../../widgets/app_dialogs.dart';
 import '../../../widgets/app_text_field.dart';
 import '../../../widgets/form_section.dart';
+import '../../../widgets/household_code_card.dart';
 import '../../../widgets/resident_profile_lock_note.dart';
 import '../../../theme/app_typography.dart';
 
@@ -82,6 +83,7 @@ class _HouseholdInformationScreenState extends State<HouseholdInformationScreen>
       hasInternetAccess: _original.hasInternetAccess,
       familyIds: _original.familyIds,
       otherFamilies: _original.otherFamilies,
+      registryCode: _original.registryCode,
     );
     await context.read<ResidentProfileService>().saveHousehold(_accountId, updated, markComplete: markComplete);
     if (!mounted) return;
@@ -111,6 +113,14 @@ class _HouseholdInformationScreenState extends State<HouseholdInformationScreen>
                   style: TextStyle(fontSize: AppTextSize.label, color: AppColors.brand700, height: 1.4),
                 ),
               ),
+              // The registry's code, as the server assigned it (2026-10-27).
+              if (profile.household.registryCode != null) ...[
+                const SizedBox(height: AppSpacing.md),
+                HouseholdCodeCard(
+                  code: profile.household.registryCode!,
+                  verified: profile.status == VerificationStatus.verified,
+                ),
+              ],
               if (locked) ...[
                 const SizedBox(height: AppSpacing.md),
                 ResidentProfileLockNote(status: profile.status),

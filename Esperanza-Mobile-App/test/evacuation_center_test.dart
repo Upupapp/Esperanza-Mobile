@@ -76,6 +76,10 @@ void main() {
   testWidgets('tapping a center opens its detail screen with real services and live occupancy', (tester) async {
     await pumpSakuna(tester);
 
+    // Below the fold since "My Shelter and Relief" sits under Report an
+    // Incident (2026-10-27): a tap off screen is silently missed.
+    await tester.ensureVisible(find.text('Poblacion Covered Court'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Poblacion Covered Court'));
     await tester.pumpAndSettle();
 

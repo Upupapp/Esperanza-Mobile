@@ -20,6 +20,7 @@ import '../screens/appointments/appointments_screen.dart';
 import '../screens/profile/data_requests_screen.dart';
 import '../screens/home/root_shell.dart';
 import '../screens/support/support_tickets_screen.dart';
+import '../screens/sakuna/my_shelter_screen.dart';
 
 /// Timestamp for evergreen/contextual notifications that have no real event
 /// of their own (a profile-completion reminder, a duplicate-account alert)
@@ -321,6 +322,8 @@ Widget? serverNotificationDestination(ServerNotification n) {
     // A Sakuna alert (AlertService) and appointment changes (AppointmentBook)
     // led nowhere in the app (parity check, 2026-10-22).
     '/citizen/emergency' => const ShellTabLink(tab: 3),
+    // Relief released to the family: confirm whether it came (2026-10-27).
+    '/citizen/emergency#my-records' => const MyShelterScreen(),
     '/citizen/appointments' => const AppointmentsScreen(),
     // A data or name-change request answered (RecordsController): the
     // website keeps them in Settings; the app, in My data requests.

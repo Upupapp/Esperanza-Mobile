@@ -406,6 +406,12 @@ class Household {
   List<SimpleFamilyRef> otherFamilies;
   final String source;
 
+  /// The household's code in the barangay's resident registry
+  /// (e.g. HH-2026-0004), as the server holds it: shown to the resident, never
+  /// typed here. Null until the server has one (2026-10-27). [householdId]
+  /// is this phone's own key, not this code.
+  String? registryCode;
+
   Household({
     required this.householdId,
     this.barangay = '',
@@ -422,6 +428,7 @@ class Household {
     List<String>? familyIds,
     List<SimpleFamilyRef>? otherFamilies,
     this.source = RecordSource.mobileApp,
+    this.registryCode,
   })  : familyIds = familyIds ?? [],
         otherFamilies = otherFamilies ?? [];
 
@@ -441,6 +448,7 @@ class Household {
         'familyIds': familyIds,
         'otherFamilies': otherFamilies.map((f) => f.toJson()).toList(),
         'source': source,
+        'registryCode': registryCode,
       };
 
   factory Household.fromJson(Map<String, dynamic> json) => Household(
@@ -459,6 +467,7 @@ class Household {
         familyIds: (json['familyIds'] as List?)?.cast<String>() ?? [],
         otherFamilies: (json['otherFamilies'] as List? ?? []).map((f) => SimpleFamilyRef.fromJson(f)).toList(),
         source: json['source'] ?? RecordSource.mobileApp,
+        registryCode: json['registryCode'] is String ? json['registryCode'] as String : null,
       );
 }
 
