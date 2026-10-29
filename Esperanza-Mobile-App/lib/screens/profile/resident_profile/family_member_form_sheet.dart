@@ -5,6 +5,7 @@ import '../../../theme/app_spacing.dart';
 import '../../../widgets/app_button.dart';
 import '../../../widgets/app_date_field.dart';
 import '../../../widgets/app_text_field.dart';
+import '../../../widgets/livelihood_picker.dart';
 import '../../../theme/app_typography.dart';
 
 import '../../../l10n/tr.dart';
@@ -25,7 +26,10 @@ class FamilyMemberFormSheet extends StatefulWidget {
 
 class _FamilyMemberFormSheetState extends State<FamilyMemberFormSheet> {
   late final TextEditingController _fullName;
-  late final TextEditingController _occupation;
+  // The occupation on the DRRM list (owner, 2026-10-29).
+  late String _lvCode;
+  late String _lvOther;
+  bool _lvChanged = false;
   String? _relationship;
   String? _sex;
   String? _civilStatus;
@@ -38,7 +42,8 @@ class _FamilyMemberFormSheetState extends State<FamilyMemberFormSheet> {
     super.initState();
     final e = widget.existing;
     _fullName = TextEditingController(text: e?.firstName ?? '');
-    _occupation = TextEditingController(text: e?.occupation ?? '');
+    _lvCode = e?.livelihoodCode ?? '';
+    _lvOther = e?.livelihoodOther ?? '';
     _relationship = (e?.relationshipToHead.isEmpty ?? true) ? null : e!.relationshipToHead;
     _sex = (e?.sex.isEmpty ?? true) ? null : e!.sex;
     _civilStatus = (e?.civilStatus.isEmpty ?? true) ? null : e!.civilStatus;
@@ -49,7 +54,6 @@ class _FamilyMemberFormSheetState extends State<FamilyMemberFormSheet> {
   @override
   void dispose() {
     _fullName.dispose();
-    _occupation.dispose();
     super.dispose();
   }
 
@@ -65,7 +69,10 @@ class _FamilyMemberFormSheetState extends State<FamilyMemberFormSheet> {
       sex: _sex ?? '',
       birthdate: _birthdate,
       civilStatus: _civilStatus ?? '',
-      occupation: _occupation.text.trim(),
+      occupation: widget.existing?.occupation ?? '',
+      livelihoodCode: _lvCode,
+      livelihoodOther: _lvOther,
+      livelihoodChanged: _lvChanged || (widget.existing?.livelihoodChanged ?? false),
       relationshipToHead: _relationship ?? '',
       hasEsperanzaAccount: _hasAccount,
     );
@@ -163,7 +170,16 @@ class _FamilyMemberFormSheetState extends State<FamilyMemberFormSheet> {
                           onChanged: (v) => setState(() => _civilStatus = v),
                         ),
                         const SizedBox(height: AppSpacing.fieldGap),
-                        AppTextField(label: tr('Occupation'), controller: _occupation, icon: Icons.work_outline_rounded),
+                        LivelihoodPicker(
+                          code: _lvCode,
+                          other: _lvOther,
+                          previousText: widget.existing?.occupation ?? '',
+                          onChanged: (code, other) => setState(() {
+                            _lvCode = code;
+                            _lvOther = other;
+                            _lvChanged = true;
+                          }),
+                        ),
                         const SizedBox(height: AppSpacing.fieldGap),
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.xs),

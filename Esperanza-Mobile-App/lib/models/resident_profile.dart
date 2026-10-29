@@ -14,6 +14,7 @@
 /// - One Household can reference more than one Family.
 library;
 
+import '../services/json_read.dart';
 import '../utils/age_calculator.dart';
 import 'citizen_account.dart';
 
@@ -76,6 +77,13 @@ class Individual {
   String sitioPurok;
   String completeAddress;
   String occupation;
+
+  /// The occupation on the DRRM list (owner, 2026-10-29): its code, the
+  /// words for an "Others, specify" item, and whether the person changed the
+  /// choice here, so an unchanged choice is not sent again as a new one.
+  String livelihoodCode;
+  String livelihoodOther;
+  bool livelihoodChanged;
   String educationalAttainment;
 
   /// A married woman's birth surname — distinct from [lastName] (her
@@ -156,6 +164,9 @@ class Individual {
     this.sitioPurok = '',
     this.completeAddress = '',
     this.occupation = '',
+    this.livelihoodCode = '',
+    this.livelihoodOther = '',
+    this.livelihoodChanged = false,
     this.educationalAttainment = '',
     this.maidenName = '',
     this.placeOfBirth = '',
@@ -208,6 +219,9 @@ class Individual {
         'sitioPurok': sitioPurok,
         'completeAddress': completeAddress,
         'occupation': occupation,
+        'livelihoodCode': livelihoodCode,
+        'livelihoodOther': livelihoodOther,
+        'livelihoodChanged': livelihoodChanged,
         'educationalAttainment': educationalAttainment,
         'maidenName': maidenName,
         'placeOfBirth': placeOfBirth,
@@ -249,6 +263,9 @@ class Individual {
         sitioPurok: json['sitioPurok'] ?? '',
         completeAddress: json['completeAddress'] ?? '',
         occupation: json['occupation'] ?? '',
+        livelihoodCode: JsonRead.string(json['livelihoodCode']) ?? '',
+        livelihoodOther: JsonRead.string(json['livelihoodOther']) ?? '',
+        livelihoodChanged: JsonRead.boolean(json['livelihoodChanged']) ?? false,
         educationalAttainment: json['educationalAttainment'] ?? '',
         maidenName: json['maidenName'] ?? '',
         placeOfBirth: json['placeOfBirth'] ?? '',
@@ -582,6 +599,8 @@ class ResidentProfile {
         sitioPurok: account.purok == '—' ? '' : account.purok,
         completeAddress: account.address,
         occupation: account.occupation == '—' ? '' : account.occupation,
+        livelihoodCode: account.livelihood?.code ?? '',
+        livelihoodOther: account.livelihood?.other ?? '',
         householdId: householdId,
       ),
       familyName: '${account.lastName} Family',

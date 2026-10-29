@@ -316,7 +316,9 @@ void main() {
       final expectedAge = calculateAge(_verifiedDemoDob);
       expect(find.text('$expectedAge years old'), findsOneWidget);
       expect(find.text('Single'), findsWidgets);
-      expect(find.text('Student'), findsWidgets);
+      // The occupation is the DRRM picker now; with no list in a test, the
+      // recorded words show as its reminder (owner, 2026-10-29).
+      expect(find.textContaining('Student'), findsWidgets);
       expect(find.text('Senior High School'), findsOneWidget);
       expect(find.text('4Ps Beneficiary'), findsOneWidget);
       expect(tester.takeException(), isNull);

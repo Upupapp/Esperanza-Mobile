@@ -44,13 +44,17 @@ Future<void> _pump(WidgetTester tester, String status) async {
   await tester.pumpAndSettle();
 }
 
+/// The barangay dropdown, told apart from the occupation's by its label.
+final _barangayPicker = find.byWidgetPredicate((w) => w is AppSelectField<String> && w.label == 'Barangay');
+
 /// The grey box a locked value sits in.
 Finder _boxOf(String value) => find.ancestor(of: find.text(value), matching: find.byType(Container)).first;
 
 void main() {
   testWidgets('a verified account sees name and barangay as the same kind of locked field', (tester) async {
     await _pump(tester, 'Approved');
-    expect(find.byType(AppSelectField<String>), findsNothing);
+    // No barangay picker (the occupation's two DRRM dropdowns are not it).
+    expect(_barangayPicker, findsNothing);
 
     final name = tester.getSize(_boxOf('Testa Sintetiko'));
     final barangay = tester.getSize(_boxOf('Poblacion'));
@@ -66,7 +70,7 @@ void main() {
 
   testWidgets('an unverified account can still pick its barangay', (tester) async {
     await _pump(tester, 'Pending Review');
-    expect(find.byType(AppSelectField<String>), findsOneWidget);
+    expect(_barangayPicker, findsOneWidget);
     expect(find.text('Verified accounts update their barangay through the barangay office.'), findsNothing);
   });
 }

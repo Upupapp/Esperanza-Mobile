@@ -10,6 +10,7 @@ import '../../utils/ph_mobile.dart';
 import '../../widgets/app_button.dart';
 import '../../widgets/app_dialogs.dart';
 import '../../widgets/app_text_field.dart';
+import '../../widgets/livelihood_picker.dart';
 import '../../theme/app_typography.dart';
 import 'name_change_request.dart';
 
@@ -30,7 +31,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   late final TextEditingController _firstName;
   late final TextEditingController _lastName;
   late final TextEditingController _mobile;
-  late final TextEditingController _occupation;
+  // The occupation on the DRRM list (owner, 2026-10-29).
+  late String _lvCode;
+  late String _lvOther;
   late final TextEditingController _address;
   late String _barangay;
   bool _saving = false;
@@ -42,7 +45,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     _firstName = TextEditingController(text: _original.firstName);
     _lastName = TextEditingController(text: _original.lastName);
     _mobile = TextEditingController(text: PhMobile.normalise(_original.mobile));
-    _occupation = TextEditingController(text: _original.occupation == '—' ? '' : _original.occupation);
+    _lvCode = _original.livelihood?.code ?? '';
+    _lvOther = _original.livelihood?.other ?? '';
     _address = TextEditingController(text: _original.address == '—' ? '' : _original.address);
     _barangay = _original.barangay;
   }
@@ -52,7 +56,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     _firstName.dispose();
     _lastName.dispose();
     _mobile.dispose();
-    _occupation.dispose();
     _address.dispose();
     super.dispose();
   }
@@ -83,8 +86,11 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     // and rebuilt the address, overwriting one typed on the website
     // (parity check, 2026-10-26). Barangay goes on its own.
     if (_address.text.trim() != orig(_original.address).trim()) changes['address'] = blankToNull(_address.text);
-    if (_occupation.text.trim() != orig(_original.occupation).trim()) {
-      changes['occupation'] = blankToNull(_occupation.text);
+    // Sent only when the choice changed, as the code (the server keeps the
+    // words for older screens).
+    if (_lvCode != (_original.livelihood?.code ?? '') || _lvOther != (_original.livelihood?.other ?? '')) {
+      changes['livelihood_code'] = blankToNull(_lvCode);
+      changes['livelihood_other'] = blankToNull(_lvOther);
     }
     if (!session.identityLocked && _barangay != _original.barangay) changes['barangay'] = _barangay;
     final newMobile = _mobile.text.trim();
@@ -232,7 +238,15 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 maxLength: 255,
               ),
               const SizedBox(height: AppSpacing.lg),
-              AppTextField(label: tr('Occupation'), controller: _occupation, icon: Icons.work_outline_rounded),
+              LivelihoodPicker(
+                code: _lvCode,
+                other: _lvOther,
+                previousText: _original.occupation == '—' ? '' : _original.occupation,
+                onChanged: (code, other) => setState(() {
+                  _lvCode = code;
+                  _lvOther = other;
+                }),
+              ),
               const SizedBox(height: AppSpacing.xxl),
               if (_error != null) ...[
                 Text(_error!, style: AppTypography.helper.copyWith(color: AppColors.danger)),

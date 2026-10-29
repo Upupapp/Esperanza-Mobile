@@ -1,3 +1,5 @@
+import '../services/livelihood_service.dart';
+
 /// Mirrors the shape of one entry in config/esperanza_citizens.php's
 /// `accounts` array — the Web Admin's mock "log in as this resident" data.
 /// The mobile app's registration/profile screens produce and consume this
@@ -47,6 +49,10 @@ class CitizenAccount {
   /// cached by an older build, which then falls back to `status`.
   final String? serverAccessLevel;
 
+  /// The occupation on the DRRM list, or null when it is not classified yet
+  /// (owner, 2026-10-29).
+  final Livelihood? livelihood;
+
   CitizenAccount({
     required this.id,
     required this.firstName,
@@ -68,6 +74,7 @@ class CitizenAccount {
     required this.status,
     this.identityStatus,
     this.serverAccessLevel,
+    this.livelihood,
   });
 
   /// The whole name, as the website shows it: the middle name and suffix
@@ -99,6 +106,8 @@ class CitizenAccount {
         'status': status,
         'identityStatus': identityStatus,
         'serverAccessLevel': serverAccessLevel,
+        if (livelihood != null)
+          'livelihood': {'code': livelihood!.code, 'full_label': livelihood!.fullLabel, 'other': livelihood!.other, 'status': livelihood!.status},
       };
 
   factory CitizenAccount.fromJson(Map<String, dynamic> json) => CitizenAccount(
@@ -122,5 +131,6 @@ class CitizenAccount {
         status: json['status'],
         identityStatus: json['identityStatus'] is String ? json['identityStatus'] as String : null,
         serverAccessLevel: json['serverAccessLevel'] is String ? json['serverAccessLevel'] as String : null,
+        livelihood: Livelihood.fromApi(json['livelihood']),
       );
 }

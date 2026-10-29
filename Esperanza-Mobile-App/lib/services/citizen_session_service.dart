@@ -9,6 +9,7 @@ import '../models/profile_photo.dart';
 import '../theme/app_status.dart';
 import 'api_client.dart';
 import 'json_read.dart';
+import 'livelihood_service.dart';
 import 'mock_catalog.dart';
 import 'persistence_recovery.dart';
 import 'push_service.dart';
@@ -401,6 +402,7 @@ class CitizenSessionService extends ChangeNotifier {
         status: JsonRead.nonEmpty(p['status']) ?? 'Draft',
         identityStatus: JsonRead.nonEmpty(p['identity_status']),
         serverAccessLevel: JsonRead.nonEmpty(p['access_level']),
+        livelihood: Livelihood.fromApi(p['livelihood']),
       ),
     );
   }

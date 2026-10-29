@@ -18,6 +18,7 @@ import '../../../widgets/app_date_field.dart';
 import '../../../widgets/app_dialogs.dart';
 import '../../../widgets/app_text_field.dart';
 import '../../../widgets/form_section.dart';
+import '../../../widgets/livelihood_picker.dart';
 import '../../../widgets/resident_profile_lock_note.dart';
 import 'profile_photo_preview_screen.dart';
 import '../../../theme/app_typography.dart';
@@ -40,7 +41,10 @@ class _PersonalInformationScreenState extends State<PersonalInformationScreen> {
   late final Individual _original;
   late final TextEditingController _mobile;
   late final TextEditingController _sitioPurok;
-  late final TextEditingController _occupation;
+  // The occupation on the DRRM list (owner, 2026-10-29).
+  late String _lvCode;
+  late String _lvOther;
+  bool _lvChanged = false;
 
   String? _sex;
   String? _civilStatus;
@@ -64,7 +68,8 @@ class _PersonalInformationScreenState extends State<PersonalInformationScreen> {
     _original = profile.personal;
     _mobile = TextEditingController(text: PhMobile.normalise(_original.mobile));
     _sitioPurok = TextEditingController(text: _original.sitioPurok);
-    _occupation = TextEditingController(text: _original.occupation);
+    _lvCode = _original.livelihoodCode;
+    _lvOther = _original.livelihoodOther;
     _sex = _original.sex.isEmpty ? null : _original.sex;
     _civilStatus = _original.civilStatus.isEmpty ? null : _original.civilStatus;
     _educationalAttainment = _original.educationalAttainment.isEmpty ? null : _original.educationalAttainment;
@@ -80,7 +85,7 @@ class _PersonalInformationScreenState extends State<PersonalInformationScreen> {
 
   @override
   void dispose() {
-    for (final c in [_mobile, _sitioPurok, _occupation]) {
+    for (final c in [_mobile, _sitioPurok]) {
       c.dispose();
     }
     super.dispose();
@@ -109,7 +114,10 @@ class _PersonalInformationScreenState extends State<PersonalInformationScreen> {
       barangay: _account.barangay,
       sitioPurok: _sitioPurok.text.trim(),
       completeAddress: _original.completeAddress,
-      occupation: _occupation.text.trim(),
+      occupation: _original.occupation,
+      livelihoodCode: _lvCode,
+      livelihoodOther: _lvOther,
+      livelihoodChanged: _lvChanged || _original.livelihoodChanged,
       educationalAttainment: _educationalAttainment ?? '',
       isSeniorCitizen: _senior,
       isPWD: _pwd,
@@ -348,7 +356,16 @@ class _PersonalInformationScreenState extends State<PersonalInformationScreen> {
                   FormSection(
                     title: 'Resident Information',
                     children: [
-                      AppTextField(label: tr('Occupation'), controller: _occupation, icon: Icons.work_outline_rounded),
+                      LivelihoodPicker(
+                        code: _lvCode,
+                        other: _lvOther,
+                        previousText: _original.occupation,
+                        onChanged: (code, other) => setState(() {
+                          _lvCode = code;
+                          _lvOther = other;
+                          _lvChanged = true;
+                        }),
+                      ),
                       AppSelectField<String>(
                         label: 'Educational attainment',
                         value: _educationalAttainment,
