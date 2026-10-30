@@ -12,6 +12,7 @@ import '../../widgets/async_state_view.dart';
 import '../../widgets/event_card.dart';
 import '../balita/balita_post_screen.dart';
 import '../shared/event_poster_viewer.dart';
+import 'event_registration_panel.dart';
 
 import '../../l10n/tr.dart';
 /// One event, opened from its card, laid out like the PAAIPE Mobile App's
@@ -25,6 +26,10 @@ import '../../l10n/tr.dart';
 /// server remind the resident in the bell and on this phone, and tell them if
 /// it moves or is cancelled; "Add to calendar" still puts it on the phone's
 /// own calendar. An event posted in Balita links to its post.
+///
+/// Registration and e-certificates (round 2, 2026-10-30): when the LGU takes
+/// registrations, a resident registers here, shows the code at the event,
+/// and opens the certificate once it is issued ([EventRegistrationPanel]).
 class EventDetailScreen extends StatelessWidget {
   const EventDetailScreen({super.key, required this.event});
 
@@ -153,6 +158,14 @@ class _EventDetailBodyState extends State<EventDetailBody> {
         const SizedBox(height: AppSpacing.md),
         EventMeta(event: event),
         if (event.description != null) ...[const SizedBox(height: AppSpacing.lg), EventDescription(event: event)],
+        // Spaces itself; nothing at all when the event takes no registrations.
+        EventRegistrationPanel(
+          event: event,
+          // The server turned the day-before reminder on with it.
+          onRegistered: () {
+            if (_reminded != null) setState(() => _reminded = true);
+          },
+        ),
         // Not offered once the event is over.
         if (_upcoming && _reminded != null) ...[
           const SizedBox(height: AppSpacing.lg),

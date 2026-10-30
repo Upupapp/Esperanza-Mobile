@@ -34,7 +34,8 @@ A Flutter citizen app for the Municipality of Esperanza. **It talks to the real 
 `lib/services/api_client.dart` (`package:http`; base URL from
 `--dart-define=API_BASE_URL`, defaulting to staging). Wired to the API: citizen auth
 and profile, the Dokyu/Tulong catalogue, submission and tracking, Balita (announcements,
-likes, comments; only the LGU posts, owner 2026-10-20), events, directory, hotlines and evacuation
+likes, comments; only the LGU posts, owner 2026-10-20), events (with registration, the check-in
+code and the e-certificate since 2026-10-30: `lib/services/event_registration_service.dart`), directory, hotlines and evacuation
 centres, Sakuna incident reports, notifications, profile edits (with verify-by-code contact
 changes), resident profile submission and status, the Digital ID (with its signed QR), Report
 a Problem (support tickets), notification preferences, change password and data-subject

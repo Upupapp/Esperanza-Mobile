@@ -2,6 +2,7 @@ import 'package:intl/intl.dart';
 import '../services/json_read.dart';
 import '../utils/date_text.dart';
 import 'balita_media.dart';
+import 'event_registration.dart';
 
 /// One Balita feed item — an announcement the LGU published (GET
 /// /announcements, real since the production-readiness programme,
@@ -205,6 +206,11 @@ class EventItem {
   /// for the bundled mock events and for an unparseable date.
   final DateTime? startsAt;
 
+  /// Whether residents can register, and how many places are left (GET
+  /// /events `registration`, round 2 2026-10-30); null when the server
+  /// sends none.
+  final EventRegistrationInfo? registration;
+
   EventItem({
     this.key,
     required this.title,
@@ -219,6 +225,7 @@ class EventItem {
     this.recurrence,
     this.description,
     this.startsAt,
+    this.registration,
   });
 
   /// Whether its date is before [today] (a date-only comparison, so an
@@ -279,6 +286,7 @@ class EventItem {
       imageUrl: JsonRead.mediaUrl(json['image_url']),
       balitaPostId: JsonRead.integer(json['balita_post_id']),
       startsAt: parsed,
+      registration: EventRegistrationInfo.fromApi(json['registration']),
     );
   }
 }

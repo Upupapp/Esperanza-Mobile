@@ -322,6 +322,9 @@ Widget? serverNotificationDestination(ServerNotification n) {
     // A Sakuna alert (AlertService) and appointment changes (AppointmentBook)
     // led nowhere in the app (parity check, 2026-10-22).
     '/citizen/emergency' => const ShellTabLink(tab: 3),
+    // "Your certificate is ready" for an event attended (round 2,
+    // 2026-10-30) when it names no one event: the Events tab.
+    '/citizen/events' => const ShellTabLink(tab: 2),
     // Relief released to the family: confirm whether it came (2026-10-27).
     '/citizen/emergency#my-records' => const MyShelterScreen(),
     '/citizen/appointments' => const AppointmentsScreen(),
