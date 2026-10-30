@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'api_client.dart';
 import 'json_read.dart';
+import 'livelihood_service.dart';
 import 'persistence_recovery.dart';
 import '../models/citizen_account.dart';
 import '../models/resident_profile.dart';
@@ -464,6 +465,10 @@ class ResidentProfileService extends ChangeNotifier {
       // Nothing on file yet, or unreachable: the PUT below says which.
     }
     final res = await api.put('/citizen/resident-profile', body: _payloadFor(p));
+    // Sent: the choice is the server's now, not a change to send again.
+    for (final i in [p.personal, ...p.familyMembers]) {
+      i.livelihoodChanged = false;
+    }
     _applyServerStatus(p, res.map);
     _takeMemberRefs(p, res.map);
     // Sending the household part is what creates its code on the server.
@@ -520,6 +525,11 @@ class ResidentProfileService extends ChangeNotifier {
       // number; only a mobile number belongs in this field.
       person.mobile = fill(person.mobile, _mobileOrNull(me['contact']));
       person.occupation = fill(person.occupation, me['occupation']);
+      final lv = Livelihood.fromApi(me['livelihood']);
+      if (!person.livelihoodChanged && lv != null) {
+        person.livelihoodCode = lv.code ?? '';
+        person.livelihoodOther = lv.other ?? '';
+      }
       person.educationalAttainment =
           fill(person.educationalAttainment, me['education'], ResidentProfileOptions.educationalAttainment);
       final tags = JsonRead.strings(me['tags']).toSet();
@@ -561,6 +571,8 @@ class ResidentProfileService extends ChangeNotifier {
             civilStatus: fill('', m['civil_status'], ResidentProfileOptions.civilStatus),
             relationshipToHead: fill('', m['relation'], ResidentProfileOptions.relationshipToHead),
             occupation: fill('', m['occupation']),
+            livelihoodCode: Livelihood.fromApi(m['livelihood'])?.code ?? '',
+            livelihoodOther: Livelihood.fromApi(m['livelihood'])?.other ?? '',
             educationalAttainment: fill('', m['education'], ResidentProfileOptions.educationalAttainment),
             mobile: fill('', _mobileOrNull(m['contact'])),
             barangay: person.barangay,
@@ -668,9 +680,15 @@ class ResidentProfileService extends ChangeNotifier {
         'sex': _text(i.sex),
         'dob': _date(i.birthdate),
         'civil_status': _text(i.civilStatus),
-        'occupation': _text(i.occupation),
         'education': _text(i.educationalAttainment),
         'contact': _text(i.mobile),
+        // The DRRM choice when the person changed it here; otherwise the
+        // words, which the server leaves alone when they are the same.
+        if (i.livelihoodChanged && i.livelihoodCode.isNotEmpty) ...{
+          'livelihood_code': i.livelihoodCode,
+          'livelihood_other': _text(i.livelihoodOther),
+        } else
+          'occupation': _text(i.occupation),
       };
 
   static Map<String, dynamic> _payloadFor(ResidentProfile p) {
