@@ -11,7 +11,9 @@ import '../services/json_read.dart';
 class EventRegistrationInfo {
   const EventRegistrationInfo({required this.open, this.capacity, this.closesAt, this.count = 0, this.full = false});
 
-  /// The LGU takes registrations for this event.
+  /// The LGU takes registrations for this event: the block's `enabled`
+  /// (the server's own `open` means "a resident can register right now",
+  /// false once full or closed, when this section still says why).
   final bool open;
 
   /// The most who can register; null when there is no limit.
@@ -54,7 +56,7 @@ class EventRegistrationInfo {
     final capacity = JsonRead.integer(m['capacity']);
     final count = JsonRead.integer(m['count']) ?? 0;
     return EventRegistrationInfo(
-      open: JsonRead.boolean(m['open']) ?? false,
+      open: JsonRead.boolean(m['enabled']) ?? JsonRead.boolean(m['open']) ?? false,
       capacity: capacity != null && capacity > 0 ? capacity : null,
       closesAt: JsonRead.date(m['closes_at']),
       count: count < 0 ? 0 : count,

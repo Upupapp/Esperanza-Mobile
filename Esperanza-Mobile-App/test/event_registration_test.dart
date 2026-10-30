@@ -184,6 +184,13 @@ void main() {
       expect(_info({'open': true, 'capacity': 50, 'count': 50}).isFull, isTrue);
       expect(_info({'open': true, 'capacity': 50, 'count': 52}).placesLeft, 0);
       expect(_info({'open': true, 'count': 3, 'full': true}).isFull, isTrue);
+
+      // The server's block: `enabled` is the setting, `open` is false once
+      // full or closed - the section still shows, to say which.
+      final fullNow = _info({'enabled': true, 'open': false, 'capacity': 2, 'count': 2, 'full': true});
+      expect(fullNow.open, isTrue);
+      expect(fullNow.isFull, isTrue);
+      expect(_info({'enabled': false, 'open': false}).open, isFalse);
     });
 
     test('a registration reads its code, attendance and certificate; a row it cannot use is skipped', () {
