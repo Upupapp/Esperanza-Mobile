@@ -442,6 +442,10 @@ class _ServiceRequestWizardScreenState extends State<ServiceRequestWizardScreen>
       'occupation': account.occupation,
     };
     for (final f in fields) {
+      // A detail of someone else on the record (the deceased's sex and birth
+      // date, the child's) is never the resident's own: the server marks it
+      // `prefill: false`, as the website reads it (MCRO papers, 2026-11-03).
+      if (!f.prefill) continue;
       final value = byKey[f.key];
       if (value == null || (value is String && value.trim().isEmpty)) continue;
       switch (f.type) {
@@ -636,14 +640,17 @@ class _ServiceRequestWizardScreenState extends State<ServiceRequestWizardScreen>
   }
 
   /// A multiselect's choices, "Others" carrying what the resident typed
-  /// ("Others: ..."), as the website sends it.
+  /// ("Others: ..."), as the website sends it: in place of an Others tick,
+  /// or added to the list on a paper with no Others box of its own
+  /// (Residency, Indigency), where it was dropped (2026-11-03).
   List<String>? _multiselectAnswer(ServiceFormField f) {
     final chosen = (_values[f.key] as Set<String>?)?.toList();
-    if (chosen == null) return null;
     final other = _controllers[_otherKey(f.key)]?.text.trim() ?? '';
     if (!f.allowOther || other.isEmpty) return chosen;
+    final list = chosen ?? <String>[];
     final others = RegExp('^others', caseSensitive: false);
-    return [for (final o in chosen) others.hasMatch(o) ? 'Others: $other' : o];
+    if (!list.any(others.hasMatch)) return [...list, 'Others: $other'];
+    return [for (final o in list) others.hasMatch(o) ? 'Others: $other' : o];
   }
 
   // -- Table questions: one row per person or item. A row is an id; its

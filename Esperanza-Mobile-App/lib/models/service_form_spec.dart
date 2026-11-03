@@ -87,6 +87,12 @@ class ServiceFormField {
   final List<ServiceTableColumn>? columns;
   final String? rowLabel;
 
+  /// False on a detail of someone else on the record (the deceased's sex
+  /// and birth date, the child's): never filled from the resident's own
+  /// profile, as on the website (the server's `prefill: false`, MCRO papers,
+  /// 2026-11-03).
+  final bool prefill;
+
   const ServiceFormField({
     required this.key,
     required this.label,
@@ -102,6 +108,7 @@ class ServiceFormField {
     this.defaultValue,
     this.columns,
     this.rowLabel,
+    this.prefill = true,
   });
 }
 
@@ -188,6 +195,7 @@ class ServiceFormSpec {
       defaultValue: JsonRead.nonEmpty(f['default']),
       columns: columns,
       rowLabel: JsonRead.nonEmpty(f['rowLabel']),
+      prefill: JsonRead.boolean(f['prefill']) ?? true,
     );
   }
 }
