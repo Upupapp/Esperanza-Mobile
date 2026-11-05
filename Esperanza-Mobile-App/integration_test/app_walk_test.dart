@@ -296,6 +296,18 @@ void main() {
         if (await _tapIfPresent(tester, find.text(service), 'Launcher → $service')) {
           // Both land on the shared request-list screen for that service.
           _confirm(tester, '$service request list', find.text('New Request'));
+          // Tulong's "My certificates" (owner, 2026-11-05): sessions' and
+          // events' certificates. One page back returns to the list.
+          if (service == 'Tulong' &&
+              await _tapIfPresent(tester, find.byKey(const Key('tulong_my_certificates')), 'Tulong → My certificates')) {
+            _confirm(tester, 'My certificates', find.byKey(const Key('certificates_screen')));
+            try {
+              await tester.pageBack();
+              await _settle(tester, seconds: 1);
+            } catch (_) {
+              problems.add('My certificates: no way back to the Tulong list');
+            }
+          }
           // "New Request" opens the catalogue, which is a pushed route.
           if (await _tapIfPresent(tester, find.text('New Request'), '$service → New Request')) {
             _confirm(tester, '$service service catalogue', find.byType(Scaffold));

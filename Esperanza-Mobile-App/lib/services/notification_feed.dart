@@ -21,6 +21,7 @@ import '../screens/profile/data_requests_screen.dart';
 import '../screens/home/root_shell.dart';
 import '../screens/support/support_tickets_screen.dart';
 import '../screens/sakuna/my_shelter_screen.dart';
+import '../screens/tulong/certificates_screen.dart';
 
 /// Timestamp for evergreen/contextual notifications that have no real event
 /// of their own (a profile-completion reminder, a duplicate-account alert)
@@ -311,6 +312,14 @@ Widget? serverNotificationDestination(ServerNotification n) {
   final emergencyIncident = RegExp(r'^/citizen/emergency\?incident=([^&#]+)$').firstMatch(link);
   if (emergencyIncident != null) {
     return RequestDetailScreen(requestId: Uri.decodeComponent(emergencyIncident.group(1)!));
+  }
+  // A certificate naming them (Sessions::tell): a partner's copy links the
+  // Tulong page with `?certificate=CONTROL` (owner, 2026-11-05). Opens that
+  // certificate from My certificates; the list says so when it is not there.
+  final certificate = RegExp(r'^/citizen/assistance-requests\?(?:[^#]*&)?certificate=([^&#]*)').firstMatch(link);
+  if (certificate != null) {
+    final control = Uri.decodeQueryComponent(certificate.group(1)!).trim();
+    return CertificatesScreen(openControlNumber: control.isEmpty ? null : control);
   }
   final request = RegExp(r'^/citizen/(?:document|assistance)-requests/([^/?#]+)$').firstMatch(link);
   if (request != null) return RequestDetailScreen(requestId: Uri.decodeComponent(request.group(1)!));

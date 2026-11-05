@@ -31,6 +31,8 @@ import '../../l10n/tr.dart';
 import '../../models/access_level.dart';
 import '../../services/citizen_session_service.dart';
 import '../profile/profile_screen.dart';
+import '../tulong/certificates_screen.dart';
+import '../../services/message_language.dart';
 // This screen's own FAB-clearance constants — not navbar geometry. Pair
 // with `MediaQuery.paddingOf(context).bottom`, which RootShell's
 // `extendBody: true` keeps in sync with whatever the bottom nav bar
@@ -307,11 +309,34 @@ class _RequestListScreenState extends State<RequestListScreen> {
           ],
           Padding(
             padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.sm, AppSpacing.lg, 0),
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: Text(
-                '${visible.length + officeShown.length} result${visible.length + officeShown.length == 1 ? '' : 's'}',
-                style: const TextStyle(fontSize: AppTextSize.label, color: AppColors.textMuted, fontWeight: FontWeight.w500),
+            // A Wrap, not a Row: on a narrow phone the certificates link
+            // drops under the count instead of overflowing it. Full width,
+            // so the count stays on the left (a Wrap shrinks to its content).
+            child: SizedBox(
+              width: double.infinity,
+              child: Wrap(
+                alignment: WrapAlignment.spaceBetween,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  Text(
+                    '${visible.length + officeShown.length} result${visible.length + officeShown.length == 1 ? '' : 's'}',
+                    style: const TextStyle(fontSize: AppTextSize.label, color: AppColors.textMuted, fontWeight: FontWeight.w500),
+                  ),
+                  // Certificates live on the Tulong page, as on the website
+                  // ("Aking mga sertipiko", owner 2026-11-05): sessions' and
+                  // events' alike.
+                  if (widget.category == ServiceCategory.tulong)
+                    TextButton.icon(
+                      key: const Key('tulong_my_certificates'),
+                      onPressed: () =>
+                          Navigator.of(context).push(MaterialPageRoute(builder: (_) => const CertificatesScreen())),
+                      icon: Icon(Icons.workspace_premium_outlined, size: AppSizes.iconSm, color: widget.accent),
+                      label: Text(
+                        MessageLanguage.filipino.value ? 'Aking mga sertipiko' : 'My certificates',
+                        style: TextStyle(color: widget.accent, fontWeight: FontWeight.w600),
+                      ),
+                    ),
+                ],
               ),
             ),
           ),
