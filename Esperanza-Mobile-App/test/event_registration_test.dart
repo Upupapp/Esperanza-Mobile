@@ -70,7 +70,17 @@ Map<String, dynamic> _registration({
 
 EventRegistrationInfo _info(Map<String, dynamic> raw) => EventRegistrationInfo.fromApi(raw)!;
 
-const _certificate = {'control_number': 'EVT-2026-000001', 'verify_url': _verifyUrl};
+const _certificate = {
+  'control_number': 'EVT-2026-000001',
+  'verify_url': _verifyUrl,
+  'title': 'Certificate of Attendance',
+  'document': {
+    'control_number': 'EVT-2026-000001',
+    'serial': 'ABCD-EFGH-2345',
+    'issued_on': '2026-10-30',
+    'field_values': {'cert_title': 'Certificate of Attendance', 'cert_subtitle': 'Barangay Health Day', 'applicant': 'Maria Sample'},
+  },
+};
 
 /// The server as the page sees it: the resident's registrations live in
 /// [mine], which registering and cancelling change.
@@ -405,15 +415,7 @@ void main() {
       expect(find.text('Registration is closed'), findsOneWidget);
     });
 
-    testWidgets('attended: "You attended", and the certificate opens in the browser', (tester) async {
-      final opened = <Uri>[];
-      final original = EventRegistrationPanel.openInBrowser;
-      EventRegistrationPanel.openInBrowser = (uri) async {
-        opened.add(uri);
-        return true;
-      };
-      addTearDown(() => EventRegistrationPanel.openInBrowser = original);
-
+    testWidgets('attended: "You attended", and the certificate opens in the app', (tester) async {
       _Server(mine: [_registration(attended: true, certificate: _certificate)]).install();
       await _pump(tester, _event(inDays: -3));
 
@@ -422,8 +424,14 @@ void main() {
       expect(find.text('Certificate no. EVT-2026-000001'), findsOneWidget);
       expect(find.text('Cancel registration'), findsNothing, reason: 'the event is over');
 
+      // The certificate itself, as the website's certificate window draws
+      // it, from the block's own document (owner, 2026-11-05).
       await _tap(tester, find.text('View certificate'));
-      expect(opened, [Uri.parse(_verifyUrl)]);
+      expect(find.byKey(const Key('certificate_view')), findsOneWidget);
+      expect(find.text('CERTIFICATE OF ATTENDANCE'), findsOneWidget);
+      expect(find.text('Control No. EVT-2026-000001'), findsOneWidget);
+      expect(find.text('Scan the QR code or visit esperanza.example.test/verify to check this certificate.'), findsOneWidget);
+      expect(find.byType(QrImageView), findsOneWidget);
 
       // Attended, certificate not issued (or the event gives none).
       _Server(mine: [_registration(attended: true)]).install();

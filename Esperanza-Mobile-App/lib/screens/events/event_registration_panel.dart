@@ -3,13 +3,14 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:qr_flutter/qr_flutter.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../../models/announcement.dart';
 import '../../models/event_registration.dart';
+import '../../models/resident_certificate.dart';
 import '../../services/api_client.dart';
 import '../../services/citizen_session_service.dart';
 import '../../services/event_registration_service.dart';
+import '../../services/json_read.dart';
 import '../../services/message_language.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_spacing.dart';
@@ -19,6 +20,7 @@ import '../../widgets/app_button.dart';
 import '../../widgets/app_card.dart';
 import '../../widgets/app_dialogs.dart';
 import '../../widgets/restricted_feature_notice.dart';
+import '../shared/certificate_view_screen.dart';
 
 /// Filipino first, as on the website's citizen Events page (each phrase is
 /// written there as Filipino / English); shown in the language chosen in
@@ -35,7 +37,7 @@ String _t(String fil, String en) => MessageLanguage.filipino.value ? fil : en;
 ///   code) that staff check the resident in by, and "Kanselahin" while the
 ///   event is still ahead.
 /// - attended: "Dumalo ka", and "Tingnan ang sertipiko" once the LGU has
-///   issued the certificate, which opens its verify page in the browser.
+///   issued the certificate, which opens the certificate itself in the app.
 ///
 /// Shows nothing (not even its top spacing) for an event that takes no
 /// registrations, a bundled mock event, or a past event the resident did
@@ -48,11 +50,6 @@ class EventRegistrationPanel extends StatefulWidget {
   /// Registering also turns on the day-before reminder on the server: the
   /// page's reminder button follows.
   final VoidCallback? onRegistered;
-
-  /// Opens a certificate's verify page in the browser. Tests swap it.
-  static Future<bool> Function(Uri uri) openInBrowser = _launch;
-
-  static Future<bool> _launch(Uri uri) => launchUrl(uri, mode: LaunchMode.externalApplication);
 
   @override
   State<EventRegistrationPanel> createState() => _EventRegistrationPanelState();
@@ -192,17 +189,21 @@ class _EventRegistrationPanelState extends State<EventRegistrationPanel> {
     }
   }
 
-  Future<void> _openCertificate(EventCertificate certificate) async {
-    final uri = Uri.tryParse(certificate.verifyUrl);
-    var opened = false;
-    try {
-      opened = uri != null && await EventRegistrationPanel.openInBrowser(uri);
-    } catch (_) {
-      // No browser to hand it to: said below.
-    }
-    if (!opened && mounted) {
-      AppDialogs.toast(context, _t('Hindi mabuksan ang sertipiko. Subukang muli.', 'Could not open the certificate. Try again.'), success: false);
-    }
+  /// The certificate itself, drawn in the app as the website's certificate
+  /// window does (owner, 2026-11-05): the one view My certificates opens too.
+  void _openCertificate(EventCertificate certificate) {
+    final event = widget.event;
+    final shown = certificate.details ??
+        ResidentCertificate(
+          controlNumber: certificate.controlNumber ?? '',
+          source: CertificateSource.event,
+          eventKey: event.key,
+          eventTitle: event.title,
+          date: JsonRead.date(event.date),
+          venue: event.venue,
+          verifyUrl: certificate.verifyUrl,
+        );
+    Navigator.of(context).push(MaterialPageRoute(builder: (_) => CertificateViewScreen(certificate: shown)));
   }
 
   void _signIn() {

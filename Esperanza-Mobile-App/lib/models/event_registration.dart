@@ -1,4 +1,5 @@
 import '../services/json_read.dart';
+import 'resident_certificate.dart';
 
 /// Registering for an event (owner, 2026-10-30, round 2 item 6): the LGU
 /// posts an event, residents register so the municipality has a record of
@@ -69,17 +70,25 @@ class EventRegistrationInfo {
 /// control number `EVT-YYYY-NNNNNN`), checked at its verify URL like any
 /// other document the LGU issues.
 class EventCertificate {
-  const EventCertificate({required this.verifyUrl, this.controlNumber});
+  const EventCertificate({required this.verifyUrl, this.controlNumber, this.details});
 
   final String verifyUrl;
   final String? controlNumber;
+
+  /// The block's issued document (esperanza-backend
+  /// EventRegistrations::certificateBlock), drawn as the certificate itself.
+  final ResidentCertificate? details;
 
   /// Null without a verify URL: there would be nothing to open.
   static EventCertificate? fromApi(Object? raw) {
     final m = JsonRead.map(raw);
     final url = m == null ? null : JsonRead.nonEmpty(m['verify_url']);
     if (url == null) return null;
-    return EventCertificate(verifyUrl: url, controlNumber: JsonRead.nonEmpty(m!['control_number']));
+    return EventCertificate(
+      verifyUrl: url,
+      controlNumber: JsonRead.nonEmpty(m!['control_number']),
+      details: ResidentCertificate.fromApi(m, isEventBlock: true),
+    );
   }
 }
 

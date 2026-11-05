@@ -28,13 +28,14 @@ class DocumentPdf {
     return png!.buffer.asUint8List();
   }
 
-  /// One A4 page holding the picture, edge to edge.
-  static Future<List<int>> fromPng(Uint8List png, {required String title}) {
+  /// One A4 page holding the picture, edge to edge. [pageFormat]: a
+  /// certificate is A4 landscape (PdfPageFormat.a4.landscape).
+  static Future<List<int>> fromPng(Uint8List png, {required String title, PdfPageFormat pageFormat = PdfPageFormat.a4}) {
     final picture = pw.MemoryImage(png);
     final doc = pw.Document(title: title, author: 'Municipality of Esperanza');
     doc.addPage(
       pw.Page(
-        pageFormat: PdfPageFormat.a4,
+        pageFormat: pageFormat,
         margin: pw.EdgeInsets.zero,
         build: (_) => pw.Center(child: pw.Image(picture, fit: pw.BoxFit.contain)),
       ),
@@ -49,9 +50,10 @@ class DocumentPdf {
     GlobalKey captureKey, {
     required String title,
     required String fileName,
+    PdfPageFormat pageFormat = PdfPageFormat.a4,
   }) async {
     try {
-      final bytes = await fromPng(await capture(captureKey), title: title);
+      final bytes = await fromPng(await capture(captureKey), title: title, pageFormat: pageFormat);
       final dir = await getTemporaryDirectory();
       final file = File('${dir.path}/$fileName');
       await file.writeAsBytes(bytes);
