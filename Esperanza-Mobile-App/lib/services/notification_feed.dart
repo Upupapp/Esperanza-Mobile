@@ -338,8 +338,11 @@ Widget? serverNotificationDestination(ServerNotification n) {
     '/citizen/emergency#my-records' => const MyShelterScreen(),
     '/citizen/appointments' => const AppointmentsScreen(),
     // A data or name-change request answered (RecordsController): the
-    // website keeps them in Settings; the app, in My data requests.
-    '/citizen/settings' => const DataRequestsScreen(),
+    // website keeps them in Settings; the app, in My data requests. The
+    // backend links a resolved request to `/citizen/settings?tab=privacy`
+    // (Sprint 4, 2026-11-06); a plain `/citizen/settings` still comes from
+    // older rows.
+    _ when RegExp(r'^/citizen/settings(?:[?#].*)?$').hasMatch(link) => const DataRequestsScreen(),
     // An office's reply to a ticket (FeedbackDesk): the tickets, not the FAQs.
     _ when link.startsWith('/citizen/help/support') => const SupportTicketsScreen(),
     _ when link.startsWith('/citizen/help') => const HelpSupportScreen(),

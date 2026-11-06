@@ -2,6 +2,7 @@ import 'package:share_plus/share_plus.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:http/http.dart' as http;
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import '../../widgets/status_chip.dart';
 import 'package:intl/intl.dart';
@@ -25,6 +26,7 @@ import '../../services/api_client.dart';
 import '../../services/json_read.dart';
 import '../../widgets/app_dialogs.dart';
 import '../../widgets/image_viewer_scaffold.dart';
+import 'pdf_viewer_screen.dart';
 
 import '../../l10n/tr.dart';
 /// Resident-facing history/library of every document uploaded through a
@@ -306,6 +308,10 @@ Widget _tag(String label, Color color) {
   );
 }
 
+/// Whether a file of [category] opens inside the app rather than in another.
+bool _opensInApp(AttachmentCategory category) =>
+    category == AttachmentCategory.image || (category == AttachmentCategory.pdf && PdfViewerScreen.supported);
+
 /// One file from the server's list. Opens through its signed link; a file
 /// the scan has not cleared says why it cannot be opened.
 class _UploadCard extends StatelessWidget {
@@ -319,6 +325,30 @@ class _UploadCard extends StatelessWidget {
       return;
     }
     final uri = Uri.tryParse(document.url!);
+    // Inside the app (owner, 2026-11-06): a picture in the zoom viewer, a
+    // PDF in the PDF viewer. Anything else still goes to another app.
+    final category = AttachmentCategoryX.fromExtension(document.extension);
+    if (uri != null && category == AttachmentCategory.image) {
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          fullscreenDialog: true,
+          builder: (_) => _DocumentViewer(title: document.requirement, provider: NetworkImage(uri.toString())),
+        ),
+      );
+      return;
+    }
+    if (uri != null && category == AttachmentCategory.pdf && PdfViewerScreen.supported) {
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => PdfViewerScreen(
+            title: document.requirement,
+            fileName: document.fileName,
+            load: () => PdfViewerScreen.fetch(uri),
+          ),
+        ),
+      );
+      return;
+    }
     if (uri == null || !await launchUrl(uri, mode: LaunchMode.externalApplication)) {
       if (context.mounted) AppDialogs.toast(context, 'This document could not be opened.', success: false);
     }
@@ -385,7 +415,11 @@ class _UploadCard extends StatelessWidget {
               ),
             ),
             Icon(
-              document.url != null ? Icons.open_in_new_rounded : Icons.hourglass_empty_rounded,
+              document.url == null
+                  ? Icons.hourglass_empty_rounded
+                  : _opensInApp(category)
+                  ? Icons.chevron_right_rounded
+                  : Icons.open_in_new_rounded,
               size: 18,
               color: AppColors.slate400,
             ),
@@ -418,6 +452,48 @@ class _DocumentCardState extends State<_DocumentCard> {
   bool get _isDokyu => document.origin == 'Dokyu';
   bool get _isRemote => document.id.startsWith('pap-');
   bool get _isImage => document.attachment.category == AttachmentCategory.image;
+  bool get _isPdf =>
+      document.attachment.category == AttachmentCategory.pdf || PdfViewerScreen.isPdfName(document.attachment.fileName);
+
+  /// The copy on this phone, when there is one with something in it.
+  Future<Uint8List?> _localBytes() async {
+    final bytes = document.attachment.bytes;
+    if (bytes != null && bytes.isNotEmpty) return bytes;
+    final local = document.attachment.localPath;
+    if (!kIsWeb && local != null && local.isNotEmpty && File(local).existsSync()) {
+      final read = await File(local).readAsBytes();
+      if (read.isNotEmpty) return read;
+    }
+    return null;
+  }
+
+  bool get _hasLocalCopy {
+    final bytes = document.attachment.bytes;
+    if (bytes != null && bytes.isNotEmpty) return true;
+    final local = document.attachment.localPath;
+    return !kIsWeb && local != null && local.isNotEmpty && File(local).existsSync();
+  }
+
+  void _openPdf(BuildContext context, Future<Uint8List> Function() load) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => PdfViewerScreen(title: document.label, fileName: document.attachment.fileName, load: load),
+      ),
+    );
+  }
+
+  /// A PDF on this phone opens from the phone's copy; one only on the
+  /// server, through its signed link.
+  void _openLocalPdf(BuildContext context) {
+    _openPdf(context, () async {
+      final local = await _localBytes();
+      if (local != null) return local;
+      final url = await _link();
+      final uri = url == null ? null : Uri.tryParse(url);
+      if (uri == null) throw StateError('No link');
+      return PdfViewerScreen.fetch(uri);
+    });
+  }
 
   @override
   void initState() {
@@ -457,6 +533,10 @@ class _DocumentCardState extends State<_DocumentCard> {
             builder: (_) => _DocumentViewer(title: document.label, provider: NetworkImage(url!)),
           ),
         );
+        return;
+      }
+      if (uri != null && _isPdf && PdfViewerScreen.supported) {
+        _openPdf(context, () => PdfViewerScreen.fetch(uri));
         return;
       }
       if (uri == null || !await launchUrl(uri, mode: LaunchMode.externalApplication)) {
@@ -529,6 +609,8 @@ class _DocumentCardState extends State<_DocumentCard> {
       child: AppCard(
         onTap: canPreview
             ? () => _openViewer(context)
+            : _isPdf && PdfViewerScreen.supported && _hasLocalCopy
+            ? () => _openLocalPdf(context)
             : isRemote
             ? () => _openRemote(context)
             : null,

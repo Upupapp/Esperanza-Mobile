@@ -19,9 +19,13 @@ import 'theme/app_theme.dart';
 import 'widgets/language_scope.dart';
 import 'widgets/offline_notice.dart';
 import 'services/deep_links.dart';
+import 'utils/protected_action.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // One photo per gallery pick: Android's own Photo Picker, not a gallery
+  // app that may offer multi-select.
+  useAndroidPhotoPicker();
   await MessageLanguage.load();
   // The LGU's Default Language, until the resident picks one; not awaited.
   unawaited(MessageLanguage.followServerDefault());

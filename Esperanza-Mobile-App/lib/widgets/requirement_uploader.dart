@@ -126,7 +126,9 @@ class RequirementUploader extends StatelessWidget {
         // a Word file was offered here and then refused on upload.
         final result = await pickDocumentProtected(context, allowedExtensions: ['pdf', 'jpg', 'jpeg', 'png', 'webp']);
         if (result == null || result.files.isEmpty) return;
-        final f = result.files.single;
+        // One file per requirement: a picker that returns more keeps the
+        // first rather than throwing.
+        final f = result.files.first;
         if (f.bytes == null) return;
         onAttachNew(
           Attachment(

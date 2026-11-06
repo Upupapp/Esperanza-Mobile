@@ -250,7 +250,25 @@ void main() {
       await tester.pumpWidget(const MaterialApp(home: DataRequestsScreen()));
       await tester.pumpAndSettle();
       expect(find.text('DSR-2026-0001 · Sep 1, 2026'), findsOneWidget);
-      expect(find.text('Response: Sent by email.'), findsOneWidget);
+      expect(find.text("The LGU's response"), findsOneWidget);
+      expect(find.text('Sent by email.'), findsOneWidget);
+
+      // The history leads; the form is behind New request (manual test
+      // 2026-11-06), as on the website's Settings.
+      expect(find.text('Send Request'), findsNothing);
+      expect(
+        tester.getTopLeft(find.text('My data requests')).dy,
+        lessThan(tester.getTopLeft(find.text('New request')).dy + 1),
+      );
+      await _tap(tester, 'New request');
+      expect(find.text('New request'), findsNothing);
+      expect(
+        tester.getTopLeft(find.text('Make a request about your data')).dy,
+        greaterThan(tester.getTopLeft(find.text('DSR-2026-0001 · Sep 1, 2026')).dy),
+      );
+      await _tap(tester, 'Cancel');
+      expect(find.text('Send Request'), findsNothing);
+      await _tap(tester, 'New request');
 
       await _tap(tester, 'Send Request');
       expect(sent.where((r) => r.method == 'POST'), isEmpty, reason: 'nothing chosen yet');
@@ -263,6 +281,8 @@ void main() {
       expect(post.path, '/citizen/data-requests');
       expect(post.body, {'kind': 'correction', 'detail': 'My birthdate is wrong.'});
       expect(find.textContaining('DSR-2026-0002'), findsWidgets);
+      expect(find.text('Send Request'), findsNothing, reason: 'the form closes once the request is sent');
+      expect(find.text('New request'), findsOneWidget);
     });
   });
 }

@@ -65,7 +65,11 @@ List<Map<String, dynamic>> get _seededEvents => [
   {'key': 'ev-5', 'title': 'Fiesta ng Esperanza Opening', 'date': _inDays(23), 'time': '2:00 PM', 'venue': 'Municipal Plaza'},
 ];
 
-Future<void> _enterAsGuest(WidgetTester tester, {List<Map<String, dynamic>> announcements = const []}) async {
+Future<void> _enterAsGuest(
+  WidgetTester tester, {
+  List<Map<String, dynamic>> announcements = const [],
+  List<Map<String, String>>? eventQueries,
+}) async {
   // Onboarding-complete pre-seeded: this suite exercises the normal
   // returning-user flow, not the first-run Onboarding screens — see
   // onboarding_flow_test.dart for that.
@@ -75,7 +79,10 @@ Future<void> _enterAsGuest(WidgetTester tester, {List<Map<String, dynamic>> anno
   // [announcements] has to be in place *before* pumpWidget, not installed
   // separately afterward.
   FakeApi.install((path, query) {
-    if (path == '/events') return _seededEvents;
+    if (path == '/events') {
+      eventQueries?.add(query);
+      return _seededEvents;
+    }
     if (path == '/announcements') return announcements;
     return const <Map<String, dynamic>>[];
   });
@@ -122,6 +129,30 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byType(HomeWelcomeBanner), findsNothing);
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('Home asks for upcoming events only, and asks again when the app comes back (2026-11-06)', (tester) async {
+    final queries = <Map<String, String>>[];
+    await _enterAsGuest(tester, eventQueries: queries);
+    await tester.tap(find.byIcon(Icons.close_rounded), warnIfMissed: false);
+    await tester.pumpAndSettle();
+
+    List<Map<String, String>> fromHome() => queries.where((q) => q['upcoming'] == '1').toList();
+    expect(fromHome(), hasLength(1));
+    expect(fromHome().single['from'], _inDays(0), reason: 'from stays, for an older server');
+    expect(find.text('Barangay Health Fair'), findsOneWidget);
+
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.hidden);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+    await tester.pump();
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.hidden);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    await tester.pumpAndSettle();
+    expect(fromHome(), hasLength(2));
+    // The list stays on screen while it reloads, and after.
+    expect(find.text('Barangay Health Fair'), findsOneWidget);
   });
 
   testWidgets('Home no longer shows a Balita/News section, and the notification bell is white', (tester) async {

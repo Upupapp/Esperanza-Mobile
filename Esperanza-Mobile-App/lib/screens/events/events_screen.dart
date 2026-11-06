@@ -74,7 +74,9 @@ class _EventsBodyState extends State<_EventsBody> {
 
   @override
   Widget build(BuildContext context) {
-    final today = DateTime.now();
+    // To the minute: an event is past once its end time has gone by
+    // (EventItem.isPast), not only from the next day.
+    final now = DateTime.now();
     final home = context.watch<CitizenSessionService>().account?.barangay;
     final events = [
       for (final e in widget.events)
@@ -82,7 +84,7 @@ class _EventsBodyState extends State<_EventsBody> {
     ];
     final list = [
       for (final e in events)
-        if (e.isPast(today) == (_period == _Period.past)) e,
+        if (e.isPast(now) == (_period == _Period.past)) e,
     ];
     return RefreshIndicator(
       onRefresh: () async => widget.reload(),

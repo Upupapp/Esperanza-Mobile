@@ -211,6 +211,20 @@ class EventItem {
   /// sends none.
   final EventRegistrationInfo? registration;
 
+  /// The event's own start and end times, "HH:MM" (GET /events `start_time`
+  /// / `end_time`, owner 2026-11-06); null when the Web Admin set none.
+  final String? startTime;
+  final String? endTime;
+
+  /// When it starts (`starts_at`, ISO-8601 in +08:00); null without a start
+  /// time.
+  final DateTime? startsAtTime;
+
+  /// When it is over (`ends_at`): the end time, or the end of its day when it
+  /// has none. Always sent by a current server; null from an older one,
+  /// which falls back to the date-only rule in [isPast].
+  final DateTime? endsAt;
+
   EventItem({
     this.key,
     required this.title,
@@ -226,14 +240,40 @@ class EventItem {
     this.description,
     this.startsAt,
     this.registration,
+    this.startTime,
+    this.endTime,
+    this.startsAtTime,
+    this.endsAt,
   });
 
-  /// Whether its date is before [today] (a date-only comparison, so an
-  /// event is upcoming all day on its own date). An undated event is never
-  /// past.
-  bool isPast(DateTime today) {
+  /// Whether it is over at [now]: at or after the server's [endsAt] (owner,
+  /// 2026-11-06), so an event that ended at noon is no longer upcoming that
+  /// afternoon. Without [endsAt] (an older server) its date is compared with
+  /// today's, so it is upcoming all day on its own date. An undated event is
+  /// never past.
+  bool isPast(DateTime now) {
+    final end = endsAt;
+    if (end != null) return !now.isBefore(end);
     final d = startsAt;
-    return d != null && DateTime(d.year, d.month, d.day).isBefore(DateTime(today.year, today.month, today.day));
+    return d != null && DateTime(d.year, d.month, d.day).isBefore(DateTime(now.year, now.month, now.day));
+  }
+
+  /// "8:00 AM – 12:00 PM" from [startTime] and [endTime]; null without a
+  /// start time.
+  static String? timeRange(String? start, String? end) {
+    String? fmt(String? hhmm) {
+      final m = RegExp(r'^(\d{1,2}):(\d{2})').firstMatch(hhmm?.trim() ?? '');
+      if (m == null) return null;
+      final h = int.parse(m.group(1)!);
+      final min = int.parse(m.group(2)!);
+      if (h > 23 || min > 59) return null;
+      return DateFormat('h:mm a').format(DateTime(2000, 1, 1, h, min));
+    }
+
+    final from = fmt(start);
+    if (from == null) return null;
+    final to = fmt(end);
+    return to == null ? from : '$from – $to';
   }
 
   /// Upcoming events first (soonest first), then past ones (most recent
@@ -241,25 +281,26 @@ class EventItem {
   /// guaranteed to be either, and Home's two-item preview showed whichever
   /// rows happened to come back first, past or not.
   static List<EventItem> inCalendarOrder(Iterable<EventItem> events, {DateTime? now}) {
-    DateTime dateOnly(DateTime d) => DateTime(d.year, d.month, d.day);
-    final today = dateOnly(now ?? DateTime.now());
+    final at = now ?? DateTime.now();
     final upcoming = <EventItem>[];
     final past = <EventItem>[];
     final undated = <EventItem>[];
     for (final e in events) {
-      final d = e.startsAt;
-      if (d == null) {
+      if (e._sortKey == null) {
         undated.add(e);
-      } else if (!dateOnly(d).isBefore(today)) {
-        upcoming.add(e);
-      } else {
+      } else if (e.isPast(at)) {
         past.add(e);
+      } else {
+        upcoming.add(e);
       }
     }
-    upcoming.sort((a, b) => a.startsAt!.compareTo(b.startsAt!));
-    past.sort((a, b) => b.startsAt!.compareTo(a.startsAt!));
+    upcoming.sort((a, b) => a._sortKey!.compareTo(b._sortKey!));
+    past.sort((a, b) => b._sortKey!.compareTo(a._sortKey!));
     return [...upcoming, ...past, ...undated];
   }
+
+  /// Its start to the minute when the server gives one, else its date.
+  DateTime? get _sortKey => startsAtTime ?? startsAt ?? endsAt;
 
   /// GET /events (PublicContentController::events()) -- key/name/title/
   /// date/time/venue/barangay/category/recurrence/timezone. `title` falls
@@ -273,11 +314,15 @@ class EventItem {
   factory EventItem.fromApi(Map<String, dynamic> json) {
     final rawDate = JsonRead.nonEmpty(json['date']);
     final parsed = rawDate != null ? DateTime.tryParse(rawDate) : null;
+    final startTime = JsonRead.nonEmpty(json['start_time']);
+    final endTime = JsonRead.nonEmpty(json['end_time']);
     return EventItem(
       key: JsonRead.nonEmpty(json['key']),
       title: JsonRead.nonEmpty(json['title']) ?? JsonRead.nonEmpty(json['name']) ?? '',
       date: parsed != null ? DateFormat('MMM d, yyyy').format(parsed) : (rawDate ?? ''),
-      time: JsonRead.string(json['time']) ?? '',
+      // The time range when the event has real times (owner, 2026-11-06),
+      // else the free-text `time` older events carry.
+      time: timeRange(startTime, endTime) ?? JsonRead.string(json['time']) ?? '',
       venue: JsonRead.string(json['venue']) ?? '',
       category: JsonRead.nonEmpty(json['category']),
       barangay: JsonRead.nonEmpty(json['barangay']),
@@ -287,6 +332,10 @@ class EventItem {
       balitaPostId: JsonRead.integer(json['balita_post_id']),
       startsAt: parsed,
       registration: EventRegistrationInfo.fromApi(json['registration']),
+      startTime: startTime,
+      endTime: endTime,
+      startsAtTime: JsonRead.date(json['starts_at']),
+      endsAt: JsonRead.date(json['ends_at']),
     );
   }
 }

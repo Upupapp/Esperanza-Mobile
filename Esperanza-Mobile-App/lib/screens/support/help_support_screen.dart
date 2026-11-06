@@ -17,7 +17,6 @@ import '../../widgets/helpful_vote.dart';
 import '../../widgets/segmented_tabs.dart';
 import '../legal/privacy_policy_screen.dart';
 import '../legal/terms_screen.dart';
-import '../sakuna/report_incident_screen.dart';
 import 'report_problem_screen.dart';
 import 'support_tickets_screen.dart';
 
@@ -152,7 +151,7 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
         EmptyState(
           icon: Icons.help_outline_rounded,
           title: content.faqs.isEmpty
-              ? 'No FAQs are published yet. Submit a support ticket if you need help.'
+              ? 'No FAQs are published yet. Report a problem if you need help.'
               : 'No FAQs match your search.',
         )
       else
@@ -237,54 +236,18 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
     ];
   }
 
-  /// The website's Support tab: an incident is not a ticket; a new ticket;
-  /// the tickets so far; then how to reach the office.
+  /// The website's Support tab: report a problem; the tickets so far; then
+  /// how to reach the office. The "Report an incident" card was removed
+  /// (owner, 2026-11-06): incidents belong to Emergency / Sakuna, not
+  /// Support. The website drops it too.
   List<Widget> _support(BuildContext context, HelpContent? content) {
     final signedIn = context.watch<CitizenSessionService>().isSignedIn;
     return [
-      if (signedIn) ...[
-        AppCard(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Icon(Icons.warning_amber_rounded, color: AppColors.rose600),
-                  const SizedBox(width: AppSpacing.sm),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(tr('Flooding, fire, a landslide or an accident?'), style: AppTypography.cardHeading),
-                        const SizedBox(height: AppSpacing.xs),
-                        Text(
-                          "Don't file it as a ticket: report an incident so the MDRRMO sees it at once.",
-                          style: AppTypography.helper.copyWith(color: AppColors.textMuted),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: AppSpacing.md),
-              AppButton(
-                label: tr('Report an incident'),
-                variant: AppButtonVariant.secondary,
-                onPressed: () => Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => const ReportIncidentScreen(accent: AppColors.rose600)),
-                ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: AppSpacing.md),
-      ],
       _LinkCard(
         icon: Icons.flag_outlined,
         tint: AppColors.rose50,
         color: AppColors.rose600,
-        label: tr('Submit a Support Ticket'),
+        label: tr('Report a Problem'),
         onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const ReportProblemScreen())),
       ),
       if (signedIn) ...[

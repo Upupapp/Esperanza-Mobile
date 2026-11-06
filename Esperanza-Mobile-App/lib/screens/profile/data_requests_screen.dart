@@ -30,6 +30,12 @@ class _DataRequestsScreenState extends State<DataRequestsScreen> {
   bool _submitting = false;
   String? _formError;
 
+  /// The form is behind New request, as on the website's Settings > Data
+  /// Privacy (manual test 2026-11-06): leading with it made a resident whose
+  /// request had been answered think they had to ask again.
+  bool _composing = false;
+  final _formKey = GlobalKey();
+
   List<DataRequest>? _requests;
   String? _loadError;
 
@@ -74,6 +80,7 @@ class _DataRequestsScreenState extends State<DataRequestsScreen> {
       if (!mounted) return;
       setState(() {
         _submitting = false;
+        _composing = false;
         _kind = null;
         _detail.clear();
         _requests = [filed, ...?_requests];
@@ -110,22 +117,54 @@ class _DataRequestsScreenState extends State<DataRequestsScreen> {
               style: AppTypography.helper,
             ),
             const SizedBox(height: AppSpacing.lg),
-            AppCard(child: _form()),
-            const SizedBox(height: AppSpacing.sectionGap),
-            const Text('Your requests', style: AppTypography.cardHeading),
+            // The resident's requests and the LGU's answers first; a new
+            // request is one tap away, never the first thing on the page.
+            Row(
+              children: [
+                Expanded(child: Text(tr('My data requests'), style: AppTypography.cardHeading)),
+                if (!_composing)
+                  AppButton(
+                    label: tr('New request'),
+                    icon: Icons.add_rounded,
+                    variant: AppButtonVariant.secondary,
+                    size: AppButtonSize.sm,
+                    onPressed: _openForm,
+                  ),
+              ],
+            ),
             const SizedBox(height: AppSpacing.headingGap),
             ..._history(),
+            if (_composing) ...[
+              const SizedBox(height: AppSpacing.sectionGap),
+              AppCard(key: _formKey, child: _form()),
+            ],
           ],
         ),
       ),
     );
   }
 
+  void _openForm() {
+    setState(() {
+      _composing = true;
+      _formError = null;
+    });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final ctx = _formKey.currentContext;
+      if (ctx != null) Scrollable.ensureVisible(ctx, duration: const Duration(milliseconds: 250));
+    });
+  }
+
+  void _closeForm() => setState(() {
+    _composing = false;
+    _formError = null;
+  });
+
   Widget _form() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const Text('Make a request', style: AppTypography.cardHeading),
+        Text(tr('Make a request about your data'), style: AppTypography.cardHeading),
         const SizedBox(height: AppSpacing.sm),
         RadioGroup<String>(
           groupValue: _kind,
@@ -165,6 +204,15 @@ class _DataRequestsScreenState extends State<DataRequestsScreen> {
           loading: _submitting,
           onPressed: _submitting ? null : _submit,
         ),
+        if (!_submitting) ...[
+          const SizedBox(height: AppSpacing.sm),
+          AppButton(
+            label: tr('Cancel'),
+            variant: AppButtonVariant.ghost,
+            fullWidth: true,
+            onPressed: _closeForm,
+          ),
+        ],
       ],
     );
   }
@@ -190,7 +238,7 @@ class _DataRequestsScreenState extends State<DataRequestsScreen> {
       ];
     }
     if (requests.isEmpty) {
-      return const [Text('You have not made a data request yet.', style: AppTypography.helper)];
+      return [Text(tr('You have no requests yet.'), style: AppTypography.helper)];
     }
     return [
       for (final r in requests) ...[_RequestCard(request: r), const SizedBox(height: AppSpacing.itemGap)],
@@ -229,7 +277,23 @@ class _RequestCard extends StatelessWidget {
           ],
           if (request.resolution != null) ...[
             const SizedBox(height: AppSpacing.sm),
-            Text('Response: ${request.resolution}', style: AppTypography.bodyText),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(AppSpacing.md),
+              decoration: BoxDecoration(
+                color: AppColors.slate50,
+                borderRadius: BorderRadius.circular(AppRadius.md),
+                border: Border.all(color: AppColors.border),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(tr("The LGU's response"), style: AppTypography.fine.copyWith(fontWeight: FontWeight.w700)),
+                  const SizedBox(height: AppSpacing.xs),
+                  Text(request.resolution!, style: AppTypography.bodyText),
+                ],
+              ),
+            ),
           ],
         ],
       ),

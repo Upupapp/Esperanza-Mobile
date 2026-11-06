@@ -2,6 +2,8 @@
 // the highest-risk part of this feature (weighted percentage calculation,
 // section-status derivation, submit/verify/needs-correction transitions).
 // Pure Dart, no widget pump needed.
+import 'dart:convert';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -299,5 +301,51 @@ void main() {
 
     await service.removeFamilyMember(account.id, 'IND-1');
     expect(service.profileFor(account).householdResidentCount, 1);
+  });
+
+  group('Date of birth from the server (manual test 2026-11-06)', () {
+    CitizenAccount withBirthdate(String b) =>
+        CitizenAccount.fromJson({..._demoAccount().toJson(), 'birthdate': b});
+
+    test("the account birthdate is read in the server's YYYY-MM-DD form", () {
+      expect(ResidentProfile.parseAccountBirthdate('1990-06-08'), DateTime(1990, 6, 8));
+      expect(ResidentProfile.parseAccountBirthdate('2001-02-04T00:00:00.000000Z'), DateTime(2001, 2, 4));
+      expect(ResidentProfile.parseAccountBirthdate('2001-02-04T00:00:00+08:00'), DateTime(2001, 2, 4));
+      // The demo accounts' display form still parses.
+      expect(ResidentProfile.parseAccountBirthdate('June 8, 1990'), DateTime(1990, 6, 8));
+      expect(ResidentProfile.parseAccountBirthdate('2001-02-30'), isNull);
+      expect(ResidentProfile.parseAccountBirthdate('—'), isNull);
+      expect(ResidentProfile.parseAccountBirthdate(''), isNull);
+    });
+
+    test('a profile seeded from a server account has its Date of birth', () {
+      final profile = ResidentProfile.seedFrom(withBirthdate('1990-06-08'));
+      expect(profile.personal.birthdate, DateTime(1990, 6, 8));
+    });
+
+    test('a profile saved on the phone without a birthdate is refilled once from the account', () async {
+      final account = withBirthdate('1990-06-08');
+      final saved = ResidentProfile.seedFrom(_demoAccount()); // birthdate '—' -> null
+      expect(saved.personal.birthdate, isNull);
+      SharedPreferences.setMockInitialValues({
+        'esperanza_resident_profiles': jsonEncode({account.id: saved.toJson()}),
+      });
+      final service = ResidentProfileService();
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+
+      expect(service.profileFor(account).personal.birthdate, DateTime(1990, 6, 8));
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+      final prefs = await SharedPreferences.getInstance();
+      final stored = jsonDecode(prefs.getString('esperanza_resident_profiles')!) as Map<String, dynamic>;
+      expect(ResidentProfile.fromJson(stored[account.id] as Map<String, dynamic>).personal.birthdate, DateTime(1990, 6, 8));
+    });
+
+    test("a birthdate the resident entered is never replaced by the account's", () async {
+      final account = withBirthdate('1990-06-08');
+      final service = ResidentProfileService();
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+      service.profileFor(account).personal.birthdate = DateTime(1991, 1, 1);
+      expect(service.profileFor(account).personal.birthdate, DateTime(1991, 1, 1));
+    });
   });
 }

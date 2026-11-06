@@ -100,16 +100,32 @@ class ResidentProfileService extends ChangeNotifier {
   /// still be missing the family members / school / family-background
   /// fields that only this alignment step adds.
   ResidentProfile profileFor(CitizenAccount account) {
-    return _profiles.putIfAbsent(account.id, () {
+    final profile = _profiles.putIfAbsent(account.id, () {
       final isVerifiedDemo = account.id == _verifiedDemoAccountId;
-      final profile = ResidentProfile.seedFrom(
+      final seeded = ResidentProfile.seedFrom(
         account,
         familyIdOverride: isVerifiedDemo ? _verifiedDemoFamilyId : null,
         householdIdOverride: isVerifiedDemo ? _verifiedDemoHouseholdId : null,
       );
-      if (isVerifiedDemo) _applyVerifiedDemoMasterProfileAlignment(profile);
-      return profile;
+      if (isVerifiedDemo) _applyVerifiedDemoMasterProfileAlignment(seeded);
+      return seeded;
     });
+    if (_refillBirthdate(profile, account)) _persist();
+    return profile;
+  }
+
+  /// A one-off repair (manual test 2026-11-06): profiles seeded on this
+  /// phone before the server's "YYYY-MM-DD" birthdate was read were saved
+  /// with no birthdate, so Personal information stayed In progress and
+  /// disagreed with the website. When the saved profile has none and the
+  /// account has one, take the account's. Never overwrites a date the
+  /// resident entered; once filled it never runs again.
+  bool _refillBirthdate(ResidentProfile p, CitizenAccount account) {
+    if (p.personal.birthdate != null) return false;
+    final fromAccount = ResidentProfile.parseAccountBirthdate(account.birthdate);
+    if (fromAccount == null) return false;
+    p.personal.birthdate = fromAccount;
+    return true;
   }
 
   /// The Web-Admin-sourced correction for Perlita Quiambao's

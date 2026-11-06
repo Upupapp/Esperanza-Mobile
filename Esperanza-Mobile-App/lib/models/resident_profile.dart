@@ -591,7 +591,7 @@ class ResidentProfile {
         firstName: account.firstName,
         lastName: account.lastName,
         sex: account.sex == '—' ? '' : account.sex,
-        birthdate: _tryParseDisplayDate(account.birthdate),
+        birthdate: parseAccountBirthdate(account.birthdate),
         civilStatus: account.civilStatus == '—' ? '' : account.civilStatus,
         mobile: account.mobile,
         email: account.email,
@@ -614,6 +614,27 @@ class ResidentProfile {
         completeAddress: account.address,
       ),
     );
+  }
+
+  /// The account's birthdate as a date, or null when it is unset or does
+  /// not parse. The server sends "YYYY-MM-DD" (manual test 2026-11-06: only
+  /// the demo form below was read, so a signed-in resident's Date of birth
+  /// stayed blank and Personal information never left In progress); demo
+  /// accounts store "June 8, 1990". Only the calendar date is taken from an
+  /// ISO value, so an offset in a timestamp cannot move the day.
+  static DateTime? parseAccountBirthdate(String display) {
+    final iso = RegExp(r'^(\d{4})-(\d{2})-(\d{2})').firstMatch(display.trim());
+    if (iso != null) {
+      final y = int.parse(iso.group(1)!);
+      final m = int.parse(iso.group(2)!);
+      final d = int.parse(iso.group(3)!);
+      final date = DateTime(y, m, d);
+      // Reject an impossible day ("2001-02-30") rather than let DateTime
+      // roll it into March.
+      if (date.year != y || date.month != m || date.day != d) return null;
+      return date;
+    }
+    return _tryParseDisplayDate(display);
   }
 
   static DateTime? _tryParseDisplayDate(String display) {

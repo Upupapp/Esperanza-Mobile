@@ -2,6 +2,8 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:image_picker_android/image_picker_android.dart';
+import 'package:image_picker_platform_interface/image_picker_platform_interface.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../widgets/app_dialogs.dart';
@@ -219,5 +221,24 @@ Future<FilePickerResult?> pickDocumentProtected(
 }) async {
   if (!await _confirmExplanation(context, ProtectedResource.document, explanation: explanation)) return null;
   if (!context.mounted) return null;
-  return FilePicker.pickFiles(type: FileType.custom, allowedExtensions: allowedExtensions, withData: withData);
+  // One file per requirement (manual test 2026-11-06): asked for explicitly,
+  // not left to the package default.
+  return FilePicker.pickFiles(
+    type: FileType.custom,
+    allowedExtensions: allowedExtensions,
+    withData: withData,
+    allowMultiple: false,
+  );
+}
+
+/// Turns on Android's own Photo Picker for every gallery pick; called once
+/// at startup. Without it image_picker_android hands the gallery to an
+/// ACTION_GET_CONTENT intent, and some gallery apps answer that with
+/// multi-select, so a resident could tick several photos for a requirement
+/// that takes one (manual test 2026-11-06). The Photo Picker honours the
+/// single-image request, and needs no storage permission. A no-op off
+/// Android.
+void useAndroidPhotoPicker() {
+  final picker = ImagePickerPlatform.instance;
+  if (picker is ImagePickerAndroid) picker.useAndroidPhotoPicker = true;
 }

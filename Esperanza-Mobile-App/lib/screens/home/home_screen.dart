@@ -74,7 +74,12 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   // never a full-screen error/retry state that blocks everything else on
   // Home (see sakuna_screen.dart's own doc comment on this exact class of
   // mistake).
-  late final Future<List<EventItem>> _eventsFuture = _loadEvents();
+  //
+  // Fetched again when the app comes back to the foreground (owner,
+  // 2026-11-06): an app left open all day kept showing events that had
+  // ended. [_shownEvents] keeps the last list on screen while it reloads.
+  late Future<List<EventItem>> _eventsFuture = _loadEvents();
+  List<EventItem> _shownEvents = const [];
 
   /// The banners staff publish to the dashboard; nothing shows when none
   /// are live or the list cannot be read.
@@ -89,13 +94,15 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       final now = DateTime.now();
       final from =
           '${now.year.toString().padLeft(4, '0')}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
-      final res = await api.get('/events', query: {'from': from, 'per_page': 20});
+      // `upcoming=1` (2026-11-06): the server leaves out events whose end
+      // time has passed today; `from` stays for an older server.
+      final res = await api.get('/events', query: {'from': from, 'upcoming': 1, 'per_page': 20});
       final events = EventItem.inCalendarOrder(JsonRead.rows(res.list, EventItem.fromApi).where((e) => e.title.isNotEmpty));
       // Upcoming only: under an "Upcoming Events" heading, a past event
       // (which calendar order puts after the upcoming ones) must not fill a
       // slot when fewer than two are coming up.
-      final today = DateTime.now();
-      return events.where((e) => !e.isPast(today)).take(2).toList();
+      final at = DateTime.now();
+      return events.where((e) => !e.isPast(at)).toList();
     } on ApiException {
       // Caught, not rethrown: this teaser has no retry affordance of its
       // own (see the class-level doc comment), so a failure here should
@@ -138,7 +145,19 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) _syncResidentProfile();
+    if (state == AppLifecycleState.resumed) {
+      _syncResidentProfile();
+      _refreshEvents();
+    }
+  }
+
+  void _refreshEvents() {
+    if (!mounted) return;
+    // A block, not an arrow: an arrow returns the Future, which setState
+    // refuses.
+    setState(() {
+      _eventsFuture = _loadEvents();
+    });
   }
 
   /// GET /citizen/resident-profile. Offline, the card keeps what it shows.
@@ -346,7 +365,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                     FutureBuilder<List<EventItem>>(
                       future: _eventsFuture,
                       builder: (context, snapshot) {
-                        final events = snapshot.data ?? const <EventItem>[];
+                        if (snapshot.hasData) _shownEvents = snapshot.data!;
+                        // Checked again on every build, so one that ends
+                        // while Home is open drops off at the next redraw.
+                        final now = DateTime.now();
+                        final events = _shownEvents.where((e) => !e.isPast(now)).take(2);
                         return Column(
                           children: [for (final e in events) EventCard(event: e, compact: true)],
                         );

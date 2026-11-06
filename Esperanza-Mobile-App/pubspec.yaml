@@ -35,6 +35,10 @@ dependencies:
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.8
   image_picker: ^1.2.3
+  # Direct only to turn Android's Photo Picker on at startup (one photo per
+  # requirement, manual test 2026-11-06): lib/utils/protected_action.dart.
+  image_picker_android: ^0.8.13+19
+  image_picker_platform_interface: ^2.11.1
   file_picker: ^11.0.3
   permission_handler: ^12.0.1
   shared_preferences: ^2.5.5
@@ -70,6 +74,15 @@ dependencies:
   flutter_map: ^8.3.2
   latlong2: ^0.10.1
   geolocator: ^14.0.2
+  # PDFs open inside the app (owner, 2026-11-06): lib/screens/shared/
+  # pdf_viewer_screen.dart. pdfx draws with the phone's own renderer
+  # (Android PdfRenderer, iOS PDFKit/CoreGraphics), so it ships no PDF engine
+  # and has no build hook. pdfrx 2.x was tried first and refused: its
+  # native-asset hook compiles C and downloads PDFium on every
+  # `flutter test`, which fails on a machine without a C compiler (the
+  # Windows lane) - it would have broken the gate. pdfx is a native plugin:
+  # the macOS lane builds and checks iOS before the next iOS release.
+  pdfx: ^2.11.0
 
 # Launcher icons are GENERATED, never hand-edited. Regenerate on either lane with:
 #

@@ -15,11 +15,16 @@
 // shipping widget wiring a different message to the wrong action. They now
 // host on `RequirementUploader`, which is what Dokyu and Tulong actually
 // render. `AttachmentPicker` was deleted with FE 08.
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:image_picker_android/image_picker_android.dart';
+import 'package:image_picker_platform_interface/image_picker_platform_interface.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:esperanza_mobile/theme/app_colors.dart';
+import 'package:esperanza_mobile/utils/protected_action.dart';
 import 'package:esperanza_mobile/utils/requirement_document_type.dart';
 import 'package:esperanza_mobile/widgets/requirement_uploader.dart';
 
@@ -135,5 +140,32 @@ void main() {
     expect(find.byType(BottomSheet), findsOneWidget);
     expect(find.byType(AlertDialog), findsNothing);
     expect(tester.takeException(), isNull);
+  });
+
+  group('One file per requirement (manual test 2026-11-06)', () {
+    test("startup turns on Android's Photo Picker, which picks a single image", () {
+      final previous = ImagePickerPlatform.instance;
+      addTearDown(() => ImagePickerPlatform.instance = previous);
+      final android = ImagePickerAndroid();
+      ImagePickerPlatform.instance = android;
+      expect(android.useAndroidPhotoPicker, isFalse);
+      useAndroidPhotoPicker();
+      expect(android.useAndroidPhotoPicker, isTrue);
+    });
+
+    test('main() calls it before the app runs', () {
+      final main = File('lib/main.dart').readAsStringSync();
+      expect(main.indexOf('useAndroidPhotoPicker();'), greaterThan(0));
+      expect(main.indexOf('useAndroidPhotoPicker();'), lessThan(main.indexOf('runApp(')));
+    });
+
+    test('the document picker asks for exactly one file', () {
+      // file_picker's platform interface is not exported, so the call is
+      // checked at its source rather than through a fake platform.
+      final src = File('lib/utils/protected_action.dart').readAsStringSync();
+      final call = src.substring(src.indexOf('FilePicker.pickFiles('));
+      expect(call.substring(0, call.indexOf(');')), contains('allowMultiple: false'));
+      expect(File('lib/widgets/requirement_uploader.dart').readAsStringSync(), isNot(contains('result.files.single')));
+    });
   });
 }

@@ -52,7 +52,10 @@ Verified identity and an approved account - the app takes `access_level` from th
 **iOS:** `didit_sdk` adds a native dependency and `NSMicrophoneUsageDescription`; the macOS lane
 must build and check iOS before the next iOS release. The same holds for `geolocator`
 (Sakuna's map, 2026-10-26: `NSLocationWhenInUseUsageDescription`); see
-`Esperanza-Mobile-App/docs/SAKUNA_MAPS.md`. Map points are the backend's `lat`/`lng` pair
+`Esperanza-Mobile-App/docs/SAKUNA_MAPS.md`. And for `pdfx` (My Documents opens PDFs in the app,
+2026-11-06: `lib/screens/shared/pdf_viewer_screen.dart`; PDFKit on iOS, no permission string).
+`pdfrx` 2.x was refused: its build hook compiles C and downloads PDFium on every `flutter test`,
+which fails on a lane with no C compiler. Map points are the backend's `lat`/`lng` pair
 (`lib/models/geo_point.dart`), both or neither; never place a record at a guessed point.
 
 **Check routes against the backend, not the spec.** Citizen-only routes live under

@@ -338,6 +338,12 @@ void main() {
       expect(serverNotificationDestination(n(link: '/citizen/settings')), isA<DataRequestsScreen>());
     });
 
+    test('a resolved data request opens My data requests, with or without the tab (Sprint 4)', () {
+      expect(serverNotificationDestination(n(link: '/citizen/settings?tab=privacy')), isA<DataRequestsScreen>());
+      expect(serverNotificationDestination(n(link: '/citizen/settings#privacy')), isA<DataRequestsScreen>());
+      expect(serverNotificationDestination(n(link: '/citizen/settingsx')), isNot(isA<DataRequestsScreen>()));
+    });
+
     test('a rejected payment opens the request list, not the payment as a request', () {
       expect(
         serverNotificationDestination(n(link: '/citizen/document-requests', ref: 'PAY-2026-0007', category: 'dokyu')),

@@ -45,6 +45,115 @@ void main() {
     expect(EventItem.fromApi({'name': 'Undated'}).isPast(DateTime.now()), isFalse);
   });
 
+  group('real start and end times (owner, 2026-11-06)', () {
+    final noonToday = DateTime.now();
+    String iso(DateTime d) {
+      // As the server writes it: ISO-8601 in Manila time.
+      final m = d.toUtc().add(const Duration(hours: 8));
+      String two(int v) => v.toString().padLeft(2, '0');
+      return '${m.year}-${two(m.month)}-${two(m.day)}T${two(m.hour)}:${two(m.minute)}:${two(m.second)}+08:00';
+    }
+
+    test('the times are read, and the card shows their range', () {
+      final e = EventItem.fromApi({
+        'name': 'Blood Letting',
+        'date': _day(2),
+        'time': 'Morning',
+        'start_time': '08:00',
+        'end_time': '12:30',
+        'starts_at': '2026-11-08T08:00:00+08:00',
+        'ends_at': '2026-11-08T12:30:00+08:00',
+      });
+      expect(e.startTime, '08:00');
+      expect(e.endTime, '12:30');
+      expect(e.startsAtTime, DateTime.utc(2026, 11, 8, 0, 0));
+      expect(e.endsAt, DateTime.utc(2026, 11, 8, 4, 30));
+      expect(e.time, '8:00 AM – 12:30 PM');
+      expect(
+        EventItem.fromApi({'name': 'Start only', 'start_time': '17:00', 'ends_at': '2026-11-08T23:59:59+08:00'}).time,
+        '5:00 PM',
+      );
+      // No times (or unreadable ones): the free-text time older events carry.
+      expect(EventItem.fromApi({'name': 'Old', 'time': '5:30 PM'}).time, '5:30 PM');
+      expect(EventItem.fromApi({'name': 'Bad', 'start_time': '25:00', 'time': 'Afternoon'}).time, 'Afternoon');
+      expect(EventItem.fromApi({'name': 'Wrong type', 'start_time': 8, 'ends_at': 12}).endsAt, isNull);
+    });
+
+    test('an event is past from its end time, not from the next day', () {
+      final e = EventItem.fromApi({
+        'name': 'Morning Clean-up',
+        'date': _day(0),
+        'start_time': '06:00',
+        'end_time': '09:00',
+        'ends_at': iso(noonToday.subtract(const Duration(hours: 1))),
+      });
+      expect(e.isPast(noonToday), isTrue, reason: 'it ended an hour ago, on its own date');
+      final end = e.endsAt!;
+      expect(e.isPast(end), isTrue, reason: 'at its end time it is over');
+      expect(e.isPast(end.subtract(const Duration(minutes: 1))), isFalse);
+      // An older server sends no ends_at: today's date-only rule.
+      expect(EventItem.fromApi({'name': 'Today', 'date': _day(0)}).isPast(noonToday), isFalse);
+      expect(EventItem.fromApi({'name': 'Yesterday', 'date': _day(-1)}).isPast(noonToday), isTrue);
+    });
+
+    test('calendar order uses the end time to split, and the start time to sort', () {
+      final now = DateTime.now();
+      final ended = EventItem.fromApi({'name': 'Ended', 'date': _day(0), 'ends_at': iso(now.subtract(const Duration(minutes: 5)))});
+      final later = EventItem.fromApi({
+        'name': 'Later',
+        'date': _day(0),
+        'starts_at': iso(now.add(const Duration(hours: 3))),
+        'ends_at': iso(now.add(const Duration(hours: 4))),
+      });
+      final sooner = EventItem.fromApi({
+        'name': 'Sooner',
+        'date': _day(0),
+        'starts_at': iso(now.add(const Duration(hours: 1))),
+        'ends_at': iso(now.add(const Duration(hours: 2))),
+      });
+      expect(EventItem.inCalendarOrder([ended, later, sooner], now: now).map((e) => e.title), ['Sooner', 'Later', 'Ended']);
+    });
+
+    testWidgets('the Events tab puts an event that ended today under Past', (tester) async {
+      final now = DateTime.now();
+      FakeApi.installFull((r) {
+        if (r.path == '/events') {
+          return [
+            {'name': 'Ended This Morning', 'date': _day(0), 'ends_at': iso(now.subtract(const Duration(minutes: 30)))},
+            {'name': 'Still On Today', 'date': _day(0), 'ends_at': iso(now.add(const Duration(hours: 3)))},
+          ];
+        }
+        return <dynamic>[];
+      });
+      tester.view.physicalSize = const Size(400, 1400);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      await tester.pumpWidget(
+        MultiProvider(
+          providers: [
+            ChangeNotifierProvider(create: (_) => CitizenSessionService()),
+            ChangeNotifierProvider(create: (_) => RequestsService()),
+            ChangeNotifierProvider(create: (_) => BalitaService()),
+            ChangeNotifierProvider(create: (_) => ResidentProfileService()),
+            ChangeNotifierProvider(create: (_) => MasterFileService()),
+            ChangeNotifierProvider(create: (_) => NotificationsService()),
+          ],
+          child: const MaterialApp(home: EventsScreen()),
+        ),
+      );
+      await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 50)));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Still On Today'), findsOneWidget);
+      expect(find.text('Ended This Morning'), findsNothing);
+      await tester.tap(find.text('Past'));
+      await tester.pumpAndSettle();
+      expect(find.text('Ended This Morning'), findsOneWidget);
+      expect(find.text('Still On Today'), findsNothing);
+    });
+  });
+
   testWidgets('the card shows only what the event has, with its barangay and recurrence', (tester) async {
     final withAll = EventItem.fromApi({
       'name': 'Zumba sa Plaza',
