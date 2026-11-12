@@ -12,6 +12,9 @@ import '../l10n/tr.dart';
 /// submitted, the "not yet ruled" note where the LGU has not decided the fee,
 /// and never to an e-wallet. A free service says so instead, when
 /// [sayWhenFree] (Dokyu does; Tulong, like the website, says nothing).
+/// A free service is free even while the LGU has not ruled on it: Medical
+/// Assistance (AICS) told residents how to pay a fee it does not have
+/// (2026-11-12). The "not yet ruled" note is for a service with a fee.
 class PaymentGuidanceCard extends StatelessWidget {
   const PaymentGuidanceCard({super.key, required this.item, this.sayWhenFree = true});
 
@@ -22,7 +25,7 @@ class PaymentGuidanceCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (_free && !item.policyBlocked) {
+    if (_free) {
       if (!sayWhenFree) return const SizedBox.shrink();
       return AppCard(
         child: Row(
