@@ -90,14 +90,14 @@ void main() {
   });
 
   test('the ordinal date the paper forms use', () {
-    expect(issuanceDate(DateTime(2026, 10, 1)), '1st day of October 2026');
-    expect(issuanceDate(DateTime(2026, 10, 2)), '2nd day of October 2026');
-    expect(issuanceDate(DateTime(2026, 10, 3)), '3rd day of October 2026');
-    expect(issuanceDate(DateTime(2026, 10, 11)), '11th day of October 2026');
-    expect(issuanceDate(DateTime(2026, 10, 12)), '12th day of October 2026');
-    expect(issuanceDate(DateTime(2026, 10, 13)), '13th day of October 2026');
-    expect(issuanceDate(DateTime(2026, 10, 21)), '21st day of October 2026');
-    expect(issuanceDate(DateTime(2026, 10, 22)), '22nd day of October 2026');
+    expect(issuanceDate(DateTime(2026, 10, 1)), '1st day of October, 2026');
+    expect(issuanceDate(DateTime(2026, 10, 2)), '2nd day of October, 2026');
+    expect(issuanceDate(DateTime(2026, 10, 3)), '3rd day of October, 2026');
+    expect(issuanceDate(DateTime(2026, 10, 11)), '11th day of October, 2026');
+    expect(issuanceDate(DateTime(2026, 10, 12)), '12th day of October, 2026');
+    expect(issuanceDate(DateTime(2026, 10, 13)), '13th day of October, 2026');
+    expect(issuanceDate(DateTime(2026, 10, 21)), '21st day of October, 2026');
+    expect(issuanceDate(DateTime(2026, 10, 22)), '22nd day of October, 2026');
   });
 
   test('a Barangay Clearance reads as the website\'s, filled with the answers', () {
@@ -114,16 +114,32 @@ void main() {
     expect(
       text,
       contains(
-        'This is to certify that Ana Reyes Cruz, 34 years of age, is a permanent resident of Purok 3, Barangay Baras, Esperanza, Masbate.',
+        'This is to certify that Ana Reyes Cruz, 34 years of age, is a ( / ) permanent, (  ) temporary, (  ) renter resident of Purok 3, Barangay Baras, Esperanza, Masbate.',
       ),
     );
-    expect(text, contains('Local Employment, NBI Clearance'));
-    expect(sheet.closing, 'Given today 22nd day of October 2026 at Barangay Baras, Esperanza, Masbate, Philippines.');
+    // The paper's tick list of purposes (LABANGTATAY BRGY TEMPLATES, 2026-11-03).
+    expect(text, contains('( / ) Local Employment'));
+    expect(text, contains('( / ) NBI Clearance'));
+    expect(text, contains('(  ) Travel Abroad'));
+    expect(text, contains('no derogatory record on file in this office'));
+    expect(sheet.closing, 'Given today 22nd day of October, 2026 at Barangay Baras, Esperanza, Masbate, Philippines.');
+  });
+
+  test('each certificate dates and words as its paper does (Labangtaytay templates, 2026-11-03)', () {
+    final day = DateTime(2026, 11, 3);
+    final late = _text(buildDocument(documentMetas['brgy_cert_late_registration']!, const {}, barangay: 'Baras', today: day));
+    expect(late, contains('Issued this 3rd day of November, 2026 upon request'));
+    expect(late, contains('LATE REGISTRATION of his/her birth'));
+    final ftjs = _text(buildDocument(documentMetas['brgy_first_time_jobseeker']!, const {}, barangay: 'Baras', today: day));
+    expect(ftjs, contains('Oath of Undertaking'));
+    expect(ftjs, contains('Signed this 3rd day of November, 2026 at Barangay Baras'));
+    expect(ftjs, contains('valid for one (1) year'));
   });
 
   test('a blank answer keeps the paper\'s line, and its own default', () {
     final text = _text(buildDocument(documentMetas['brgy_indigency']!, const {}, barangay: 'Baras'));
-    expect(text, contains('This is to certify that _______________________, ___ years of age, is a permanent resident'));
+    expect(text, contains('This is to certify that _______________________, ___ years of age, is a (  ) permanent'));
+    expect(buildDocument(documentMetas['brgy_indigency']!, const {}, barangay: 'Baras').validity, '(Indigency certificate valid three (3) months from the date of issuance)');
   });
 
   test('the office\'s template names the document, as on the website', () {
@@ -200,8 +216,12 @@ void main() {
     expect(find.text('BARANGAY BARAS'), findsOneWidget);
     expect(find.text('TO WHOM IT MAY CONCERN:'), findsOneWidget);
     expect(find.textContaining('Ana Reyes Cruz', findRichText: true), findsOneWidget);
-    expect(find.text('HON. SYNTHETIC CAPTAIN'), findsOneWidget);
-    expect(find.textContaining('Synthetic Secretary', findRichText: true), findsOneWidget);
+    // Signed as the Clearance paper is: the Punong Barangay's name without "Hon.",
+    // the resident's line and thumbmark box, "Released by" the Secretary.
+    expect(find.text('SYNTHETIC CAPTAIN'), findsOneWidget);
+    expect(find.text('Resident Signature'), findsOneWidget);
+    expect(find.text('Right Thumbmark'), findsOneWidget);
+    expect(find.textContaining('SYNTHETIC SECRETARY', findRichText: true), findsOneWidget);
     expect(find.textContaining('BRGY-2026-000123', findRichText: true), findsOneWidget);
     expect(find.text('Not Valid without Barangay Seal'), findsOneWidget);
     // An A4 page (794 x 1123), scaled to the screen.

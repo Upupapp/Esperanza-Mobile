@@ -380,6 +380,7 @@ class DocumentSheet {
     this.punongBarangay,
     this.barangaySecretary,
     this.closing,
+    this.validity,
     this.note,
     this.issued,
     this.bodyGap = 12,
@@ -396,6 +397,10 @@ class DocumentSheet {
 
   /// "Given today ..." / "Issued this ..." where the paper form has it.
   final String? closing;
+
+  /// The validity line printed at the foot (Residency, Indigency), as on
+  /// Barangay Labangtaytay's papers (2026-11-03).
+  final String? validity;
 
   /// The template's note, from GET /document-templates.
   final String? note;
@@ -426,11 +431,28 @@ class DocumentTemplate {
 
 const _blank = '_______________________';
 
-/// "22nd day of October 2026".
+/// "22nd day of October, 2026", as the barangay papers write it.
 String issuanceDate(DateTime d) {
   final day = d.day;
   final suffix = (day >= 11 && day <= 13) ? 'th' : (const ['th', 'st', 'nd', 'rd'].elementAtOrNull(day % 10) ?? 'th');
-  return '$day$suffix day of ${DateFormat('MMMM y').format(d)}';
+  return '$day$suffix day of ${DateFormat('MMMM, y').format(d)}';
+}
+
+/// The barangay papers' tick lists (LABANGTATAY BRGY TEMPLATES, 2026-11-03).
+const residencyTypes = ['permanent', 'temporary', 'renter'];
+const paperPurposes = {
+  'brgy_residency': ['Proof of Residency', 'Local Employment', 'Travel Abroad', 'Postal I.D', 'Bank Requirement', 'NBI Clearance', 'Loan Purpose', 'Medical/Financial Assistance'],
+  'brgy_clearance': ['Proof of Residency', 'Local Employment', 'Travel Abroad', 'Postal I.D.', 'Bank Requirement', 'NBI Clearance', 'Loan Purposes', 'Medical/Financial Assistance'],
+  'brgy_indigency': ['Medical Assistance/Financial Assistance', 'Burial Assistance', 'Educational Assistance'],
+};
+
+String _norm(String v) => v.toLowerCase().replaceFirst(RegExp(r'^others:\s*'), '').replaceAll(RegExp(r'[^a-z0-9]'), '');
+
+/// Whether a chosen answer is this option (Postal I.D / I.D., Loan Purpose /
+/// Purposes, the old split Medical and Financial Assistance all count).
+bool _same(String chosen, String option) {
+  final x = _norm(chosen), y = _norm(option);
+  return x.isNotEmpty && (x == y || '${x}s' == y || x == '${y}s' || (x.length > 7 && y.contains(x)));
 }
 
 /// Builds [meta]'s document from [data] (the request's answers), as the
@@ -466,6 +488,36 @@ DocumentSheet buildDocument(
   DocSpan m(String text) => DocSpan(text, muted: true);
   DocSpan v(String key, {String fallback = '—'}) => DocSpan(raw(key).isEmpty ? fallback : raw(key), bold: true);
 
+  List<String> chosen(String key) {
+    final v = data[key];
+    if (v is List) return [for (final e in v) '$e'];
+    final s = raw(key);
+    return s.isEmpty ? const [] : s.split(RegExp(r',\s*'));
+  }
+
+  String tick(bool on) => on ? '( / )' : '(\u00a0\u00a0)';
+  // "( / ) permanent, (  ) temporary, (  ) renter"
+  DocSpan residency() {
+    final c = raw('residency_type').toLowerCase();
+    return DocSpan([for (final t in residencyTypes) '${tick(c == t)} $t'].join(', '));
+  }
+
+  // The paper's purposes, each ticked or not, then "Others: ..." as typed.
+  DocText purposes() {
+    final options = paperPurposes[meta.key] ?? const <String>[];
+    final c = chosen('purpose');
+    final others = [
+      for (final x in c)
+        if (!options.any((o) => _same(x, o)) && !RegExp(r'^others$', caseSensitive: false).hasMatch(x.trim())) x.replaceFirst(RegExp(r'^others:\s*', caseSensitive: false), ''),
+    ].join(', ');
+    return DocText([
+      for (final o in options) DocSpan('${tick(c.any((x) => _same(x, o)))} $o\n'),
+      DocSpan('${tick(others.isNotEmpty)} Others: '),
+      DocSpan(others.isEmpty ? _blank : others, field: true),
+    ], style: DocTextStyle.purpose);
+  }
+
+  final date = issuanceDate(issued?.issuedOn ?? today ?? DateTime.now());
   final body = <DocBlock>[];
   var gap = 10.0;
   var relaxed = meta.kind == DocumentKind.barangay;
@@ -476,7 +528,7 @@ DocumentSheet buildDocument(
         p(['This further certifies for the other information of this person to wit:']),
         DocPairs([
           pair('Name of Father', 'father_name'),
-          pair('Name of Mother (Maiden)', 'mother_name'),
+          pair('Name of Mother (Maiden Name)', 'mother_name'),
           pair('Date of Death', 'date_of_death'),
           pair('Place of Death', 'place_of_death'),
           pair('Civil Status', 'civil_status'),
@@ -485,7 +537,7 @@ DocumentSheet buildDocument(
           pair('Sex', 'sex'),
         ]),
         p([
-          'Issued upon request of the interested party for the ',
+          'Issued this $date, upon request of the interested party for the ',
           b('REGISTRATION of Death'),
           ' and for whatever legal purposes this will serve him/her best.',
         ]),
@@ -496,7 +548,7 @@ DocumentSheet buildDocument(
         p(['This further certifies for the other information of this person to wit:']),
         DocPairs([
           pair('Name of Father', 'father_name'),
-          pair('Name of Mother (Maiden)', 'mother_name'),
+          pair('Name of Mother (Maiden Name)', 'mother_name'),
           pair('Date of Birth', 'date_of_birth'),
           pair('Place of Birth', 'place_of_birth'),
           pair('Sex', 'sex'),
@@ -506,8 +558,8 @@ DocumentSheet buildDocument(
           pair('Name of Husband/Wife (if married)', 'spouse_name'),
         ]),
         p([
-          'Issued upon request of the herein interested party for the ',
-          b('LATE REGISTRATION of Birth'),
+          'Issued this $date upon request of the herein interested party for the ',
+          b('LATE REGISTRATION of his/her birth'),
           ' at the Municipal Registry Office of Esperanza, Masbate.',
         ]),
         const DocBoxes(['Right Thumbmark', 'Left Thumbmark', 'Picture']),
@@ -534,7 +586,7 @@ DocumentSheet buildDocument(
           ' ).',
         ]),
         p([
-          'This is Non-Transferrable, and shall be null and void, upon failure of the aforementioned applicant to strictly comply with the conditions of this clearance.',
+          'This is non-transferable and shall be null and void upon failure of the aforementioned applicant to strictly comply with the conditions of this clearance.',
         ]),
         p([
           'This clearance is being issued upon request of the interested party for identification and whatever legal purposes it may serve.',
@@ -547,19 +599,19 @@ DocumentSheet buildDocument(
           f('requester_name'),
           ', ',
           f('age', fallback: '___'),
-          ' of legal age, is a ',
-          f('residency_type', fallback: 'permanent', lower: true),
-          ' bonafide resident of Purok ',
+          ' years of age, is a ',
+          residency(),
+          ' a bonafide resident of Purok ',
           f('purok', fallback: '___'),
           ', Barangay ',
           brgy,
           ', Esperanza, Masbate.',
         ]),
         p([
-          'He/She has no pending case/complaint against him/her as per record of this office. He/She has no derogatory record file in this office.',
+          'He/She has no pending case/complaint against him/her as per record of this office. He/She has no derogatory record on file in this office.',
         ]),
-        p(['This certification is being issued by this office upon the request of aforementioned name for:']),
-        p([f('purpose')], style: DocTextStyle.purpose),
+        p(['This certification is being issued by this office upon the request of the aforementioned name for:']),
+        purposes(),
       ]);
     case 'brgy_first_time_jobseeker':
       body.addAll([
@@ -577,8 +629,10 @@ DocumentSheet buildDocument(
           ' or the First Time Jobseekers Assistance Act of 2019.',
         ]),
         p([
-          'This certifies that the holder/bearer was informed of their rights, including the duties and responsibilities accorded by RA 11261, through the Oath of Understanding signed and executed in the presence of Barangay Officials.',
+          'I further certify that the holder/bearer was informed of his/her rights, including the duties and responsibilities accorded by RA 11261, through the Oath of Undertaking he/she has signed and executed in the presence of Barangay Officials.',
         ]),
+        p(['Signed this $date at Barangay ', brgy, ', Esperanza, Masbate, Philippines.']),
+        p(['This certification is valid for one (1) year from the date of issuance.']),
       ]);
     case 'brgy_indigency':
       body.addAll([
@@ -588,16 +642,16 @@ DocumentSheet buildDocument(
           ', ',
           f('age', fallback: '___'),
           ' years of age, is a ',
-          f('residency_type', fallback: 'permanent', lower: true),
-          ' resident of Purok ',
+          residency(),
+          ' a resident of Purok ',
           f('purok', fallback: '___'),
           ', Barangay ',
           brgy,
           ', Esperanza, Masbate, for:',
         ]),
-        p([f('purpose')], style: DocTextStyle.purpose),
+        purposes(),
         p([
-          'The way of life of the family is a hand-to-mouth existence, meaning they belong to below poverty line. Further certified that he/she has no pending case/complaint, no derogatory record on file against him/her as per record of this office.',
+          'The way of life of his/her family is a hand-to-mouth existence, meaning they belong below the poverty line. Further certified that he/she has no pending case/complaint, no derogatory record on file against him/her as per record of this office.',
         ]),
       ]);
     case 'brgy_clearance':
@@ -608,7 +662,7 @@ DocumentSheet buildDocument(
           ', ',
           f('age', fallback: '___'),
           ' years of age, is a ',
-          f('residency_type', fallback: 'permanent', lower: true),
+          residency(),
           ' resident of Purok ',
           f('purok', fallback: '___'),
           ', Barangay ',
@@ -616,10 +670,10 @@ DocumentSheet buildDocument(
           ', Esperanza, Masbate.',
         ]),
         p([
-          'He/She has no pending case/complaint against his/her as per record of this office. He/She has no derogatory record file in this office.',
+          'He/She has no pending case/complaint against him/her as per record of this office. He/She has no derogatory record on file in this office.',
         ]),
         p(['This certification is being issued by this office upon the request of the aforementioned name for:']),
-        p([f('purpose')], style: DocTextStyle.purpose),
+        purposes(),
       ]);
     case 'brgy_cert_national_id':
       body.addAll([
@@ -627,7 +681,7 @@ DocumentSheet buildDocument(
         p(['This further certifies for the other information of the above-named person, to wit:']),
         DocPairs([
           pair('Name of Father', 'father_name'),
-          pair('Name of Mother (Maiden)', 'mother_name'),
+          pair('Name of Mother (Maiden Name)', 'mother_name'),
           pair('Date of Birth', 'date_of_birth'),
           pair('Place of Birth', 'place_of_birth'),
           pair('Sex', 'sex'),
@@ -1011,12 +1065,14 @@ DocumentSheet buildDocument(
       ]);
   }
 
-  final date = issuanceDate(today ?? DateTime.now());
   final closing = switch (meta.key) {
     'brgy_clearance' || 'brgy_residency' => 'Given today $date at Barangay $barangay, Esperanza, Masbate, Philippines.',
-    'brgy_business_clearance' ||
-    'brgy_indigency' ||
-    'brgy_first_time_jobseeker' => 'Issued this $date at Barangay $barangay, Esperanza, Masbate, Philippines.',
+    'brgy_business_clearance' || 'brgy_indigency' => 'Issued this $date at Barangay $barangay, Esperanza, Masbate, Philippines.',
+    _ => null,
+  };
+  final validity = switch (meta.key) {
+    'brgy_residency' => '(Residency certificate valid three (3) months from the date of issuance)',
+    'brgy_indigency' => '(Indigency certificate valid three (3) months from the date of issuance)',
     _ => null,
   };
   // As the website's docTemplates store: the template's title, and its
@@ -1031,6 +1087,7 @@ DocumentSheet buildDocument(
     punongBarangay: punongBarangay,
     barangaySecretary: barangaySecretary,
     closing: closing,
+    validity: validity,
     note: t?.note?.trim().isEmpty ?? true ? null : t!.note!.trim(),
     issued: issued,
     bodyGap: gap,

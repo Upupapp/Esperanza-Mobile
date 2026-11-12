@@ -533,58 +533,111 @@ class DocumentPage extends StatelessWidget {
 
   // -- Feet
 
-  List<Widget> _barangayFoot() => [
-    const SizedBox(height: 16),
-    Row(
-      crossAxisAlignment: CrossAxisAlignment.end,
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+  // Each of Barangay Labangtaytay's papers signs its own way, as the website
+  // draws them (2026-11-03): the requester's line and right-thumbmark box,
+  // "Certified by:", "Released by" the Secretary, the Jobseeker's Date line.
+  List<Widget> _barangayFoot() {
+    final key = sheet.meta.key;
+    final requester = switch (key) {
+      'brgy_residency' || 'brgy_indigency' || 'brgy_first_time_jobseeker' => null,
+      'brgy_clearance' || 'brgy_business_clearance' => 'Resident Signature',
+      _ => 'Signature over Printed Name of the requester',
+    };
+    final thumb = key == 'brgy_clearance' || key == 'brgy_business_clearance';
+    final certified = key == 'brgy_cert_late_registration' || key == 'brgy_cert_death_registration';
+    final released = sheet.barangaySecretary != null && !certified && key != 'brgy_first_time_jobseeker';
+    final pbRaw = (sheet.punongBarangay ?? '').trim();
+    final pb = pbRaw.isEmpty
+        ? 'Hon. Punong Barangay'
+        : (key == 'brgy_cert_late_registration'
+              ? (RegExp(r'^hon\.?\s', caseSensitive: false).hasMatch(pbRaw) ? pbRaw : 'Hon. $pbRaw')
+              : pbRaw.replaceFirst(RegExp(r'^hon\.?\s+', caseSensitive: false), ''));
+    Widget line(String caption, {double width = 160}) => Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Flexible(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                width: 160,
-                decoration: const BoxDecoration(
-                  border: Border(bottom: BorderSide(color: AppColors.slate400)),
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text('Signature over Printed Name of the Requester', style: t(10, color: AppColors.slate500)),
-            ],
-          ),
+        Container(
+          width: width,
+          decoration: const BoxDecoration(border: Border(bottom: BorderSide(color: AppColors.slate400))),
         ),
-        const SizedBox(width: 24),
-        Flexible(
-          child: Column(
-            children: [
-              Text(
-                (sheet.punongBarangay ?? 'Hon. Punong Barangay').toUpperCase(),
-                textAlign: TextAlign.center,
-                style: t(14, color: AppColors.navy900, weight: FontWeight.w700),
+        const SizedBox(height: 4),
+        Text(caption, style: t(10, color: AppColors.slate500)),
+      ],
+    );
+    return [
+      const SizedBox(height: 16),
+      Row(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          if (requester != null)
+            Flexible(
+              child: Wrap(
+                spacing: 10,
+                runSpacing: 8,
+                crossAxisAlignment: WrapCrossAlignment.end,
+                children: [
+                  line(requester, width: 140),
+                  if (thumb)
+                    Container(
+                      width: 86,
+                      height: 48,
+                      alignment: Alignment.bottomCenter,
+                      padding: const EdgeInsets.only(bottom: 3),
+                      decoration: BoxDecoration(border: Border.all(color: AppColors.slate500)),
+                      child: Text('Right Thumbmark', style: t(8, color: AppColors.slate500)),
+                    ),
+                ],
               ),
-              Text('Punong Barangay', style: t(10, color: AppColors.slate500)),
+            )
+          else
+            const Spacer(),
+          const SizedBox(width: 24),
+          Flexible(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                if (certified) ...[
+                  Text('Certified by:', style: t(11)),
+                  const SizedBox(height: 10),
+                ],
+                Text(
+                  pb.toUpperCase(),
+                  textAlign: TextAlign.center,
+                  style: t(14, color: AppColors.navy900, weight: FontWeight.w700).copyWith(decoration: TextDecoration.underline),
+                ),
+                Text('Punong Barangay', style: t(10, color: AppColors.slate500)),
+                if (key == 'brgy_first_time_jobseeker') ...[
+                  const SizedBox(height: 20),
+                  line('Date', width: 120),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
+      if (released) ...[
+        const SizedBox(height: 16),
+        Text.rich(
+          TextSpan(
+            children: [
+              const TextSpan(text: 'Released by: '),
+              TextSpan(
+                text: sheet.barangaySecretary!.toUpperCase(),
+                style: const TextStyle(fontWeight: FontWeight.w700, color: AppColors.slate700, decoration: TextDecoration.underline),
+              ),
             ],
           ),
+          style: t(11, color: AppColors.slate700),
+        ),
+        Padding(
+          padding: const EdgeInsets.only(left: 70),
+          child: Text('Barangay Secretary', style: t(10, color: AppColors.slate500)),
         ),
       ],
-    ),
-    if (sheet.barangaySecretary != null) ...[
-      const SizedBox(height: 16),
-      Text.rich(
-        TextSpan(
-          children: [
-            const TextSpan(text: 'Released by: '),
-            TextSpan(
-              text: sheet.barangaySecretary,
-              style: const TextStyle(fontWeight: FontWeight.w600, color: AppColors.slate700),
-            ),
-            const TextSpan(text: ' — Barangay Secretary'),
-          ],
-        ),
-        style: t(11, color: AppColors.slate500),
-      ),
-    ],
+      if (sheet.validity != null) ...[
+        const SizedBox(height: 10),
+        Text(sheet.validity!, style: t(11, color: AppColors.slate500)),
+      ],
     ..._verifyStrip(),
     const SizedBox(height: 20),
     Text(
@@ -592,7 +645,8 @@ class DocumentPage extends StatelessWidget {
       textAlign: TextAlign.center,
       style: t(10, color: AppColors.slate500, italic: true),
     ),
-  ];
+    ];
+  }
 
   List<Widget> _municipalFoot() {
     final m = sheet.meta;
