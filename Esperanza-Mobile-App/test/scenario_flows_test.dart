@@ -168,7 +168,8 @@ void main() {
     await tester.tap(find.text('Emergency'));
     await tester.pumpAndSettle();
     await _dismissWelcomeBanner(tester); // Emergency's own promotional popup
-    expect(find.text('Risk Reduction & Emergency'), findsOneWidget);
+    // The page is named as in the menu (flow guide 2026-11-13, MDRRMO bug 9).
+    expect(find.widgetWithText(AppBar, 'Emergency'), findsOneWidget);
     expect(find.text('Report an Incident'), findsOneWidget); // real Sakuna content
   });
 

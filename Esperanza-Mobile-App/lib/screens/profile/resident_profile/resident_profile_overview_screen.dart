@@ -77,7 +77,7 @@ class _ResidentProfileOverviewScreenState extends State<ResidentProfileOverviewS
             ],
             if (profiles.registryMatchPending) ...[
               const SizedBox(height: AppSpacing.md),
-              const RegistryMatchNote(RegistryMatchNote.onProfile),
+              RegistryMatchNote(RegistryMatchNote.onProfile),
             ],
             if (profile.status == VerificationStatus.needsCorrection) ...[
               const SizedBox(height: AppSpacing.lg),

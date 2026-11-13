@@ -186,6 +186,9 @@ class _RequestListScreenState extends State<RequestListScreen> {
         padding: EdgeInsets.only(bottom: MediaQuery.paddingOf(context).bottom + _kFloatingElementGap),
         child: NewRequestFab(
           accent: widget.accent,
+          // An incident is reported, not requested (flow guide 2026-11-13,
+          // MDRRMO bug 9): the website's own words for the button.
+          label: widget.category == ServiceCategory.sakunaIncident ? tr('Report an Incident') : 'New Request',
           // Dokyu and Tulong's RequestListScreen instances are both mounted
           // at once (RootShell's IndexedStack), so the FAB's default hero tag
           // — shared by every FloatingActionButton unless overridden — would
@@ -348,8 +351,12 @@ class _RequestListScreenState extends State<RequestListScreen> {
                       icon: widget.icon,
                       title: _filters.isActive
                           ? 'No requests match your current filters.'
-                          : (_tab == 0 ? 'No active requests' : 'No completed requests yet'),
-                      description: _filters.isActive ? null : (_tab == 0 ? 'Tap "New Request" to get started.' : null),
+                          : widget.category == ServiceCategory.sakunaIncident && _tab == 0
+                              ? tr('You have not reported an incident yet.')
+                              : (_tab == 0 ? 'No active requests' : 'No completed requests yet'),
+                      description: _filters.isActive || widget.category == ServiceCategory.sakunaIncident
+                          ? null
+                          : (_tab == 0 ? 'Tap "New Request" to get started.' : null),
                       action: _filters.isActive
                           ? OutlinedButton(
                               onPressed: () => setState(() => _filters = const RequestFilters()),

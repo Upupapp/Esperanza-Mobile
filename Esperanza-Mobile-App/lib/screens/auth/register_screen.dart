@@ -267,7 +267,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
           return 'Please enter your first and last name.';
         }
         if (_email.text.trim().isEmpty) return 'Please enter your email address.';
-        if (!_emailVerified) return 'Paki-verify muna ang iyong email bago magpatuloy.';
+        if (!_emailVerified) return tr('Please verify your email before continuing.');
         final mobileError = PhMobile.validate(_mobile.text);
         if (mobileError != null) return mobileError;
         if (_barangay == null) return 'Please select your barangay.';
@@ -1095,7 +1095,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
           ),
         if (_foundInRegistry && !_alreadyHasAccount) ...[
           const SizedBox(height: AppSpacing.md),
-          const RegistryMatchNote(RegistryMatchNote.atSignUp),
+          RegistryMatchNote(RegistryMatchNote.atSignUp),
         ],
         if (_identityError != null && !_identitySent && !_alreadyHasAccount && account != null) ...[
           const SizedBox(height: AppSpacing.lg),

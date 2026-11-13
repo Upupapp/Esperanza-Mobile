@@ -104,7 +104,7 @@ class _SakunaScreenState extends State<SakunaScreen> {
       // Clear, over RootShell's GlassBackdrop: the glass cards show its colour.
       backgroundColor: AppColors.clear,
       appBar: AppBar(
-        leading: const ShellMenuButton(),title: const Text('Risk Reduction & Emergency'), actions: const [AlertsAction()]),
+        leading: const ShellMenuButton(),title: Text(tr('Emergency')), actions: const [AlertsAction()]),
       // Bottom padding must include the inherited navbar MediaQuery inset
       // (RootShell's extendBody: true publishes it — see
       // widgets/esperanza_curved_navbar.dart) on top of the visual

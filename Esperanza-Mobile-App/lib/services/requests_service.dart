@@ -234,6 +234,9 @@ class RequestsService extends ChangeNotifier {
       if (description != null && description.trim().isNotEmpty) 'description': description.trim(),
       ...?location?.toFields(),
       'client_uuid': clientUuid,
+      // Staff see where a report came from: "Mobile App", not the website's
+      // "Citizen Portal" (flow guide 2026-11-13, MDRRMO bug 8).
+      'channel': 'app',
     };
     final res = photos.isEmpty
         ? await api.post('/citizen/incidents', body: fields)
