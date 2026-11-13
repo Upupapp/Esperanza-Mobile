@@ -12,6 +12,8 @@ String incidentStatusLabel(String status) => switch (status) {
   'Processing' => tr('Dispatched'),
   'Completed' => tr('Resolved'),
   'Archived' => tr('Closed'),
+  // Not valid (2026-11-13): a duplicate or a report the office could not confirm.
+  'Rejected' => tr('Not confirmed'),
   _ => status,
 };
 
@@ -25,6 +27,7 @@ String? _incidentStepWords(String? verb) => switch (verb) {
   'escalate' => tr('Marked more serious'),
   'resolve' => tr('Resolved'),
   'close' => tr('Closed'),
+  'reject' => tr('Not confirmed by the office'),
   _ => null,
 };
 

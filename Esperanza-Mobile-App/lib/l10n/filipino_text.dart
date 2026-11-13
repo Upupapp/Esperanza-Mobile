@@ -196,6 +196,8 @@ const Map<String, String> filipinoText = {
   'No tutorials match your search.': 'Walang gabay na tumutugma.',
   'Not available': 'Hindi available',
   'Not checked': 'Hindi nasuri',
+  'Not confirmed': 'Hindi nakumpirma',
+  'Not confirmed by the office': 'Hindi nakumpirma ng opisina',
   'Not entered': 'Wala pang nailagay',
   'Not issued yet': 'Hindi pa naiisyu',
   'Not open': 'Hindi bukas',

@@ -21,6 +21,15 @@ void main() {
     expect(incidentStatusLabel('Something new'), 'Something new');
   });
 
+  test('a report found not valid reads Not confirmed (2026-11-13)', () {
+    MessageLanguage.filipino.value = true;
+    expect(incidentStatusLabel('Rejected'), 'Hindi nakumpirma');
+    expect(incidentStepLabel(verb: 'reject'), 'Hindi nakumpirma ng opisina');
+    MessageLanguage.filipino.value = false;
+    expect(incidentStatusLabel('Rejected'), 'Not confirmed');
+    expect(incidentStepLabel(verb: 'reject'), 'Not confirmed by the office');
+  });
+
   test('a Sakuna notice shows the incident words, not the raw status', () {
     final screen = File('lib/screens/notifications/notifications_screen.dart').readAsStringSync();
     expect(screen, contains("if (label == null || n.category == 'sakuna') return null;"));
