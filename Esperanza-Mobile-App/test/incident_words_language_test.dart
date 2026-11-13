@@ -28,7 +28,7 @@ void main() {
   });
 
   test('the alert button and the event reminder are translated', () {
-    expect(File('lib/widgets/sakuna_alerts_ui.dart').readAsStringSync(), contains("Text(tr('Open Sakuna'))"));
+    expect(File('lib/widgets/sakuna_alerts_ui.dart').readAsStringSync(), contains("Text(tr('Open Emergency'))"));
     final event = File('lib/screens/events/event_detail_screen.dart').readAsStringSync();
     expect(event, contains("tr('Remind me a day before')"));
     expect(event, contains("tr('Reminder turned off.')"));

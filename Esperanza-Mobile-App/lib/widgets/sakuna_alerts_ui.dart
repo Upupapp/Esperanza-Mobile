@@ -45,7 +45,7 @@ class SakunaAlertDialog {
           FilledButton(
             style: FilledButton.styleFrom(backgroundColor: AppColors.rose600),
             onPressed: () => Navigator.of(context).pop(true),
-            child: Text(tr('Open Sakuna')),
+            child: Text(tr('Open Emergency')),
           ),
         ],
       ),
