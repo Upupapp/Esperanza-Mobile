@@ -326,7 +326,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                       SectionHeader(
                         title: 'Active Requests',
                         actionLabel: activeRequests.isNotEmpty ? 'View all' : null,
-                        onAction: () => RootShell.openService(context, ServiceLauncherTarget.dokyu),
+                        // Track Requests lists Dokyu and Tulong together: View all
+                        // opened Dokyu even when the active request was Tulong
+                        // (2026-11-13).
+                        onAction: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const MyRequestsScreen())),
                       ),
                       if (activeRequests.isEmpty)
                         // The same 12 below it as below a request tile.
