@@ -61,6 +61,8 @@ void main() {
       'barangay': 'Poblacion',
       'description': 'Knee-deep water',
       'client_uuid': 'abc-123',
+      // Staff read Mobile App as its source (flow guide 2026-11-13).
+      'channel': 'app',
     });
     expect(incident.referenceNumber, 'INC-2026-00001');
     expect(incident.category, ServiceCategory.sakunaIncident);
