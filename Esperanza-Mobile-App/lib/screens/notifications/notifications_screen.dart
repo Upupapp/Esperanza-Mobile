@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../models/app_notification.dart';
+import '../../models/incident_status.dart';
 import '../../models/notification_kind.dart';
 import '../../services/citizen_session_service.dart';
 import '../../services/notification_feed.dart';
@@ -137,7 +138,9 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
 /// (never invent a status: CLAUDE.md).
 AppStatus? _statusOf(AppNotification n) {
   final label = n.status;
-  if (label == null) return null;
+  // An incident names the server's status (Under Verification, Processing):
+  // its own words go in the plain chip below (2026-11-13).
+  if (label == null || n.category == 'sakuna') return null;
   for (final s in AppStatus.values) {
     if (s.label == label) return s;
   }
@@ -244,7 +247,7 @@ class _NotificationTile extends StatelessWidget {
                           Icon(n.kind.badgeIcon, size: 10, color: n.kind.foreground),
                           const SizedBox(width: AppSpacing.xs),
                           Text(
-                            n.kind.badgeLabel,
+                            n.category == 'sakuna' && n.status != null ? incidentStatusLabel(n.status!) : n.kind.badgeLabel,
                             style: TextStyle(
                               fontSize: AppTextSize.fine,
                               fontWeight: FontWeight.w700,

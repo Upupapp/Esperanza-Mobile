@@ -122,8 +122,8 @@ class _EventDetailBodyState extends State<EventDetailBody> {
       AppDialogs.toast(
         context,
         on
-            ? 'We will remind you the day before. You will also be told if it moves or is cancelled.'
-            : 'Reminder turned off.',
+            ? tr('We will remind you the day before. You will also be told if it moves or is cancelled.')
+            : tr('Reminder turned off.'),
       );
     } on ApiException catch (e) {
       if (mounted) AppDialogs.toast(context, e.message(), success: false);
@@ -170,7 +170,7 @@ class _EventDetailBodyState extends State<EventDetailBody> {
         if (_upcoming && _reminded != null) ...[
           const SizedBox(height: AppSpacing.lg),
           AppButton(
-            label: _reminded! ? 'Reminder on · Turn off' : 'Remind me a day before',
+            label: _reminded! ? tr('Reminder on · Turn off') : tr('Remind me a day before'),
             icon: _reminded! ? Icons.notifications_off_outlined : Icons.notifications_active_outlined,
             variant: _reminded! ? AppButtonVariant.secondary : AppButtonVariant.primary,
             fullWidth: true,

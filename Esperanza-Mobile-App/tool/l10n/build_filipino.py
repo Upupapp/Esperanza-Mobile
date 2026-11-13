@@ -81,6 +81,11 @@ def web_pairs(web):
             add(unjs(m.group(1)), unjs(m.group(2)))
         for m in re.finditer(r"(?:\ben|===\s*'en')\s*\?\s*" + SQ + r'\s*:\s*' + SQ, s):
             add(unjs(m.group(1)), unjs(m.group(2)))
+        # The resident's incident words: named lists of ['English', 'Filipino', ...]
+        # (scope-citizen.js INCIDENT_STATUS, INCIDENT_STEPS, SEVERITIES).
+        for block in re.finditer(r'const (?:INCIDENT_STATUS|INCIDENT_STEPS|SEVERITIES) = ([\[{].*?[\]}]);', s, re.S):
+            for m in re.finditer(r'\[\s*' + SQ + r'\s*,\s*' + SQ, block.group(1)):
+                add(unjs(m.group(1)), unjs(m.group(2)))
     return pairs
 
 
