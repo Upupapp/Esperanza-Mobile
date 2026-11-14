@@ -16,6 +16,7 @@
 import 'dart:convert';
 
 import 'package:esperanza_mobile/services/api_client.dart';
+import 'package:esperanza_mobile/services/live_updates.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 
@@ -61,8 +62,27 @@ class FakeApi {
   // actually asked for.
   static const _fakeBaseUrl = 'https://test.invalid';
 
+  /// The live-update counters (lib/services/live_updates.dart) served at
+  /// /live/changes.json, beside the API. Null, the default, answers 404 -
+  /// "no news". Never passed to a test's handler, so a running shell's read
+  /// every second stays out of a test's own request counts.
+  static Map<String, dynamic>? liveFile;
+
+  /// How many times the live file was read since the last [restore].
+  static int liveReads = 0;
+
+  static http.Response? _live(http.BaseRequest request) {
+    if (request.url.path != LiveUpdates.path) return null;
+    liveReads++;
+    final file = liveFile;
+    if (file == null) return http.Response('', 404);
+    return http.Response(jsonEncode(file), 200, headers: {'content-type': 'application/json'});
+  }
+
   static ApiClient _build(dynamic Function(String path, Map<String, String> query) handler) {
     final client = MockClient((request) async {
+      final live = _live(request);
+      if (live != null) return live;
       try {
         final data = handler(request.url.path, request.url.queryParameters);
         return http.Response(jsonEncode({'data': data}), 200, headers: {'content-type': 'application/json'});
@@ -84,6 +104,8 @@ class FakeApi {
 
   static ApiClient _buildFull(dynamic Function(FakeApiRequest request) handler) {
     final client = MockClient((request) async {
+      final live = _live(request);
+      if (live != null) return live;
       try {
         Map<String, dynamic>? body;
         if (request.body.isNotEmpty) {
@@ -127,7 +149,11 @@ class FakeApi {
   /// runs. Every request that isn't given its own [install]'d handler
   /// fails with a plain, local [FakeApiError] -- visible to a widget as an
   /// ordinary network-error state, never a real socket connection.
-  static void installDefault() => api = _defaultFake;
+  static void installDefault() {
+    api = _defaultFake;
+    liveFile = null;
+    liveReads = 0;
+  }
 
   /// [handler] receives the request path with the base URL stripped (e.g.
   /// `/directory`, `/sakuna/centers`) and the parsed query parameters, and
@@ -147,7 +173,8 @@ class FakeApi {
   }
 
   /// Puts the suite back on [_defaultFake] -- not the real network client,
-  /// which no test in this suite should ever be able to reach at all.
-  /// Call from `tearDown` after any test that used [install].
-  static void restore() => api = _defaultFake;
+  /// which no test in this suite should ever be able to reach at all -- and
+  /// the live file back to none. Call from `tearDown` after any test that
+  /// used [install] or [liveFile].
+  static void restore() => installDefault();
 }

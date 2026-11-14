@@ -57,11 +57,17 @@ class LiveBanner {
   /// error state for a teaser (like its events preview).
   static Future<List<LiveBanner>> load() async {
     try {
-      final res = await api.get('/banners');
-      return JsonRead.rows(res.list, LiveBanner.fromApi).where((b) => b.title.isNotEmpty).toList();
+      return await fetch();
     } on ApiException {
       return const [];
     }
+  }
+
+  /// [load], throwing when the list cannot be read: a live refresh keeps the
+  /// banners shown then (Home, 2026-11-15).
+  static Future<List<LiveBanner>> fetch() async {
+    final res = await api.get('/banners');
+    return JsonRead.rows(res.list, LiveBanner.fromApi).where((b) => b.title.isNotEmpty).toList();
   }
 
   /// The web admin's theme ("from-purple-600 to-navy-900") in app colours.

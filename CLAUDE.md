@@ -67,6 +67,16 @@ Rules for API code: parse payloads with `lib/services/json_read.dart` (never a h
 collections with `api.getAllPages`, and build path segments with `ApiClient.segment`.
 Tests never touch the network — `test/support/fake_api.dart` swaps the client.
 
+**Live updates (2026-11-15).** While the app is open, `lib/services/live_updates.dart`
+reads the server's public change counters (`<API origin>/live/changes.json`, no sign-in)
+every second; RootShell starts and stops it with the app's lifecycle and reloads the
+bell on `notifications`. A screen wraps itself in `LiveRefresh`
+(`lib/widgets/live_refresh.dart`, or `AsyncStateView(liveTopics: ...)`) and reloads
+quietly while it shows; a hidden tab catches up when it shows. A live reload only
+reads, never writes: a write moves the counters and every open app reloads again.
+Tests: `FakeApi.liveFile` serves the file (404 by default); a test that calls
+`LiveUpdates.instance.start()` itself must `stop()` it before the test body ends.
+
 `Esperanza-Mobile-App/ESPERANZA_MOBILE_WEB_ALIGNMENT.md` is the spec and the intent
 authority (there is now exactly one copy; the root duplicate is gone). It also
 names the Web-Admin APIs that do not exist yet. The web counterpart is a separate,

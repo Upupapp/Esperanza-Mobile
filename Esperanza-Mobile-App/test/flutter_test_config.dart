@@ -7,6 +7,7 @@ import 'dart:async';
 
 import 'package:esperanza_mobile/services/api_client.dart';
 import 'package:esperanza_mobile/services/device_location.dart';
+import 'package:esperanza_mobile/services/live_updates.dart';
 import 'package:esperanza_mobile/widgets/sakuna_map.dart';
 import 'package:esperanza_mobile/utils/ambient_motion.dart';
 
@@ -33,5 +34,8 @@ Future<void> testExecutable(FutureOr<void> Function() testMain) async {
   // One pop-up at a time is a flag shared across the app: a test that ends
   // with a pop-up open must not hold back the next test's.
   setUp(() => PopupGate.open.value = false);
+  // Live updates keep what they last read and how often each topic moved:
+  // each test starts from none, never from the last test's.
+  setUp(() => LiveUpdates.instance = LiveUpdates());
   await testMain();
 }

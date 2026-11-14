@@ -14,6 +14,7 @@ import '../../widgets/app_button.dart';
 import '../../widgets/app_card.dart';
 import '../../widgets/app_dialogs.dart';
 import '../../widgets/app_text_field.dart';
+import '../../widgets/live_refresh.dart';
 
 import '../../l10n/tr.dart';
 /// Appointments (scope round 2026-10-15; the web portal's Appointments page):
@@ -30,9 +31,24 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
   late Future<List<Appointment>> _future = AppointmentsService.mine();
   String? _cancelling;
 
+  /// [_future] is a live refresh's: the list shown stays until it reports.
+  bool _quiet = false;
+
   void _reload() {
     setState(() {
       _future = AppointmentsService.mine();
+      _quiet = false;
+    });
+  }
+
+  /// Live updates (2026-11-15): an office confirming or moving one shows
+  /// while this page is on top, without the loader; a failure keeps the list.
+  Future<void> _refreshQuietly() async {
+    final mine = await AppointmentsService.mine();
+    if (!mounted) return;
+    setState(() {
+      _future = Future.value(mine);
+      _quiet = true;
     });
   }
 
@@ -91,13 +107,16 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) =>
+      LiveRefresh(topics: const {'appointments'}, onChange: (_) => _refreshQuietly(), child: _buildPage(context));
+
+  Widget _buildPage(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: Text(tr('Appointments'))),
       body: FutureBuilder<List<Appointment>>(
         future: _future,
         builder: (context, snap) {
-          if (snap.connectionState != ConnectionState.done) {
+          if (snap.connectionState != ConnectionState.done && !(_quiet && snap.hasData)) {
             return const Center(child: CircularProgressIndicator());
           }
           if (snap.hasError) {

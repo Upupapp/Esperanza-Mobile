@@ -252,6 +252,32 @@ class ApiClient {
 
   static int? _intOf(Object? v) => v is num ? v.toInt() : (v is String ? int.tryParse(v) : null);
 
+  /// The server's own origin: [baseUrl]'s scheme, host and port without the
+  /// /api/v1 path, where public files sit beside the API.
+  Uri get origin {
+    final base = Uri.parse(baseUrl);
+    return Uri(scheme: base.scheme, host: base.host, port: base.hasPort ? base.port : null);
+  }
+
+  /// GET a small public JSON file beside the API ([origin] + [path]): the
+  /// live-update counters (services/live_updates.dart). Sent bare: no sign-in
+  /// header (the file is public, and on the web build a header would cost a
+  /// CORS preflight every second), and none of a normal call's side effects
+  /// (the offline notice, signing out on a 401). The decoded body on a 2xx;
+  /// null on anything else (a 404, an error page, no connection, a timeout,
+  /// a body that is not JSON). Never throws.
+  Future<Object?> getPublicJson(String path, {Duration timeout = const Duration(seconds: 5)}) async {
+    try {
+      final response = await _http
+          .get(origin.replace(path: path), headers: const {'Accept': 'application/json'})
+          .timeout(timeout);
+      if (response.statusCode < 200 || response.statusCode >= 300) return null;
+      return jsonDecode(response.body);
+    } catch (_) {
+      return null;
+    }
+  }
+
   /// Multipart upload — real ID/requirement/attachment uploads (the app's
   /// `image_picker`/`file_picker` results), matching the backend's
   /// `App\Domain\Storage\UploadService`. `filePath` is a local path from

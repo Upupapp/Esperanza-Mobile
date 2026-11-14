@@ -27,6 +27,7 @@ import '../../services/citizen_session_service.dart';
 import '../../services/sakuna_alerts.dart';
 import '../../utils/date_text.dart';
 import '../../widgets/esperanza_art.dart';
+import '../../widgets/live_refresh.dart';
 
 import '../../l10n/tr.dart';
 /// GET /hotlines (public, PublicContentController::hotlines).
@@ -221,6 +222,9 @@ class _SakunaScreenState extends State<SakunaScreen> {
             const SizedBox(height: AppSpacing.xxl),
             AsyncStateView<_SakunaData>(
               key: ValueKey('directory-$_generation'),
+              // Live (2026-11-15): a centre's occupancy, a hotline, read again
+              // while the tab shows, without the loader.
+              liveTopics: const {'sakuna'},
               loader: _load,
               builder: (context, data, reload) => Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -818,22 +822,47 @@ class _AlertsSection extends StatefulWidget {
 class _AlertsSectionState extends State<_AlertsSection> {
   late Future<List<PublicAlert>> _alerts = _load();
 
+  /// [_alerts] is a live refresh's: the alerts shown stay until it reports.
+  bool _quiet = false;
+
   Future<List<PublicAlert>> _load() =>
       SakunaAlerts.load(barangay: context.read<CitizenSessionService>().account?.barangay);
 
+  /// Live updates (2026-11-15): read again when Sakuna changes while the tab
+  /// shows; a failure keeps what is shown.
+  Future<void> _refreshQuietly() async {
+    final alerts = await _load();
+    if (!mounted) return;
+    setState(() {
+      _alerts = Future.value(alerts);
+      _quiet = true;
+    });
+  }
+
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) =>
+      LiveRefresh(topics: const {'sakuna'}, onChange: (_) => _refreshQuietly(), child: _buildAlerts(context));
+
+  Widget _buildAlerts(BuildContext context) {
     return FutureBuilder<List<PublicAlert>>(
       future: _alerts,
       builder: (context, snapshot) {
-        if (snapshot.connectionState != ConnectionState.done) {
+        if (snapshot.connectionState != ConnectionState.done && !(_quiet && snapshot.hasData)) {
           return Text(tr('Checking for emergency alerts…'), style: AppTypography.helper);
         }
         if (snapshot.hasError) {
           return Row(
             children: [
               Expanded(child: Text(tr('Emergency alerts could not be checked.'), style: AppTypography.helper)),
-              TextButton(onPressed: () => setState(() => _alerts = _load()), child: Text(tr('Try Again'))),
+              // A block, not an arrow: an arrow hands setState the Future,
+              // which it refuses.
+              TextButton(
+                onPressed: () => setState(() {
+                  _alerts = _load();
+                  _quiet = false;
+                }),
+                child: Text(tr('Try Again')),
+              ),
             ],
           );
         }

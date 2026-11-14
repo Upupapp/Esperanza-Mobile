@@ -135,12 +135,44 @@ class RequestsService extends ChangeNotifier {
     // the moment a Provider ancestor is still being built too.
     scheduleMicrotask(notifyListeners);
     try {
-      final rows = await api.getAllPages('/citizen/requests', query: {'per_page': 100});
-      _requests = JsonRead.rows(rows, (json) => JsonRead.nonEmpty(json['ref']) == null ? null : _requestFromSummary(json));
+      _requests = await _fetchRequests();
     } finally {
       _loaded = true;
       notifyListeners();
     }
+  }
+
+  Future<List<ServiceRequest>> _fetchRequests() async {
+    final rows = await api.getAllPages('/citizen/requests', query: {'per_page': 100});
+    return JsonRead.rows(rows, (json) => JsonRead.nonEmpty(json['ref']) == null ? null : _requestFromSummary(json));
+  }
+
+  /// Bumped by [clear] (sign-out): a background reload that was under way
+  /// then must not bring the previous resident's list back.
+  int _generation = 0;
+
+  /// [loadRequests] in the background (live updates, 2026-11-15): the list
+  /// on screen stays as it is until the new one arrives, and stays if this
+  /// fails (it throws); [loaded] is not reset on the way.
+  Future<void> refreshRequests() async {
+    final generation = _generation;
+    final requests = await _fetchRequests();
+    if (generation != _generation) return;
+    _requests = requests;
+    _loaded = true;
+    notifyListeners();
+  }
+
+  /// [loadRecords] in the background: a failure keeps the records shown
+  /// (and throws) instead of emptying the list.
+  Future<void> refreshRecords() async {
+    final generation = _generation;
+    final res = await api.get('/citizen/records');
+    if (generation != _generation) return;
+    _records = JsonRead.rows(res.list, ResidentRecord.fromApi);
+    _recordsPending = JsonRead.boolean(res.meta?['pending']) ?? false;
+    _recordsFailed = false;
+    notifyListeners();
   }
 
   /// GET /citizen/records: what the offices recorded for the resident -
@@ -685,6 +717,7 @@ class RequestsService extends ChangeNotifier {
   /// citizen's request list for even a moment before the next sign-in's
   /// own [loadRequests] replaces it.
   void clear() {
+    _generation++;
     _requests = [];
     _incidents = [];
     _records = [];

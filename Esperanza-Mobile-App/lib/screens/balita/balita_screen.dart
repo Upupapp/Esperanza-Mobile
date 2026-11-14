@@ -11,6 +11,7 @@ import '../../widgets/app_button.dart';
 import '../../widgets/app_dialogs.dart';
 import '../../widgets/async_state_view.dart';
 import '../../widgets/empty_state.dart';
+import '../../widgets/live_refresh.dart';
 import '../home/root_shell.dart';
 import 'post_card.dart';
 
@@ -91,8 +92,17 @@ class _FeedState extends State<_Feed> {
     }
   }
 
+  /// Live updates (2026-11-15): the feed follows the server while the tab
+  /// shows - new posts, likes and comments - without the loader, and without
+  /// losing the pages already loaded below (BalitaService.refreshFeed).
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => LiveRefresh(
+    topics: const {'balita'},
+    onChange: (_) => context.read<BalitaService>().refreshFeed(),
+    child: _buildFeed(context),
+  );
+
+  Widget _buildFeed(BuildContext context) {
     final balita = context.watch<BalitaService>();
     final mine = context.watch<CitizenSessionService>().account?.barangay;
     final hasBarangay = mine != null && mine.trim().isNotEmpty;

@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -11,12 +9,14 @@ import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
 import '../theme/app_typography.dart';
 import 'esperanza_art.dart';
+import 'live_refresh.dart';
 
 import '../l10n/tr.dart';
 /// A Sakuna alert the LGU published for the resident's barangay, opened as a
-/// dialog the moment the app picks it up (it refreshes every minute while
-/// open, and on return to the app). Before, an alert reached only someone who
-/// happened to open the Emergency tab (QA run 2026-10-05).
+/// dialog the moment the app picks it up (the bell follows live updates
+/// while the app is open, 2026-11-15, and reloads on return to it). Before,
+/// an alert reached only someone who happened to open the Emergency tab (QA
+/// run 2026-10-05).
 class SakunaAlertDialog {
   SakunaAlertDialog._();
 
@@ -55,7 +55,9 @@ class SakunaAlertDialog {
 }
 
 /// The alerts in force for the resident's barangay, at the top of Home, like
-/// the website's dashboard. Refreshes every minute while Home is alive.
+/// the website's dashboard. Read again when Sakuna changes on the server
+/// while Home shows (live updates, 2026-11-15); it was every minute, and kept
+/// going with the app in the background.
 class ActiveAlertsCard extends StatefulWidget {
   final VoidCallback? onOpen;
   const ActiveAlertsCard({super.key, this.onOpen});
@@ -66,33 +68,28 @@ class ActiveAlertsCard extends StatefulWidget {
 
 class _ActiveAlertsCardState extends State<ActiveAlertsCard> {
   List<PublicAlert> _alerts = const [];
-  Timer? _timer;
 
   @override
   void initState() {
     super.initState();
-    _load();
-    _timer = Timer.periodic(const Duration(seconds: 60), (_) => _load());
+    _load().catchError((Object _) {}, test: (e) => e is ApiException);
   }
 
-  @override
-  void dispose() {
-    _timer?.cancel();
-    super.dispose();
-  }
-
+  /// Throws when they cannot be read: what is shown stays.
   Future<void> _load() async {
-    try {
-      final barangay = context.read<CitizenSessionService>().account?.barangay;
-      final alerts = await SakunaAlerts.load(barangay: barangay);
-      if (mounted) setState(() => _alerts = alerts);
-    } on ApiException {
-      // Keep what is shown; the next minute tries again.
-    }
+    final barangay = context.read<CitizenSessionService>().account?.barangay;
+    final alerts = await SakunaAlerts.load(barangay: barangay);
+    if (!mounted) return;
+    setState(() {
+      _alerts = alerts;
+    });
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) =>
+      LiveRefresh(topics: const {'sakuna'}, onChange: (_) => _load(), child: _buildCard(context));
+
+  Widget _buildCard(BuildContext context) {
     if (_alerts.isEmpty) return const SizedBox.shrink();
     return Padding(
       padding: const EdgeInsets.only(bottom: AppSpacing.md),

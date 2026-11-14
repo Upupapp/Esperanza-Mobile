@@ -8,6 +8,7 @@ import '../../theme/app_spacing.dart';
 import '../../widgets/app_card.dart';
 import '../../widgets/app_dialogs.dart';
 import '../../widgets/empty_state.dart';
+import '../../widgets/live_refresh.dart';
 import '../../widgets/segmented_tabs.dart';
 import '../../widgets/status_chip.dart';
 import 'request_detail_screen.dart';
@@ -58,8 +59,16 @@ class _MyRequestsScreenState extends State<MyRequestsScreen> {
     }
   }
 
+  /// Live updates (2026-11-15): read again quietly when requests change on
+  /// the server while this page is on top.
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => LiveRefresh(
+    topics: const {'requests'},
+    onChange: (_) => context.read<RequestsService>().refreshRequests(),
+    child: _buildPage(context),
+  );
+
+  Widget _buildPage(BuildContext context) {
     final requests = context.watch<RequestsService>();
 
     // "All" here means "all Dokyu + Tulong" — Sakuna incident reports are a

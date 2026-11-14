@@ -28,6 +28,7 @@ import 'home_screen.dart';
 import '../../theme/app_spacing.dart';
 import '../../theme/app_typography.dart';
 import '../../services/api_client.dart';
+import '../../services/live_updates.dart';
 import '../../widgets/esperanza_drawer.dart';
 
 import '../../l10n/tr.dart';
@@ -110,6 +111,11 @@ class _RootShellState extends State<RootShell> with WidgetsBindingObserver {
   Timer? _poll;
   NotificationsService? _notifications;
   bool _alertOpen = false;
+  late final LiveUpdates _live;
+
+  /// The notifications topic's [LiveUpdates.stamp] when the bell last reloaded.
+  int _bellSeen = 0;
+  bool _bellLoading = false;
 
   @override
   void initState() {
@@ -123,11 +129,20 @@ class _RootShellState extends State<RootShell> with WidgetsBindingObserver {
     });
     // The bell's unread dot needs the server feed as soon as the shell
     // appears, not only once the Notifications screen is opened. After that
-    // it refreshes every minute while the app is open and on every return to
-    // it: notifications used to arrive only when the app was started.
+    // it follows live updates while the app is open (every minute where the
+    // server has no live file), and reloads on every return to it:
+    // notifications used to arrive only when the app was started.
     WidgetsBinding.instance.addObserver(this);
     _loadNotifications();
     _startPolling();
+    // Live updates (2026-11-15): while the app is open the server's change
+    // counters are read every second. The bell follows them on every tab
+    // (_onLive), each screen its own data while it shows (LiveRefresh).
+    _live = LiveUpdates.instance..addListener(_onLive);
+    _bellSeen = _live.stamp(const ['notifications']);
+    // Not when the app was started in the background: it starts on resume.
+    const background = [AppLifecycleState.hidden, AppLifecycleState.paused, AppLifecycleState.detached];
+    if (!background.contains(WidgetsBinding.instance.lifecycleState)) _live.start();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       _notifications = context.read<NotificationsService>()..addListener(_maybeShowAlert);
@@ -144,6 +159,11 @@ class _RootShellState extends State<RootShell> with WidgetsBindingObserver {
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _poll?.cancel();
+    // Signed out: nothing is read, and the next shell's first read is a new
+    // baseline rather than a list of changes.
+    _live
+      ..removeListener(_onLive)
+      ..reset();
     _notifications?.removeListener(_maybeShowAlert);
     PopupGate.open.removeListener(_onPopupGate);
     super.dispose();
@@ -154,20 +174,48 @@ class _RootShellState extends State<RootShell> with WidgetsBindingObserver {
     if (state == AppLifecycleState.resumed) {
       _loadNotifications();
       _startPolling();
+      // Reads at once: what moved while the app was away reloads now.
+      _live.start();
       // An LGU decision made while the app was in the background shows on
       // return, not only after signing in again (2026-10-13).
       final session = context.read<CitizenSessionService>();
       if (session.account != null && !session.isGuest) {
         session.refresh().catchError((Object _) {});
       }
-    } else if (state == AppLifecycleState.paused) {
+    } else if (state == AppLifecycleState.paused || state == AppLifecycleState.hidden) {
       _poll?.cancel();
       _poll = null;
+      // Nothing is read in the background (hidden: a web tab out of sight).
+      _live.stop();
     }
   }
 
+  /// The bell's slow refresh, kept for a server without the live file (an
+  /// older or a local one): while live updates answer, the bell follows them.
   void _startPolling() {
-    _poll ??= Timer.periodic(const Duration(seconds: 60), (_) => _loadNotifications());
+    _poll ??= Timer.periodic(const Duration(seconds: 60), (_) {
+      if (!_live.answering) _loadNotifications();
+    });
+  }
+
+  /// The bell reloads when notifications change on the server, whichever tab
+  /// shows and under any page opened over them: a new Sakuna alert opens as
+  /// its dialog within a second or two (see [_maybeShowAlert]).
+  void _onLive() => unawaited(_followBell());
+
+  Future<void> _followBell() async {
+    if (_bellLoading || !mounted) return;
+    final now = _live.stamp(const ['notifications']);
+    if (now == _bellSeen) return;
+    _bellSeen = now;
+    _bellLoading = true;
+    try {
+      await _loadNotifications();
+    } finally {
+      _bellLoading = false;
+    }
+    // A change that came in while it loaded.
+    await _followBell();
   }
 
   /// A new Sakuna alert opens as a dialog once, on whatever tab is showing.
@@ -206,7 +254,7 @@ class _RootShellState extends State<RootShell> with WidgetsBindingObserver {
   }
 
   Future<void> _loadNotifications() async {
-    if (context.read<CitizenSessionService>().account == null) return;
+    if (!mounted || context.read<CitizenSessionService>().account == null) return;
     try {
       await context.read<NotificationsService>().loadServer();
     } on ApiException {

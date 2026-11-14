@@ -37,6 +37,8 @@ class EventsScreen extends StatelessWidget {
       appBar: AppBar(
         leading: const ShellMenuButton(),title: Text(tr('Events')), actions: const [AlertsAction()]),
       body: AsyncStateView<List<EventItem>>(
+        // Live (2026-11-15): the server counts events under Balita.
+        liveTopics: const {'balita'},
         loader: () async {
           final rows = await api.getAllPages('/events', query: {'per_page': 100}, maxPages: 5);
           return EventItem.inCalendarOrder(JsonRead.rows(rows, EventItem.fromApi).where((e) => e.title.isNotEmpty));

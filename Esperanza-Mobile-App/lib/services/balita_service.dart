@@ -67,6 +67,49 @@ class BalitaService extends ChangeNotifier {
     }
   }
 
+  /// Bumped by [clear] (sign-out): a background refresh that was under way
+  /// then must not bring the previous resident's feed back.
+  int _generation = 0;
+
+  /// The first page again, in the background (live updates, 2026-11-15):
+  /// the feed on screen stays until it arrives, and stays if this fails (it
+  /// throws). New posts come in at the top and changed ones (a like or
+  /// comment count, an edit) are replaced; posts from the pages loaded below
+  /// it are kept, so a resident who loaded more is not sent back to the top.
+  /// A post whose like is still being sent keeps its own copy. Nothing
+  /// happens before the first [loadFeed] has finished: that one is fresh.
+  Future<void> refreshFeed() async {
+    if (!_loaded) return;
+    final generation = _generation;
+    final res = await api.get('/announcements', query: {'per_page': pageSize, 'page': 1});
+    if (generation != _generation || !_loaded) return;
+    final first = JsonRead.rows(res.list, Announcement.fromAnnouncementApi);
+    final ids = {for (final p in first) p.id};
+    final known = {for (final p in _posts) p.id: p};
+    // A short first page is the whole feed. A full one: what is kept from
+    // before is what lies below it (older than its oldest post); one that
+    // was on the first page and is not any more was taken down.
+    DateTime? oldest;
+    for (final p in first) {
+      final at = p.at;
+      if (at != null && (oldest == null || at.isBefore(oldest))) oldest = at;
+    }
+    final below = first.length < pageSize
+        ? const <Announcement>[]
+        : [
+            for (final p in _posts)
+              if (!ids.contains(p.id) && oldest != null && (p.at ?? DateTime(0)).isBefore(oldest)) p,
+          ];
+    _posts = _sorted([
+      for (final p in first) _likesInFlight.contains(p.id) ? (known[p.id] ?? p) : p,
+      ...below,
+    ]);
+    final last = JsonRead.integer(res.meta?['last_page']) ?? 1;
+    if (_page <= 1 || first.length < pageSize) _page = 1;
+    _lastPage = last > _page ? last : _page;
+    notifyListeners();
+  }
+
   /// The next page, added under what is loaded (each post once).
   Future<void> loadMore() async {
     if (_loadingMore || !hasMore) return;
@@ -157,6 +200,7 @@ class BalitaService extends ChangeNotifier {
   /// In-memory only now -- there is nothing left to erase from disk once
   /// Balita stopped persisting to SharedPreferences. Called on sign-out.
   void clear() {
+    _generation++;
     _posts = [];
     _loaded = false;
     _page = 0;

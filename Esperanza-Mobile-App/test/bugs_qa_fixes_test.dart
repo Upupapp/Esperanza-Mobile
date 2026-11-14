@@ -11,6 +11,7 @@ import 'package:esperanza_mobile/screens/shared/my_requests_screen.dart';
 import 'package:esperanza_mobile/screens/shared/request_detail_screen.dart';
 import 'package:esperanza_mobile/screens/shared/request_list_screen.dart';
 import 'package:esperanza_mobile/services/citizen_session_service.dart';
+import 'package:esperanza_mobile/services/live_updates.dart';
 import 'package:esperanza_mobile/services/master_file_service.dart';
 import 'package:esperanza_mobile/services/notification_feed.dart';
 import 'package:esperanza_mobile/services/notifications_service.dart';
@@ -89,19 +90,35 @@ void main() {
     expect(find.textContaining('1 required document still needs to be attached.'), findsOneWidget);
   });
 
-  testWidgets('the open request re-reads itself, so an approval shows without a restart', (tester) async {
-    var calls = 0;
+  testWidgets('the open request re-reads itself when requests change, so an approval shows without a restart', (tester) async {
+    // It was a timer every 30 seconds; it follows the server's live counters
+    // now (2026-11-15), and reads only when requests moved.
+    var reads = 0;
     FakeApi.installFull((req) {
-      calls++;
-      return _detail(status: calls > 1 ? 'Approved' : 'Under Verification');
+      if (req.path == '/citizen/requests/$_ref') reads++;
+      return _detail(status: reads > 1 ? 'Approved' : 'Under Verification');
     });
+    FakeApi.liveFile = {
+      'v': 1,
+      't': {'requests': 1},
+    };
+    LiveUpdates.instance.start();
     await _pumpDetail(tester);
     expect(find.text('Under Verification'), findsWidgets);
 
-    await tester.pump(const Duration(seconds: 31));
+    await tester.pump(const Duration(seconds: 40));
+    expect(reads, 1, reason: 'nothing moved, so nothing is read again');
+
+    // The office approves it: the requests counter moves.
+    FakeApi.liveFile = {
+      'v': 2,
+      't': {'requests': 2},
+    };
+    await tester.pump(const Duration(seconds: 1));
     await tester.pumpAndSettle();
-    expect(calls, greaterThan(1));
+    expect(reads, 2);
     expect(find.text('Approved'), findsWidgets);
+    LiveUpdates.instance.stop();
   });
 
   testWidgets('My Requests reads the list when opened, and again when pulled down', (tester) async {

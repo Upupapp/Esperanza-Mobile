@@ -25,6 +25,7 @@ import '../../widgets/app_card.dart';
 import '../../widgets/app_dialogs.dart';
 import '../../widgets/async_state_view.dart';
 import '../../widgets/image_viewer_scaffold.dart';
+import '../../widgets/live_refresh.dart';
 import '../../widgets/request_milestone_timeline.dart';
 import 'document_view_screen.dart';
 import '../../widgets/request_release_cards.dart';
@@ -83,32 +84,26 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
 
   GlobalKey _keyFor(String flaggedId) => _flaggedCardKeys.putIfAbsent(flaggedId, () => GlobalKey());
 
-  /// The open request re-reads itself every 30 seconds: the office approved
-  /// and released one while it sat open here, and it still read Under Review
-  /// until the app was restarted (Esperanza bugs QA, 2026-10-06). Only this
-  /// screen's own request, only while it is open, never during an upload.
-  Timer? _poll;
-
+  /// The open request re-reads itself when requests change on the server
+  /// (live updates, 2026-11-15; an incident report when Sakuna does): the
+  /// office approved and released one while it sat open here, and it still
+  /// read Under Review until the app was restarted (Esperanza bugs QA,
+  /// 2026-10-06). It was every 30 seconds, and kept going with the app in
+  /// the background. Only this screen's own request, only while it is on
+  /// top, never during an upload. A failure keeps what is shown (and throws:
+  /// the next change tries again).
   Future<void> _refreshQuietly() async {
     if (!mounted || _busy) return;
-    try {
-      final fresh = await context.read<RequestsService>().loadDetail(widget.requestId);
-      if (mounted && !_busy) setState(() => _latest = fresh);
-    } catch (_) {
-      // Offline or a hiccup: the next tick tries again; nothing to show.
-    }
-  }
-
-  @override
-  void dispose() {
-    _poll?.cancel();
-    super.dispose();
+    final fresh = await context.read<RequestsService>().loadDetail(widget.requestId);
+    if (!mounted || _busy) return;
+    setState(() {
+      _latest = fresh;
+    });
   }
 
   @override
   void initState() {
     super.initState();
-    _poll = Timer.periodic(const Duration(seconds: 30), (_) => _refreshQuietly());
     // Attaching from Papeles offers what the wallet holds now.
     unawaited(
       context.read<MasterFileService?>()?.refreshQuietly(context.read<CitizenSessionService?>()?.account?.id),
@@ -295,12 +290,16 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
   Widget build(BuildContext context) {
     final service = context.watch<RequestsService>();
 
-    return Scaffold(
-      appBar: AppBar(title: Text(widget.requestId)),
-      body: SafeArea(
-        child: AsyncStateView<ServiceRequest>(
-          loader: () => service.loadDetail(widget.requestId),
-          builder: (context, request, reload) => _buildBody(context, service, _latest ?? request),
+    return LiveRefresh(
+      topics: widget.requestId.startsWith('INC-') ? const {'sakuna'} : const {'requests'},
+      onChange: (_) => _refreshQuietly(),
+      child: Scaffold(
+        appBar: AppBar(title: Text(widget.requestId)),
+        body: SafeArea(
+          child: AsyncStateView<ServiceRequest>(
+            loader: () => service.loadDetail(widget.requestId),
+            builder: (context, request, reload) => _buildBody(context, service, _latest ?? request),
+          ),
         ),
       ),
     );

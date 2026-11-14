@@ -15,6 +15,7 @@ import '../../widgets/app_card.dart';
 import '../../widgets/app_dialogs.dart';
 import '../../widgets/empty_state.dart';
 import '../../widgets/filter_bottom_sheet.dart';
+import '../../widgets/live_refresh.dart';
 import '../../widgets/new_request_fab.dart';
 import '../../widgets/resident_record_tile.dart';
 import '../../widgets/segmented_tabs.dart';
@@ -133,8 +134,24 @@ class _RequestListScreenState extends State<RequestListScreen> {
     }
   }
 
+  /// Live updates (2026-11-15): the list follows the server while it shows
+  /// (a tab selected, a page on top), read again quietly - Dokyu and Tulong
+  /// when requests change, the incident reports when Sakuna does.
+  Future<void> _refreshLive(Set<String> _) {
+    final service = context.read<RequestsService>();
+    if (widget.category == ServiceCategory.sakunaIncident) return service.loadIncidents();
+    // The office's records never get in the way: a failure there keeps them.
+    return Future.wait([service.refreshRequests(), service.refreshRecords().catchError((Object _) {})]);
+  }
+
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => LiveRefresh(
+    topics: widget.category == ServiceCategory.sakunaIncident ? const {'sakuna'} : const {'requests'},
+    onChange: _refreshLive,
+    child: _buildList(context),
+  );
+
+  Widget _buildList(BuildContext context) {
     // An incident is reported by any signed-in resident; a Dokyu or Tulong
     // request needs a Verified account (the server's ACCOUNT_NOT_VERIFIED).
     final canFile = widget.category == ServiceCategory.sakunaIncident ||

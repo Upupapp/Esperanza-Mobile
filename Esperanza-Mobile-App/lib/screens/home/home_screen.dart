@@ -30,6 +30,7 @@ import '../../utils/banner_memory.dart';
 import '../../widgets/occasion_greeting_popup.dart';
 import '../../widgets/home_welcome_banner.dart';
 import '../../widgets/live_banners.dart';
+import '../../widgets/live_refresh.dart';
 import '../../widgets/sakuna_alerts_ui.dart';
 import '../../widgets/resident_profile_status_card.dart';
 import '../../widgets/section_header.dart';
@@ -83,9 +84,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   /// The banners staff publish to the dashboard; nothing shows when none
   /// are live or the list cannot be read.
-  late final Future<List<LiveBanner>> _bannersFuture = LiveBanner.load();
+  late Future<List<LiveBanner>> _bannersFuture = LiveBanner.load();
 
-  Future<List<EventItem>> _loadEvents() async {
+  /// [quiet]: a live refresh's, which throws on a failure so the events
+  /// already shown stay.
+  Future<List<EventItem>> _loadEvents({bool quiet = false}) async {
     try {
       // From today, as the website asks (parity check, 2026-10-22): the
       // server lists events oldest first, so without it 20 past events
@@ -108,6 +111,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       // own (see the class-level doc comment), so a failure here should
       // read as "nothing to preview right now," not an error the rest of
       // Home has to account for.
+      if (quiet) rethrow;
       return const [];
     }
   }
@@ -172,6 +176,38 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     }
   }
 
+  /// Live updates (2026-11-15): what moved on the server is read again,
+  /// quietly, while Home shows - the request counts and Active Requests, the
+  /// latest Balita with the banners and upcoming events (`balita` covers
+  /// all three), and the Resident Profile card. The alerts card follows
+  /// `sakuna` itself, and the bell `notifications` (RootShell).
+  Future<void> _refreshLive(Set<String> moved) async {
+    final signedIn = context.read<CitizenSessionService>().account != null;
+    final requests = context.read<RequestsService>();
+    final balita = context.read<BalitaService?>();
+    await Future.wait([
+      if (moved.contains('requests') && signedIn) requests.refreshRequests(),
+      if (moved.contains('balita')) ...[?balita?.refreshFeed(), _refreshEventsQuietly(), _refreshBannersQuietly()],
+      if (moved.contains('residents')) _syncResidentProfile(),
+    ]);
+  }
+
+  Future<void> _refreshEventsQuietly() async {
+    final events = await _loadEvents(quiet: true);
+    if (!mounted) return;
+    setState(() {
+      _eventsFuture = Future.value(events);
+    });
+  }
+
+  Future<void> _refreshBannersQuietly() async {
+    final banners = await LiveBanner.fetch();
+    if (!mounted) return;
+    setState(() {
+      _bannersFuture = Future.value(banners);
+    });
+  }
+
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
@@ -180,7 +216,13 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => LiveRefresh(
+    topics: const {'requests', 'balita', 'residents'},
+    onChange: _refreshLive,
+    child: _buildHome(context),
+  );
+
+  Widget _buildHome(BuildContext context) {
     final session = context.watch<CitizenSessionService>();
     final account = session.account;
     final requests = context.watch<RequestsService>();
