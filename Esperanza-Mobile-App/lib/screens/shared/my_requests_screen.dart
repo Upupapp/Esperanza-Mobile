@@ -140,11 +140,33 @@ class _MyRequestCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // The service name has this row to itself beside a capped status,
+            // as on the Dokyu and Tulong lists. With the category pill in it
+            // too, a long status ("Under Verification") left a long service
+            // name so little room on a phone that it broke mid-word
+            // ("Certificatio" / "n"; live-updates video, 2026-11-15).
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 RequestClayIcon(request.category),
                 const SizedBox(width: AppSpacing.md),
+                Expanded(
+                  child: Text(
+                    request.typeName,
+                    style: const TextStyle(fontSize: AppTextSize.body, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
+                  ),
+                ),
+                const SizedBox(width: AppSpacing.xs),
+                ConstrainedBox(
+                  constraints: BoxConstraints(maxWidth: MediaQuery.sizeOf(context).width * 0.4),
+                  child: StatusChip.request(request.status, small: true, label: request.statusLabel),
+                ),
+              ],
+            ),
+            const SizedBox(height: AppSpacing.xs),
+            // Which kind of request it is, beside its reference number.
+            Row(
+              children: [
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: AppSpacing.xs),
                   decoration: BoxDecoration(
@@ -157,24 +179,17 @@ class _MyRequestCard extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: AppSpacing.sm),
-                Expanded(
+                Flexible(
                   child: Text(
-                    request.typeName,
-                    style: const TextStyle(fontSize: AppTextSize.body, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
+                    request.referenceNumber,
+                    style: const TextStyle(
+                      fontSize: AppTextSize.label,
+                      color: AppColors.textMuted,
+                      fontFeatures: [FontFeature.tabularFigures()],
+                    ),
                   ),
                 ),
-                const SizedBox(width: AppSpacing.sm),
-                StatusChip.request(request.status, small: true, label: request.statusLabel),
               ],
-            ),
-            const SizedBox(height: AppSpacing.xs),
-            Text(
-              request.referenceNumber,
-              style: const TextStyle(
-                fontSize: AppTextSize.label,
-                color: AppColors.textMuted,
-                fontFeatures: [FontFeature.tabularFigures()],
-              ),
             ),
             // The purpose filed, as the website's list shows it.
             if (request.purpose.isNotEmpty)

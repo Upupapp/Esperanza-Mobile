@@ -143,7 +143,7 @@ void main() {
 
       final firstCardText = tester
           .widgetList<Text>(find.descendant(of: find.byType(ListView), matching: find.byType(Text)))
-          .elementAt(1) // index 0 is the category badge; index 1 is the service name
+          .first // the service name leads each card; its category sits below, by the reference number
           .data;
       expect(firstCardText, 'Medical Assistance (AICS)'); // the newer (June) request renders first
     });
@@ -161,6 +161,23 @@ void main() {
       expect(find.byType(RequestDetailScreen), findsOneWidget);
       expect(tester.widget<RequestDetailScreen>(find.byType(RequestDetailScreen)).requestId, 'DR-2026-0001');
       expect(find.text('DR-2026-0001'), findsOneWidget);
+    });
+
+    testWidgets('the service name keeps its row beside the status; the category sits by the reference number', (tester) async {
+      // With the category pill in the same row, a long status beside a long
+      // service name broke the name mid-word on a phone ("Certificatio" /
+      // "n"; live-updates video, 2026-11-15).
+      final requests = await _loadedWith([
+        _summary(ref: 'DR-2026-0047', type: 'dokyu', service: 'Barangay Certification (General)', status: 'Under Verification'),
+      ]);
+      final session = await _signedInAsVerifiedDemo(tester);
+
+      await pumpMyRequests(tester, requests, session);
+
+      final titleRow = find.ancestor(of: find.text('Barangay Certification (General)'), matching: find.byType(Row)).first;
+      expect(find.descendant(of: titleRow, matching: find.text('Dokyu')), findsNothing);
+      final referenceRow = find.ancestor(of: find.text('DR-2026-0047'), matching: find.byType(Row)).first;
+      expect(find.descendant(of: referenceRow, matching: find.text('Dokyu')), findsOneWidget);
     });
 
     testWidgets('empty state shows when the signed-in resident has no requests yet', (tester) async {
