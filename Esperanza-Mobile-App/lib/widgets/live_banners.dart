@@ -176,9 +176,20 @@ class _BannerCard extends StatelessWidget {
             ),
           DecoratedBox(
             decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [for (final c in banner.colors) image != null ? c.withValues(alpha: 0.85) : c],
-              ),
+              // With a photo the colour stays strong behind the title, on the
+              // left, and fades out to the right so the photo shows, as on the
+              // website (owner, 2026-11-17: "insert a real picture ... not
+              // plain"). Without one it fills the banner as before.
+              gradient: image != null
+                  ? LinearGradient(
+                      colors: [
+                        banner.colors.first.withValues(alpha: 0.88),
+                        banner.colors.first.withValues(alpha: 0.6),
+                        banner.colors.last.withValues(alpha: 0.08),
+                      ],
+                      stops: const [0, 0.38, 1],
+                    )
+                  : LinearGradient(colors: banner.colors),
             ),
           ),
           Padding(
