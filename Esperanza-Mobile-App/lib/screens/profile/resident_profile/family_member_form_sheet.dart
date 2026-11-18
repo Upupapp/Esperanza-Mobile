@@ -41,7 +41,9 @@ class _FamilyMemberFormSheetState extends State<FamilyMemberFormSheet> {
   void initState() {
     super.initState();
     final e = widget.existing;
-    _fullName = TextEditingController(text: e?.firstName ?? '');
+    // The whole name: a member kept with split names (first, middle, last)
+    // shows all of it in the one field.
+    _fullName = TextEditingController(text: e?.fullName ?? '');
     _lvCode = e?.livelihoodCode ?? '';
     _lvOther = e?.livelihoodOther ?? '';
     _relationship = (e?.relationshipToHead.isEmpty ?? true) ? null : e!.relationshipToHead;
@@ -62,19 +64,56 @@ class _FamilyMemberFormSheetState extends State<FamilyMemberFormSheet> {
       setState(() => _error = "Please enter the family member's name.");
       return;
     }
+    // Everything this sheet does not edit is kept as it was: the next Submit
+    // sends a member's education and contact with its registry ref, and the
+    // server copies them onto the barangay's record, so a field dropped here
+    // was erased there (QA 2026-11-18).
+    final e = widget.existing;
+    final typed = _fullName.text.trim();
+    // A name kept in parts stays in parts unless it was changed here.
+    final unrenamed = e != null && typed == e.fullName.trim() ? e : null;
     final result = Individual(
-      individualId: widget.existing?.individualId ?? 'IND-${DateTime.now().microsecondsSinceEpoch}',
-      serverRef: widget.existing?.serverRef,
-      firstName: _fullName.text.trim(),
+      individualId: e?.individualId ?? 'IND-${DateTime.now().microsecondsSinceEpoch}',
+      serverRef: e?.serverRef,
+      firstName: unrenamed?.firstName ?? typed,
+      middleName: unrenamed?.middleName ?? '',
+      lastName: unrenamed?.lastName ?? '',
+      suffix: unrenamed?.suffix ?? '',
+      maidenName: e?.maidenName ?? '',
       sex: _sex ?? '',
       birthdate: _birthdate,
       civilStatus: _civilStatus ?? '',
-      occupation: widget.existing?.occupation ?? '',
+      mobile: e?.mobile ?? '',
+      email: e?.email ?? '',
+      barangay: e?.barangay ?? '',
+      sitioPurok: e?.sitioPurok ?? '',
+      completeAddress: e?.completeAddress ?? '',
+      occupation: e?.occupation ?? '',
       livelihoodCode: _lvCode,
       livelihoodOther: _lvOther,
-      livelihoodChanged: _lvChanged || (widget.existing?.livelihoodChanged ?? false),
+      livelihoodChanged: _lvChanged || (e?.livelihoodChanged ?? false),
+      educationalAttainment: e?.educationalAttainment ?? '',
+      placeOfBirth: e?.placeOfBirth ?? '',
+      schoolName: e?.schoolName ?? '',
+      yearOrGradeLevel: e?.yearOrGradeLevel ?? '',
+      degreeProgramOrCourse: e?.degreeProgramOrCourse ?? '',
+      lastSchoolAverageGrade: e?.lastSchoolAverageGrade ?? '',
+      communityInvolvement: e?.communityInvolvement ?? '',
+      postGraduationPlans: e?.postGraduationPlans ?? '',
+      isSeniorCitizen: e?.isSeniorCitizen ?? false,
+      isPWD: e?.isPWD ?? false,
+      isSoloParent: e?.isSoloParent ?? false,
+      isVoter: e?.isVoter ?? false,
+      isFourPsBeneficiary: e?.isFourPsBeneficiary ?? false,
+      photoPath: e?.photoPath,
+      photoBytesBase64: e?.photoBytesBase64,
+      documentPaths: [...?e?.documentPaths],
       relationshipToHead: _relationship ?? '',
       hasEsperanzaAccount: _hasAccount,
+      linkedCitizenAccountId: e?.linkedCitizenAccountId,
+      familyId: e?.familyId,
+      householdId: e?.householdId,
+      source: e?.source ?? RecordSource.mobileApp,
     );
     Navigator.of(context).pop(result);
   }

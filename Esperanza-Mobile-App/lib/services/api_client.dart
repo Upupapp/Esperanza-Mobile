@@ -329,11 +329,25 @@ class ApiClient {
     } on SocketException {
       unreachable.value = true;
       throw const ApiException(retryable: true, messageEn: 'No internet connection.', messageFil: 'Walang koneksyon sa internet.');
+    } on TlsException {
+      unreachable.value = true;
+      throw _insecure;
     } on http.ClientException {
       unreachable.value = true;
       throw const ApiException(retryable: true, messageEn: 'Could not reach the server.', messageFil: 'Hindi maabot ang server.');
     }
   }
+
+  /// A secure connection that could not be made (a HandshakeException): a
+  /// Wi-Fi that wants its sign-in page first, or a phone clock far off.
+  /// package:http wraps neither it nor any TlsException, so it used to escape
+  /// as a raw error that screens catching ApiException showed nothing for
+  /// (QA 2026-11-18).
+  static const _insecure = ApiException(
+    retryable: true,
+    messageEn: "Could not connect to the server securely. If this Wi-Fi has a sign-in page, sign in first, and check the phone's date and time.",
+    messageFil: 'Hindi makakonekta nang ligtas sa server. Kung may sign-in page ang Wi-Fi, mag-sign in muna, at tingnan ang petsa at oras ng telepono.',
+  );
 
   Future<Map<String, String>> _headers({bool json = true}) async {
     final headers = <String, String>{'Accept': 'application/json'};
@@ -380,6 +394,9 @@ class ApiClient {
     } on SocketException {
       unreachable.value = true;
       throw const ApiException(retryable: true, messageEn: 'No internet connection.', messageFil: 'Walang koneksyon sa internet.');
+    } on TlsException {
+      unreachable.value = true;
+      throw _insecure;
     } on http.ClientException {
       unreachable.value = true;
       throw const ApiException(retryable: true, messageEn: 'Could not reach the server.', messageFil: 'Hindi maabot ang server.');

@@ -1144,9 +1144,18 @@ Map<String, dynamic> documentData(
     'residence': address,
     'purok': purok?.replaceFirst(RegExp(r'^\s*purok\s*', caseSensitive: false), ''),
   };
+  // A paper about someone else: its sex, birth date, civil status and
+  // residence are the deceased's or the child's, which the form never fills
+  // from the requester's profile (the catalog's `prefill: false`), so a
+  // blank one stays blank instead of printing the requester's own.
+  if (_aboutAnotherPerson.contains(meta.key)) return out;
   profile.forEach((k, v) {
     if (v == null || '$v'.trim().isEmpty) return;
     out.putIfAbsent(k, () => v);
   });
   return out;
 }
+
+/// The civil registry papers whose details are of another person: the
+/// deceased (death, fetal death) or the child (live birth).
+const _aboutAnotherPerson = {'mcro_death', 'mcro_fetal_death', 'mcro_live_birth'};

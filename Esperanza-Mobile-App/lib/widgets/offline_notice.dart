@@ -9,7 +9,7 @@ import '../theme/app_spacing.dart';
 import '../theme/app_typography.dart';
 
 /// The offline notice, as on the website (parity, 2026-10-15; the website's
-/// app.js offlineNotice): a pill at the top of every screen while the server
+/// app.js offlineNotice): a pill under the app bar of every screen while the server
 /// cannot be reached, "You are back online" for a moment when it can again.
 /// While offline it asks the server again every [probeEvery], so the notice
 /// clears on its own even when no screen is loading anything.
@@ -83,39 +83,45 @@ class _OfflineNoticeState extends State<OfflineNotice> {
       children: [
         widget.child,
         if (_state != _State.hidden)
+          // Under the app bar, and never in the way of a tap: over it, the
+          // pill (two or three lines on a phone) hid the title and swallowed
+          // the back arrow and the actions for as long as the phone was
+          // offline (QA sweep 2026-11-18). It is read out as a live region.
           Positioned(
-            top: MediaQuery.paddingOf(context).top + 10,
+            top: MediaQuery.paddingOf(context).top + kToolbarHeight + AppSpacing.sm,
             left: AppSpacing.md,
             right: AppSpacing.md,
-            child: Center(
-              child: Semantics(
-                liveRegion: true,
-                container: true,
-                child: Material(
-                  color: online ? AppColors.emerald700 : AppColors.navy900,
-                  borderRadius: BorderRadius.circular(AppRadius.md),
-                  elevation: 6,
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: 9),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          online ? Icons.wifi_rounded : Icons.wifi_off_rounded,
-                          size: AppSizes.iconSm,
-                          color: AppColors.surface,
-                        ),
-                        const SizedBox(width: AppSpacing.sm),
-                        Flexible(
-                          child: Text(
-                            text,
-                            style: AppTypography.helper.copyWith(
-                              color: AppColors.surface,
-                              fontWeight: FontWeight.w600,
+            child: IgnorePointer(
+              child: Center(
+                child: Semantics(
+                  liveRegion: true,
+                  container: true,
+                  child: Material(
+                    color: online ? AppColors.emerald700 : AppColors.navy900,
+                    borderRadius: BorderRadius.circular(AppRadius.md),
+                    elevation: 6,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: 9),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            online ? Icons.wifi_rounded : Icons.wifi_off_rounded,
+                            size: AppSizes.iconSm,
+                            color: AppColors.surface,
+                          ),
+                          const SizedBox(width: AppSpacing.sm),
+                          Flexible(
+                            child: Text(
+                              text,
+                              style: AppTypography.helper.copyWith(
+                                color: AppColors.surface,
+                                fontWeight: FontWeight.w600,
+                              ),
                             ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
                 ),

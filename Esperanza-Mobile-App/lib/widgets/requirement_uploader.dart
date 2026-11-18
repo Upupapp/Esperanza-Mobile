@@ -8,6 +8,7 @@ import '../utils/cross_platform_image.dart';
 import '../utils/protected_action.dart';
 import '../utils/requirement_document_type.dart';
 import '../theme/app_typography.dart';
+import 'app_dialogs.dart';
 import 'image_viewer_scaffold.dart';
 import 'esperanza_art.dart';
 
@@ -106,9 +107,14 @@ class RequirementUploader extends StatelessWidget {
         final file = await pickImageProtected(
           context,
           source: source == _UploadSource.camera ? ImageSource.camera : ImageSource.gallery,
+          // A phone's full-size photo at quality 85 often passes the
+          // server's 5 MB; 2000 px still reads every line of a document.
+          maxDimension: 2000,
         );
         if (file == null || !context.mounted) return;
         final bytes = await file.readAsBytes();
+        if (!context.mounted) return;
+        if (_refuseOversize(context, file.name, bytes.length)) return;
         onAttachNew(
           Attachment(
             id: 'att-${DateTime.now().microsecondsSinceEpoch}',
@@ -130,6 +136,8 @@ class RequirementUploader extends StatelessWidget {
         // first rather than throwing.
         final f = result.files.first;
         if (f.bytes == null) return;
+        if (!context.mounted) return;
+        if (_refuseOversize(context, f.name, f.bytes!.length)) return;
         onAttachNew(
           Attachment(
             id: 'att-${DateTime.now().microsecondsSinceEpoch}',
@@ -203,11 +211,21 @@ class RequirementUploader extends StatelessWidget {
     );
   }
 
+  /// Says why a file is not attached when the server would refuse it for
+  /// its size, so the resident is not refused only at Submit. True when
+  /// refused.
+  static bool _refuseOversize(BuildContext context, String fileName, int bytes) {
+    final reason = requirementFileTooLarge(fileName, bytes);
+    if (reason == null) return false;
+    AppDialogs.toast(context, reason, success: false);
+    return true;
+  }
+
   void _openViewer(BuildContext context) {
     final a = attachment!;
     if (a.category != AttachmentCategory.image) return;
     // A Papeles document attached by reference may have no copy here.
-    if (a.bytes == null && (a.localPath == null || a.localPath!.isEmpty)) return;
+    if (attachmentImage(a) == null) return;
     Navigator.of(context).push(
       MaterialPageRoute(
         fullscreenDialog: true,
@@ -215,6 +233,33 @@ class RequirementUploader extends StatelessWidget {
       ),
     );
   }
+}
+
+/// The server's size limits for a requirement file (esperanza-backend
+/// config esperanza.uploads.max_image_bytes / max_document_bytes).
+const maxRequirementImageBytes = 5 * 1024 * 1024;
+const maxRequirementDocumentBytes = 10 * 1024 * 1024;
+
+/// Why the server would refuse a requirement file of [bytes] for its size
+/// (UploadService: an image up to 5 MB, a PDF up to 10 MB), or null when it
+/// fits. A photo was sent at full size and refused only after Submit.
+String? requirementFileTooLarge(String fileName, int bytes) {
+  final isImage = AttachmentCategoryX.fromExtension(fileName.split('.').last) == AttachmentCategory.image;
+  if (bytes <= (isImage ? maxRequirementImageBytes : maxRequirementDocumentBytes)) return null;
+  return isImage
+      ? tr('That photo is larger than 5 MB. Please take or choose a smaller one.')
+      : tr('That file is larger than 10 MB. Please choose a smaller one.');
+}
+
+/// What a requirement's image attachment can be shown from: the copy on
+/// this phone, else the server's own (a requirement already filed carries
+/// only its signed URL). Null when neither is here - a Papeles document
+/// attached by reference - and then View is not offered: it did nothing.
+ImageProvider? attachmentImage(Attachment a) {
+  final local = pickedFileImageProvider(bytes: a.bytes, path: a.localPath);
+  if (local != null) return local;
+  final url = a.remoteUrl;
+  return url == null || url.isEmpty ? null : NetworkImage(url);
 }
 
 enum _UploadSource { camera, gallery, document, papeles }
@@ -492,6 +537,9 @@ class _AttachedTile extends StatelessWidget {
     final s = _style;
     final isImage = attachment.category == AttachmentCategory.image;
     final provider = isImage ? pickedFileImageProvider(bytes: attachment.bytes, path: attachment.localPath) : null;
+    // View opens the copy here or the server's; with neither (a Papeles
+    // document attached by reference) it is not offered, where it did nothing.
+    final viewable = isImage && attachmentImage(attachment) != null;
 
     return GlassSurface(
       radius: AppRadius.xl,
@@ -531,8 +579,8 @@ class _AttachedTile extends StatelessWidget {
           const SizedBox(height: AppSpacing.sm),
           Row(
             children: [
-              if (isImage) _actionButton(tr('View'), onView, color: accent),
-              if (isImage) const SizedBox(width: AppSpacing.md),
+              if (viewable) _actionButton(tr('View'), onView, color: accent),
+              if (viewable) const SizedBox(width: AppSpacing.md),
               _actionButton(tr('Replace'), onReplace, color: accent),
               if (onRemove != null) ...[
                 const SizedBox(width: AppSpacing.md),
@@ -609,7 +657,7 @@ class _AttachmentImageViewer extends StatelessWidget {
   @override
   Widget build(BuildContext context) => ImageViewerScaffold(
     title: title,
-    image: pickedFileImageProvider(bytes: attachment.bytes, path: attachment.localPath),
+    image: attachmentImage(attachment),
     semanticLabel: title,
   );
 }

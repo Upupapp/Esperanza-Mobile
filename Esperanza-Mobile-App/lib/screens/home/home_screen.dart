@@ -226,7 +226,12 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     final session = context.watch<CitizenSessionService>();
     final account = session.account;
     final requests = context.watch<RequestsService>();
-    final activeRequests = requests.all.where((r) => !RequestStatusView(r.status).isDone).toList()
+    // Dokyu and Tulong only, as View all (MyRequestsScreen) lists them:
+    // Sakuna incident reports join RequestsService.all once Incident Reports
+    // has loaded, and a tap here would open them on the Tulong tab.
+    final activeRequests = requests.all
+        .where((r) => r.category != ServiceCategory.sakunaIncident && !RequestStatusView(r.status).isDone)
+        .toList()
       ..sort((a, b) => b.submittedAt.compareTo(a.submittedAt));
     final residentProfile = account != null ? context.watch<ResidentProfileService>().profileFor(account) : null;
     final updates = _latestUpdates(context);
@@ -507,10 +512,15 @@ class _Hero extends StatelessWidget {
 
   Widget _signedInContent(BuildContext context, CitizenAccount account) {
     final personal = context.watch<ResidentProfileService>().profileFor(account).personal;
+    // A photo the LGU has not approved (still waiting, or not approved) is
+    // not the resident's photo yet: the phone's copy of it is not shown, as
+    // on Profile and Personal Information (QA sweep 2026-11-18).
+    final serverPhoto = context.watch<CitizenSessionService>().photo;
+    final unapproved = serverPhoto != null && (serverPhoto.isPending || serverPhoto.isRejected);
     final photo = profileImageFor(
       account,
-      personal,
-      approvedUrl: context.watch<CitizenSessionService>().photo?.approvedUrl,
+      unapproved ? null : personal,
+      approvedUrl: serverPhoto?.approvedUrl,
     );
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,

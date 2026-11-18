@@ -41,6 +41,9 @@ class EsperanzaNavItem extends StatelessWidget {
         button: true,
         selected: isActive,
         excludeSemantics: true,
+        // excludeSemantics drops the InkResponse's tap too: without its own
+        // onTap a screen reader's double-tap did nothing (QA 2026-11-18).
+        onTap: onTap,
         child: InkResponse(
           onTap: onTap,
           containedInkWell: true,

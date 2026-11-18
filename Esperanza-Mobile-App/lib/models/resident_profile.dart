@@ -603,7 +603,10 @@ class ResidentProfile {
         livelihoodOther: account.livelihood?.other ?? '',
         householdId: householdId,
       ),
-      familyName: '${account.lastName} Family',
+      // The surname, as the website starts it: the server names the family
+      // "<surname> Family" itself, so "<last name> Family" here made the
+      // barangay's record read "Dela Cruz Family Family" (QA 2026-11-18).
+      familyName: account.lastName,
       headIndividualId: account.id,
       familyId: familyId,
       householdId: householdId,

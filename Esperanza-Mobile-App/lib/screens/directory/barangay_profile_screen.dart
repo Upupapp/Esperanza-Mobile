@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -683,74 +685,81 @@ class _OfficialSheet extends StatelessWidget {
         style: AppTypography.displayTitle.copyWith(color: AppColors.brand700),
       ),
     );
+    // A phone on its side leaves the dialog about 300dp, less than the old
+    // fixed 320dp photo alone, and the name and committee were cut off (QA
+    // 2026-11-18): the photo takes at most 45% of the screen's height and
+    // the rest scrolls.
+    final photoHeight = math.min(320.0, MediaQuery.sizeOf(context).height * 0.45);
     return ConstrainedBox(
       constraints: const BoxConstraints(maxWidth: 420),
       child: Container(
         decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(AppRadius.xl)),
         clipBehavior: Clip.antiAlias,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Stack(
-              children: [
-                Container(
-                  height: 320,
-                  width: double.infinity,
-                  color: AppColors.brand50,
-                  alignment: Alignment.center,
-                  child: official.photoUrl == null
-                      ? placeholder
-                      : Image.network(
-                          official.photoUrl!,
-                          // The whole photo, in the middle.
-                          fit: BoxFit.contain,
-                          alignment: Alignment.center,
-                          semanticLabel: 'Photo of ${official.name}',
-                          errorBuilder: (_, _, _) => placeholder,
-                        ),
-                ),
-                Positioned(
-                  top: AppSpacing.sm,
-                  right: AppSpacing.sm,
-                  child: IconButton(
-                    tooltip: 'Close profile',
-                    onPressed: () => Navigator.of(context).pop(),
-                    style: IconButton.styleFrom(
-                      backgroundColor: AppColors.surface.withValues(alpha: 0.9),
-                      minimumSize: const Size.square(AppSizes.minTouchTarget),
-                    ),
-                    icon: const Icon(Icons.close_rounded, color: AppColors.textPrimary),
-                  ),
-                ),
-              ],
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(AppSpacing.xl, AppSpacing.lg, AppSpacing.xl, AppSpacing.xl),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.center,
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Stack(
                 children: [
-                  if (official.position != null)
-                    Text(
-                      official.position!.toUpperCase(),
-                      textAlign: TextAlign.center,
-                      style: AppTypography.eyebrow.copyWith(color: AppColors.brand600),
+                  Container(
+                    height: photoHeight,
+                    width: double.infinity,
+                    color: AppColors.brand50,
+                    alignment: Alignment.center,
+                    child: official.photoUrl == null
+                        ? placeholder
+                        : Image.network(
+                            official.photoUrl!,
+                            // The whole photo, in the middle.
+                            fit: BoxFit.contain,
+                            alignment: Alignment.center,
+                            semanticLabel: 'Photo of ${official.name}',
+                            errorBuilder: (_, _, _) => placeholder,
+                          ),
+                  ),
+                  Positioned(
+                    top: AppSpacing.sm,
+                    right: AppSpacing.sm,
+                    child: IconButton(
+                      tooltip: 'Close profile',
+                      onPressed: () => Navigator.of(context).pop(),
+                      style: IconButton.styleFrom(
+                        backgroundColor: AppColors.surface.withValues(alpha: 0.9),
+                        minimumSize: const Size.square(AppSizes.minTouchTarget),
+                      ),
+                      icon: const Icon(Icons.close_rounded, color: AppColors.textPrimary),
                     ),
-                  const SizedBox(height: AppSpacing.xs),
-                  Text(official.name, textAlign: TextAlign.center, style: AppTypography.pageTitle),
-                  const SizedBox(height: AppSpacing.md),
-                  const Divider(height: 1, color: AppColors.slate100),
-                  const SizedBox(height: AppSpacing.md),
-                  if (official.committee != null)
-                    _SheetRow(
-                      label: areaLabel,
-                      value: _committeeShown(official, alsoServed)!,
-                    ),
-                  if (alsoServed != null) _SheetRow(label: tr('Also served'), value: alsoServed!),
+                  ),
                 ],
               ),
-            ),
-          ],
+              Padding(
+                padding: const EdgeInsets.fromLTRB(AppSpacing.xl, AppSpacing.lg, AppSpacing.xl, AppSpacing.xl),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    if (official.position != null)
+                      Text(
+                        official.position!.toUpperCase(),
+                        textAlign: TextAlign.center,
+                        style: AppTypography.eyebrow.copyWith(color: AppColors.brand600),
+                      ),
+                    const SizedBox(height: AppSpacing.xs),
+                    Text(official.name, textAlign: TextAlign.center, style: AppTypography.pageTitle),
+                    const SizedBox(height: AppSpacing.md),
+                    const Divider(height: 1, color: AppColors.slate100),
+                    const SizedBox(height: AppSpacing.md),
+                    if (official.committee != null)
+                      _SheetRow(
+                        label: areaLabel,
+                        value: _committeeShown(official, alsoServed)!,
+                      ),
+                    if (alsoServed != null) _SheetRow(label: tr('Also served'), value: alsoServed!),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

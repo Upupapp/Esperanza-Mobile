@@ -33,6 +33,7 @@ import '../../widgets/form_section.dart';
 import '../../widgets/onboarding_step_indicator.dart';
 import '../profile/resident_profile/personal_information_screen.dart';
 import 'document_view_screen.dart';
+import 'new_request_screen.dart' show FiledRequestCheck;
 import 'request_submitted_screen.dart';
 import '../../theme/app_typography.dart';
 import '../../widgets/esperanza_art.dart';
@@ -61,6 +62,25 @@ class ServiceRequestWizardScreen extends StatefulWidget {
   final Color accent;
 
   const ServiceRequestWizardScreen({super.key, required this.category, required this.item, required this.accent});
+
+  /// Something that has already happened: a birth, a death, a marriage, a
+  /// burial, a delivery, an incident, a referral, an issued paper.
+  static final _pastFact = RegExp(
+    r'birth|born|dob|death|died|deceased|buri|cremat|marri|dissolved|delivery|incident|referr|vaccinat|issued',
+    caseSensitive: false,
+  );
+
+  /// The last day a date question offers. Every one stopped at today, so an
+  /// Event Date, a planned travel or wedding date or a licence's expiry could
+  /// not be picked (QA 2026-11-18); the website's date input has no limit.
+  /// The date of something that has already happened still stops at today.
+  /// Others reach 25 years ahead: AppDateField opens an empty picker on the
+  /// year 25 before its last day, which is then this year.
+  static DateTime lastDateFor(String key, String label, {DateTime? now}) {
+    final today = now ?? DateTime.now();
+    if (_pastFact.hasMatch('$key $label')) return today;
+    return DateTime(today.year + 25, 12, 31);
+  }
 
   @override
   State<ServiceRequestWizardScreen> createState() => _ServiceRequestWizardScreenState();
@@ -772,49 +792,57 @@ class _ServiceRequestWizardScreenState extends State<ServiceRequestWizardScreen>
     // its own questions (its purpose among them, where it has one).
     if (!_fromServer) formData['purpose'] = _resolvePurpose();
 
+    final before = FiledRequestCheck.of(requestsService);
+    ServiceRequest request;
     try {
-      final request = await requestsService.submit(
+      request = await requestsService.submit(
         serviceKey: widget.item.key,
         formData: formData,
         feeInputs: {
           for (final name in widget.item.feeInputs) name: ?_feeValue(name),
         },
       );
-      // Only the files of documents still owed: an answer changed after a
-      // file was picked can make one not apply.
-      final owed = {for (final r in _requirementInfos) r.label};
-      final notUploaded = await requestsService.attachPicked(request, {
-        for (final e in _picked.entries)
-          if (owed.contains(e.key)) e.key: e.value,
-      });
-
-      if (!mounted) return;
-      setState(() => _submitting = false);
-      if (notUploaded.isNotEmpty) {
-        AppDialogs.toast(
-          context,
-          'Your request was filed, but ${notUploaded.join(', ')} could not be uploaded. Add it from your request.',
-          success: false,
-        );
-      }
-
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(
-          builder: (_) => RequestSubmittedScreen(
-            referenceNumber: request.referenceNumber,
-            typeName: request.typeName,
-            accent: widget.accent,
-            requestId: request.id,
-          ),
-        ),
-      );
     } on ApiException catch (e) {
+      // No answer is not "not filed": look before Submit is offered again.
+      final filed = await before.find(e, requestsService, serviceName: widget.item.name);
       if (!mounted) return;
-      setState(() {
-        _submitting = false;
-        _error = e.explain();
-      });
+      if (filed == null) {
+        setState(() {
+          _submitting = false;
+          _error = FiledRequestCheck.explain(e);
+        });
+        return;
+      }
+      request = filed;
     }
+    // Only the files of documents still owed: an answer changed after a
+    // file was picked can make one not apply.
+    final owed = {for (final r in _requirementInfos) r.label};
+    final notUploaded = await requestsService.attachPicked(request, {
+      for (final e in _picked.entries)
+        if (owed.contains(e.key)) e.key: e.value,
+    });
+
+    if (!mounted) return;
+    setState(() => _submitting = false);
+    if (notUploaded.isNotEmpty) {
+      AppDialogs.toast(
+        context,
+        'Your request was filed, but ${notUploaded.join(', ')} could not be uploaded. Add it from your request.',
+        success: false,
+      );
+    }
+
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(
+        builder: (_) => RequestSubmittedScreen(
+          referenceNumber: request.referenceNumber,
+          typeName: request.typeName,
+          accent: widget.accent,
+          requestId: request.id,
+        ),
+      ),
+    );
   }
 
   /// This form's module colours (see [_WizardAccent]); read directly here,
@@ -1015,7 +1043,7 @@ class _ServiceRequestWizardScreenState extends State<ServiceRequestWizardScreen>
           label: f.label,
           value: _values[f.key] as DateTime?,
           onChanged: (d) => setState(() => _values[f.key] = d),
-          lastDate: DateTime.now(),
+          lastDate: ServiceRequestWizardScreen.lastDateFor(f.key, f.label),
           required: f.required,
         );
       case ServiceFieldType.select:
@@ -1146,7 +1174,7 @@ class _ServiceRequestWizardScreenState extends State<ServiceRequestWizardScreen>
         label: c.label,
         value: _values[key] as DateTime?,
         onChanged: (d) => setState(() => _values[key] = d),
-        lastDate: DateTime.now(),
+        lastDate: ServiceRequestWizardScreen.lastDateFor(c.key, c.label),
       );
     }
     return AppTextField(

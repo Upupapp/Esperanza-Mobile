@@ -134,18 +134,53 @@ class BalitaService extends ChangeNotifier {
   static List<Announcement> _sorted(List<Announcement> posts) =>
       posts..sort((a, b) => (b.at ?? DateTime(0)).compareTo(a.at ?? DateTime(0)));
 
+  /// Posts opened on their own ([loadAnnouncement]) that the loaded feed
+  /// does not hold, by [Announcement.remoteId]. Kept apart from [posts]: in
+  /// the feed, a weeks-old post read as the newest Balita on Home, and a post
+  /// for another barangay (which the server's feed leaves out for this
+  /// resident) showed in their "All" feed; and the feed's first page,
+  /// arriving after it at a cold start, replaced the feed without it (QA
+  /// sweep 2026-11-18). Screens find a post with [find] / [findById].
+  final Map<int, Announcement> _opened = {};
+
+  /// The post with this [Announcement.remoteId]: the feed's copy, else one
+  /// opened on its own.
+  Announcement? find(int remoteId) {
+    for (final p in _posts) {
+      if (p.remoteId == remoteId) return p;
+    }
+    return _opened[remoteId];
+  }
+
+  /// The same, by [Announcement.id].
+  Announcement? findById(String id) {
+    for (final p in _posts) {
+      if (p.id == id) return p;
+    }
+    for (final p in _opened.values) {
+      if (p.id == id) return p;
+    }
+    return null;
+  }
+
   /// One announcement, for a "New in Balita" notification that opens it
   /// (Esperanza QA, 2026-10-07): the loaded feed's copy when it has one,
   /// otherwise GET /announcements/{id}, which is how an older post that is
-  /// not in the first pages is still found. Added to the feed so a like or a
-  /// comment on it updates the same object everywhere.
+  /// not in the first pages is still found. Kept so a like or a comment on
+  /// it updates the same object on every screen that shows it, but not in
+  /// the feed (see [_opened]).
   Future<Announcement> loadAnnouncement(int id) async {
-    for (final p in _posts) {
-      if (p.remoteId == id) return p;
-    }
+    final known = find(id);
+    if (known != null) return known;
+    final generation = _generation;
     final res = await api.get('/announcements/$id');
     final post = Announcement.fromAnnouncementApi(res.map);
-    _posts = [post, ..._posts];
+    // Signed out meanwhile: kept away from the next resident.
+    if (generation != _generation) return post;
+    // The feed brought it in meanwhile: that copy, once.
+    final arrived = find(id);
+    if (arrived != null) return arrived;
+    _opened[id] = post;
     notifyListeners();
     return post;
   }
@@ -202,6 +237,7 @@ class BalitaService extends ChangeNotifier {
   void clear() {
     _generation++;
     _posts = [];
+    _opened.clear();
     _loaded = false;
     _page = 0;
     _lastPage = 0;

@@ -151,6 +151,13 @@ class _VerifyDocumentScreenState extends State<VerifyDocumentScreen> {
       explanation: 'Esperanza needs the camera to read the QR code on the document.',
     );
     if (photo == null || !mounted) return;
+    // A new document: the last one's answer goes now, or a photo with no QR
+    // would leave its green "genuine and valid" card under the red line
+    // (QA 2026-11-18).
+    setState(() {
+      _result = null;
+      _problem = null;
+    });
     final scanner = BarcodeScanner(formats: [BarcodeFormat.qrCode]);
     String? value;
     try {

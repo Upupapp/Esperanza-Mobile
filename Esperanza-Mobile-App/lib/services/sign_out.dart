@@ -33,7 +33,9 @@ class SignOut {
   ///
   /// Order matters: the data is erased *first*, then the session is cleared.
   /// Clearing the session first would leave nothing to identify which account's
-  /// data to erase if any step after it failed.
+  /// data to erase if any step after it failed. The erasure runs once more
+  /// after the session is cleared, for what open screens brought back while
+  /// the server was being told.
   ///
   /// With no one signed in, the next launch opens on the welcome pages
   /// (owner, 2026-10-12).
@@ -65,5 +67,20 @@ class SignOut {
     }
 
     await session.logout();
+
+    // Again, now that no one is signed in (QA sweep 2026-11-18). logout()
+    // waits on the server (push unregister, POST /auth/logout) while the
+    // account is still set, and the erasure above has already notified:
+    // an open Profile or Home rebuilds in that gap, and profileFor seeds the
+    // forgotten account again, live updates refill the bell, the feed or the
+    // Master File. Those copies would stay for the next resident, and the
+    // next save would write them to disk. RequestsService needs no second
+    // pass: its loads from that gap are dropped by their token.
+    if (accountId != null) {
+      balita.clear();
+      await profiles.forgetAccount(accountId);
+      await masterFile.forgetAccount(accountId);
+      await notifications.forgetAccount(accountId);
+    }
   }
 }

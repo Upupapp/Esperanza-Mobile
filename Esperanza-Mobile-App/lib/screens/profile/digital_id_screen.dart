@@ -111,10 +111,18 @@ class _WalletView extends StatefulWidget {
 class _WalletViewState extends State<_WalletView> {
   late Future<CitizenWallet> _future = _fetch();
 
+  /// The last wallet that arrived, and when. It stays on screen while a
+  /// refresh is on its way and when one fails: a weak signal at a counter
+  /// never takes away the card the resident was showing (QA 2026-11-18).
+  CitizenWallet? _last;
+  DateTime _loadedAt = DateTime.now();
+
   /// The wallet, and afterwards, out of the way, the face on any card Didit
   /// made (its photos come without one): found on the phone, then shown.
   Future<CitizenWallet> _fetch() async {
     final wallet = await WalletService.fetch();
+    _last = wallet;
+    _loadedAt = DateTime.now();
     _placeFaces(wallet);
     return wallet;
   }
@@ -122,17 +130,38 @@ class _WalletViewState extends State<_WalletView> {
   Future<void> _placeFaces(CitizenWallet wallet) async {
     var placed = false;
     for (final d in wallet.documents) {
+      // Never on a card the LGU verified or returned: the server takes any
+      // change to one as a new card to review, which would take away its
+      // seal, or the officer's reason, with nobody told (QA 2026-11-18).
+      if (_lguDecided(d)) continue;
       if (d.fromDidit && d.portraitBox == null) placed = await WalletService.placeFace(d) || placed;
     }
     if (placed && mounted) _reload();
   }
 
-  // A block body: an arrow here hands setState the Future, which throws in a
-  // debug build.
   void _reload() {
+    _refresh();
+  }
+
+  /// Fetches the wallet again. A failure keeps the last one on screen and
+  /// says so; the error page is only for a wallet that never arrived.
+  Future<void> _refresh() async {
+    final next = _fetch();
+    // A block body: an arrow here hands setState the Future, which throws in
+    // a debug build.
     setState(() {
-      _future = _fetch();
+      _future = next;
     });
+    try {
+      await next;
+    } catch (e) {
+      if (!mounted) return;
+      // Never loaded: the error page says so, with Try Again.
+      if (_last == null) return;
+      ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+        SnackBar(content: Text(e is ApiException ? e.message() : tr('Your Digital ID could not be refreshed.'))),
+      );
+    }
   }
 
   Future<void> _openAdd(CitizenWallet wallet, {WalletDocument? replacing}) async {
@@ -145,9 +174,9 @@ class _WalletViewState extends State<_WalletView> {
   }
 
   Future<void> _openDocument(CitizenWallet wallet, WalletDocument doc) async {
-    final result = await Navigator.of(
-      context,
-    ).push<_DocumentAction>(MaterialPageRoute(builder: (_) => _WalletIdDetailScreen(document: doc)));
+    final result = await Navigator.of(context).push<_DocumentAction>(
+      MaterialPageRoute(builder: (_) => _WalletIdDetailScreen(document: doc, linksAt: _loadedAt)),
+    );
     if (!mounted) return;
     if (result == _DocumentAction.replace) {
       await _openAdd(wallet, replacing: doc);
@@ -177,10 +206,12 @@ class _WalletViewState extends State<_WalletView> {
     return FutureBuilder<CitizenWallet>(
       future: _future,
       builder: (context, snap) {
-        if (snap.connectionState != ConnectionState.done) {
+        // The last wallet that arrived while the next one is on its way, or
+        // when it fails; the spinner and the error page only before one has.
+        final wallet = snap.data ?? _last;
+        if (wallet == null && snap.connectionState != ConnectionState.done) {
           return const Center(child: CircularProgressIndicator());
         }
-        final wallet = snap.data;
         if (wallet == null) {
           final err = snap.error;
           return Center(
@@ -206,11 +237,7 @@ class _WalletViewState extends State<_WalletView> {
         final card = wallet.residentId.card;
         final active = wallet.residentId.state == ResidentIdState.active && card != null && card.qr != null;
         return RefreshIndicator(
-          onRefresh: () async {
-            final next = _fetch();
-            setState(() => _future = next);
-            await next.catchError((Object _) => wallet);
-          },
+          onRefresh: _refresh,
           child: ListView(
             physics: const AlwaysScrollableScrollPhysics(),
             padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.sm, AppSpacing.lg, AppSpacing.page),
@@ -237,6 +264,30 @@ class _WalletViewState extends State<_WalletView> {
 }
 
 String _date(DateTime d) => DateFormat('MMM d, yyyy').format(d);
+
+/// LGU staff verified or returned it: their decision stands on the card as
+/// it is.
+bool _lguDecided(WalletDocument d) =>
+    d.status == WalletDocumentStatus.verifiedByLgu || d.status == WalletDocumentStatus.returnedByLgu;
+
+/// A kept ID's photo links are signed for five minutes (the server's
+/// ESPERANZA_SIGNED_URL_TTL_SECONDS); older than this, they are fetched
+/// again before a photo is shown from them.
+const _linkLife = Duration(minutes: 4);
+
+/// [doc] again, from a fresh wallet, with photo links that work. Null when
+/// the wallet cannot be read now or no longer holds it.
+Future<WalletDocument?> _freshDocument(WalletDocument doc) async {
+  try {
+    final wallet = await WalletService.fetch();
+    for (final d in wallet.documents) {
+      if (d.id == doc.id) return d;
+    }
+  } on ApiException {
+    // Keep the links it has: the photo says it could not be loaded.
+  }
+  return null;
+}
 
 /// The eyebrow over a field on the card: NAME, BARANGAY, ISSUED.
 Widget _fieldLabel(String text) => Text(text, style: AppTypography.eyebrow.copyWith(color: AppColors.slate600));
@@ -2342,9 +2393,15 @@ class _RetryingImage extends StatefulWidget {
     this.fit = BoxFit.contain,
     this.tapToRetry = false,
     this.crop,
+    this.onRetry,
   });
 
   final String url;
+
+  /// Called on a tap to try again: fetches a fresh signed link, since the
+  /// one that failed may simply have run out. The parent then rebuilds this
+  /// with the new [url].
+  final VoidCallback? onRetry;
 
   /// Show only this part of the photo once it has loaded (the face on an
   /// ID); waiting and failed states are shown whole, never cropped away.
@@ -2379,6 +2436,17 @@ class _RetryingImageState extends State<_RetryingImage> {
   }
 
   @override
+  void didUpdateWidget(_RetryingImage old) {
+    super.didUpdateWidget(old);
+    // A new signed link: loaded afresh, with tries of its own.
+    if (old.url != widget.url) {
+      _attempt++;
+      _triesLeft = automaticTries;
+      _scheduled = false;
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     final crop = widget.crop;
     return Image.network(
@@ -2406,6 +2474,7 @@ class _RetryingImageState extends State<_RetryingImage> {
             onTap: () {
               _triesLeft = automaticTries;
               _again();
+              widget.onRetry?.call();
             },
             child: widget.failed,
           ),
@@ -2419,9 +2488,12 @@ enum _DocumentAction { replace, removed, edited }
 
 /// One kept ID: both sides, what is known about it, Replace and Remove.
 class _WalletIdDetailScreen extends StatefulWidget {
-  const _WalletIdDetailScreen({required this.document});
+  const _WalletIdDetailScreen({required this.document, required this.linksAt});
 
   final WalletDocument document;
+
+  /// When [document]'s signed photo links were handed out.
+  final DateTime linksAt;
 
   @override
   State<_WalletIdDetailScreen> createState() => _WalletIdDetailScreenState();
@@ -2429,6 +2501,29 @@ class _WalletIdDetailScreen extends StatefulWidget {
 
 class _WalletIdDetailScreenState extends State<_WalletIdDetailScreen> {
   bool _removing = false;
+
+  /// The ID as last read, with its photo links: replaced by a fresh read
+  /// when the links may have run out (QA 2026-11-18: a Details page opened
+  /// more than five minutes after the wallet could never load its photos).
+  late WalletDocument _doc = widget.document;
+  late DateTime _linksAt = widget.linksAt;
+
+  bool get _linksStale => DateTime.now().difference(_linksAt) > _linkLife;
+
+  @override
+  void initState() {
+    super.initState();
+    if (_linksStale) _freshLinks();
+  }
+
+  Future<void> _freshLinks() async {
+    final fresh = await _freshDocument(_doc);
+    if (fresh == null || !mounted) return;
+    setState(() {
+      _doc = fresh;
+      _linksAt = DateTime.now();
+    });
+  }
 
   Future<void> _remove() async {
     final ok = await AppDialogs.confirm(
@@ -2441,7 +2536,7 @@ class _WalletIdDetailScreenState extends State<_WalletIdDetailScreen> {
     if (!ok || !mounted) return;
     setState(() => _removing = true);
     try {
-      await WalletService.remove(widget.document.id);
+      await WalletService.remove(_doc.id);
       if (mounted) Navigator.of(context).pop(_DocumentAction.removed);
     } on ApiException catch (e) {
       if (!mounted) return;
@@ -2453,18 +2548,23 @@ class _WalletIdDetailScreenState extends State<_WalletIdDetailScreen> {
   Future<void> _editDetails() async {
     final saved = await Navigator.of(
       context,
-    ).push<bool>(MaterialPageRoute(builder: (_) => _EditIdDetailsScreen(document: widget.document)));
+    ).push<bool>(MaterialPageRoute(builder: (_) => _EditIdDetailsScreen(document: _doc)));
     if (saved == true && mounted) Navigator.of(context).pop(_DocumentAction.edited);
   }
 
-  void _view(String side, String url) {
+  /// One side full screen, from a link that still works.
+  Future<void> _view(String side, bool back) async {
+    if (_linksStale) await _freshLinks();
+    if (!mounted) return;
+    final url = back ? _doc.backUrl : _doc.frontUrl;
+    if (url == null) return;
     Navigator.of(context).push(
       MaterialPageRoute(
         fullscreenDialog: true,
         builder: (_) => ImageViewerScaffold(
-          title: '${widget.document.name} — $side',
+          title: '${_doc.name} — $side',
           image: NetworkImage(url),
-          semanticLabel: '${widget.document.name}, ${side.toLowerCase()} side',
+          semanticLabel: '${_doc.name}, ${side.toLowerCase()} side',
         ),
       ),
     );
@@ -2472,7 +2572,7 @@ class _WalletIdDetailScreenState extends State<_WalletIdDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final d = widget.document;
+    final d = _doc;
     return Scaffold(
       appBar: AppBar(title: Text(d.name)),
       body: ListView(
@@ -2481,14 +2581,16 @@ class _WalletIdDetailScreenState extends State<_WalletIdDetailScreen> {
           _SideImage(
             label: tr('Front'),
             url: d.frontUrl,
-            onView: d.frontUrl == null ? null : () => _view(tr('Front'), d.frontUrl!),
+            onView: d.frontUrl == null ? null : () => _view(tr('Front'), false),
+            onRetry: _freshLinks,
           ),
           const SizedBox(height: AppSpacing.md),
           if (d.hasBack)
             _SideImage(
               label: tr('Back'),
               url: d.backUrl,
-              onView: d.backUrl == null ? null : () => _view(tr('Back'), d.backUrl!),
+              onView: d.backUrl == null ? null : () => _view(tr('Back'), true),
+              onRetry: _freshLinks,
             )
           else
             const Text('No back side added.', style: AppTypography.helper),
@@ -2600,11 +2702,14 @@ class _WalletIdDetailScreenState extends State<_WalletIdDetailScreen> {
 }
 
 class _SideImage extends StatelessWidget {
-  const _SideImage({required this.label, required this.url, required this.onView});
+  const _SideImage({required this.label, required this.url, required this.onView, this.onRetry});
 
   final String label;
   final String? url;
   final VoidCallback? onView;
+
+  /// Fetches fresh signed links when the resident taps to try again.
+  final VoidCallback? onRetry;
 
   @override
   Widget build(BuildContext context) {
@@ -2642,7 +2747,7 @@ class _SideImage extends StatelessWidget {
             aspectRatio: 1.58,
             child: url == null
                 ? missing
-                : _RetryingImage(url: url!, waiting: waiting, failed: failed, tapToRetry: true),
+                : _RetryingImage(url: url!, waiting: waiting, failed: failed, tapToRetry: true, onRetry: onRetry),
           ),
         ),
       ),
@@ -3076,6 +3181,9 @@ class _DetailsControllers {
   DateTime? birthdate;
   String? sex;
 
+  /// The ID's own fields as stored, in their stored order (Edit details).
+  Map<String, String> _stored = const {};
+
   TextEditingController extra(String key) => _extras.putIfAbsent(key, TextEditingController.new);
 
   void fillFrom(IdDetails d) {
@@ -3084,6 +3192,7 @@ class _DetailsControllers {
     address.text = d.address ?? '';
     birthdate = d.birthdate == null ? null : DateTime.tryParse(d.birthdate!);
     sex = d.sex;
+    _stored = Map.of(d.extras);
     d.extras.forEach((k, v) => extra(k).text = v);
   }
 
@@ -3113,17 +3222,32 @@ class _DetailsControllers {
     return filled;
   }
 
-  IdDetails toDetails(WalletIdDesign design) => IdDetails(
-    idNumber: number.text.trim().isEmpty ? null : number.text.trim(),
-    holderName: name.text.trim().isEmpty ? null : name.text.trim(),
-    birthdate: birthdate == null ? null : _isoDate(birthdate!),
-    sex: sex,
-    address: address.text.trim().isEmpty ? null : address.text.trim(),
-    extras: {
-      for (final k in design.extras)
-        if ((_extras[k]?.text.trim() ?? '').isNotEmpty) k: _extras[k]!.text.trim(),
-    },
-  );
+  /// The server replaces the ID's own fields whole, and compares them in
+  /// order: so every stored field is kept, in its stored order, and only the
+  /// ones this kind's form shows are taken from the form (QA 2026-11-18: a
+  /// Save lost what Didit read beyond the form - place of birth, nationality,
+  /// civil status - and a Save with nothing changed sent an LGU-verified ID
+  /// back for review).
+  IdDetails toDetails(WalletIdDesign design) {
+    String typed(String k) => _extras[k]?.text.trim() ?? '';
+    final shown = design.extras.toSet();
+    return IdDetails(
+      idNumber: number.text.trim().isEmpty ? null : number.text.trim(),
+      holderName: name.text.trim().isEmpty ? null : name.text.trim(),
+      birthdate: birthdate == null ? null : _isoDate(birthdate!),
+      sex: sex,
+      address: address.text.trim().isEmpty ? null : address.text.trim(),
+      extras: {
+        for (final e in _stored.entries)
+          if (!shown.contains(e.key))
+            e.key: e.value
+          else if (typed(e.key).isNotEmpty)
+            e.key: typed(e.key),
+        for (final k in design.extras)
+          if (!_stored.containsKey(k) && typed(k).isNotEmpty) k: typed(k),
+      },
+    );
+  }
 
   void dispose() {
     number.dispose();

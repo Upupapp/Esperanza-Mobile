@@ -51,7 +51,10 @@ class _ResidentProfileOverviewScreenState extends State<ResidentProfileOverviewS
 
   @override
   Widget build(BuildContext context) {
-    final account = context.watch<CitizenSessionService>().account!;
+    final account = context.watch<CitizenSessionService>().account;
+    // Signed out, or the session ended, while this was open: the page is on
+    // its way out, and there is no profile to show.
+    if (account == null) return const Scaffold();
     final profiles = context.watch<ResidentProfileService>();
     final profile = profiles.profileFor(account);
 

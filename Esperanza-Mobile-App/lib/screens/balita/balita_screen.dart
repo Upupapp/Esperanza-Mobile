@@ -54,9 +54,9 @@ class BalitaScreen extends StatelessWidget {
           return balita.posts;
         },
         // The list is read live from BalitaService, not from the loader's
-        // snapshot, so a post a notification opened (BalitaService
-        // .loadAnnouncement adds it) and every like and comment count show
-        // here too.
+        // snapshot, so every like and comment count shows here too. A post
+        // a notification opened on its own stays out of the feed
+        // (BalitaService.loadAnnouncement).
         builder: (context, _, reload) => _Feed(onRefresh: balita.loadFeed),
       ),
     );

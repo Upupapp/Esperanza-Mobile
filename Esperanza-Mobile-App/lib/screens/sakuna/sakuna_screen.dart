@@ -15,6 +15,7 @@ import '../../theme/app_spacing.dart';
 import '../../theme/app_typography.dart';
 import '../../widgets/app_button.dart';
 import '../../widgets/app_card.dart';
+import '../../widgets/app_dialogs.dart';
 import '../../widgets/async_state_view.dart';
 import '../home/root_shell.dart';
 import '../shared/request_list_screen.dart';
@@ -182,25 +183,7 @@ class _SakunaScreenState extends State<SakunaScreen> {
                 // is asked to sign in instead of meeting a refused request.
                 minLevel: AccessLevel.unverified,
                 () => Navigator.of(context).push(
-                  MaterialPageRoute(
-                    // Loads the citizen's own reports from GET /citizen/incidents
-                    // before the list renders; it read /citizen/requests, which
-                    // never holds an incident, so the list was always empty.
-                    builder: (context) => AsyncStateView<void>(
-                      loader: () => context.read<RequestsService>().loadIncidents(),
-                      builder: (context, _, reload) => const RequestListScreen(
-                        category: ServiceCategory.sakunaIncident,
-                        title: 'Incident Reports',
-                        subtitle: 'Report and track disaster/emergency incidents.',
-                        // The report form asks what is happening itself
-                        // (lib/models/incident_types.dart).
-                        catalog: [],
-                        accent: AppColors.rose600,
-                        icon: Icons.report_outlined,
-                        pushed: true,
-                      ),
-                    ),
-                  ),
+                  MaterialPageRoute(builder: (_) => const _IncidentReportsPage()),
                 ),
               ),
             ),
@@ -256,6 +239,53 @@ class _SakunaScreenState extends State<SakunaScreen> {
       ),
     );
   }
+}
+
+/// Incident Reports, opened from Report an Incident: the list and its own
+/// Report an Incident button show at once, and the resident's past reports
+/// (GET /citizen/incidents) are read behind them. The list used to wait for
+/// that read behind a bare loader with no way back, so on a weak signal, a
+/// timeout or a server error the report form - built to survive exactly
+/// that - was never reached (QA sweep 2026-11-18). A failed read says so and
+/// leaves the form one tap away; pulling down reads the list again.
+class _IncidentReportsPage extends StatefulWidget {
+  const _IncidentReportsPage();
+
+  @override
+  State<_IncidentReportsPage> createState() => _IncidentReportsPageState();
+}
+
+class _IncidentReportsPageState extends State<_IncidentReportsPage> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _load());
+  }
+
+  Future<void> _load() async {
+    if (!mounted) return;
+    try {
+      // GET /citizen/incidents: it once read /citizen/requests, which never
+      // holds an incident, so the list was always empty.
+      await context.read<RequestsService>().loadIncidents();
+    } catch (_) {
+      if (!mounted) return;
+      AppDialogs.toast(context, tr('Your past reports could not be loaded. Pull down to try again.'), success: false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => const RequestListScreen(
+    category: ServiceCategory.sakunaIncident,
+    title: 'Incident Reports',
+    subtitle: 'Report and track disaster/emergency incidents.',
+    // The report form asks what is happening itself
+    // (lib/models/incident_types.dart).
+    catalog: [],
+    accent: AppColors.rose600,
+    icon: Icons.report_outlined,
+    pushed: true,
+  );
 }
 
 /// The evacuation centres, as on the website (2026-10-26): a list or a map,

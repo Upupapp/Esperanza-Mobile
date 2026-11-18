@@ -356,14 +356,24 @@ class _ConfirmActions extends StatelessWidget {
   /// AppButton's md size: 20pt horizontal padding each side.
   static const double _buttonPadding = 40;
 
-  bool _fits(BuildContext context, String label, double width) {
+  /// The secondary (cancel) button's 1.3pt outline, each side.
+  static const double _outline = 2 * 1.3;
+
+  /// Measured as AppButton draws the label: bold (w700), which is wider than
+  /// AppTypography.button's w500, so a label that only just fitted at w500
+  /// was laid out side by side and cut to "Cancel Requ…" (QA 2026-11-18).
+  /// On top of the theme's bodyMedium, as AppButton's own Material sets it
+  /// under the label: a theme with letter spacing there widens the label too.
+  bool _fits(BuildContext context, String label, double width, {bool outlined = false}) {
+    final drawn = (Theme.of(context).textTheme.bodyMedium ?? const TextStyle())
+        .merge(AppTypography.button.copyWith(fontSize: AppTextSize.body, fontWeight: FontWeight.w700));
     final painter = TextPainter(
-      text: TextSpan(text: label, style: AppTypography.button),
+      text: TextSpan(text: label, style: drawn),
       textDirection: Directionality.of(context),
       textScaler: MediaQuery.textScalerOf(context),
       maxLines: 1,
     )..layout();
-    return painter.width + _buttonPadding <= width;
+    return painter.width + _buttonPadding + (outlined ? _outline : 0) <= width;
   }
 
   @override
@@ -383,7 +393,7 @@ class _ConfirmActions extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, constraints) {
         final half = (constraints.maxWidth - AppSpacing.sm) / 2;
-        if (_fits(context, cancelLabel, half) && _fits(context, confirmLabel, half)) {
+        if (_fits(context, cancelLabel, half, outlined: true) && _fits(context, confirmLabel, half)) {
           return Row(
             children: [
               Expanded(child: cancel),

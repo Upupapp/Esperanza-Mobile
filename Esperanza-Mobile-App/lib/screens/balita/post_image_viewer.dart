@@ -47,6 +47,39 @@ class _PostImageViewerState extends State<PostImageViewer> {
   late final PageController _pages = PageController(initialPage: widget.initialIndex);
   late int _index = widget.initialIndex;
 
+  /// The post fetched on its own when the feed does not hold it (QA
+  /// 2026-11-18). A post a shared link or notice opened at a cold start is
+  /// fetched alone, and the feed's first page, arriving after it, replaces
+  /// the feed without it: the card still shows the post, so its photos must
+  /// still open. Asked once; [_fetchFailed] when the server has no such post.
+  Announcement? _fetched;
+  bool _fetching = false;
+  bool _fetchFailed = false;
+
+  void _fetchMissing(BalitaService balita) {
+    if (_fetching || _fetchFailed) return;
+    final remoteId = int.tryParse(widget.postId.replaceFirst('ann-', ''));
+    if (remoteId == null) {
+      _fetchFailed = true;
+      return;
+    }
+    _fetching = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      Announcement? post;
+      try {
+        post = await balita.loadAnnouncement(remoteId);
+      } catch (_) {
+        // Taken down, or no connection: closed below, as before.
+      }
+      if (!mounted) return;
+      setState(() {
+        _fetching = false;
+        _fetched = post;
+        _fetchFailed = post == null;
+      });
+    });
+  }
+
   @override
   void dispose() {
     _pages.dispose();
@@ -57,11 +90,17 @@ class _PostImageViewerState extends State<PostImageViewer> {
   Widget build(BuildContext context) {
     final postId = widget.postId;
     final balita = context.watch<BalitaService>();
-    Announcement? post;
-    for (final p in balita.posts) {
-      if (p.id == postId) {
-        post = p;
-        break;
+    // The feed's copy, or the one a notice or link opened on its own.
+    final post = balita.findById(postId) ?? _fetched;
+
+    // Not in the feed: ask the server for it once before giving up.
+    if (post == null && !_fetchFailed) {
+      _fetchMissing(balita);
+      if (!_fetchFailed) {
+        return const Scaffold(
+          backgroundColor: AppColors.mediaBackdrop,
+          body: Center(child: CircularProgressIndicator(color: AppColors.onMedia)),
+        );
       }
     }
 

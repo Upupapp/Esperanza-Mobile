@@ -63,9 +63,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
   @override
   Widget build(BuildContext context) {
     final session = context.watch<CitizenSessionService>();
-    final account = session.account!;
+    final account = session.account;
+    // Signed out here, or the session ended, while this page was open: it is
+    // on its way out (AuthGate closes it after this frame), with no account
+    // to show.
+    if (account == null) return const Scaffold();
     final residentProfile = context.watch<ResidentProfileService>().profileFor(account);
-    final photo = profileImageFor(account, residentProfile.personal, approvedUrl: session.photo?.approvedUrl);
+    // A photo the LGU has not approved (still waiting, or not approved) is
+    // not the resident's photo yet; the phone's copy of it is not shown.
+    final serverPhoto = session.photo;
+    final unapproved = serverPhoto != null && (serverPhoto.isPending || serverPhoto.isRejected);
+    final photo = profileImageFor(
+      account,
+      unapproved ? null : residentProfile.personal,
+      approvedUrl: serverPhoto?.approvedUrl,
+    );
 
     return Scaffold(
       appBar: AppBar(title: const Text('Profile')),

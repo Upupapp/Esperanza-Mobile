@@ -221,7 +221,9 @@ class AppointmentsService {
     'ALREADY_STARTED': 'The appointment time has passed, so it can no longer be cancelled.',
   };
 
-  static String explain(ApiException e) => refusals[e.code] ?? e.message();
+  /// A refusal in the resident's words, else the field's own reason (a 422
+  /// names the field that failed: QA sweep 2026-11-18), else the message.
+  static String explain(ApiException e) => refusals[e.code] ?? e.explain();
 
   static Future<List<AppointmentSchedule>> schedules() async {
     final res = await api.get('/citizen/appointments/schedules');

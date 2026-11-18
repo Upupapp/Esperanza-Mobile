@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:video_player/video_player.dart';
 
+import '../l10n/tr.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
 import '../theme/app_typography.dart';
+import 'app_button.dart';
 
 /// A Balita video in the full-screen viewer (2026-10-18): streamed from its
 /// signed link (the server answers byte ranges, so it starts at once and can
@@ -15,6 +17,11 @@ class BalitaVideoPlayer extends StatefulWidget {
   final bool active;
 
   const BalitaVideoPlayer({super.key, required this.url, this.posterUrl, this.active = true});
+
+  /// Makes the player for a link. Tests swap it out: video_player has no
+  /// platform channel under `flutter test`.
+  @visibleForTesting
+  static VideoPlayerController Function(Uri url)? debugControllerFactory;
 
   @override
   State<BalitaVideoPlayer> createState() => _BalitaVideoPlayerState();
@@ -31,16 +38,62 @@ class _BalitaVideoPlayerState extends State<BalitaVideoPlayer> {
   }
 
   Future<void> _open() async {
-    final controller = VideoPlayerController.networkUrl(Uri.parse(widget.url));
+    final uri = Uri.parse(widget.url);
+    final controller = BalitaVideoPlayer.debugControllerFactory?.call(uri) ?? VideoPlayerController.networkUrl(uri);
     _controller = controller;
     try {
       await controller.initialize();
-      if (!mounted) return;
+      if (!mounted || _controller != controller) return;
       setState(() {});
       if (widget.active) await controller.play();
     } catch (_) {
-      if (mounted) setState(() => _failed = true);
+      if (mounted && _controller == controller) setState(() => _failed = true);
     }
+  }
+
+  /// Try Again: a new player for the same link. A player that failed, at the
+  /// start or partway through (a dropped mobile connection), stays dead:
+  /// video_player ignores play() once its value is an error (QA 2026-11-18).
+  void _retry() {
+    final old = _controller;
+    setState(() {
+      _controller = null;
+      _failed = false;
+    });
+    old?.dispose();
+    _open();
+  }
+
+  Widget _failure(String? poster) {
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        if (poster != null) Image.network(poster, fit: BoxFit.contain, errorBuilder: (_, _, _) => const SizedBox.shrink()),
+        Container(
+          color: AppColors.mediaScrimStrong,
+          alignment: Alignment.center,
+          padding: const EdgeInsets.all(AppSpacing.lg),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                'This video could not be played. Check your connection and try again.',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: AppColors.onMedia, fontSize: AppTextSize.helper),
+              ),
+              const SizedBox(height: AppSpacing.md),
+              AppButton(
+                label: tr('Try Again'),
+                icon: Icons.refresh_rounded,
+                variant: AppButtonVariant.secondary,
+                size: AppButtonSize.sm,
+                onPressed: _retry,
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
   }
 
   @override
@@ -67,24 +120,9 @@ class _BalitaVideoPlayerState extends State<BalitaVideoPlayer> {
     final c = _controller;
     final poster = widget.posterUrl;
 
-    if (_failed) {
-      return Stack(
-        fit: StackFit.expand,
-        children: [
-          if (poster != null) Image.network(poster, fit: BoxFit.contain, errorBuilder: (_, _, _) => const SizedBox.shrink()),
-          Container(
-            color: AppColors.mediaScrimStrong,
-            alignment: Alignment.center,
-            padding: const EdgeInsets.all(AppSpacing.lg),
-            child: const Text(
-              'This video could not be played. Check your connection and try again.',
-              textAlign: TextAlign.center,
-              style: TextStyle(color: AppColors.onMedia, fontSize: AppTextSize.helper),
-            ),
-          ),
-        ],
-      );
-    }
+    // A player that errored after it started has isInitialized false and a
+    // zero duration, so it is a failure, not "still loading".
+    if (_failed || (c != null && c.value.hasError)) return _failure(poster);
 
     if (c == null || !c.value.isInitialized) {
       return Stack(
@@ -97,8 +135,13 @@ class _BalitaVideoPlayerState extends State<BalitaVideoPlayer> {
     }
 
     return ValueListenableBuilder<VideoPlayerValue>(
+      // A new player after Try Again gets new controls, listening to it.
+      key: ObjectKey(c),
       valueListenable: c,
       builder: (context, value, _) {
+        // A stream error partway through (a dropped connection): play would
+        // do nothing and the time would read 0:00 / 0:00.
+        if (value.hasError) return _failure(poster);
         final playing = value.isPlaying;
         return Stack(
           children: [

@@ -16,6 +16,10 @@ import '../models/service_request.dart';
 import 'service_form_specs.dart';
 import '../l10n/tr.dart';
 
+/// What [RequestsService] notes as a load begins: the sign-out count, and
+/// the token cleared last with the token the load went out under.
+typedef _LoadStart = ({int generation, Future<String?>? cleared, String? token});
+
 /// Dokyu + Tulong: catalog, submission and tracking, against the real
 /// backend (production-readiness programme, 2026-09-25). Previously a
 /// local, frontend-only "database" persisted to SharedPreferences,
@@ -134,10 +138,17 @@ class RequestsService extends ChangeNotifier {
     // here throws ("setState() or markNeedsBuild() called during build")
     // the moment a Provider ancestor is still being built too.
     scheduleMicrotask(notifyListeners);
+    final load = _begin();
     try {
-      _requests = await _fetchRequests();
-    } finally {
+      final requests = await _fetchRequests();
+      // Overtaken by [clear]: the cleared state stays, [loaded] included.
+      if (await _stale(load)) return;
+      _requests = requests;
       _loaded = true;
+    } catch (_) {
+      if (!await _stale(load)) _loaded = true;
+      rethrow;
+    } finally {
       notifyListeners();
     }
   }
@@ -151,13 +162,42 @@ class RequestsService extends ChangeNotifier {
   /// then must not bring the previous resident's list back.
   int _generation = 0;
 
+  /// The sign-in token [clear] ran under. Sign-out clears these lists first
+  /// and forgets the token only after its own network calls (SignOut.signOut,
+  /// CitizenSessionService.logout), while live updates keep reloading every
+  /// second: a load that starts in that window still goes out, and comes
+  /// back, as the resident who signed out, so it carries their requests
+  /// back onto the phone for the next one (QA sweep 2026-11-18). Null until
+  /// the first [clear].
+  Future<String?>? _clearedToken;
+
+  /// Taken as a load begins (its synchronous part runs at the call): the
+  /// [clear] count, and the token the load goes out under once a token was
+  /// ever cleared. Read beside the request, so it adds no wait before it.
+  Future<_LoadStart> _begin() async {
+    final generation = _generation;
+    final cleared = _clearedToken;
+    final token = cleared == null ? null : await api.getToken().catchError((Object _) => null);
+    return (generation: generation, cleared: cleared, token: token);
+  }
+
+  /// Whether a load must not write what it fetched: [clear] ran after it
+  /// began, or it went out as the account [clear] signed out.
+  Future<bool> _stale(Future<_LoadStart> began) async {
+    final load = await began;
+    if (load.generation != _generation) return true;
+    final cleared = load.cleared;
+    if (cleared == null || load.token == null) return false;
+    return load.token == await cleared;
+  }
+
   /// [loadRequests] in the background (live updates, 2026-11-15): the list
   /// on screen stays as it is until the new one arrives, and stays if this
   /// fails (it throws); [loaded] is not reset on the way.
   Future<void> refreshRequests() async {
-    final generation = _generation;
+    final load = _begin();
     final requests = await _fetchRequests();
-    if (generation != _generation) return;
+    if (await _stale(load)) return;
     _requests = requests;
     _loaded = true;
     notifyListeners();
@@ -166,9 +206,9 @@ class RequestsService extends ChangeNotifier {
   /// [loadRecords] in the background: a failure keeps the records shown
   /// (and throws) instead of emptying the list.
   Future<void> refreshRecords() async {
-    final generation = _generation;
+    final load = _begin();
     final res = await api.get('/citizen/records');
-    if (generation != _generation) return;
+    if (await _stale(load)) return;
     _records = JsonRead.rows(res.list, ResidentRecord.fromApi);
     _recordsPending = JsonRead.boolean(res.meta?['pending']) ?? false;
     _recordsFailed = false;
@@ -181,12 +221,15 @@ class RequestsService extends ChangeNotifier {
   /// failure leaves the list empty (and [recordsFailed] set) rather than
   /// failing the Dokyu or Tulong screen that asked for it.
   Future<void> loadRecords() async {
+    final load = _begin();
     try {
       final res = await api.get('/citizen/records');
+      if (await _stale(load)) return;
       _records = JsonRead.rows(res.list, ResidentRecord.fromApi);
       _recordsPending = JsonRead.boolean(res.meta?['pending']) ?? false;
       _recordsFailed = false;
     } catch (_) {
+      if (await _stale(load)) return;
       _records = [];
       _recordsPending = false;
       _recordsFailed = true;
@@ -199,7 +242,10 @@ class RequestsService extends ChangeNotifier {
   /// transition history (backend commit 12f5e95). Updates the matching row
   /// in [_requests] in place, so a detail screen already open on this
   /// request via [all]/[byCategory] sees the fuller record immediately.
+  /// One that [clear] overtook is returned to its caller but kept out of
+  /// the lists.
   Future<ServiceRequest> loadDetail(String ref) async {
+    final load = _begin();
     // B-052: GET /citizen/incidents/{ref} now exists -- description, sitio
     // and a real timeline, not just the list row. Still routed off the ref
     // prefix rather than a server round-trip: an INC- ref was never going
@@ -207,6 +253,7 @@ class RequestsService extends ChangeNotifier {
     if (ref.startsWith('INC-')) {
       final res = await api.get('/citizen/incidents/${ApiClient.segment(ref)}');
       final full = _incidentDetailFrom(res.map);
+      if (await _stale(load)) return full;
       final idx = _incidents.indexWhere((i) => i.referenceNumber == ref);
       if (idx != -1) {
         _incidents[idx] = full;
@@ -219,6 +266,7 @@ class RequestsService extends ChangeNotifier {
     final res = await api.get('/citizen/requests/${ApiClient.segment(ref)}');
     _requireRef(res);
     final full = _requestFromDetail(res.map);
+    if (await _stale(load)) return full;
     final idx = _requests.indexWhere((r) => r.referenceNumber == ref);
     if (idx != -1) {
       _requests[idx] = full;
@@ -232,7 +280,9 @@ class RequestsService extends ChangeNotifier {
   /// GET /citizen/incidents (CitizenRequestController::incidents()) -- the
   /// citizen's own reports, newest first.
   Future<void> loadIncidents() async {
+    final load = _begin();
     final rows = await api.getAllPages('/citizen/incidents', query: {'per_page': 100});
+    if (await _stale(load)) return;
     _incidents = JsonRead.rows(rows, (json) => JsonRead.nonEmpty(json['ref']) == null ? null : _incidentFrom(json));
     notifyListeners();
   }
@@ -341,9 +391,13 @@ class RequestsService extends ChangeNotifier {
         for (final photo in JsonRead.list(json['photos']))
           if (photo is Map) JsonRead.nonEmpty(photo['url']),
       ]
+      // DescribesFiles::describeFile names the scan `scan_status`; this read
+      // `scan`, which the server never sends, so a refused photo showed
+      // "Being checked" for ever (QA sweep 2026-11-18).
       ..incidentPhotoRefused = [
         for (final photo in JsonRead.list(json['photos']))
-          if (photo is Map) const {'infected', 'error'}.contains(JsonRead.string(photo['scan'])),
+          if (photo is Map)
+            const {'infected', 'error'}.contains(JsonRead.string(photo['scan_status'] ?? photo['scan'])),
       ]
       ..incidentLocation = GeoPoint.fromJson(json);
   }
@@ -718,6 +772,8 @@ class RequestsService extends ChangeNotifier {
   /// own [loadRequests] replaces it.
   void clear() {
     _generation++;
+    // Still the signed-out resident's token here: see [_clearedToken].
+    _clearedToken = api.getToken().catchError((Object _) => null);
     _requests = [];
     _incidents = [];
     _records = [];

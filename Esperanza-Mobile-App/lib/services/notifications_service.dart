@@ -88,6 +88,7 @@ class NotificationsService extends ChangeNotifier {
   /// keeping them would leave orphaned references to a citizen who has signed
   /// out. Clearing all of it is both the private and the correct choice.
   Future<void> forgetAccount(String accountId) async {
+    _generation++;
     _server = [];
     _readIds = {};
     _duplicateResolutions = {};
@@ -129,8 +130,17 @@ class NotificationsService extends ChangeNotifier {
     });
   }
 
+  /// Bumped by [forgetAccount] (sign-out) and when the session expires: a
+  /// load that was under way then must not bring the previous resident's
+  /// notifications back (QA sweep 2026-11-18). Sign-out forgets the account
+  /// again once the session is cleared (SignOut.signOut), so a bell reload
+  /// that went out in between is dropped too.
+  int _generation = 0;
+
   Future<void> _loadServer() async {
+    final generation = _generation;
     final rows = await api.getAllPages('/citizen/notifications', query: {'per_page': 100}, maxPages: 3);
+    if (generation != _generation) return;
     _server = JsonRead.rows(rows, ServerNotification.fromApi);
     notifyListeners();
   }
@@ -179,6 +189,7 @@ class NotificationsService extends ChangeNotifier {
   }
 
   void _clearServer() {
+    _generation++;
     if (_server.isEmpty) return;
     _server = [];
     notifyListeners();

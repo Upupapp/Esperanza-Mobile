@@ -19,6 +19,7 @@ import '../../utils/protected_action.dart';
 import '../../widgets/app_button.dart';
 import '../../widgets/app_card.dart';
 import '../../widgets/empty_state.dart';
+import '../../widgets/esperanza_art.dart';
 import '../../widgets/segmented_tabs.dart';
 import '../../theme/app_typography.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -117,6 +118,12 @@ class _DocumentsUploadedScreenState extends State<DocumentsUploadedScreen> {
   List<UploadedDocument>? _uploads;
   bool _uploadsFailed = false;
 
+  /// When [_uploads] was read. Its links are signed for five minutes
+  /// (UploadService::temporaryUrl), so an older list is read again before a
+  /// file opens.
+  DateTime? _uploadsAt;
+  static const _linkLifetime = Duration(minutes: 4);
+
   @override
   void initState() {
     super.initState();
@@ -125,20 +132,45 @@ class _DocumentsUploadedScreenState extends State<DocumentsUploadedScreen> {
 
   Future<void> _refresh({bool report = false}) => Future.wait([_loadUploads(report: report), _sync(report: report)]);
 
-  Future<void> _loadUploads({bool report = false}) async {
+  /// Whether the list was read.
+  Future<bool> _loadUploads({bool report = false}) async {
     try {
       final res = await api.get('/citizen/uploads');
       final rows = JsonRead.rows(res.list, UploadedDocument.fromJson);
-      if (!mounted) return;
+      if (!mounted) return false;
       setState(() {
         _uploads = rows;
         _uploadsFailed = false;
+        _uploadsAt = DateTime.now();
       });
+      return true;
     } on ApiException catch (e) {
-      if (!mounted) return;
+      if (!mounted) return false;
       setState(() => _uploadsFailed = true);
       if (report) AppDialogs.toast(context, e.message(), success: false);
+      return false;
     }
+  }
+
+  /// [document] as the server has it now, its link good to open: the list is
+  /// read again when it is older than its links, or when the file was still
+  /// being checked (QA 2026-11-18: a tap after five minutes showed "Preview
+  /// not available", and "Try again in a minute" never came true). Null when
+  /// it could not be read again (the reason was shown).
+  Future<UploadedDocument?> _current(UploadedDocument document) async {
+    final at = _uploadsAt;
+    final fresh = at != null && DateTime.now().difference(at) < _linkLifetime;
+    if (fresh && document.url != null) return document;
+    if (!await _loadUploads(report: true)) return null;
+    for (final d in _uploads ?? const <UploadedDocument>[]) {
+      if (d.ref == document.ref &&
+          d.requirement == document.requirement &&
+          d.fileName == document.fileName &&
+          d.uploadedAt == document.uploadedAt) {
+        return d;
+      }
+    }
+    return document;
   }
 
   /// Pulls the resident's Papeles wallet from the server (GET
@@ -179,6 +211,8 @@ class _DocumentsUploadedScreenState extends State<DocumentsUploadedScreen> {
             _ => uploads,
           };
     final isEmpty = serverRows == null ? filtered.isEmpty : serverRows.isEmpty;
+    // Not "No documents uploaded yet" before the server has answered.
+    final loading = isEmpty && _tab != 3 && uploads == null && !_uploadsFailed;
 
     return Scaffold(
       appBar: AppBar(title: Text(tr('Documents Uploaded'))),
@@ -242,7 +276,12 @@ class _DocumentsUploadedScreenState extends State<DocumentsUploadedScreen> {
                       ? ListView(
                           physics: const AlwaysScrollableScrollPhysics(),
                           children: [
-                            _tab == 3
+                            loading
+                                ? const Padding(
+                                    padding: EdgeInsets.all(AppSpacing.xxxl),
+                                    child: Center(child: EsperanzaLoader()),
+                                  )
+                                : _tab == 3
                                 ? const EmptyState(
                                     icon: Icons.folder_open_outlined,
                                     title: 'No documents in your Papeles yet',
@@ -264,7 +303,7 @@ class _DocumentsUploadedScreenState extends State<DocumentsUploadedScreen> {
                           physics: const AlwaysScrollableScrollPhysics(),
                           padding: const EdgeInsets.only(bottom: AppSpacing.xxl),
                           itemCount: serverRows.length,
-                          itemBuilder: (context, i) => _UploadCard(document: serverRows[i]),
+                          itemBuilder: (context, i) => _UploadCard(document: serverRows[i], current: _current),
                         )
                       : ListView.builder(
                           physics: const AlwaysScrollableScrollPhysics(),
@@ -316,9 +355,14 @@ bool _opensInApp(AttachmentCategory category) =>
 /// the scan has not cleared says why it cannot be opened.
 class _UploadCard extends StatelessWidget {
   final UploadedDocument document;
-  const _UploadCard({required this.document});
+
+  /// The file as the server has it now, with a link that still opens.
+  final Future<UploadedDocument?> Function(UploadedDocument document) current;
+  const _UploadCard({required this.document, required this.current});
 
   Future<void> _open(BuildContext context) async {
+    final document = await current(this.document);
+    if (document == null || !context.mounted) return;
     final reason = document.unavailableReason;
     if (reason != null) {
       AppDialogs.toast(context, reason, success: false);

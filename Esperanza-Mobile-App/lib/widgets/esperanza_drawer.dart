@@ -212,7 +212,12 @@ class _Header extends StatelessWidget {
   Widget build(BuildContext context) {
     final account = session.account;
     final personal = account != null ? context.watch<ResidentProfileService>().profileFor(account).personal : null;
-    final photo = profileImageFor(account, personal, approvedUrl: context.watch<CitizenSessionService>().photo?.approvedUrl);
+    // A photo the LGU has not approved (still waiting, or not approved) is
+    // not the resident's photo yet: the phone's copy of it is not shown, as
+    // on Profile and Personal Information (QA sweep 2026-11-18).
+    final serverPhoto = context.watch<CitizenSessionService>().photo;
+    final unapproved = serverPhoto != null && (serverPhoto.isPending || serverPhoto.isRejected);
+    final photo = profileImageFor(account, unapproved ? null : personal, approvedUrl: serverPhoto?.approvedUrl);
     return Container(
       width: double.infinity,
       padding: EdgeInsets.fromLTRB(AppSpacing.xl, MediaQuery.paddingOf(context).top + AppSpacing.xl, AppSpacing.xl, AppSpacing.xl),

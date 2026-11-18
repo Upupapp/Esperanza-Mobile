@@ -5,6 +5,7 @@ import '../../services/api_client.dart';
 import '../../services/requests_service.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_spacing.dart';
+import '../../widgets/app_button.dart';
 import '../../widgets/app_card.dart';
 import '../../widgets/app_dialogs.dart';
 import '../../widgets/empty_state.dart';
@@ -51,11 +52,18 @@ class _MyRequestsScreenState extends State<MyRequestsScreen> {
     _reload(quiet: true);
   }
 
+  /// Why the list could not be read, while nothing was ever read: the page
+  /// said "No requests yet" to a resident who has some (QA 2026-11-18).
+  String? _loadError;
+
   Future<void> _reload({bool quiet = false}) async {
     try {
       await context.read<RequestsService>().loadRequests();
+      if (mounted && _loadError != null) setState(() => _loadError = null);
     } on ApiException catch (e) {
-      if (!quiet && mounted) AppDialogs.toast(context, e.message(), success: false);
+      if (!mounted) return;
+      setState(() => _loadError = e.message());
+      if (!quiet) AppDialogs.toast(context, e.message(), success: false);
     }
   }
 
@@ -64,7 +72,10 @@ class _MyRequestsScreenState extends State<MyRequestsScreen> {
   @override
   Widget build(BuildContext context) => LiveRefresh(
     topics: const {'requests'},
-    onChange: (_) => context.read<RequestsService>().refreshRequests(),
+    onChange: (_) async {
+      await context.read<RequestsService>().refreshRequests();
+      if (mounted && _loadError != null) setState(() => _loadError = null);
+    },
     child: _buildPage(context),
   );
 
@@ -75,6 +86,10 @@ class _MyRequestsScreenState extends State<MyRequestsScreen> {
     // separate concern (see ServiceCategory.sakunaIncident) not covered by
     // this Dokyu/Tulong service-history screen.
     var mine = requests.all.where((r) => r.category != ServiceCategory.sakunaIncident).toList();
+    // With nothing to show yet, "No requests yet" only once the list has
+    // been read: a loader while it is being read, and why when it could not.
+    final loading = mine.isEmpty && !requests.loaded;
+    final failed = mine.isEmpty && _loadError != null;
     if (_tab == 1) mine = mine.where((r) => r.category == ServiceCategory.dokyu).toList();
     if (_tab == 2) mine = mine.where((r) => r.category == ServiceCategory.tulong).toList();
     mine.sort((a, b) => b.submittedAt.compareTo(a.submittedAt));
@@ -98,11 +113,30 @@ class _MyRequestsScreenState extends State<MyRequestsScreen> {
                   ? ListView(
                       physics: const AlwaysScrollableScrollPhysics(),
                       children: [
-                        EmptyState(
-                          icon: Icons.folder_open_outlined,
-                          title: _tab == 0 ? 'No requests yet' : 'No ${_tab == 1 ? 'Dokyu' : 'Tulong'} requests yet',
-                          description: 'Your submitted Dokyu and Tulong requests will appear here.',
-                        ),
+                        if (loading)
+                          const Padding(
+                            padding: EdgeInsets.all(AppSpacing.xxxl),
+                            child: Center(child: EsperanzaLoader()),
+                          )
+                        else if (failed)
+                          EmptyState(
+                            glyph: ClayGlyph.error,
+                            title: 'Your requests could not be loaded',
+                            description: _loadError,
+                            action: AppButton(
+                              label: tr('Try Again'),
+                              icon: Icons.refresh_rounded,
+                              variant: AppButtonVariant.secondary,
+                              // The reason shows here, not in a toast too.
+                              onPressed: () => _reload(quiet: true),
+                            ),
+                          )
+                        else
+                          EmptyState(
+                            icon: Icons.folder_open_outlined,
+                            title: _tab == 0 ? 'No requests yet' : 'No ${_tab == 1 ? 'Dokyu' : 'Tulong'} requests yet',
+                            description: 'Your submitted Dokyu and Tulong requests will appear here.',
+                          ),
                       ],
                     )
                   : ListView.builder(

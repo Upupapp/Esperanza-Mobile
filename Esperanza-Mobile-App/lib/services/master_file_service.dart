@@ -174,14 +174,29 @@ class MasterFileService extends ChangeNotifier {
   /// Adds a file straight to the Papeles wallet, outside any request, as the
   /// website's My Documents does (parity, 2026-10-15; POST /citizen/papeles
   /// with the same type and category), then reads the wallet again.
+  ///
+  /// Only the upload's own failure is thrown. Once the POST is answered the
+  /// file is saved: its row is listed from the answer and the wallet is read
+  /// again quietly. A failed re-read (on the same weak connection that made
+  /// the upload slow) used to report the saved upload as failed, and the
+  /// resident's retry made a second copy (QA 2026-11-18).
   Future<void> addToWallet({required String accountId, required String name, required String filePath}) async {
-    await api.postMultipart(
+    final res = await api.postMultipart(
       '/citizen/papeles',
       filePath: filePath,
       fileField: 'file',
       fields: {'name': name.trim(), 'type': 'Supporting document', 'category': 'Supporting Documents'},
     );
-    await syncFromServer(accountId);
+    final added = _fromPapeles(res.map);
+    if (added != null) {
+      _byAccount[accountId] = [
+        added,
+        ...(_byAccount[accountId] ?? const <MasterFileDocument>[]).where((d) => d.id != added.id),
+      ];
+      notifyListeners();
+      await _persist();
+    }
+    await refreshQuietly(accountId);
   }
 
   /// A short-lived signed link to a server copy (GET .../{id}/download).

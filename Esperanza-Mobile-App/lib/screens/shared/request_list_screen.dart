@@ -383,7 +383,18 @@ class _RequestListScreenState extends State<RequestListScreen> {
                     )
                   : ListView.builder(
                       physics: const AlwaysScrollableScrollPhysics(),
-                      padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.sm, AppSpacing.lg, AppSpacing.page),
+                      // Scrolled to the end, the last card clears the navbar
+                      // and the New Request button, as the empty state does:
+                      // 48 dp left its Track row under the bar (QA 2026-11-18).
+                      padding: EdgeInsets.fromLTRB(
+                        AppSpacing.lg,
+                        AppSpacing.sm,
+                        AppSpacing.lg,
+                        MediaQuery.paddingOf(context).bottom +
+                            _kFloatingElementGap +
+                            _kFloatingActionButtonHeight +
+                            _kFloatingElementGap,
+                      ),
                       itemCount: visible.length + (officeShown.isEmpty ? 0 : officeShown.length + 1),
                       itemBuilder: (context, i) {
                         if (i < visible.length) return _RequestTile(request: visible[i], accent: widget.accent);

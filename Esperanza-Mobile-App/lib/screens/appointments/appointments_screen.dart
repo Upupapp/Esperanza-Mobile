@@ -17,6 +17,11 @@ import '../../widgets/app_text_field.dart';
 import '../../widgets/live_refresh.dart';
 
 import '../../l10n/tr.dart';
+
+/// The longest cancel reason the server takes (AppointmentsController::
+/// cancelMine, reason max:300).
+const cancelReasonMaxLength = 300;
+
 /// Appointments (scope round 2026-10-15; the web portal's Appointments page):
 /// the resident's own appointments, upcoming first, each cancellable while it
 /// can be, and booking a new one.
@@ -64,6 +69,9 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
+        // Scrolls when the keyboard is up: on a short phone the title, the
+        // reason box and the buttons overflowed the space left above it.
+        scrollable: true,
         title: Text(tr('Cancel this appointment?')),
         content: Column(
           mainAxisSize: MainAxisSize.min,
@@ -74,8 +82,15 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
               style: AppTypography.helper,
             ),
             const SizedBox(height: AppSpacing.md),
-            // Optional, as on the website: the office sees it.
-            AppTextField(label: tr('Reason (optional)'), controller: reason, maxLines: 2, maxLength: 500),
+            // Optional, as on the website: the office sees it. The server's
+            // limit (AppointmentsController::cancelMine, reason max:300); 500
+            // let a longer reason through to a refusal.
+            AppTextField(
+              label: tr('Reason (optional)'),
+              controller: reason,
+              maxLines: 2,
+              maxLength: cancelReasonMaxLength,
+            ),
           ],
         ),
         actions: [
@@ -99,7 +114,9 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
       _reload();
     } on ApiException catch (e) {
       if (!mounted) return;
-      AppDialogs.toast(context, AppointmentsService.explain(e), success: false);
+      // A refusal in the resident's words, else the field's own reason: the
+      // envelope alone ("Some fields need to be corrected.") named nothing.
+      AppDialogs.toast(context, AppointmentsService.refusals[e.code] ?? e.explain(), success: false);
       if (e.code == 'NOT_CANCELLABLE' || e.code == 'ALREADY_STARTED') _reload();
     } finally {
       if (mounted) setState(() => _cancelling = null);

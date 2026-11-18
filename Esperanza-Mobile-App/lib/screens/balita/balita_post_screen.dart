@@ -22,8 +22,7 @@ class BalitaPostScreen extends StatelessWidget {
         loader: () => context.read<BalitaService>().loadAnnouncement(announcementId),
         builder: (context, loaded, reload) {
           // The feed's own copy, so a like here shows in the feed and back.
-          final posts = context.watch<BalitaService>().posts;
-          final post = posts.firstWhere((p) => p.remoteId == announcementId, orElse: () => loaded);
+          final post = context.watch<BalitaService>().find(announcementId) ?? loaded;
           return RefreshIndicator(
             onRefresh: () async => reload(),
             child: ListView(

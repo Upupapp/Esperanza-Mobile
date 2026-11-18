@@ -60,6 +60,9 @@ class _EsperanzaCenterActionState extends State<EsperanzaCenterAction> {
       button: true,
       label: active ? 'Dokyu and Tulong launcher, active' : 'Open Dokyu and Tulong',
       excludeSemantics: true,
+      // Its own tap: excludeSemantics drops the GestureDetector's below, so a
+      // TalkBack or VoiceOver double-tap reached a button that did nothing.
+      onTap: _run,
       child: GestureDetector(
         onTap: _run,
         behavior: HitTestBehavior.opaque,

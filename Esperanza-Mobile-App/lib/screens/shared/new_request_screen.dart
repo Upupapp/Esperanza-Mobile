@@ -23,6 +23,71 @@ import 'request_submitted_screen.dart';
 import '../../theme/app_typography.dart';
 
 import '../../l10n/tr.dart';
+
+/// A Submit whose answer never came (it timed out, the connection dropped,
+/// a gateway gave up) may still have filed the request: the server can
+/// finish after the app has stopped waiting, and POST /citizen/requests
+/// takes no idempotency key yet. Submit came back on and a second tap filed
+/// it twice: two references, two fees, the office alerted twice (QA
+/// 2026-11-18). Taken just before Submit, this reads the list again after
+/// such a failure and finds the request that is new since, so the screen
+/// goes on as filed. Shared by [NewRequestScreen] and the service wizard.
+class FiledRequestCheck {
+  FiledRequestCheck._(this._before, this._at, this._listed);
+
+  /// What the list holds now, just before Submit.
+  factory FiledRequestCheck.of(RequestsService service) =>
+      FiledRequestCheck._({for (final r in service.all) r.referenceNumber}, DateTime.now(), service.loaded);
+
+  final Set<String> _before;
+  final DateTime _at;
+
+  /// Whether the list had been read before Submit. When it had not (the
+  /// form opened before Track Requests ever loaded), a request of the same
+  /// service filed earlier in the hour would read as this one: then
+  /// nothing is taken as filed, and the form says it may have been.
+  final bool _listed;
+
+  /// Whether [error] leaves it unknown if the server filed the request: no
+  /// answer at all, or the server or a gateway failing (5xx). A refusal (a
+  /// 4xx, too many requests) filed nothing.
+  static bool unanswered(ApiException error) => error.retryable && error.status != 429;
+
+  /// The request of [serviceName] filed despite [error], read in full; null
+  /// when the list has none new (or cannot be read).
+  Future<ServiceRequest?> find(ApiException error, RequestsService service, {required String serviceName}) async {
+    if (!unanswered(error) || !_listed) return null;
+    ServiceRequest? filed;
+    try {
+      await service.refreshRequests();
+      // Never one filed earlier that the list had not loaded yet; the hour
+      // is a margin for the phone's clock.
+      final since = _at.subtract(const Duration(hours: 1));
+      for (final r in service.all) {
+        if (r.typeName == serviceName && !_before.contains(r.referenceNumber) && r.submittedAt.isAfter(since)) {
+          filed = r;
+          break;
+        }
+      }
+    } on ApiException {
+      return null;
+    }
+    if (filed == null) return null;
+    try {
+      // Its requirement rows, for the documents picked on the form.
+      return await service.loadDetail(filed.referenceNumber);
+    } on ApiException {
+      return filed;
+    }
+  }
+
+  /// What the form says when nothing new was found: after no answer, that
+  /// it may still have been filed.
+  static String explain(ApiException error) => unanswered(error)
+      ? '${error.explain()} ${tr('It may still have been filed: check your requests before you submit again.')}'
+      : error.explain();
+}
+
 /// Fallback wizard for a catalog item with no curated [CatalogItem.formSpec]
 /// (see [ServiceFormSpecs] — only real backend services whose `key` matches
 /// one of [MockCatalog]'s curated document/assistance types get the fuller,
@@ -109,8 +174,10 @@ class _NewRequestScreenState extends State<NewRequestScreen> {
       _error = null;
     });
 
+    final before = FiledRequestCheck.of(requestsService);
+    ServiceRequest request;
     try {
-      final request = await requestsService.submit(
+      request = await requestsService.submit(
         serviceKey: widget.item.key,
         formData: {
           'purpose': _purposeController.text.trim(),
@@ -119,35 +186,42 @@ class _NewRequestScreenState extends State<NewRequestScreen> {
         },
         feeInputs: FeeInputs.collect(widget.item.feeInputs, _feeControllers),
       );
-      final notUploaded = await requestsService.attachPicked(request, _picked);
-
-      if (!mounted) return;
-      setState(() => _submitting = false);
-      if (notUploaded.isNotEmpty) {
-        AppDialogs.toast(
-          context,
-          'Your request was filed, but ${notUploaded.join(', ')} could not be uploaded. Add it from your request.',
-          success: false,
-        );
-      }
-
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(
-          builder: (_) => RequestSubmittedScreen(
-            referenceNumber: request.referenceNumber,
-            typeName: request.typeName,
-            accent: widget.accent,
-            requestId: request.id,
-          ),
-        ),
-      );
     } on ApiException catch (e) {
+      // No answer is not "not filed": look before Submit is offered again.
+      final filed = await before.find(e, requestsService, serviceName: widget.item.name);
       if (!mounted) return;
-      setState(() {
-        _submitting = false;
-        _error = e.explain();
-      });
+      if (filed == null) {
+        setState(() {
+          _submitting = false;
+          _error = FiledRequestCheck.explain(e);
+        });
+        return;
+      }
+      request = filed;
     }
+
+    final notUploaded = await requestsService.attachPicked(request, _picked);
+
+    if (!mounted) return;
+    setState(() => _submitting = false);
+    if (notUploaded.isNotEmpty) {
+      AppDialogs.toast(
+        context,
+        'Your request was filed, but ${notUploaded.join(', ')} could not be uploaded. Add it from your request.',
+        success: false,
+      );
+    }
+
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(
+        builder: (_) => RequestSubmittedScreen(
+          referenceNumber: request.referenceNumber,
+          typeName: request.typeName,
+          accent: widget.accent,
+          requestId: request.id,
+        ),
+      ),
+    );
   }
 
   @override

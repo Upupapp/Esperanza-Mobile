@@ -1,8 +1,14 @@
+import 'dart:async';
+import 'dart:convert';
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../models/request_release.dart';
+import '../screens/shared/pdf_viewer_screen.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
 import '../theme/app_typography.dart';
@@ -139,10 +145,30 @@ class _Line extends StatelessWidget {
 /// scan to check it, and the scan of the signed paper - the resident's
 /// digital copy. The paper stays the official document.
 class IssuedDocumentsCard extends StatelessWidget {
-  const IssuedDocumentsCard({super.key, required this.documents, required this.accent});
+  const IssuedDocumentsCard({super.key, required this.documents, required this.accent, this.reload});
 
   final List<IssuedDocumentInfo> documents;
   final Color accent;
+
+  /// Reads the request again and gives its documents: a signed copy's link
+  /// lasts five minutes from when the request was read, so it is read again
+  /// before the copy opens (QA 2026-11-18). Without it the link as read is used.
+  final Future<List<IssuedDocumentInfo>> Function()? reload;
+
+  /// Fetches a signed copy. Tests swap it out; null is the network.
+  @visibleForTesting
+  static Future<http.Response> Function(Uri uri)? debugFetch;
+
+  /// Whether a signed copy is a PDF. Its link (a signed /files/<id> route)
+  /// names no type, and the server sends every file as
+  /// application/octet-stream: the link never ended in .pdf, so every PDF
+  /// went to the image viewer and showed "Preview not available" (QA
+  /// 2026-11-18). The file itself says: a PDF starts with "%PDF-", within
+  /// its first kilobyte.
+  static bool isPdf(Uint8List bytes) {
+    final head = bytes.length > 1024 ? bytes.sublist(0, 1024) : bytes;
+    return latin1.decode(head).contains('%PDF-');
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -165,7 +191,7 @@ class IssuedDocumentsCard extends StatelessWidget {
           for (final (i, d) in documents.indexed) ...[
             if (i > 0) const Divider(height: AppSpacing.xxl),
             const SizedBox(height: AppSpacing.headingGap),
-            _IssuedDocument(document: d, accent: accent),
+            _IssuedDocument(document: d, accent: accent, reload: reload),
           ],
         ],
       ),
@@ -173,36 +199,95 @@ class IssuedDocumentsCard extends StatelessWidget {
   }
 }
 
-class _IssuedDocument extends StatelessWidget {
-  const _IssuedDocument({required this.document, required this.accent});
+class _IssuedDocument extends StatefulWidget {
+  const _IssuedDocument({required this.document, required this.accent, this.reload});
 
   final IssuedDocumentInfo document;
   final Color accent;
+  final Future<List<IssuedDocumentInfo>> Function()? reload;
 
-  Future<void> _open(BuildContext context, String url, {bool image = false}) async {
-    if (image) {
-      await Navigator.of(context).push(
-        MaterialPageRoute(
-          builder: (_) => ImageViewerScaffold(
-            title: 'Signed copy',
-            image: NetworkImage(url),
-            semanticLabel: 'Signed copy of ${document.controlNumber}',
+  @override
+  State<_IssuedDocument> createState() => _IssuedDocumentState();
+}
+
+class _IssuedDocumentState extends State<_IssuedDocument> {
+  bool _opening = false;
+
+  static const _notOpened = 'The signed copy could not be opened. Check your connection and try again.';
+
+  Future<void> _launch(String url) async {
+    final uri = Uri.tryParse(url);
+    if (uri == null || !await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+      if (mounted) AppDialogs.toast(context, 'Could not open it. Check your connection and try again.', success: false);
+    }
+  }
+
+  /// The signed copy, from a link read just now, in the viewer its file
+  /// calls for: the PDF viewer or the image viewer.
+  Future<void> _openSignedCopy() async {
+    if (_opening) return;
+    setState(() => _opening = true);
+    try {
+      var url = widget.document.scanUrl;
+      final reload = widget.reload;
+      if (reload != null) {
+        try {
+          for (final d in await reload()) {
+            if (d.controlNumber == widget.document.controlNumber) url = d.scanUrl;
+          }
+        } catch (_) {
+          // Not read again (offline): the link as read may still be good.
+        }
+      }
+      if (!mounted) return;
+      if (url == null) {
+        AppDialogs.toast(context, 'The signed copy is no longer available.', success: false);
+        return;
+      }
+      // The web build hands the link to the browser, which shows either.
+      if (!PdfViewerScreen.supported) return _launch(url);
+      final uri = Uri.tryParse(url);
+      Uint8List? bytes;
+      if (uri != null) {
+        try {
+          final res = await (IssuedDocumentsCard.debugFetch ?? http.get)(uri).timeout(const Duration(seconds: 30));
+          if (res.statusCode == 200 && res.bodyBytes.isNotEmpty) bytes = res.bodyBytes;
+        } catch (_) {
+          // Unreachable, or too slow: said below.
+        }
+      }
+      if (!mounted) return;
+      if (bytes == null) {
+        AppDialogs.toast(context, _notOpened, success: false);
+        return;
+      }
+      final file = bytes;
+      const title = 'Signed copy';
+      unawaited(
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => IssuedDocumentsCard.isPdf(file)
+                ? PdfViewerScreen(
+                    title: title,
+                    fileName: '${widget.document.controlNumber}.pdf',
+                    load: () async => file,
+                  )
+                : ImageViewerScaffold(
+                    title: title,
+                    image: MemoryImage(file),
+                    semanticLabel: 'Signed copy of ${widget.document.controlNumber}',
+                  ),
           ),
         ),
       );
-      return;
-    }
-    final uri = Uri.tryParse(url);
-    if (uri == null || !await launchUrl(uri, mode: LaunchMode.externalApplication)) {
-      if (context.mounted) {
-        AppDialogs.toast(context, 'Could not open it. Pull down to refresh, then try again.', success: false);
-      }
+    } finally {
+      if (mounted) setState(() => _opening = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final d = document;
+    final d = widget.document;
     final (label, fg, bg) = d.revoked
         ? ('Revoked', AppColors.rose700, AppColors.rose50)
         : d.expired
@@ -283,13 +368,18 @@ class _IssuedDocument extends StatelessWidget {
           children: [
             if (d.scanUrl != null)
               FilledButton.tonalIcon(
-                onPressed: () => _open(context, d.scanUrl!, image: !d.isPdf),
-                icon: const Icon(Icons.description_outlined, size: AppSizes.iconSm),
+                onPressed: _opening ? null : _openSignedCopy,
+                icon: _opening
+                    ? const SizedBox.square(
+                        dimension: AppSizes.iconSm,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.description_outlined, size: AppSizes.iconSm),
                 label: Text(tr('View signed copy')),
               ),
             if (!d.revoked && d.verifyUrl != null)
               TextButton.icon(
-                onPressed: () => _open(context, d.verifyUrl!),
+                onPressed: () => _launch(d.verifyUrl!),
                 icon: const Icon(Icons.open_in_new_rounded, size: AppSizes.iconSm),
                 label: const Text('Check online'),
               ),

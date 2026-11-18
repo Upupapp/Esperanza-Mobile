@@ -1,6 +1,7 @@
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:image_picker_android/image_picker_android.dart';
 import 'package:image_picker_platform_interface/image_picker_platform_interface.dart';
@@ -140,12 +141,12 @@ Future<void> showPermissionSettingsDialog(BuildContext context) => _showPermanen
 /// picks in particular, the OS Photo Picker needs no runtime permission
 /// grant at all — forcing one anyway would be exactly the "broad/
 /// unrestricted access" this must avoid). `permission_handler` is used
-/// only to (a) short-circuit straight to the "permanently denied ->
-/// Open Settings" dialog when that's already the known state, so the
-/// picker isn't attempted only to silently fail, and (b) after a null
-/// result, distinguish "the citizen just cancelled the picker" (do
-/// nothing, exactly like today) from "the permission was actually denied"
-/// (show the friendly denied message).
+/// for the camera only, to (a) short-circuit straight to the "permanently
+/// denied -> Open Settings" dialog when that's already the known state, so
+/// the picker isn't attempted only to silently fail, and (b) after a
+/// refused prompt or a null result, distinguish "the citizen just
+/// cancelled the picker" (do nothing, exactly like today) from "the
+/// permission was actually denied" (show the friendly denied message).
 ///
 /// [maxDimension] caps the longer side in pixels. The profile photo passes
 /// 1024: it is shown at 192pt at most and is kept on the phone, where a
@@ -166,37 +167,44 @@ Future<XFile?> pickImageProtected(
   if (!await _confirmExplanation(context, resource, explanation: explanation)) return null;
   if (!context.mounted) return null;
 
+  Future<XFile?> pick() => ImagePicker().pickImage(
+    source: source,
+    imageQuality: 85,
+    maxWidth: maxDimension,
+    maxHeight: maxDimension,
+    preferredCameraDevice: preferredCamera,
+  );
+
   // Flutter Web has no native runtime permission model to query — the
   // browser handles its own camera/file-access prompts as part of the
   // picker call itself, so permission_handler is skipped entirely here.
-  if (kIsWeb) {
-    return ImagePicker().pickImage(
-      source: source,
-      imageQuality: 85,
-      maxWidth: maxDimension,
-      maxHeight: maxDimension,
-      preferredCameraDevice: preferredCamera,
-    );
-  }
+  // Nor does a gallery pick ask for one: it is the system's own picker
+  // (Android's Photo Picker, see [useAndroidPhotoPicker]; PHPicker on iOS),
+  // which the app is never granted anything for. So a closed picker is just
+  // a cancel, never "Permission was not granted" (QA 2026-11-18).
+  if (kIsWeb || source == ImageSource.gallery) return pick();
 
-  final permission = source == ImageSource.camera ? Permission.camera : Permission.photos;
-  final preStatus = await permission.status;
+  final preStatus = await Permission.camera.status;
   if (preStatus.isPermanentlyDenied) {
     if (context.mounted) await _showPermanentlyDeniedDialog(context);
     return null;
   }
 
-  final file = await ImagePicker().pickImage(
-      source: source,
-      imageQuality: 85,
-      maxWidth: maxDimension,
-      maxHeight: maxDimension,
-      preferredCameraDevice: preferredCamera,
-    );
+  XFile? file;
+  try {
+    file = await pick();
+  } on PlatformException catch (e) {
+    // image_picker asks for the camera itself, and a "Don't allow" ends the
+    // pick with this error rather than a null (QA 2026-11-18: the tap did
+    // nothing at all).
+    if (e.code != 'camera_access_denied' && e.code != 'camera_access_restricted') rethrow;
+    if (context.mounted) await _showCameraRefused(context);
+    return null;
+  }
   if (file != null) return file;
   if (!context.mounted) return null;
 
-  final postStatus = await permission.status;
+  final postStatus = await Permission.camera.status;
   if (postStatus.isPermanentlyDenied) {
     if (context.mounted) await _showPermanentlyDeniedDialog(context);
   } else if (postStatus.isDenied) {
@@ -205,6 +213,22 @@ Future<XFile?> pickImageProtected(
   // Otherwise the permission is fine and the citizen simply cancelled the
   // picker — return to the form without any error, exactly as before.
   return null;
+}
+
+/// After the camera prompt was refused. Settings when the phone will not
+/// ask again: iOS asks once; Android stops after a second refusal, and since
+/// image_picker asked rather than permission_handler, only "may the app ask
+/// again?" tells that apart from a first refusal.
+Future<void> _showCameraRefused(BuildContext context) async {
+  final status = await Permission.camera.status;
+  final mayAskAgain = await Permission.camera.shouldShowRequestRationale;
+  if (!context.mounted) return;
+  final android = defaultTargetPlatform == TargetPlatform.android;
+  if (status.isPermanentlyDenied || (android && !mayAskAgain)) {
+    await _showPermanentlyDeniedDialog(context);
+  } else {
+    await _showDeniedDialog(context, ProtectedResource.camera);
+  }
 }
 
 /// Document/PDF/DOCX picker, gated only by the explanation dialog — the

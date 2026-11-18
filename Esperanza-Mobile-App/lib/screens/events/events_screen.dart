@@ -40,8 +40,32 @@ class EventsScreen extends StatelessWidget {
         // Live (2026-11-15): the server counts events under Balita.
         liveTopics: const {'balita'},
         loader: () async {
-          final rows = await api.getAllPages('/events', query: {'per_page': 100}, maxPages: 5);
-          return EventItem.inCalendarOrder(JsonRead.rows(rows, EventItem.fromApi).where((e) => e.title.isNotEmpty));
+          // Two reads, not one (QA 2026-11-18): the server lists events
+          // oldest first and the history only grows, so the first 500 rows
+          // would one day hold no upcoming event at all. What is not over
+          // yet comes from `upcoming=1`; Past and the Calendar's earlier
+          // months from the last year. One in both (today's, still on) is
+          // listed once, by its key. The server's list of what is not over
+          // is taken whole: one that just ended on the server's clock but not
+          // yet on a phone whose clock is behind is in neither list as the
+          // phone counts it, and used to vanish from every tab meanwhile.
+          final now = DateTime.now();
+          final day = DateFormat('yyyy-MM-dd');
+          final reads = await Future.wait([
+            api.getAllPages('/events', query: {'upcoming': 1, 'per_page': 100}, maxPages: 5),
+            api.getAllPages(
+              '/events',
+              query: {'from': day.format(DateTime(now.year - 1, now.month, now.day)), 'to': day.format(now), 'per_page': 100},
+              maxPages: 5,
+            ),
+          ]);
+          // A row with no key (none should come) keeps the phone's own rule.
+          final coming = JsonRead.rows(reads[0], EventItem.fromApi).where((e) => e.key != null || !e.isPast(now)).toList();
+          final listed = {for (final e in coming) ?e.key};
+          return EventItem.inCalendarOrder([
+            ...coming,
+            ...JsonRead.rows(reads[1], EventItem.fromApi).where((e) => e.key == null ? e.isPast(now) : !listed.contains(e.key)),
+          ].where((e) => e.title.isNotEmpty));
         },
         builder: (context, events, reload) => _EventsBody(events: events, reload: reload),
       ),

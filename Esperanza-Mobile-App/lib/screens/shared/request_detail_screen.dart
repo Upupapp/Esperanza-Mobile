@@ -264,18 +264,39 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
   /// creates a brand-new ServiceRequest with its own ref (see
   /// RequestsService.submit).
   Future<void> _applyAgain(BuildContext context, RequestsService service, ServiceRequest request, Color accent) async {
-    final catalog = request.category == ServiceCategory.dokyu ? service.dokyuCatalog : service.tulongCatalog;
-    CatalogItem? item;
-    for (final i in catalog) {
-      if (i.name == request.typeName) {
-        item = i;
-        break;
+    CatalogItem? find() {
+      final catalog = switch (request.category) {
+        ServiceCategory.dokyu => service.dokyuCatalog,
+        ServiceCategory.tulong => service.tulongCatalog,
+        _ => [...service.dokyuCatalog, ...service.tulongCatalog],
+      };
+      for (final i in catalog) {
+        if (i.name == request.typeName) return i;
       }
+      return null;
     }
-    if (item == null) return; // no matching catalog item to reopen against
 
-
+    var item = find();
+    String? unread;
+    // The catalogue not read yet (it loads with this screen): read it now.
+    if (item == null && service.dokyuCatalog.isEmpty && service.tulongCatalog.isEmpty) {
+      try {
+        await service.loadCatalog();
+      } on ApiException catch (e) {
+        unread = e.message();
+      }
+      item = find();
+    }
     if (!context.mounted) return;
+    // The button did nothing when the service was not found (QA 2026-11-18).
+    if (item == null) {
+      AppDialogs.toast(
+        context,
+        unread ?? '${request.typeName} cannot be applied for in the app right now. Ask the office about it.',
+        success: false,
+      );
+      return;
+    }
     final resolvedItem = item;
     Navigator.of(context).push(
       MaterialPageRoute(
@@ -305,7 +326,21 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
     );
   }
 
-  Widget _buildBody(BuildContext context, RequestsService service, ServiceRequest request) {
+  /// Pulling down reads the request again, as the screen's own messages say
+  /// to: its photo and file links last five minutes, and there was nothing to
+  /// pull (QA 2026-11-18).
+  Widget _buildBody(BuildContext context, RequestsService service, ServiceRequest request) =>
+      RefreshIndicator(onRefresh: _pullToRefresh, child: _details(context, service, request));
+
+  Future<void> _pullToRefresh() async {
+    try {
+      await _refreshQuietly();
+    } on ApiException catch (e) {
+      if (mounted) AppDialogs.toast(context, e.message(), success: false);
+    }
+  }
+
+  Widget _details(BuildContext context, RequestsService service, ServiceRequest request) {
     final accent = switch (request.category) {
       ServiceCategory.dokyu => AppColors.brand600,
       ServiceCategory.tulong => AppColors.purple700,
@@ -317,6 +352,8 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
     final due = usesMilestones ? expectedRelease(request.submittedAt, service.processingDays(request.serviceKey)) : null;
 
     return ListView(
+      // Short details too: pulling down reads the request again.
+      physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.md, AppSpacing.lg, AppSpacing.xxxl),
       children: [
         AppCard(
@@ -414,12 +451,32 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
           ),
         ],
         // Without a reason on file too, as the website says it.
-        if (request.status == 'Rejected') ...[
+        if (usesMilestones && request.status == 'Rejected') ...[
           const SizedBox(height: AppSpacing.xl),
           _RejectedApplicationCard(
             reason: request.adminRemarks ?? tr('Visit the office below for details.'),
             guidance: 'Submit a new ${request.typeName} application.',
             onApplyAgain: () => _applyAgain(context, service, request, accent),
+          ),
+        ],
+        // An incident report the office could not confirm is not an
+        // application: it showed "Application Rejected" with an Apply Again
+        // that did nothing (QA 2026-11-18).
+        if (!usesMilestones && request.status == 'Rejected') ...[
+          const SizedBox(height: AppSpacing.xl),
+          AppCard(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(tr('Not confirmed by the office'), style: AppTypography.cardHeading),
+                const SizedBox(height: AppSpacing.xs),
+                const Text(
+                  'The office could not confirm this report, or it repeats another one. If you still need help, '
+                  'report it again or call an emergency hotline.',
+                  style: AppTypography.helper,
+                ),
+              ],
+            ),
           ),
         ],
         // Distinct from Rejected above — the request is still active, not
@@ -547,7 +604,16 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
         // Issued: control number, verification QR and the signed copy (2026-10-15).
         if (request.issuedDocuments.isNotEmpty) ...[
           const SizedBox(height: AppSpacing.xl),
-          IssuedDocumentsCard(documents: request.issuedDocuments, accent: accent),
+          IssuedDocumentsCard(
+            documents: request.issuedDocuments,
+            accent: accent,
+            // The signed copy's link lasts five minutes: read it again first.
+            reload: () async {
+              final fresh = await service.loadDetail(widget.requestId);
+              if (mounted) setState(() => _latest = fresh);
+              return fresh.issuedDocuments;
+            },
+          ),
         ],
         // Once released: the photo or scan the office took at release.
         if (request.releaseProof != null) ...[

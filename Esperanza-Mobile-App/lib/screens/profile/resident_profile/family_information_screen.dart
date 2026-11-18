@@ -57,7 +57,10 @@ class _FamilyInformationScreenState extends State<FamilyInformationScreen> {
     });
     await Future.delayed(const Duration(milliseconds: 400));
     if (!mounted) return;
-    final profile = _service.profileFor(context.read<CitizenSessionService>().account!);
+    final account = context.read<CitizenSessionService>().account;
+    // The session ended during the wait: the page is closing, nothing to save.
+    if (account == null) return;
+    final profile = _service.profileFor(account);
     await _service.saveFamily(
       _accountId,
       familyName: _familyName.text.trim(),
@@ -103,7 +106,10 @@ class _FamilyInformationScreenState extends State<FamilyInformationScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final account = context.watch<CitizenSessionService>().account!;
+    final account = context.watch<CitizenSessionService>().account;
+    // Signed out, or the session ended, while this was open: the page is on
+    // its way out, and there is no profile to show.
+    if (account == null) return const Scaffold();
     final profile = context.watch<ResidentProfileService>().profileFor(account);
     final locked = !profile.editable;
 

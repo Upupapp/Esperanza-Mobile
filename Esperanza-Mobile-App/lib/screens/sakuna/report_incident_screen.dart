@@ -49,6 +49,9 @@ class ReportIncidentScreen extends StatefulWidget {
 /// How many photos a report may carry (the backend's own limit).
 const maxIncidentPhotos = 3;
 
+/// The longest sitio, purok or landmark the backend takes (sitio max:120).
+const maxIncidentSitioLength = 120;
+
 class _ReportIncidentScreenState extends State<ReportIncidentScreen> {
   final _sitio = TextEditingController();
   final _description = TextEditingController();
@@ -181,7 +184,10 @@ class _ReportIncidentScreenState extends State<ReportIncidentScreen> {
       if (!mounted) return;
       setState(() {
         _submitting = false;
-        _error = e.message();
+        // The field's own reason ("The sitio may not be greater than 120
+        // characters"), not only the envelope's "Some fields need to be
+        // corrected.", which named nothing to change on an emergency form.
+        _error = e.explain();
       });
     }
   }
@@ -246,7 +252,10 @@ class _ReportIncidentScreenState extends State<ReportIncidentScreen> {
               onChanged: (v) => setState(() => _barangay = v),
             ),
             const SizedBox(height: AppSpacing.lg),
-            AppTextField(label: tr('Sitio / purok / landmark (optional)'), controller: _sitio),
+            // The server's limit (CitizenRequestController::reportIncident,
+            // sitio max:120), so a long landmark is stopped while typing
+            // rather than refused after Submit.
+            AppTextField(label: tr('Sitio / purok / landmark (optional)'), controller: _sitio, maxLength: maxIncidentSitioLength),
             const SizedBox(height: AppSpacing.lg),
             _IncidentLocationField(
               location: _location,

@@ -105,7 +105,11 @@ class RequestFilters {
       if (typeName != null && r.typeName != typeName) return false;
       if (status != null && r.status != status) return false;
       if (dateRange != null) {
-        final d = DateTime(r.submittedAt.year, r.submittedAt.month, r.submittedAt.day);
+        // The resident's own calendar day, as the card prints it: the server
+        // sends UTC, so a request filed before 08:00 in the Philippines fell
+        // on the day before and dropped out of its own day's filter.
+        final local = r.submittedAt.toLocal();
+        final d = DateTime(local.year, local.month, local.day);
         final start = DateTime(dateRange!.start.year, dateRange!.start.month, dateRange!.start.day);
         final end = DateTime(dateRange!.end.year, dateRange!.end.month, dateRange!.end.day);
         if (d.isBefore(start) || d.isAfter(end)) return false;

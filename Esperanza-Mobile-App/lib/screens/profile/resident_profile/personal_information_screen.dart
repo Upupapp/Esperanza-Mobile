@@ -245,10 +245,20 @@ class _PersonalInformationScreenState extends State<PersonalInformationScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final session = context.watch<CitizenSessionService>();
+    // Signed out, or the session ended, while this was open: the page is on
+    // its way out, and the profile is no longer this phone's to show.
+    if (session.account == null) return const Scaffold();
     final current = context.watch<ResidentProfileService>().profileFor(_account);
     final currentPersonal = current.personal;
     final locked = !current.editable;
-    final serverPhoto = context.watch<CitizenSessionService>().photo;
+    final serverPhoto = session.photo;
+    // A photo the LGU has not approved yet, or did not approve, is not the
+    // resident's photo: the circle shows what the Digital ID shows, the line
+    // under it where the new one stands, and there is no Remove, which would
+    // only clear the phone's copy while the one sent stays with the LGU
+    // (QA 2026-11-18).
+    final unapproved = serverPhoto != null && (serverPhoto.isPending || serverPhoto.isRejected);
     return Scaffold(
       appBar: AppBar(title: Text(tr('Personal Information'))),
       body: SafeArea(
@@ -258,10 +268,15 @@ class _PersonalInformationScreenState extends State<PersonalInformationScreen> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               _PhotoPicker(
-                image: profileImageFor(_account, currentPersonal, approvedUrl: serverPhoto?.approvedUrl),
+                image: profileImageFor(
+                  _account,
+                  unapproved ? null : currentPersonal,
+                  approvedUrl: serverPhoto?.approvedUrl,
+                ),
                 // The LGU's approved photo is an identification record: it is
                 // replaced through the camera button, never removed here.
-                hasCustomPhoto: currentPersonal.photoBytesBase64 != null && serverPhoto?.approvedUrl == null,
+                hasCustomPhoto:
+                    !unapproved && currentPersonal.photoBytesBase64 != null && serverPhoto?.approvedUrl == null,
                 status: _photoStatus(serverPhoto),
                 onCameraTap: _onCameraIconTap,
                 onRemove: () => context.read<ResidentProfileService>().updateProfilePhoto(

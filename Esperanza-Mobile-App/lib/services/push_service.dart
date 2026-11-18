@@ -9,6 +9,7 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:provider/provider.dart';
 
 import 'api_client.dart';
+import 'citizen_session_service.dart';
 import 'message_language.dart';
 import 'notification_feed.dart';
 import 'notifications_service.dart';
@@ -83,6 +84,19 @@ class PushNotices {
       ),
       payload: jsonEncode({'title': m.title, 'body': m.body, 'data': m.data}),
     );
+  }
+
+  /// Takes every notice the app drew off the phone's tray, at sign-out or
+  /// when the session ends: a signed-out resident's request updates and
+  /// account notices (titles and full messages) must not stay readable, or
+  /// tappable, on a shared phone (QA 2026-11-18).
+  static Future<void> clearAll() async {
+    if (!_android || !_ready) return;
+    try {
+      await _plugin.cancelAll();
+    } catch (_) {
+      // None to take away.
+    }
   }
 
   @visibleForTesting
@@ -212,6 +226,7 @@ class PushService {
   static Future<void> forget() async {
     final p = platform;
     _registered = null;
+    await PushNotices.clearAll();
     if (!_enabled || p == null) return;
     try {
       await p.deleteToken();
@@ -263,7 +278,23 @@ class PushService {
     final screen = _destination(m);
     final navigator = navigatorKey.currentState;
     if (screen == null || navigator == null) return;
+    if (!signedInFor(navigator.context)) return;
     navigator.push(MaterialPageRoute(builder: (_) => screen));
+  }
+
+  /// Whether a tapped notice may open its screen: a notice is a signed-in
+  /// resident's, so one still in the tray after sign-out opens nothing over
+  /// the sign-in screen or under the next resident's session (QA
+  /// 2026-11-18). While the saved session is still being read at start-up
+  /// (a notice that opened the app) it is let through.
+  @visibleForTesting
+  static bool signedInFor(BuildContext context) {
+    try {
+      final session = context.read<CitizenSessionService>();
+      return session.loading || (session.isSignedIn && !session.isGuest);
+    } on ProviderNotFoundException {
+      return true;
+    }
   }
 
   static Widget? _destination(PushMessage m) {

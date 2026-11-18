@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
@@ -43,6 +44,8 @@ class IdVerificationScreen extends StatefulWidget {
 }
 
 class _IdVerificationScreenState extends State<IdVerificationScreen> {
+  static const _diditDidNotFinish = 'Verification did not finish. Check your connection and try again.';
+
   IdVerificationView? _view;
   String? _loadError;
   bool _sending = false;
@@ -89,10 +92,17 @@ class _IdVerificationScreenState extends State<IdVerificationScreen> {
         AppDialogs.toast(context, 'Verification closed before it finished. You can start again any time.', success: false);
       } else if (r.launch.outcome == DiditLaunchOutcome.failed && r.launch.error == 'cameraAccessDenied') {
         setState(() => _sendError = 'Esperanza needs your camera for the ID scan and face check. Allow camera access in Settings, then try again.');
+      } else if (r.launch.outcome == DiditLaunchOutcome.failed) {
+        // A dropped connection (networkError) or any other failure on Didit's
+        // screen: said, never a screen that just looks unchanged.
+        setState(() => _sendError = _diditDidNotFinish);
       }
       await _awaitCheck();
     } on ApiException catch (e) {
       if (mounted) setState(() => _sendError = e.explain());
+    } on PlatformException {
+      // Didit's screen could not open or ended with an error of its own.
+      if (mounted) setState(() => _sendError = _diditDidNotFinish);
     } finally {
       if (mounted) setState(() => _launching = false);
     }

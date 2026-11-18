@@ -226,6 +226,9 @@ class _LauncherBubble extends StatelessWidget {
         button: true,
         label: target.label,
         excludeSemantics: true,
+        // excludeSemantics drops the GestureDetector's tap too: without its
+        // own onTap a screen reader's double-tap did nothing (QA 2026-11-18).
+        onTap: onTap,
         child: GestureDetector(
           onTap: onTap,
           behavior: HitTestBehavior.opaque,

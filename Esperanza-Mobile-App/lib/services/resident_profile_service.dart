@@ -110,8 +110,27 @@ class ResidentProfileService extends ChangeNotifier {
       if (isVerifiedDemo) _applyVerifiedDemoMasterProfileAlignment(seeded);
       return seeded;
     });
-    if (_refillBirthdate(profile, account)) _persist();
+    final refilled = _refillBirthdate(profile, account);
+    final unseeded = _bareFamilyName(profile);
+    if (refilled || unseeded) _persist();
     return profile;
+  }
+
+  /// " Family" at the end of a family name: the server adds it to the
+  /// surname itself (label = surname + " Family").
+  static final _familySuffix = RegExp(r'\s+family$', caseSensitive: false);
+
+  /// The family's surname, without a " Family" the server would add again.
+  static String _surname(String familyName) => familyName.trim().replaceFirst(_familySuffix, '');
+
+  /// A one-off repair (QA 2026-11-18): profiles seeded on this phone before
+  /// then hold "<last name> Family" as the family name, which the registry
+  /// showed as "Dela Cruz Family Family". The surname alone is kept.
+  bool _bareFamilyName(ResidentProfile p) {
+    final bare = _surname(p.familyName);
+    if (bare == p.familyName || bare.isEmpty) return false;
+    p.familyName = bare;
+    return true;
   }
 
   /// A one-off repair (manual test 2026-11-06): profiles seeded on this
@@ -476,7 +495,12 @@ class ResidentProfileService extends ChangeNotifier {
     // 2026-10-22: every resubmit from the app duplicated the family).
     try {
       final current = await api.get('/citizen/resident-profile');
-      if (current.data != null) _takeMemberRefs(p, current.map);
+      if (current.data != null) {
+        _takeMemberRefs(p, current.map);
+        // Every answer is sent, a blank one as null, and the server stores
+        // each: what is on file stays where this phone has nothing.
+        _fillBlanks(p, current.map);
+      }
     } on ApiException {
       // Nothing on file yet, or unreachable: the PUT below says which.
     }
@@ -509,9 +533,14 @@ class ResidentProfileService extends ChangeNotifier {
     final onServer = p.status == VerificationStatus.verified ||
         p.status == VerificationStatus.pendingVerification ||
         p.status == VerificationStatus.needsCorrection;
-    if (onServer && !p.personalSaved) {
-      _adoptServerRecord(p, res.map);
-      changed = true;
+    // An Unverified record is on file too: one the barangay imported from
+    // its registry or filed at its counter. It was never loaded, and the
+    // phone's next submit sent nothing for what it held (QA 2026-11-18).
+    // Its answers fill the blanks; only a sent profile counts as saved.
+    if (!p.personalSaved && JsonRead.map(res.map['individual']) != null) {
+      final before = jsonEncode(p.toJson());
+      _adoptServerRecord(p, res.map, markSaved: onServer);
+      changed = jsonEncode(p.toJson()) != before || changed;
     }
     if (changed) {
       await _save(p);
@@ -519,17 +548,23 @@ class ResidentProfileService extends ChangeNotifier {
     }
   }
 
-  /// Fills what this phone does not have from the server's record, never
-  /// overwriting an answer already here. A choice is taken only when it is
-  /// one of the form's own options (a dropdown with an unknown value fails).
-  void _adoptServerRecord(ResidentProfile p, Map<String, dynamic> view) {
-    String fill(String current, Object? server, [List<String>? options]) {
-      if (current.trim().isNotEmpty) return current;
-      final v = JsonRead.nonEmpty(server);
-      if (v == null || (options != null && !options.contains(v))) return current;
-      return v;
-    }
+  /// [current], or the server's [server] value when [current] is blank. A
+  /// choice is taken only when it is one of the form's own [options] (a
+  /// dropdown with an unknown value fails).
+  static String _fill(String current, Object? server, [List<String>? options]) {
+    if (current.trim().isNotEmpty) return current;
+    final v = JsonRead.nonEmpty(server);
+    if (v == null || (options != null && !options.contains(v))) return current;
+    return v;
+  }
 
+  /// Fills each answer this phone left blank from the server's record,
+  /// never overwriting one already here. Also right before a submit, which
+  /// sends every answer and so would clear on file what the phone left
+  /// blank (QA 2026-11-18). A tag is not taken here: one the resident
+  /// unticked would come back.
+  void _fillBlanks(ResidentProfile p, Map<String, dynamic> view) {
+    final fill = _fill;
     final me = JsonRead.map(view['individual']);
     final person = p.personal;
     if (me != null) {
@@ -541,21 +576,9 @@ class ResidentProfileService extends ChangeNotifier {
       // number; only a mobile number belongs in this field.
       person.mobile = fill(person.mobile, _mobileOrNull(me['contact']));
       person.occupation = fill(person.occupation, me['occupation']);
-      final lv = Livelihood.fromApi(me['livelihood']);
-      if (!person.livelihoodChanged && lv != null) {
-        person.livelihoodCode = lv.code ?? '';
-        person.livelihoodOther = lv.other ?? '';
-      }
       person.educationalAttainment =
           fill(person.educationalAttainment, me['education'], ResidentProfileOptions.educationalAttainment);
-      final tags = JsonRead.strings(me['tags']).toSet();
-      person.isSeniorCitizen = person.isSeniorCitizen || tags.contains('Senior Citizen');
-      person.isPWD = person.isPWD || tags.contains('PWD');
-      person.isSoloParent = person.isSoloParent || tags.contains('Solo Parent');
-      person.isVoter = person.isVoter || tags.contains('Registered Voter');
-      person.isFourPsBeneficiary = person.isFourPsBeneficiary || tags.contains('4Ps');
       p.household.monthlyIncome = fill(p.household.monthlyIncome, me['income_range']);
-      p.personalSaved = true;
     }
 
     final hh = JsonRead.map(view['household']);
@@ -568,12 +591,53 @@ class ResidentProfileService extends ChangeNotifier {
       h.electricitySource = fill(h.electricitySource, hh['electricity'], ResidentProfileOptions.electricitySource);
       h.waterSource = fill(h.waterSource, hh['water'], ResidentProfileOptions.waterSource);
       h.toiletFacility = fill(h.toiletFacility, hh['toilet'], ResidentProfileOptions.toiletFacility);
-      p.householdSaved = true;
     }
 
     final fam = JsonRead.map(view['family']);
     if (fam != null) {
-      p.familyName = fill(p.familyName, fam['surname']);
+      // The family's surname on file, also over this phone's own default
+      // (the account's last name) until the resident saves the family here.
+      final surname = _surname(JsonRead.nonEmpty(fam['surname']) ?? '');
+      final defaulted = !p.familySaved && p.familyName.trim() == p.personal.lastName.trim();
+      if (surname.isNotEmpty && (p.familyName.trim().isEmpty || defaulted)) p.familyName = surname;
+    }
+  }
+
+  /// Fills what this phone does not have from the server's record, never
+  /// overwriting an answer already here ([_fillBlanks]), and its tags and
+  /// family members. [markSaved]: the record was sent (For Validation,
+  /// Verified, sent back), so its sections count as saved here.
+  void _adoptServerRecord(ResidentProfile p, Map<String, dynamic> view, {bool markSaved = true}) {
+    final fill = _fill;
+    _fillBlanks(p, view);
+
+    final me = JsonRead.map(view['individual']);
+    final person = p.personal;
+    if (me != null) {
+      final lv = Livelihood.fromApi(me['livelihood']);
+      if (!person.livelihoodChanged && lv != null) {
+        person.livelihoodCode = lv.code ?? '';
+        person.livelihoodOther = lv.other ?? '';
+      }
+      // A record not sent yet (Unverified) is read again on every sync until
+      // Personal Information is saved: its tags only while nothing was saved
+      // on this phone (a save leaves Draft), or a tag the resident unticked
+      // and saved for later came back on the next sync.
+      if (markSaved || p.status == VerificationStatus.draft) {
+        final tags = JsonRead.strings(me['tags']).toSet();
+        person.isSeniorCitizen = person.isSeniorCitizen || tags.contains('Senior Citizen');
+        person.isPWD = person.isPWD || tags.contains('PWD');
+        person.isSoloParent = person.isSoloParent || tags.contains('Solo Parent');
+        person.isVoter = person.isVoter || tags.contains('Registered Voter');
+        person.isFourPsBeneficiary = person.isFourPsBeneficiary || tags.contains('4Ps');
+      }
+      if (markSaved) p.personalSaved = true;
+    }
+
+    if (markSaved && JsonRead.map(view['household']) != null) p.householdSaved = true;
+
+    final fam = JsonRead.map(view['family']);
+    if (fam != null) {
       if (p.familyMembers.isEmpty) {
         for (final m in JsonRead.list(fam['members']).map(JsonRead.map).whereType<Map<String, dynamic>>()) {
           final name = JsonRead.nonEmpty(m['name']);
@@ -597,7 +661,7 @@ class ResidentProfileService extends ChangeNotifier {
           ));
         }
       }
-      p.familySaved = true;
+      if (markSaved) p.familySaved = true;
     }
   }
 
@@ -692,12 +756,23 @@ class ResidentProfileService extends ChangeNotifier {
   static String? _date(DateTime? d) =>
       d == null ? null : '${d.year.toString().padLeft(4, '0')}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
 
-  static Map<String, dynamic> _personOf(Individual i) => {
+  /// [member]: a family member's. Their education and contact are not asked
+  /// on the phone (only kept from the registry, and only when the app can
+  /// read them), so a blank one is left out rather than sent as none: the
+  /// server keeps what it holds for a key that is not sent (upsertMember),
+  /// and a registry value the app could not take was erased (QA sweep
+  /// 2026-11-18).
+  static Map<String, dynamic> _personOf(Individual i, {bool member = false}) => {
         'sex': _text(i.sex),
         'dob': _date(i.birthdate),
         'civil_status': _text(i.civilStatus),
-        'education': _text(i.educationalAttainment),
-        'contact': _text(i.mobile),
+        if (member) ...{
+          'education': ?_text(i.educationalAttainment),
+          'contact': ?_text(i.mobile),
+        } else ...{
+          'education': _text(i.educationalAttainment),
+          'contact': _text(i.mobile),
+        },
         // The DRRM choice when the person changed it here; otherwise the
         // words, which the server leaves alone when they are the same.
         if (i.livelihoodChanged && i.livelihoodCode.isNotEmpty) ...{
@@ -733,14 +808,14 @@ class ResidentProfileService extends ChangeNotifier {
           'toilet': _text(h.toiletFacility),
         },
       'family': {
-          'surname': _text(p.familyName),
+          'surname': _text(_surname(p.familyName)),
           'members': [
             for (final m in p.familyMembers)
               if (m.individualId != me.individualId && _text(m.fullName) != null)
                 {
                   'ref': ?m.serverRef,
                   'name': m.fullName.trim(),
-                  ..._personOf(m),
+                  ..._personOf(m, member: true),
                   'relation': _text(m.relationshipToHead),
                 },
           ],

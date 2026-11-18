@@ -81,8 +81,12 @@ class _HouseholdInformationScreenState extends State<HouseholdInformationScreen>
       toiletFacility: _toiletFacility ?? '',
       electricitySource: _electricitySource ?? '',
       hasInternetAccess: _original.hasInternetAccess,
+      // Asked on Personal Information, not here: kept as it is (QA
+      // 2026-11-18: saving this page sent the income as none).
+      monthlyIncome: _original.monthlyIncome,
       familyIds: _original.familyIds,
       otherFamilies: _original.otherFamilies,
+      source: _original.source,
       registryCode: _original.registryCode,
     );
     await context.read<ResidentProfileService>().saveHousehold(_accountId, updated, markComplete: markComplete);
@@ -94,7 +98,11 @@ class _HouseholdInformationScreenState extends State<HouseholdInformationScreen>
 
   @override
   Widget build(BuildContext context) {
-    final profile = context.watch<ResidentProfileService>().profileFor(context.watch<CitizenSessionService>().account!);
+    final account = context.watch<CitizenSessionService>().account;
+    // Signed out, or the session ended, while this was open: the page is on
+    // its way out, and there is no profile to show.
+    if (account == null) return const Scaffold();
+    final profile = context.watch<ResidentProfileService>().profileFor(account);
     final locked = !profile.editable;
 
     return Scaffold(

@@ -118,6 +118,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
   bool _submitting = false;
   String? _error;
 
+  /// The account was created (no code needed) but signing in to it failed:
+  /// the status step offers Sign In again instead of the form.
+  String? _signInError;
+
+  /// The emailed or texted code (step 5) was accepted.
+  bool _otpConfirmed = false;
+
   // Identity on Didit's screen: whether the server uses it, and the step's state.
   bool _hosted = false;
   bool _launchingDidit = false;
@@ -461,14 +468,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       if (!needsCode && accountNo != null) {
         // The email was proven in step 1, so there is no second code: sign
         // straight in and show the Pending Review status.
-        await session.loginWithCredentials(_signInIdentifier(), _password.text);
-        if (!mounted) return;
-        await _sendIdentity();
-        if (!mounted) return;
-        setState(() {
-          _submitting = false;
-          _step = 5;
-        });
+        await _signInNewAccount();
         return;
       }
       setState(() {
@@ -486,6 +486,35 @@ class _RegisterScreenState extends State<RegisterScreen> {
     }
   }
 
+  /// Signs in to the account registration just created, then sends the ID
+  /// and selfie. The account exists whatever happens here, so a failed
+  /// sign-in (a timeout on a slow connection) moves on to the status step
+  /// with Sign In again, never back to Review: sending the form a second
+  /// time is refused as "email already registered" (QA 2026-11-18).
+  Future<void> _signInNewAccount() async {
+    setState(() {
+      _submitting = true;
+      _signInError = null;
+    });
+    try {
+      await context.read<CitizenSessionService>().loginWithCredentials(_signInIdentifier(), _password.text);
+      if (!mounted) return;
+      await _sendIdentity();
+      if (!mounted) return;
+      setState(() {
+        _submitting = false;
+        _step = 5;
+      });
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _submitting = false;
+        _signInError = e.explain();
+        _step = 5;
+      });
+    }
+  }
+
   /// Confirms the OTP the registration above issued, then signs the citizen
   /// in for real (POST /auth/citizen/login) so the app's session reflects
   /// the account the server actually created.
@@ -497,7 +526,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
     });
     try {
       final session = context.read<CitizenSessionService>();
-      await session.verify(accountNo: _accountNo!, code: _otpCode.text.trim());
+      // A code already accepted is not sent again: a retry after a failed
+      // sign-in only signs in (the same trap as _signInNewAccount's).
+      if (!_otpConfirmed) {
+        await session.verify(accountNo: _accountNo!, code: _otpCode.text.trim());
+        _otpConfirmed = true;
+      }
       await session.loginWithCredentials(_signInIdentifier(), _password.text);
       if (!mounted) return;
       await _sendIdentity();
@@ -1096,6 +1130,22 @@ class _RegisterScreenState extends State<RegisterScreen> {
         if (_foundInRegistry && !_alreadyHasAccount) ...[
           const SizedBox(height: AppSpacing.md),
           RegistryMatchNote(RegistryMatchNote.atSignUp),
+        ],
+        if (_signInError != null && !_alreadyHasAccount && account == null) ...[
+          const SizedBox(height: AppSpacing.lg),
+          Text(
+            'Your account was created, but signing in did not work: $_signInError',
+            textAlign: TextAlign.center,
+            style: const TextStyle(fontSize: AppTextSize.helper, color: AppColors.rose600, height: 1.4),
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          AppButton(
+            label: tr('Sign In'),
+            icon: Icons.login_rounded,
+            fullWidth: true,
+            loading: _submitting,
+            onPressed: _submitting ? null : _signInNewAccount,
+          ),
         ],
         if (_identityError != null && !_identitySent && !_alreadyHasAccount && account != null) ...[
           const SizedBox(height: AppSpacing.lg),

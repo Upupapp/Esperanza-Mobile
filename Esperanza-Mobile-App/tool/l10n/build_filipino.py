@@ -75,7 +75,15 @@ def web_pairs(web):
             for m in re.finditer(r'\b' + attr + '=' + DQ + r'[^>]*?\b' + attr + 'En=' + DQ, s, re.S):
                 add(m.group(2), m.group(1))
         # t(en, fil) and errorText(err, en, fil): English first.
+        # A file can also have its own t(key, label) column helper
+        # (sakuna-report.js: t('name', 'Centre')): there the first argument is
+        # a data key, not English, and it once gave the app's "Name" the
+        # Filipino "Centre" (QA sweep 2026-11-18). Its key-first calls are
+        # left out.
+        column_helper = re.search(r'\bconst\s+t\s*=\s*\(\s*key\s*,\s*label\s*\)', s)
         for m in re.finditer(r'\bt\(\s*' + SQ + r'\s*,\s*' + SQ + r'\s*\)', s):
+            if column_helper and re.fullmatch(r'[a-z][a-z0-9_]*', m.group(1)):
+                continue
             add(unjs(m.group(1)), unjs(m.group(2)))
         for m in re.finditer(r'errorText\([^,()]+,\s*' + SQ + r'\s*,\s*' + SQ + r'\s*\)', s):
             add(unjs(m.group(1)), unjs(m.group(2)))
