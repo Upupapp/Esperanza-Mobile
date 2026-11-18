@@ -137,7 +137,11 @@ void main() {
     await tester.tap(find.byIcon(Icons.close_rounded), warnIfMissed: false);
     await tester.pumpAndSettle();
 
-    List<Map<String, String>> fromHome() => queries.where((q) => q['upcoming'] == '1').toList();
+    // The Events tab, built beside Home, reads `upcoming=1` too since QA
+    // 2026-11-18, for its whole list (per_page 100); Home's own read is the
+    // next 20.
+    List<Map<String, String>> fromHome() =>
+        queries.where((q) => q['upcoming'] == '1' && q['per_page'] == '20').toList();
     expect(fromHome(), hasLength(1));
     expect(fromHome().single['from'], _inDays(0), reason: 'from stays, for an older server');
     expect(find.text('Barangay Health Fair'), findsOneWidget);

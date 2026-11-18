@@ -792,7 +792,8 @@ class _ServiceRequestWizardScreenState extends State<ServiceRequestWizardScreen>
     // its own questions (its purpose among them, where it has one).
     if (!_fromServer) formData['purpose'] = _resolvePurpose();
 
-    final before = FiledRequestCheck.of(requestsService);
+    final before = await FiledRequestCheck.take(requestsService);
+    if (!mounted) return;
     ServiceRequest request;
     try {
       request = await requestsService.submit(

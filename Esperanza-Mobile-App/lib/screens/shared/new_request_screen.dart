@@ -39,6 +39,22 @@ class FiledRequestCheck {
   factory FiledRequestCheck.of(RequestsService service) =>
       FiledRequestCheck._({for (final r in service.all) r.referenceNumber}, DateTime.now(), service.loaded);
 
+  /// The same, taken just before Submit, reading the list first when it
+  /// never was (the form opened before anything loaded it): without that,
+  /// no answer could never be told from not filed. Reading it can fail;
+  /// then nothing is taken as filed after no answer (see [_listed]).
+  static Future<FiledRequestCheck> take(RequestsService service) async {
+    if (!service.loaded) {
+      try {
+        await service.refreshRequests();
+      } catch (_) {
+        // Offline, or unreadable: Submit goes ahead all the same; a reading
+        // problem must never stop a filing.
+      }
+    }
+    return FiledRequestCheck.of(service);
+  }
+
   final Set<String> _before;
   final DateTime _at;
 
@@ -174,7 +190,8 @@ class _NewRequestScreenState extends State<NewRequestScreen> {
       _error = null;
     });
 
-    final before = FiledRequestCheck.of(requestsService);
+    final before = await FiledRequestCheck.take(requestsService);
+    if (!mounted) return;
     ServiceRequest request;
     try {
       request = await requestsService.submit(
