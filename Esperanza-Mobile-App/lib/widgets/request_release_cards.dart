@@ -159,7 +159,7 @@ class IssuedDocumentsCard extends StatelessWidget {
   @visibleForTesting
   static Future<http.Response> Function(Uri uri)? debugFetch;
 
-  /// Whether a signed copy is a PDF. Its link (a signed /files/<id> route)
+  /// Whether a signed copy is a PDF. Its link (a signed `/files/<id>` route)
   /// names no type, and the server sends every file as
   /// application/octet-stream: the link never ended in .pdf, so every PDF
   /// went to the image viewer and showed "Preview not available" (QA
@@ -245,7 +245,7 @@ class _IssuedDocumentState extends State<_IssuedDocument> {
         return;
       }
       // The web build hands the link to the browser, which shows either.
-      if (!PdfViewerScreen.supported) return _launch(url);
+      if (!PdfViewerScreen.supported) return await _launch(url);
       final uri = Uri.tryParse(url);
       Uint8List? bytes;
       if (uri != null) {

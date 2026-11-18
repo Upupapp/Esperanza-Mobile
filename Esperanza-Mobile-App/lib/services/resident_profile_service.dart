@@ -124,7 +124,7 @@ class ResidentProfileService extends ChangeNotifier {
   static String _surname(String familyName) => familyName.trim().replaceFirst(_familySuffix, '');
 
   /// A one-off repair (QA 2026-11-18): profiles seeded on this phone before
-  /// then hold "<last name> Family" as the family name, which the registry
+  /// then hold "`<last name>` Family" as the family name, which the registry
   /// showed as "Dela Cruz Family Family". The surname alone is kept.
   bool _bareFamilyName(ResidentProfile p) {
     final bare = _surname(p.familyName);
