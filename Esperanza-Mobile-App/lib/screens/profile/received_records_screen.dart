@@ -36,9 +36,9 @@ class ReceivedRecordsScreen extends StatelessWidget {
               physics: const AlwaysScrollableScrollPhysics(),
               padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.md, AppSpacing.lg, AppSpacing.xxxl),
               children: [
-                const Text(
-                  'The documents and assistance on your record: what the offices recorded for you, and what you filed.',
-                  style: TextStyle(fontSize: AppTextSize.helper, color: AppColors.textMuted),
+                Text(
+                  tr('The documents and assistance on your record: what the offices recorded for you, and what you filed.'),
+                  style: const TextStyle(fontSize: AppTextSize.helper, color: AppColors.textMuted),
                 ),
                 const SizedBox(height: AppSpacing.lg),
                 // The offices' records wait for the barangay: the match, and

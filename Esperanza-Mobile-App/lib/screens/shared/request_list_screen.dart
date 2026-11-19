@@ -476,17 +476,17 @@ class _OfficeHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
       padding: EdgeInsets.only(top: first ? 0 : AppSpacing.md, bottom: AppSpacing.sm),
-      child: const Column(
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'From the office',
-            style: TextStyle(fontSize: AppTextSize.helper, fontWeight: FontWeight.w700, color: AppColors.navy900),
+            tr('From the office'),
+            style: const TextStyle(fontSize: AppTextSize.helper, fontWeight: FontWeight.w700, color: AppColors.navy900),
           ),
-          SizedBox(height: 2),
+          const SizedBox(height: 2),
           Text(
-            'Recorded for you before you had an account, or at the office counter. Tap one to see it.',
-            style: TextStyle(fontSize: AppTextSize.label, color: AppColors.textMuted),
+            tr('Recorded for you before you had an account, or at the office counter. Tap one to see it.'),
+            style: const TextStyle(fontSize: AppTextSize.label, color: AppColors.textMuted),
           ),
         ],
       ),
