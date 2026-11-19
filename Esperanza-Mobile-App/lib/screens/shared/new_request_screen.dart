@@ -172,10 +172,8 @@ class _NewRequestScreenState extends State<NewRequestScreen> {
   }
 
   Future<void> _submit() async {
-    if (_purposeController.text.trim().isEmpty) {
-      setState(() => _error = 'Please describe the purpose of this request.');
-      return;
-    }
+    // The purpose is optional, as on the website and the server (19 Nov
+    // MSWDO guide review: the app refused an empty one).
     final feeError = FeeInputs.validate(widget.item.feeInputs, _feeControllers);
     if (feeError != null) {
       setState(() => _error = feeError);
@@ -197,7 +195,7 @@ class _NewRequestScreenState extends State<NewRequestScreen> {
       request = await requestsService.submit(
         serviceKey: widget.item.key,
         formData: {
-          'purpose': _purposeController.text.trim(),
+          if (_purposeController.text.trim().isNotEmpty) 'purpose': _purposeController.text.trim(),
           // The website's applicant block, from the account.
           ...applicantFormData(context.read<CitizenSessionService>().account),
         },

@@ -591,11 +591,7 @@ class _ServiceRequestWizardScreenState extends State<ServiceRequestWizardScreen>
       return null;
     }
     if (step == _requirementsStep) {
-      // A Service Catalog form asks its own questions and no purpose box, as
-      // on the website.
-      if (!_fromServer && !_hasPurposeField && _notesController.text.trim().isEmpty) {
-        return 'Please describe the purpose of this request.';
-      }
+      // The purpose is optional, as on the website and the server (19 Nov).
       return FeeInputs.validate(_feeAsked, _feeControllers);
     }
     return null; // review step
