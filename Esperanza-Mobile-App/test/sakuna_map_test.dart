@@ -279,7 +279,7 @@ void main() {
       await tester.tap(find.widgetWithText(AppButton, 'Nearest open center'));
       await tester.pumpAndSettle();
 
-      expect(find.text('NEAREST OPEN CENTRE'), findsOneWidget);
+      expect(find.text('NEAREST OPEN CENTER'), findsOneWidget);
       expect(find.textContaining('890 m away, in a straight line'), findsWidgets);
       expect(find.text('Nearest open'), findsOneWidget, reason: 'one badge, on Town Gym');
       expect(find.textContaining('not always the safest or quickest'), findsOneWidget);
@@ -298,7 +298,7 @@ void main() {
       await tester.tap(find.widgetWithText(AppButton, 'Nearest open center'));
       await tester.pumpAndSettle();
       expect(find.text('Location access was not allowed. Choose your place on the map, or pick your barangay below.'), findsOneWidget);
-      expect(find.text('NEAREST OPEN CENTRE'), findsNothing);
+      expect(find.text('NEAREST OPEN CENTER'), findsNothing);
       expect(find.text('Town Gym'), findsOneWidget);
       expect(find.text('Unpinned Chapel'), findsOneWidget);
     });
