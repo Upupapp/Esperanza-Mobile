@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../l10n/tr.dart';
 import '../models/resident_record.dart';
 import '../models/service_request.dart';
 import '../screens/shared/request_detail_screen.dart';
@@ -69,7 +70,7 @@ class ResidentRecordTile extends StatelessWidget {
                   const SizedBox(height: AppSpacing.xs),
                   Text(line(r), style: const TextStyle(fontSize: AppTextSize.label, color: AppColors.textMuted)),
                   if (r.purpose != null)
-                    Text('For: ${r.purpose}', style: const TextStyle(fontSize: AppTextSize.label, color: AppColors.textMuted)),
+                    Text('${tr('For')}: ${r.purpose}', style: const TextStyle(fontSize: AppTextSize.label, color: AppColors.textMuted)),
                   const SizedBox(height: AppSpacing.xs),
                   Text(
                     r.source,
@@ -104,17 +105,17 @@ class _RecordSheet extends StatelessWidget {
   Widget build(BuildContext context) {
     final r = record;
     final rows = <(String, String)>[
-      ('Status', r.status),
-      if (r.date != null) ('Date', shortDate(r.date!)),
+      (tr('Status'), r.status),
+      if (r.date != null) (tr('Date'), shortDate(r.date!)),
       if ((r.amountValue ?? 0) > 0)
-        (r.category == ServiceCategory.tulong ? 'Amount' : 'Fee paid', pesoText(r.amount)!)
+        (r.category == ServiceCategory.tulong ? tr('Amount') : tr('Fee paid'), pesoText(r.amount)!)
       // The office's logbook said the document was free (live test 2026-10-13: "₱0.00").
       else if (r.category == ServiceCategory.dokyu && r.amountValue == 0)
-        ('Fee paid', 'Free'),
-      if (r.purpose != null) ('For', r.purpose!),
-      ('Reference', r.ref),
-      if (r.reference != null) ("Office's number", r.reference!),
-      ('Recorded by', r.office ?? 'The office'),
+        (tr('Fee paid'), tr('Free')),
+      if (r.purpose != null) (tr('For'), r.purpose!),
+      (tr('Reference'), r.ref),
+      if (r.reference != null) (tr("Office's number"), r.reference!),
+      (tr('Recorded by'), r.office ?? tr('The office')),
     ];
     return SafeArea(
       child: SingleChildScrollView(

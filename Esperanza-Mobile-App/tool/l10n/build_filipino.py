@@ -42,6 +42,12 @@ NOT_ON_THEIR_OWN = {'Done', 'Also served'}
 APP_ONLY = {
     'Up to': 'Hanggang',
     'From the office': 'Mula sa office',
+    'Recorded by': 'Naitala ng',
+    'Filed by you': 'In-file mo',
+    'For': 'Para sa',
+    'Fee paid': 'Bayad',
+    'Free': 'Libre',
+    "Office's number": 'Numero ng office',
     'Recorded for you before you had an account, or at the office counter. Tap one to see it.':
         'Naitala ng office para sa iyo bago ka nagka-account, o sa counter nila. I-tap para makita.',
     'The documents and assistance on your record: what the offices recorded for you, and what you filed.':

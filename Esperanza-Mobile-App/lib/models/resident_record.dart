@@ -1,3 +1,4 @@
+import '../l10n/tr.dart';
 import '../services/json_read.dart';
 import 'service_request.dart';
 
@@ -74,5 +75,5 @@ class ResidentRecord {
   double? get amountValue => amount is num ? (amount as num).toDouble() : double.tryParse('${amount ?? ''}');
 
   /// Who it came from, as the resident reads it.
-  String get source => fromOffice ? 'Recorded by ${office ?? 'the office'}' : 'Filed by you';
+  String get source => fromOffice ? '${tr('Recorded by')} ${office ?? tr('the office')}' : tr('Filed by you');
 }
