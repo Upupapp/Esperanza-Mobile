@@ -57,6 +57,8 @@ APP_ONLY = {
     'Read': 'Nabasa na',
     'Action Required': 'Kailangan ng aksyon',
     'Warning': 'Babala',
+    'Esperanza LGU reviews your residency once your identity is verified: with the ID check below, or by LGU staff using your valid ID.':
+        'Ire-review ng Esperanza LGU ang residency mo kapag verified na ang identity mo: gamit ang ID check sa ibaba, o ng staff ng LGU gamit ang valid ID mo.',
 }
 
 # A Filipino phrase ending in a linker is the first half of a sentence the

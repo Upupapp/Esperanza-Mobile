@@ -106,6 +106,8 @@ const Map<String, String> filipinoText = {
   'Emergency alerts could not be checked.': 'Hindi masuri ang mga babala.',
   'Emergency Hotlines': 'Mga Emergency Hotline',
   'Employment group': 'Uri ng hanapbuhay',
+  'Esperanza LGU is reviewing your submitted information. This usually takes 1–3 business days — no action needed from you right now.': 'Sinusuri ng Esperanza LGU ang iyong ipinasang impormasyon. Karaniwang 1–3 araw ng trabaho ito — wala ka pang kailangang gawin ngayon.',
+  'Esperanza LGU reviews your residency once your identity is verified: with the ID check below, or by LGU staff using your valid ID.': 'Ire-review ng Esperanza LGU ang residency mo kapag verified na ang identity mo: gamit ang ID check sa ibaba, o ng staff ng LGU gamit ang valid ID mo.',
   'Esperanza seal: verified by the LGU': 'Tatak ng Esperanza: beripikado ng LGU',
   'Esperanza wallet copy · not an official ID': 'Kopya sa wallet ng Esperanza · hindi opisyal na ID',
   'Evacuation Centers': 'Mga Evacuation Center',

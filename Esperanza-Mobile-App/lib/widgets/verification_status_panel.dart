@@ -34,15 +34,15 @@ class VerificationStatusPanel extends StatelessWidget {
 
   String get _explanation => switch (status) {
     AppStatus.pendingReview || AppStatus.rejected when waitingOnIdentity =>
-      'Esperanza LGU reviews your residency once your identity is verified. Verify your identity below first.',
+      tr('Esperanza LGU reviews your residency once your identity is verified: with the ID check below, or by LGU staff using your valid ID.'),
     AppStatus.pendingReview =>
-      'Esperanza LGU is reviewing your submitted information. This usually takes 1–3 business days — no action needed from you right now.',
+      tr('Esperanza LGU is reviewing your submitted information. This usually takes 1–3 business days — no action needed from you right now.'),
     AppStatus.underVerification =>
-      'Some of your details need a closer look from Esperanza LGU staff. No action needed from you right now.',
-    AppStatus.approved => 'Your account has been verified. You now have full access to Esperanza mobile services.',
+      tr('Some of your details need a closer look from Esperanza LGU staff. No action needed from you right now.'),
+    AppStatus.approved => tr('Your account has been verified. You now have full access to Esperanza mobile services.'),
     AppStatus.rejected =>
-      'Your submission needs corrections before it can be verified. Please review and resubmit your information.',
-    _ => 'Complete your registration to begin the verification process.',
+      tr('Your submission needs corrections before it can be verified. Please review and resubmit your information.'),
+    _ => tr('Complete your registration to begin the verification process.'),
   };
 
   String? get _actionLabel => switch (status) {
