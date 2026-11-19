@@ -41,11 +41,14 @@ class ReceivedRecordsScreen extends StatelessWidget {
                   style: TextStyle(fontSize: AppTextSize.helper, color: AppColors.textMuted),
                 ),
                 const SizedBox(height: AppSpacing.lg),
+                // The offices' records wait for the barangay: the match, and
+                // since 2026-11-19 a verified account too. What the resident
+                // filed themselves still lists below.
                 if (requests.recordsPending)
                   EmptyState(
                     icon: Icons.hourglass_top_rounded,
                     title: tr('Waiting for your barangay'),
-                    description: tr('They appear here once your barangay confirms the record is yours.'),
+                    description: tr('They appear here once your barangay verifies your account and confirms the record is yours.'),
                   )
                 else if (requests.recordsFailed)
                   EmptyState(
@@ -59,8 +62,8 @@ class ReceivedRecordsScreen extends StatelessWidget {
                     icon: Icons.inbox_outlined,
                     title: 'Nothing on your record yet',
                     description: 'Documents and assistance you receive will be listed here.',
-                  )
-                else ...[
+                  ),
+                if (!requests.recordsFailed && records.isNotEmpty) ...[
                   for (final r in records) ResidentRecordTile(record: r),
                   if (total > 0) ...[
                     const Divider(height: AppSpacing.xl),

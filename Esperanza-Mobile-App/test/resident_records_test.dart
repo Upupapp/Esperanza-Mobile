@@ -181,4 +181,39 @@ void main() {
     await _pump(tester, const ReceivedRecordsScreen());
     expect(find.text('Nothing on your record yet'), findsOneWidget);
   });
+
+  // 2026-11-19: the offices' records only for a verified account. Before
+  // that the server sends what they filed themselves, with meta.pending.
+  testWidgets('the offices\' records waiting for a verified account: it says so, and still lists what they filed', (tester) async {
+    SharedPreferences.setMockInitialValues({});
+    api = ApiClient(
+      baseUrl: 'https://test.invalid',
+      httpClient: MockClient((req) async {
+        final body = switch (req.url.path) {
+          '/citizen/records' => {'data': [_records.last], 'meta': {'pending': true}},
+          '/citizen/requests' => {'data': []},
+          _ => null,
+        };
+        return body == null ? http.Response('', 404) : http.Response(jsonEncode(body), 200, headers: {'content-type': 'application/json'});
+      }),
+    );
+    final session = CitizenSessionService();
+    await session.login(MockCatalog.demoAccounts.last);
+    await tester.pumpWidget(
+      MultiProvider(
+        providers: [
+          ChangeNotifierProvider<CitizenSessionService>.value(value: session),
+          ChangeNotifierProvider<RequestsService>(create: (_) => RequestsService()),
+        ],
+        child: const MaterialApp(home: ReceivedRecordsScreen()),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Waiting for your barangay'), findsOneWidget);
+    expect(find.text('They appear here once your barangay verifies your account and confirms the record is yours.'), findsOneWidget);
+    expect(find.text('Educational Assistance'), findsOneWidget);
+    expect(find.text('Filed by you'), findsOneWidget);
+    expect(find.text('Nothing on your record yet'), findsNothing);
+  });
 }

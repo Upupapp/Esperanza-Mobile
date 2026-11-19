@@ -340,7 +340,7 @@ const Map<String, String> filipinoText = {
   'The office will confirm it, and you will be notified.': 'Kukumpirmahin ito ng opisina, at aabisuhan ka.',
   'The officials roster has not been added yet.': 'Wala pang naidaragdag na listahan ng mga opisyal.',
   'The ticket goes to the office handling that request.': 'Mapupunta ang ticket sa opisinang humahawak ng kahilingang ito.',
-  'They appear here once your barangay confirms the record is yours.': 'Makikita mo rito ang iyong mga dokyu at tulong kapag nakumpirma ng barangay na iyo ang tala.',
+  'They appear here once your barangay verifies your account and confirms the record is yours.': 'Lalabas dito ang mga Dokyu at Tulong mo kapag na-verify na ng barangay ang account mo at na-confirm na sa iyo ang record.',
   'This center is not on the map yet; directions search for its name and address.': 'Wala pa sa mapa ang center na ito; hahanapin ng direksyon ang pangalan at address nito.',
   'This image cannot be shown right now.': 'Hindi maipakita ang larawan ngayon.',
   'This is sent as a support ticket; the office replies there.': 'Ipapadala ito bilang support ticket; doon sasagot ang opisina.',
