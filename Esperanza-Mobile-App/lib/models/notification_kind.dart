@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../l10n/tr.dart';
 import '../theme/app_colors.dart';
 
 /// The visual-hierarchy tier for a notification — every kind pairs a
@@ -8,11 +9,11 @@ enum NotificationKind { info, actionRequired, success, warning, urgent }
 
 extension NotificationKindX on NotificationKind {
   String get badgeLabel => switch (this) {
-        NotificationKind.info => 'Info',
-        NotificationKind.actionRequired => 'Action Required',
+        NotificationKind.info => tr('Info'),
+        NotificationKind.actionRequired => tr('Action Required'),
         NotificationKind.success => 'Approved',
-        NotificationKind.warning => 'Warning',
-        NotificationKind.urgent => 'Urgent',
+        NotificationKind.warning => tr('Warning'),
+        NotificationKind.urgent => tr('Urgent'),
       };
 
   IconData get badgeIcon => switch (this) {

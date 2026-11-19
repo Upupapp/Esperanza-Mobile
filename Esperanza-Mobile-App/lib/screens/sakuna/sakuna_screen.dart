@@ -420,12 +420,12 @@ class _EvacuationCentersSectionState extends State<_EvacuationCentersSection> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(tr('Evacuation Centres'), style: AppTypography.subsectionLabel),
+        Text(tr('Evacuation Centers'), style: AppTypography.subsectionLabel),
         const SizedBox(height: AppSpacing.md),
         if (widget.centers.isEmpty)
           Padding(
             padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
-            child: Text(tr('No evacuation centres listed yet.'), style: const TextStyle(color: AppColors.textMuted)),
+            child: Text(tr('No evacuation centers listed yet.'), style: const TextStyle(color: AppColors.textMuted)),
           )
         else ...[
           Wrap(
@@ -457,7 +457,7 @@ class _EvacuationCentersSectionState extends State<_EvacuationCentersSection> {
           ),
           const SizedBox(height: AppSpacing.md),
           if (placed.isEmpty)
-            _Note(tr('No centre is on the map yet, so distances cannot be measured. Use the list and the barangay filter.'))
+            _Note(tr('No center is on the map yet, so distances cannot be measured. Use the list and the barangay filter.'))
           else
             _NearestPanel(
               locating: _locating,
@@ -485,7 +485,7 @@ class _EvacuationCentersSectionState extends State<_EvacuationCentersSection> {
               onShowList: () => setState(() => _showMap = false),
             )
           else if (shown.isEmpty)
-            _Note(tr('No centre in this barangay.'))
+            _Note(tr('No center in this barangay.'))
           else
             for (final c in shown)
               Padding(
@@ -555,7 +555,7 @@ class _NearestPanel extends StatelessWidget {
         children: [
           AppButton(
             // The website's shorter phrase: the long one is cut off in Filipino.
-            label: locating ? tr('Finding you…') : tr('Nearest open centre'),
+            label: locating ? tr('Finding you…') : tr('Nearest open center'),
             icon: Icons.my_location_rounded,
             fullWidth: true,
             loading: locating,
@@ -610,7 +610,7 @@ class _NearestPanel extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          tr('Nearest open centre').toUpperCase(),
+                          tr('Nearest open center').toUpperCase(),
                           style: const TextStyle(fontSize: AppTextSize.fine, fontWeight: FontWeight.w700, color: AppColors.emerald700),
                         ),
                         const SizedBox(height: AppSpacing.xs),
@@ -625,7 +625,7 @@ class _NearestPanel extends StatelessWidget {
                 ),
               )
             else
-              Text(tr('No open centre is on the map right now.'), style: AppTypography.helper),
+              Text(tr('No open center is on the map right now.'), style: AppTypography.helper),
             const SizedBox(height: AppSpacing.sm),
             Text(
               tr('Distances are straight lines, not by road. The nearest is not always the safest or quickest to reach — follow the MDRRMO and your barangay officials.'),
@@ -654,7 +654,7 @@ class _CentresMap extends StatelessWidget {
     if (centres.isEmpty) {
       return Row(
         children: [
-          Expanded(child: _Note(tr('No centre is on the map yet. They are all in the list.'))),
+          Expanded(child: _Note(tr('No center is on the map yet. They are all in the list.'))),
           TextButton(onPressed: onShowList, child: Text(tr('Show the list'))),
         ],
       );
@@ -671,7 +671,7 @@ class _CentresMap extends StatelessWidget {
               key: ValueKey(Object.hashAll(points)),
               center: points.first,
               fit: points,
-              semanticLabel: tr('Map of evacuation centres'),
+              semanticLabel: tr('Map of evacuation centers'),
               pins: [
                 for (final c in centres)
                   MapPin(
@@ -688,12 +688,12 @@ class _CentresMap extends StatelessWidget {
         ),
         const SizedBox(height: AppSpacing.xs),
         Text(
-          tr('Select a centre for its details. Green: open now. Grey: not open.'),
+          tr('Select a center for its details. Green: open now. Grey: not open.'),
           style: AppTypography.captionSmallRegular.copyWith(color: AppColors.textMuted),
         ),
         if (unplaced > 0)
           Text(
-            '$unplaced ${tr('listed centre(s) are not on the map yet; they are in the list.')}',
+            '$unplaced ${tr('listed center(s) are not on the map yet; they are in the list.')}',
             style: AppTypography.captionSmallRegular.copyWith(color: AppColors.textMuted),
           ),
       ],

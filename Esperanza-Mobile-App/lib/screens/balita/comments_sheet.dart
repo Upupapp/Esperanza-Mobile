@@ -111,8 +111,8 @@ class _CommentsSheetState extends State<CommentsSheet> {
                 ),
               ),
               const SizedBox(height: AppSpacing.md),
-              const Text(
-                'Comments',
+              Text(
+                tr('Comments'),
                 style: TextStyle(fontSize: AppTextSize.body, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
               ),
               const SizedBox(height: AppSpacing.sm),
@@ -132,7 +132,7 @@ class _CommentsSheetState extends State<CommentsSheet> {
                       return Padding(
                         padding: const EdgeInsets.symmetric(vertical: AppSpacing.xxxl, horizontal: AppSpacing.xl),
                         child: Text(
-                          err is ApiException ? err.message() : 'Could not load comments.',
+                          err is ApiException ? err.message() : tr('Could not load comments.'),
                           textAlign: TextAlign.center,
                           style: const TextStyle(fontSize: AppTextSize.helper, color: AppColors.textMuted),
                         ),
@@ -140,11 +140,11 @@ class _CommentsSheetState extends State<CommentsSheet> {
                     }
                     final comments = snapshot.data ?? const [];
                     if (comments.isEmpty) {
-                      return const Padding(
-                        padding: EdgeInsets.symmetric(vertical: AppSpacing.xxxl),
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(vertical: AppSpacing.xxxl),
                         child: Text(
-                          'No comments yet. Be the first to comment.',
-                          style: TextStyle(fontSize: AppTextSize.helper, color: AppColors.textMuted),
+                          tr('No comments yet. Be the first.'),
+                          style: const TextStyle(fontSize: AppTextSize.helper, color: AppColors.textMuted),
                         ),
                       );
                     }

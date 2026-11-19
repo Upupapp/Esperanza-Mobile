@@ -47,7 +47,7 @@ const _copy = <ProtectedResource, _ResourceCopy>{
   ProtectedResource.location: _ResourceCopy(
     title: 'Location Access',
     explanation:
-        'Esperanza uses your location only for this: to pin where you are on the map, or to measure how far the evacuation centres are. It is not tracked in the background.',
+        'Esperanza uses your location only for this: to pin where you are on the map, or to measure how far the evacuation centers are. It is not tracked in the background.',
     deniedMessage: 'Location access was not allowed. You can still tap the map to choose the place.',
   ),
 };

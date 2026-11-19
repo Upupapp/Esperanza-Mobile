@@ -55,7 +55,7 @@ class EvacuationCenter {
     final n = currentOccupancy;
     if (!isOpen || n == null || totalCapacity <= 0) return null;
     final pct = n * 100 / totalCapacity;
-    if (pct >= 100) return 'Full: ask the MDRRMO for another centre';
+    if (pct >= 100) return 'Full: ask the MDRRMO for another center';
     if (pct >= 75) return 'Almost full';
     return null;
   }

@@ -71,9 +71,9 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
             for (final t in _Tab.values) ...[
               ChoiceChip(
                 label: Text(switch (t) {
-                  _Tab.all => 'All',
-                  _Tab.unread => unread > 0 ? 'Unread ($unread)' : 'Unread',
-                  _Tab.read => 'Read',
+                  _Tab.all => tr('All'),
+                  _Tab.unread => unread > 0 ? '${tr('Unread')} ($unread)' : tr('Unread'),
+                  _Tab.read => tr('Read'),
                   _Tab.dokyu => 'Dokyu',
                   _Tab.tulong => 'Tulong',
                 }),

@@ -112,7 +112,7 @@ class _MyShelterScreenState extends State<MyShelterScreen> {
               ),
               children: [
                 Text(
-                  tr("Your family's stays at evacuation centres and the relief released to you. Staff still record check-ins and relief."),
+                  tr("Your family's stays at evacuation centers and the relief released to you. Staff still record check-ins and relief."),
                   style: AppTypography.helper,
                 ),
                 const SizedBox(height: AppSpacing.sectionGap),
@@ -254,7 +254,7 @@ class _StayCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final when = [
       if (stay.checkedIn != null) '${tr('Checked in')} ${shortDate(stay.checkedIn!)}',
-      if (stay.checkedOut != null) '${tr('Left the centre')} ${shortDate(stay.checkedOut!)}',
+      if (stay.checkedOut != null) '${tr('Left the center')} ${shortDate(stay.checkedOut!)}',
     ].join(' · ');
     return AppCard(
       child: Column(
@@ -263,10 +263,10 @@ class _StayCard extends StatelessWidget {
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Expanded(child: Text(stay.center ?? tr('Evacuation centre'), style: AppTypography.cardTitle)),
+              Expanded(child: Text(stay.center ?? tr('Evacuation center'), style: AppTypography.cardTitle)),
               const SizedBox(width: AppSpacing.inlineGap),
               Text(
-                stay.staying ? tr('Staying now') : tr('Left the centre'),
+                stay.staying ? tr('Staying now') : tr('Left the center'),
                 style: AppTypography.labelText.copyWith(color: stay.staying ? AppColors.emerald700 : AppColors.textMuted),
               ),
             ],
@@ -511,7 +511,7 @@ class _HouseholdListScreenState extends State<HouseholdListScreen> {
             controlAffinity: ListTileControlAffinity.leading,
             contentPadding: EdgeInsets.zero,
             title: Text(
-              tr("I agree that the Municipality keeps this list, including children's details, only for check-in at an evacuation centre. I can delete it at any time."),
+              tr("I agree that the Municipality keeps this list, including children's details, only for check-in at an evacuation center. I can delete it at any time."),
               style: AppTypography.helper,
             ),
           ),

@@ -522,7 +522,7 @@ class _IncidentPhotosField extends StatelessWidget {
         ),
         const SizedBox(height: AppSpacing.xs),
         Text(
-          'Up to $maxIncidentPhotos. A photo helps responders see what is happening. Do not stop to take one if you are in danger.',
+          '${tr('Up to')} $maxIncidentPhotos. ${tr('A photo helps responders see what is happening. Do not stop to take one if you are in danger.')}',
           style: AppTypography.captionSmallRegular.copyWith(color: AppColors.textMuted),
         ),
         if (photos.isNotEmpty) ...[
@@ -574,12 +574,12 @@ class _IncidentPhotosField extends StatelessWidget {
               OutlinedButton.icon(
                 onPressed: onAdd == null ? null : () => onAdd!(ImageSource.camera),
                 icon: const Icon(Icons.photo_camera_outlined, size: 17),
-                label: const Text('Take a photo'),
+                label: Text(tr('Take a photo')),
               ),
               OutlinedButton.icon(
                 onPressed: onAdd == null ? null : () => onAdd!(ImageSource.gallery),
                 icon: const Icon(Icons.add_photo_alternate_outlined, size: 17),
-                label: const Text('Choose a photo'),
+                label: Text(tr('Choose a photo')),
               ),
             ],
           ),

@@ -276,7 +276,7 @@ void main() {
       await pumpSakuna(tester, centres);
       expect(find.text('Nearest open'), findsNothing, reason: 'no point to measure from yet');
 
-      await tester.tap(find.widgetWithText(AppButton, 'Nearest open centre'));
+      await tester.tap(find.widgetWithText(AppButton, 'Nearest open center'));
       await tester.pumpAndSettle();
 
       expect(find.text('NEAREST OPEN CENTRE'), findsOneWidget);
@@ -295,7 +295,7 @@ void main() {
       _locationExplained();
       _gpsRefused();
       await pumpSakuna(tester, centres);
-      await tester.tap(find.widgetWithText(AppButton, 'Nearest open centre'));
+      await tester.tap(find.widgetWithText(AppButton, 'Nearest open center'));
       await tester.pumpAndSettle();
       expect(find.text('Location access was not allowed. Choose your place on the map, or pick your barangay below.'), findsOneWidget);
       expect(find.text('NEAREST OPEN CENTRE'), findsNothing);
@@ -307,7 +307,7 @@ void main() {
       await pumpSakuna(tester, centres);
       await tester.tap(find.text('Map'));
       await tester.pumpAndSettle();
-      expect(find.text('1 listed centre(s) are not on the map yet; they are in the list.'), findsOneWidget);
+      expect(find.text('1 listed center(s) are not on the map yet; they are in the list.'), findsOneWidget);
       Finder pin(String label) => find.byWidgetPredicate((w) => w is Semantics && w.properties.label == label);
       expect(pin('Town Gym, Open now'), findsOneWidget);
       expect(pin('Old Hall, Not open'), findsOneWidget);
@@ -326,11 +326,11 @@ void main() {
 
     testWidgets('no centre pinned: no measuring, no broken map', (tester) async {
       await pumpSakuna(tester, [_centre('EC-9', 'Unpinned Chapel', 'Agoho')]);
-      expect(find.text('No centre is on the map yet, so distances cannot be measured. Use the list and the barangay filter.'), findsOneWidget);
-      expect(find.widgetWithText(AppButton, 'Nearest open centre'), findsNothing);
+      expect(find.text('No center is on the map yet, so distances cannot be measured. Use the list and the barangay filter.'), findsOneWidget);
+      expect(find.widgetWithText(AppButton, 'Nearest open center'), findsNothing);
       await tester.tap(find.text('Map'));
       await tester.pumpAndSettle();
-      expect(find.text('No centre is on the map yet. They are all in the list.'), findsOneWidget);
+      expect(find.text('No center is on the map yet. They are all in the list.'), findsOneWidget);
       expect(tester.takeException(), isNull);
     });
 
@@ -347,15 +347,15 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('11.74500, 124.04170'), findsOneWidget);
       expect(find.text('900 m away, in a straight line'), findsOneWidget);
-      expect(find.text('Nearest open centre'), findsOneWidget);
+      expect(find.text('Nearest open center'), findsOneWidget);
 
       await tester.pumpWidget(
         const MaterialApp(home: EvacuationCenterDetailScreen(center: EvacuationCenter(name: 'Chapel', barangay: 'Agoho', totalCapacity: 50))),
       );
       await tester.pumpAndSettle();
-      expect(find.text('This centre is not on the map yet; directions search for its name and address.'), findsOneWidget);
+      expect(find.text('This center is not on the map yet; directions search for its name and address.'), findsOneWidget);
       expect(find.textContaining('away, in a straight line'), findsNothing);
-      expect(find.text('Nearest open centre'), findsNothing);
+      expect(find.text('Nearest open center'), findsNothing);
     });
   });
 

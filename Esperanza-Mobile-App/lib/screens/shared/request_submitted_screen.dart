@@ -97,8 +97,8 @@ class RequestSubmittedScreen extends StatelessWidget {
               const SizedBox(height: AppSpacing.xl),
               Text(
                 _incident
-                    ? 'You can follow it under Incident Reports on the Emergency tab. You\'ll be notified as the office acts on it.'
-                    : 'Your request status is now "Submitted". You\'ll be notified as it moves through review, approval, and release.',
+                    ? tr('You can follow it on the Emergency tab, below Report an Incident. You\'ll be notified as the office acts on it.')
+                    : tr('Your request status is now "Submitted". You\'ll be notified as it moves through review, approval, and release.'),
                 textAlign: TextAlign.center,
                 style: TextStyle(fontSize: AppTextSize.helper, color: AppColors.textMuted, height: 1.4),
               ),

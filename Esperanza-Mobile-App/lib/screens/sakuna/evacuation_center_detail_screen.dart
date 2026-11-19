@@ -46,7 +46,7 @@ class EvacuationCenterDetailScreen extends StatelessWidget {
                     const Icon(Icons.near_me_rounded, size: 14, color: AppColors.emerald700),
                     const SizedBox(width: AppSpacing.xs),
                     Text(
-                      tr('Nearest open centre'),
+                      tr('Nearest open center'),
                       style: TextStyle(
                         fontSize: AppTextSize.label,
                         fontWeight: FontWeight.w700,
@@ -127,7 +127,7 @@ class EvacuationCenterDetailScreen extends StatelessWidget {
                   child: SakunaMap(
                     center: at,
                     zoom: 16,
-                    semanticLabel: tr('Map showing where the centre is'),
+                    semanticLabel: tr('Map showing where the center is'),
                     pins: [MapPin(point: at, size: 30, label: center.name, child: CentreMarker(open: center.isOpen))],
                   ),
                 ),
@@ -136,7 +136,7 @@ class EvacuationCenterDetailScreen extends StatelessWidget {
               Text(at.text, style: AppTypography.helper),
             ] else
               Text(
-                tr('This centre is not on the map yet; directions search for its name and address.'),
+                tr('This center is not on the map yet; directions search for its name and address.'),
                 style: AppTypography.helper,
               ),
             const SizedBox(height: AppSpacing.lg),
