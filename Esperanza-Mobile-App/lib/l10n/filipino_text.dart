@@ -422,7 +422,7 @@ const Map<String, String> filipinoText = {
   'Your answer here sits beside the signature on the paper relief sheet; it does not replace the signature.': 'Ang inyong sagot dito ay katabi ng pirma sa papel na listahan ng relief; hindi nito pinapalitan ang pirma.',
   'Your appointment is booked': 'Naka-book na ang iyong appointment',
   'Your barangay already has a record of you. The barangay office confirms it when they verify your account; until then you see only the details you gave, and any changes you send are kept and applied once they confirm.': 'May tala ka na sa talaan ng iyong barangay. Kukumpirmahin ito ng barangay office kapag na-verify ang iyong account; hanggang doon, ang mga detalyeng ibinigay mo lang ang makikita mo rito, at ang mga babaguhin mo ay itatabi muna at ilalagay kapag nakumpirma na.',
-  'Your barangay office confirms it when it verifies your profile.': 'Kukumpirmahin ito ng iyong barangay office kapag na-verify ang iyong profile.',
+  'Your barangay office confirms it once they have checked your Resident Profile.': 'Kukumpirmahin ito ng barangay office kapag na-check na nila ang Resident Profile mo.',
   'Your device asks before sharing your location; it is used only to measure distances.': 'Magtatanong muna ang iyong device bago ibahagi ang lokasyon mo; gagamitin lang ito para sukatin ang layo.',
   'Your device could not find its location. Choose your place on the map, or pick your barangay below.': 'Hindi mahanap ng iyong device ang lokasyon nito. Piliin ang iyong lugar sa mapa, o piliin ang iyong barangay sa ibaba.',
   'Your device could not find its location. Tap the map where the emergency is instead.': 'Hindi mahanap ng iyong device ang lokasyon nito. I-tap na lang ang mapa kung saan ang emergency.',

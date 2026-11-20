@@ -83,9 +83,9 @@ void main() {
     await tester.pumpWidget(const MaterialApp(home: Scaffold(body: HouseholdCodeCard(code: 'HH-2026-0004', verified: false))));
     expect(find.text('HH-2026-0004'), findsOneWidget);
     expect(find.text('Household code'), findsOneWidget);
-    expect(find.text('Your barangay office confirms it when it verifies your profile.'), findsOneWidget);
+    expect(find.text('Your barangay office confirms it once they have checked your Resident Profile.'), findsOneWidget);
 
     await tester.pumpWidget(const MaterialApp(home: Scaffold(body: HouseholdCodeCard(code: 'HH-2026-0004', verified: true))));
-    expect(find.text('Your barangay office confirms it when it verifies your profile.'), findsNothing);
+    expect(find.text('Your barangay office confirms it once they have checked your Resident Profile.'), findsNothing);
   });
 }

@@ -43,7 +43,7 @@ class HouseholdCodeCard extends StatelessWidget {
                 if (!verified) ...[
                   const SizedBox(height: AppSpacing.xs),
                   Text(
-                    tr('Your barangay office confirms it when it verifies your profile.'),
+                    tr('Your barangay office confirms it once they have checked your Resident Profile.'),
                     style: AppTypography.helper.copyWith(color: AppColors.amber700),
                   ),
                 ],
