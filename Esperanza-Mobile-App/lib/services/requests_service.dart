@@ -654,7 +654,7 @@ class RequestsService extends ChangeNotifier {
         'service_key': serviceKey,
         'form_data': formData,
         if (feeInputs.isNotEmpty) 'fee_inputs': feeInputs,
-        if (clientUuid != null) 'client_uuid': clientUuid,
+        'client_uuid': ?clientUuid,
       },
     );
     _requireRef(res);
