@@ -204,4 +204,25 @@ void main() {
       expect(tester.takeException(), isNull);
     });
   });
+
+  group('Expected release', () {
+    // Flows review 2026-11-20: a released case still showed its expected
+    // release date. Only while it is on its way, as on the website.
+    testWidgets('shows while the case is on its way, not once it is completed', (tester) async {
+      final requests = await _readyRequests(tester, [
+        {..._rejectedEducationalAssistance(decisionRemarks: null), 'ref': 'AR-2026-OPEN01', 'status': 'Under Review', 'service_key': 'tulong_educational'},
+        {..._rejectedEducationalAssistance(decisionRemarks: null), 'ref': 'AR-2026-DONE01', 'status': 'Completed', 'service_key': 'tulong_educational'},
+      ]);
+      final session = await _signedInAsVerifiedDemo(tester);
+
+      await _pumpDetail(tester, requests, session, 'AR-2026-OPEN01');
+      expect(find.text('Expected release', skipOffstage: false), findsOneWidget);
+
+      await tester.pumpWidget(const SizedBox()); // a fresh screen, not the first one's state
+      await _pumpDetail(tester, requests, session, 'AR-2026-DONE01');
+      expect(find.text('Expected release', skipOffstage: false), findsNothing);
+      expect(find.text('Submitted', skipOffstage: false), findsWidgets, reason: 'the details card is built');
+      expect(tester.takeException(), isNull);
+    });
+  });
 }

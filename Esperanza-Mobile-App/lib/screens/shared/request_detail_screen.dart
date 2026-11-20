@@ -349,7 +349,10 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
       ServiceCategory.unknown => AppColors.slate600,
     };
     final usesMilestones = request.category != ServiceCategory.sakunaIncident;
-    final due = usesMilestones ? expectedRelease(request.submittedAt, service.processingDays(request.serviceKey)) : null;
+    // Only while it is on its way: once released or closed there is no
+    // date to expect (flows review, 2026-11-20; the website does the same).
+    final onItsWay = !const {'Released', 'Completed', 'Rejected', 'Cancelled', 'Archived'}.contains(request.status);
+    final due = usesMilestones && onItsWay ? expectedRelease(request.submittedAt, service.processingDays(request.serviceKey)) : null;
 
     return ListView(
       // Short details too: pulling down reads the request again.
