@@ -309,7 +309,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                         ).push(MaterialPageRoute(builder: (_) => const ResidentProfileOverviewScreen())),
                       ),
                       const SizedBox(height: AppSpacing.sectionGap),
-                      const SectionHeader(title: 'Overview'),
+                      SectionHeader(title: tr('Overview')),
                       // Content-sized rows, not GridView.count's fixed aspect
                       // ratio, which overflowed at large text sizes ("BOTTOM
                       // OVERFLOWED BY 19 PIXELS"); IntrinsicHeight keeps both
@@ -320,7 +320,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                           children: [
                             Expanded(
                               child: StatTile(
-                                label: 'Dokyu Requests',
+                                label: tr('Dokyu Requests'),
                                 value: '${requests.byCategory(ServiceCategory.dokyu).length}',
                                 icon: Icons.description_outlined,
                                 color: StatTileColor.azure,
@@ -330,7 +330,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                             const SizedBox(width: AppSpacing.md),
                             Expanded(
                               child: StatTile(
-                                label: 'Tulong Requests',
+                                label: tr('Tulong Requests'),
                                 value: '${requests.byCategory(ServiceCategory.tulong).length}',
                                 icon: Icons.volunteer_activism_outlined,
                                 color: StatTileColor.indigo,
@@ -347,7 +347,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                           children: [
                             Expanded(
                               child: StatTile(
-                                label: 'Active Requests',
+                                label: tr('Active Requests'),
                                 value: '${activeRequests.length}',
                                 icon: Icons.hourglass_top_outlined,
                                 color: StatTileColor.amber,
@@ -360,7 +360,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                 // four contact fields on Edit Profile, which
                                 // legitimately differs from the Resident Profile
                                 // card's own percentage above.
-                                label: 'Account Details',
+                                label: tr('Account Details'),
                                 value: '${account.profileCompleteness}%',
                                 icon: Icons.badge_outlined,
                                 color: StatTileColor.gold,
@@ -371,8 +371,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                       ),
                       const SizedBox(height: AppSpacing.xxl),
                       SectionHeader(
-                        title: 'Active Requests',
-                        actionLabel: activeRequests.isNotEmpty ? 'View all' : null,
+                        title: tr('Active Requests'),
+                        actionLabel: activeRequests.isNotEmpty ? tr('View all') : null,
                         // Track Requests lists Dokyu and Tulong together: View all
                         // opened Dokyu even when the active request was Tulong
                         // (2026-11-13).
@@ -385,8 +385,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                           child: AppCard(
                             child: EmptyState(
                               icon: Icons.inbox_outlined,
-                              title: 'No active requests',
-                              description: 'Start a Dokyu or Tulong request and track it here.',
+                              title: tr('No active requests'),
+                              description: tr('Start a Dokyu or Tulong request and track it here.'),
                               padding: const EdgeInsets.symmetric(vertical: AppSpacing.xxl, horizontal: AppSpacing.xl),
                             ),
                           ),
@@ -400,7 +400,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                     // Updates"; the whole feed stays on the Balita tab.
                     if (updates.isNotEmpty) ...[
                       SectionHeader(
-                        title: 'Latest Updates',
+                        title: tr('Latest Updates'),
                         actionLabel: tr('View all'),
                         onAction: () => RootShell.jumpTo(context, 1),
                       ),
@@ -495,7 +495,7 @@ class _Hero extends StatelessWidget {
   Widget _menuButton() => Builder(
     builder: (context) => _frosted(
       child: IconButton(
-        tooltip: 'Menu',
+        tooltip: tr('Menu'),
         onPressed: () => RootShell.openDrawer(context),
         icon: const Icon(Icons.menu_rounded, color: AppColors.surface, size: 22),
       ),
@@ -569,7 +569,7 @@ class _Hero extends StatelessWidget {
                   ),
                   const SizedBox(height: AppSpacing.xs),
                   Text(
-                    'How can we help you today?',
+                    tr('How can we help you today?'),
                     style: TextStyle(color: AppColors.surface.withValues(alpha: 0.80), fontSize: AppTextSize.helper, height: 1.3),
                   ),
                 ],
@@ -603,13 +603,13 @@ class _Hero extends StatelessWidget {
           ],
         ),
         const SizedBox(height: AppSpacing.xl),
-        const Text(
-          'Welcome, Guest 👋',
+        Text(
+          '${tr('Welcome, Guest')} 👋',
           style: TextStyle(color: AppColors.surface, fontSize: AppTextSize.section, fontWeight: FontWeight.w700),
         ),
         const SizedBox(height: AppSpacing.xs),
         Text(
-          "You're browsing public content. Sign in or create an account for full access.",
+          tr("You're browsing public content. Sign in or create an account for full access."),
           style: TextStyle(color: AppColors.surface.withValues(alpha: 0.80), fontSize: AppTextSize.helper, height: 1.35),
         ),
         const SizedBox(height: AppSpacing.lg),
@@ -617,7 +617,7 @@ class _Hero extends StatelessWidget {
           children: [
             Expanded(
               child: AppButton(
-                label: 'Create Account',
+                label: tr('Create Account'),
                 variant: AppButtonVariant.gold,
                 size: AppButtonSize.sm,
                 fullWidth: true,
@@ -746,7 +746,7 @@ class _SearchBar extends StatelessWidget {
   Widget build(BuildContext context) {
     return Semantics(
       button: true,
-      label: 'Search services, permits, or documents',
+      label: tr('Search services, permits, or documents'),
       excludeSemantics: true,
       child: GestureDetector(
         onTap: () => _open(context),
@@ -761,7 +761,7 @@ class _SearchBar extends StatelessWidget {
               const SizedBox(width: AppSpacing.sm),
               Expanded(
                 child: Text(
-                  'Search services, permits, or documents',
+                  tr('Search services, permits, or documents'),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(color: AppColors.surface.withValues(alpha: 0.85), fontSize: AppTextSize.helper),
@@ -908,7 +908,7 @@ class _PromoCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Semantics(
       button: true,
-      label: 'A more accessible government for you. Open the Government Directory.',
+      label: tr('A more accessible government for you. Open the Government Directory.'),
       excludeSemantics: true,
       child: GestureDetector(
         onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const DirectoryScreen())),
@@ -976,10 +976,10 @@ class _PromoCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const FractionallySizedBox(
+                    FractionallySizedBox(
                       widthFactor: 0.56,
                       child: Text(
-                        'A more accessible government for you.',
+                        tr('A more accessible government for you.'),
                         style: TextStyle(
                           color: AppColors.surface,
                           fontSize: AppTextSize.card,
@@ -1020,7 +1020,7 @@ class _UpdateTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final lines = post.body.split('\n').where((l) => l.trim().isNotEmpty).toList();
-    final title = post.title ?? (lines.isNotEmpty ? lines.first : 'Announcement');
+    final title = post.title ?? (lines.isNotEmpty ? lines.first : tr('Announcement'));
     final rest = post.title != null ? lines.where((l) => l.trim() != post.title!.trim()).join(' ') : lines.skip(1).join(' ');
     return Padding(
       padding: const EdgeInsets.only(bottom: AppSpacing.md),

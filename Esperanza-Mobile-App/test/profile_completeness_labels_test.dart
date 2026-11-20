@@ -28,7 +28,7 @@ void main() {
     // The account figure names the account form.
     expect(
       home,
-      contains("label: 'Account Details'"),
+      contains("label: tr('Account Details')"),
       reason: 'the account.profileCompleteness tile must say which form it measures',
     );
 

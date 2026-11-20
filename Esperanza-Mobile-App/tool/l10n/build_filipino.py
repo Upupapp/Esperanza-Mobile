@@ -251,6 +251,49 @@ APP_ONLY = {
     'Proof of release photo': 'Photo ng proof of release',
     'Could not open the file. Pull down to refresh, then try again.':
         'Hindi mabuksan ang file. I-pull down para mag-refresh, tapos subukan ulit.',
+    'Dokyu Requests': 'Mga Dokyu request',
+    'Tulong Requests': 'Mga Tulong request',
+    'Active Requests': 'Mga active na request',
+    'Account Details': 'Detalye ng account',
+    'Start a Dokyu or Tulong request and track it here.': 'Mag-request ng Dokyu o Tulong at i-track ito dito.',
+    'Latest Updates': 'Mga bagong update',
+    'How can we help you today?': 'Paano ka namin matutulungan ngayon?',
+    'Welcome, Guest': 'Welcome, Guest',
+    "You're browsing public content. Sign in or create an account for full access.":
+        'Public na content lang ang nakikita mo. Mag-sign in o gumawa ng account para magamit lahat.',
+    'Create Account': 'Gumawa ng account',
+    'Search services, permits, or documents': 'Maghanap ng serbisyo, permit, o dokumento',
+    'A more accessible government for you.': 'Gobyernong mas abot-kamay mo.',
+    'A more accessible government for you. Open the Government Directory.':
+        'Gobyernong mas abot-kamay mo. Buksan ang Government Directory.',
+    'Announcement': 'Anunsyo',
+    'Complete your information so Esperanza LGU can maintain an accurate resident and household record.':
+        'Kumpletuhin ang info mo para tama ang record mo at ng household mo sa Esperanza LGU.',
+    'Some information needs to be updated.': 'May ilang info na kailangang i-update.',
+    'Sections': 'Mga section',
+    'Your basic, contact, and address details.': 'Ang basic info, contact, at address mo.',
+    'Family Information': 'Impormasyon ng Pamilya',
+    'Tell us about your family members living with you.': 'Ilagay ang mga kapamilyang kasama mo sa bahay.',
+    'Household Information': 'Impormasyon ng Household',
+    'Your residence, utilities, and who you live with.':
+        'Ang bahay mo, utilities, at kung sino ang kasama mo sa bahay.',
+    'Review & Submit': 'I-review at I-submit',
+    'Sent to your barangay office. See what you sent.': 'Naipadala na sa barangay office mo. Tingnan ang ipinadala mo.',
+    'Everything looks good — review and submit for verification.':
+        'Mukhang ayos na lahat — i-review at i-submit para ma-verify.',
+    'Fill in Personal Information to submit; Family and Household are optional.':
+        'Punan ang Personal na Impormasyon para ma-submit; optional ang Pamilya at Household.',
+    'Complete': 'Kumpleto',
+    'Update Information': 'I-update ang impormasyon',
+    'Submitted for validation': 'Naipadala na para ma-check',
+    'Your barangay office is reviewing your information. This screen updates when they verify it.':
+        'Chine-check ng barangay office mo ang info mo. Mag-a-update ang screen na ito kapag na-verify na nila.',
+    'Complete your resident and household information.': 'Kumpletuhin ang info mo at ng household mo.',
+    'Complete Resident Profile': 'Kumpletuhin ang Resident Profile',
+    'Continue Resident Profile': 'Ituloy ang Resident Profile',
+    'Your submitted information is currently being reviewed.': 'Chine-check pa ang info na ipinadala mo.',
+    'Your resident profile has been verified by Esperanza LGU.':
+        'Na-verify na ng Esperanza LGU ang resident profile mo.',
 }
 
 # A Filipino phrase ending in a linker is the first half of a sentence the

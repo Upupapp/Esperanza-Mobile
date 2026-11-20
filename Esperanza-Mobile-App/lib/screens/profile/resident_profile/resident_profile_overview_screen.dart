@@ -59,13 +59,13 @@ class _ResidentProfileOverviewScreenState extends State<ResidentProfileOverviewS
     final profile = profiles.profileFor(account);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Resident Profile')),
+      appBar: AppBar(title: Text(tr('Resident Profile'))),
       body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.md, AppSpacing.lg, AppSpacing.xxxl),
           children: [
-            const Text(
-              'Complete your information so Esperanza LGU can maintain an accurate resident and household record.',
+            Text(
+              tr('Complete your information so Esperanza LGU can maintain an accurate resident and household record.'),
               style: TextStyle(fontSize: AppTextSize.helper, color: AppColors.textMuted, height: 1.4),
             ),
             const SizedBox(height: AppSpacing.lg),
@@ -85,7 +85,7 @@ class _ResidentProfileOverviewScreenState extends State<ResidentProfileOverviewS
             if (profile.status == VerificationStatus.needsCorrection) ...[
               const SizedBox(height: AppSpacing.lg),
               _CorrectionBanner(
-                message: profile.correctionMessage ?? 'Some information needs to be updated.',
+                message: profile.correctionMessage ?? tr('Some information needs to be updated.'),
                 onUpdate: () =>
                     Navigator.of(context).push(MaterialPageRoute(builder: (_) => const PersonalInformationScreen())),
               ),
@@ -95,15 +95,15 @@ class _ResidentProfileOverviewScreenState extends State<ResidentProfileOverviewS
               const _PendingValidationCard(),
             ],
             const SizedBox(height: AppSpacing.xxl),
-            const Text(
-              'Sections',
+            Text(
+              tr('Sections'),
               style: TextStyle(fontSize: AppTextSize.helper, fontWeight: FontWeight.w600, color: AppColors.slate600),
             ),
             const SizedBox(height: AppSpacing.itemGap),
             _SectionCard(
               icon: Icons.badge_outlined,
               title: tr('Personal Information'),
-              description: 'Your basic, contact, and address details.',
+              description: tr('Your basic, contact, and address details.'),
               status: profile.personalStatus,
               onTap: () =>
                   Navigator.of(context).push(MaterialPageRoute(builder: (_) => const PersonalInformationScreen())),
@@ -111,8 +111,8 @@ class _ResidentProfileOverviewScreenState extends State<ResidentProfileOverviewS
             const SizedBox(height: AppSpacing.itemGap),
             _SectionCard(
               icon: Icons.diversity_3_outlined,
-              title: 'Family Information',
-              description: 'Tell us about your family members living with you.',
+              title: tr('Family Information'),
+              description: tr('Tell us about your family members living with you.'),
               status: profile.familyStatus,
               onTap: () =>
                   Navigator.of(context).push(MaterialPageRoute(builder: (_) => const FamilyInformationScreen())),
@@ -120,8 +120,8 @@ class _ResidentProfileOverviewScreenState extends State<ResidentProfileOverviewS
             const SizedBox(height: AppSpacing.itemGap),
             _SectionCard(
               icon: Icons.home_work_outlined,
-              title: 'Household Information',
-              description: 'Your residence, utilities, and who you live with.',
+              title: tr('Household Information'),
+              description: tr('Your residence, utilities, and who you live with.'),
               status: profile.householdStatus,
               onTap: () =>
                   Navigator.of(context).push(MaterialPageRoute(builder: (_) => const HouseholdInformationScreen())),
@@ -129,12 +129,12 @@ class _ResidentProfileOverviewScreenState extends State<ResidentProfileOverviewS
             const SizedBox(height: AppSpacing.itemGap),
             _SectionCard(
               icon: Icons.fact_check_outlined,
-              title: 'Review & Submit',
+              title: tr('Review & Submit'),
               description: !profile.editable
-                  ? 'Sent to your barangay office. See what you sent.'
+                  ? tr('Sent to your barangay office. See what you sent.')
                   : profile.readyToSubmit
-                  ? 'Everything looks good — review and submit for verification.'
-                  : 'Fill in Personal Information to submit; Family and Household are optional.',
+                  ? tr('Everything looks good — review and submit for verification.')
+                  : tr('Fill in Personal Information to submit; Family and Household are optional.'),
               status: null,
               onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const ReviewSubmitScreen())),
             ),
@@ -157,7 +157,7 @@ class _ProgressCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            '$pct% Complete',
+            '$pct% ${tr('Complete')}',
             style: const TextStyle(fontSize: AppTextSize.card, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
           ),
           if (profile.status != VerificationStatus.draft && profile.status != VerificationStatus.incomplete) ...[
@@ -284,7 +284,7 @@ class _CorrectionBanner extends StatelessWidget {
           Text(message, style: const TextStyle(fontSize: AppTextSize.helper, color: AppColors.rose700, height: 1.4)),
           const SizedBox(height: AppSpacing.md),
           AppButton(
-            label: 'Update Information',
+            label: tr('Update Information'),
             variant: AppButtonVariant.danger,
             size: AppButtonSize.sm,
             onPressed: onUpdate,
@@ -315,10 +315,10 @@ class _PendingValidationCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Submitted for validation', style: AppTypography.bodyText.copyWith(fontWeight: FontWeight.w600, color: AppColors.amber700)),
+                Text(tr('Submitted for validation'), style: AppTypography.bodyText.copyWith(fontWeight: FontWeight.w600, color: AppColors.amber700)),
                 const SizedBox(height: AppSpacing.xs),
                 Text(
-                  'Your barangay office is reviewing your information. This screen updates when they verify it.',
+                  tr('Your barangay office is reviewing your information. This screen updates when they verify it.'),
                   style: AppTypography.helper.copyWith(color: AppColors.amber700),
                 ),
               ],
