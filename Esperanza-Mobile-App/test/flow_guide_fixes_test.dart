@@ -30,7 +30,7 @@ void main() {
 
   test('incidents are reported, not requested, on a page named as in the menu', () {
     final list = File('lib/screens/shared/request_list_screen.dart').readAsStringSync();
-    expect(list, contains("label: widget.category == ServiceCategory.sakunaIncident ? tr('Report an Incident') : 'New Request',"));
+    expect(list, contains("label: widget.category == ServiceCategory.sakunaIncident ? tr('Report an Incident') : tr('New Request'),"));
     expect(list, contains("tr('You have not reported an incident yet.')"));
     expect(File('lib/screens/sakuna/sakuna_screen.dart').readAsStringSync(), contains("title: Text(tr('Emergency'))"));
   });
