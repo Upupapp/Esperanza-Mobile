@@ -7,6 +7,7 @@ import '../../services/citizen_session_service.dart';
 import '../../services/mock_catalog.dart';
 import '../../services/notification_feed.dart';
 import '../../services/notifications_service.dart';
+import '../../services/requests_service.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_haptics.dart';
 import '../../widgets/access_guard.dart';
@@ -240,6 +241,10 @@ class _RootShellState extends State<RootShell> with WidgetsBindingObserver {
     // Read the account again so Dokyu and Tulong open without a restart.
     final session = context.read<CitizenSessionService>();
     unawaited(session.refresh().catchError((Object _) {}));
+    // And the office's past records: they wait until the account is verified
+    // (meta.pending), and nothing else reloads them (flows review, 2026-11-20).
+    final requests = context.read<RequestsService?>();
+    if (requests != null) unawaited(requests.refreshRecords().catchError((Object _) {}));
     final target = await VerifiedWelcomeDialog.show(context);
     await service.alertShown(welcome);
     _alertOpen = false;

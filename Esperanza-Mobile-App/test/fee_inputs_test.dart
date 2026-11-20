@@ -15,6 +15,7 @@ import 'package:esperanza_mobile/services/citizen_session_service.dart';
 import 'package:esperanza_mobile/services/master_file_service.dart';
 import 'package:esperanza_mobile/services/requests_service.dart';
 import 'package:esperanza_mobile/theme/app_colors.dart';
+import 'package:esperanza_mobile/utils/client_uuid.dart';
 import 'package:esperanza_mobile/utils/fee_inputs.dart';
 import 'package:esperanza_mobile/widgets/app_button.dart';
 
@@ -158,6 +159,27 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(submitted?['fee_inputs'], {'declared_capital': 50000});
+    // The form's filing id goes with it (2026-11-20), so a repeated Submit
+    // gets the same request back.
+    expect(submitted?['client_uuid'], matches(RegExp(r'^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$')));
     expect(tester.takeException(), isNull);
+  });
+
+  test('a filing id is sent only when there is one, and each form gets its own', () async {
+    final bodies = <Map<String, dynamic>?>[];
+    FakeApi.installFull((r) {
+      bodies.add(r.body);
+      return _filed(r.body?['service_key'] as String);
+    });
+    final service = RequestsService();
+    addTearDown(service.dispose);
+
+    final id = newClientUuid();
+    await service.submit(serviceKey: 'brgy_clearance', formData: {'purpose': 'Employment'}, clientUuid: id);
+    await service.submit(serviceKey: 'brgy_clearance', formData: {'purpose': 'Employment'});
+
+    expect(bodies[0]!['client_uuid'], id);
+    expect(bodies[1]!.containsKey('client_uuid'), isFalse);
+    expect(newClientUuid(), isNot(id));
   });
 }

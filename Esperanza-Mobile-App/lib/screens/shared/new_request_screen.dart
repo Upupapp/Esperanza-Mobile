@@ -11,6 +11,7 @@ import '../../theme/app_colors.dart';
 import '../../theme/app_spacing.dart';
 import '../../theme/tulong_status.dart';
 import '../../utils/applicant_form_data.dart';
+import '../../utils/client_uuid.dart';
 import '../../utils/fee_inputs.dart';
 import '../../utils/requirement_document_type.dart';
 import '../../widgets/app_button.dart';
@@ -128,6 +129,9 @@ class NewRequestScreen extends StatefulWidget {
 class _NewRequestScreenState extends State<NewRequestScreen> {
   final _purposeController = TextEditingController();
 
+  /// This form's filing id, the same on every Submit (2026-11-20).
+  final String _clientUuid = newClientUuid();
+
   /// One per [CatalogItem.feeInputs] — the amounts this service's fee is
   /// computed from.
   late final Map<String, TextEditingController> _feeControllers = {
@@ -200,6 +204,7 @@ class _NewRequestScreenState extends State<NewRequestScreen> {
           ...applicantFormData(context.read<CitizenSessionService>().account),
         },
         feeInputs: FeeInputs.collect(widget.item.feeInputs, _feeControllers),
+        clientUuid: _clientUuid,
       );
     } on ApiException catch (e) {
       // No answer is not "not filed": look before Submit is offered again.

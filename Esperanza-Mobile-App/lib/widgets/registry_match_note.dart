@@ -16,7 +16,7 @@ class RegistryMatchNote extends StatelessWidget {
 
   /// On the Resident Profile, until the barangay confirms it.
   static String get onProfile =>
-      tr('Your barangay already has a record of you. The barangay office confirms it when they verify your account; until then you see only the details you gave.');
+      tr('Your barangay already has a record of you. The barangay office confirms it when they verify your account; until then you see only the details you gave, and any changes you send are kept and applied once they confirm.');
 
   final String text;
   const RegistryMatchNote(this.text, {super.key});

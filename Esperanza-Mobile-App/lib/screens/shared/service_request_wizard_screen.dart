@@ -17,6 +17,7 @@ import '../../services/resident_profile_service.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_spacing.dart';
 import '../../utils/age_calculator.dart';
+import '../../utils/client_uuid.dart';
 import '../../utils/fee_inputs.dart';
 import '../../utils/peso_text.dart';
 import '../../utils/ph_mobile.dart';
@@ -87,6 +88,10 @@ class ServiceRequestWizardScreen extends StatefulWidget {
 }
 
 class _ServiceRequestWizardScreenState extends State<ServiceRequestWizardScreen> {
+  /// This form's filing id, the same on every Submit: a second tap after a
+  /// slow answer gets the first request back (2026-11-20).
+  final String _clientUuid = newClientUuid();
+
   /// The primary demo resident — same id ResidentProfileService and
   /// RequestsService already use for their own Perlita-specific logic. Only
   /// her forms get [CatalogItem.demoDefaults]/[CatalogItem.demoPurpose]
@@ -798,6 +803,7 @@ class _ServiceRequestWizardScreenState extends State<ServiceRequestWizardScreen>
         feeInputs: {
           for (final name in widget.item.feeInputs) name: ?_feeValue(name),
         },
+        clientUuid: _clientUuid,
       );
     } on ApiException catch (e) {
       // No answer is not "not filed": look before Submit is offered again.

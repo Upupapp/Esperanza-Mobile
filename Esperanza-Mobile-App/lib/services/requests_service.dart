@@ -639,15 +639,23 @@ class RequestsService extends ChangeNotifier {
   /// service_key + form_data, plus `fee_inputs` when the service's fee is
   /// assessed on a declared amount ([CatalogItem.feeInputs]; the server
   /// refuses the filing without them). No attachments: no submission-time
-  /// upload endpoint exists.
+  /// upload endpoint exists. [clientUuid], made once per form
+  /// ([newClientUuid]), makes a repeated Submit get the same request back
+  /// instead of a second one (flows review, 2026-11-20).
   Future<ServiceRequest> submit({
     required String serviceKey,
     required Map<String, dynamic> formData,
     Map<String, num> feeInputs = const {},
+    String? clientUuid,
   }) async {
     final res = await api.post(
       '/citizen/requests',
-      body: {'service_key': serviceKey, 'form_data': formData, if (feeInputs.isNotEmpty) 'fee_inputs': feeInputs},
+      body: {
+        'service_key': serviceKey,
+        'form_data': formData,
+        if (feeInputs.isNotEmpty) 'fee_inputs': feeInputs,
+        if (clientUuid != null) 'client_uuid': clientUuid,
+      },
     );
     _requireRef(res);
     final request = _requestFromDetail(res.map);

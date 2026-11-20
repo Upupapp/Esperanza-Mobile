@@ -181,6 +181,8 @@ void main() {
     await _pumpDetail(tester);
 
     expect(find.textContaining('Nothing is needed from you'), findsOneWidget);
+    // It is with the assessor again: it sits on Assessment, not For Approval.
+    expect(TulongStatus.stepFor('Returned for Reassessment'), 'Assessment');
     // Not approved yet: no amount card.
     expect(find.text('Approved amount'), findsNothing);
   });

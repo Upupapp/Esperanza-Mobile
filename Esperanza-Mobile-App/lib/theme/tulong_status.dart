@@ -76,10 +76,12 @@ class TulongStatus {
 
   static bool isTulongOnly(String label) => tulongOnly.contains(label);
 
-  /// The main-line step a side state sits on.
+  /// The main-line step a side state sits on. A case returned for
+  /// reassessment goes back to Assessment (the backend's TulongStatus::
+  /// TRANSITIONS), so it shows there, as the website does (2026-11-20).
   static String stepFor(String status) => switch (status) {
     needsRequirements => initialScreening,
-    returnedForReassessment => forApproval,
+    returnedForReassessment => assessment,
     _ => status,
   };
 
