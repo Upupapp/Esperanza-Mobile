@@ -560,7 +560,7 @@ class _RequestTile extends StatelessWidget {
                 // PostActionButton's own label elsewhere in this app.
                 Flexible(
                   child: Text(
-                    '${tr('Submitted')} ${shortDate(request.submittedAt)}',
+                    '${tr('Submitted on')} ${shortDate(request.submittedAt)}',
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(fontSize: AppTextSize.fine, color: AppColors.textMuted),
                   ),

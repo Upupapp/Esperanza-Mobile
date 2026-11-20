@@ -235,7 +235,7 @@ class _MyRequestCard extends StatelessWidget {
               ),
             const SizedBox(height: AppSpacing.xs),
             Text(
-              '${tr('Submitted')} ${shortDate(request.submittedAt)}',
+              '${tr('Submitted on')} ${shortDate(request.submittedAt)}',
               style: const TextStyle(fontSize: AppTextSize.label, color: AppColors.textMuted),
             ),
             const Divider(height: AppSpacing.xl),

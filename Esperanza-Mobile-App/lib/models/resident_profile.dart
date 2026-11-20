@@ -17,6 +17,7 @@ library;
 import '../services/json_read.dart';
 import '../utils/age_calculator.dart';
 import 'citizen_account.dart';
+import '../l10n/tr.dart';
 
 /// Where a Constituents record originated — lets a future Web Admin
 /// distinguish citizen self-service submissions from barangay encoding.
@@ -39,11 +40,11 @@ extension VerificationStatusX on VerificationStatus {
   /// The short citizen-facing explanation shown under the status label —
   /// see Section 13 of the spec for the exact copy per state.
   String get citizenMessage => switch (this) {
-        VerificationStatus.draft => 'Complete your resident and household information.',
-        VerificationStatus.incomplete => 'Continue your Resident Profile.',
-        VerificationStatus.pendingVerification => 'Esperanza LGU is reviewing your submission.',
-        VerificationStatus.needsCorrection => 'Some information needs to be updated.',
-        VerificationStatus.verified => 'Your resident profile has been verified.',
+        VerificationStatus.draft => tr('Complete your resident and household information.'),
+        VerificationStatus.incomplete => tr('Continue your Resident Profile.'),
+        VerificationStatus.pendingVerification => tr('Esperanza LGU is reviewing your submission.'),
+        VerificationStatus.needsCorrection => tr('Some information needs to be updated.'),
+        VerificationStatus.verified => tr('Your resident profile has been verified.'),
       };
 }
 

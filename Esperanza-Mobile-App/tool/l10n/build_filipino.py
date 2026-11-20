@@ -294,6 +294,10 @@ APP_ONLY = {
     'Your submitted information is currently being reviewed.': 'Chine-check pa ang info na ipinadala mo.',
     'Your resident profile has been verified by Esperanza LGU.':
         'Na-verify na ng Esperanza LGU ang resident profile mo.',
+    'Continue your Resident Profile.': 'Ituloy ang Resident Profile mo.',
+    'Esperanza LGU is reviewing your submission.': 'Chine-check ng Esperanza LGU ang ipinadala mo.',
+    'Your resident profile has been verified.': 'Na-verify na ang resident profile mo.',
+    'Submitted on': 'Na-submit noong',
 }
 
 # A Filipino phrase ending in a linker is the first half of a sentence the
