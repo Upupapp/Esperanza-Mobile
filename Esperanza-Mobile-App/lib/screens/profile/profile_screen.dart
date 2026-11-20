@@ -220,6 +220,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               padding: const EdgeInsets.only(bottom: AppSpacing.itemGap),
               child: ResidentProfileStatusCard(
                 profile: residentProfile,
+                percent: account.profileCompleteness,
                 onTap: () =>
                     Navigator.of(context).push(MaterialPageRoute(builder: (_) => const ResidentProfileOverviewScreen())),
               ),

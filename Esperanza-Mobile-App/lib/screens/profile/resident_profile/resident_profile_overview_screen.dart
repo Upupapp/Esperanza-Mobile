@@ -69,7 +69,7 @@ class _ResidentProfileOverviewScreenState extends State<ResidentProfileOverviewS
               style: TextStyle(fontSize: AppTextSize.helper, color: AppColors.textMuted, height: 1.4),
             ),
             const SizedBox(height: AppSpacing.lg),
-            _ProgressCard(profile: profile),
+            _ProgressCard(profile: profile, percent: account.profileCompleteness),
             // The household's registry code, once the server has one (2026-10-27).
             if (profile.household.registryCode != null) ...[
               const SizedBox(height: AppSpacing.md),
@@ -147,11 +147,12 @@ class _ResidentProfileOverviewScreenState extends State<ResidentProfileOverviewS
 
 class _ProgressCard extends StatelessWidget {
   final ResidentProfile profile;
-  const _ProgressCard({required this.profile});
+  final int percent;
+  const _ProgressCard({required this.profile, required this.percent});
 
   @override
   Widget build(BuildContext context) {
-    final pct = profile.overallCompletionPercent;
+    final pct = percent;
     return AppCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

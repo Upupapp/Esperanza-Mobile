@@ -17,7 +17,11 @@ class ResidentProfileStatusCard extends StatelessWidget {
   final ResidentProfile profile;
   final VoidCallback onTap;
 
-  const ResidentProfileStatusCard({super.key, required this.profile, required this.onTap});
+  /// The server's profile_completeness, the one figure the website shows too
+  /// (20 Nov: the website said 75% where this card said 79%).
+  final int? percent;
+
+  const ResidentProfileStatusCard({super.key, required this.profile, required this.onTap, this.percent});
 
   @override
   Widget build(BuildContext context) {
@@ -30,7 +34,7 @@ class ResidentProfileStatusCard extends StatelessWidget {
   }
 
   Widget _buildIncomplete() {
-    final pct = profile.overallCompletionPercent;
+    final pct = percent ?? profile.overallCompletionPercent;
     return AppCard(
       glass: true,
       padding: const EdgeInsets.all(AppSpacing.md),

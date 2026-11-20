@@ -4,6 +4,7 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:esperanza_mobile/services/message_language.dart';
 import 'package:esperanza_mobile/utils/date_text.dart';
 
 void main() {
@@ -35,5 +36,14 @@ void main() {
     expect(timeAgo(now.subtract(const Duration(minutes: 12)), now: now), '12 mins ago');
     expect(timeAgo(now.subtract(const Duration(hours: 3)), now: now), '3 hrs ago');
     expect(timeAgo(DateTime(2026, 9, 20, 9), now: now), 'Sep 20, 2026');
+  });
+
+  test('timeAgo is in Filipino when the app is (20 Nov)', () {
+    final now = DateTime(2026, 11, 20, 20);
+    MessageLanguage.filipino.value = true;
+    addTearDown(() => MessageLanguage.filipino.value = false);
+    expect(timeAgo(now.subtract(const Duration(seconds: 30)), now: now), 'Ngayon lang');
+    expect(timeAgo(now.subtract(const Duration(minutes: 12)), now: now), '12 minuto ang nakalipas');
+    expect(timeAgo(now.subtract(const Duration(hours: 10)), now: now), '10 oras ang nakalipas');
   });
 }

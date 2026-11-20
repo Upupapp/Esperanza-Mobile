@@ -304,6 +304,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                     if (account != null) ...[
                       ResidentProfileStatusCard(
                         profile: residentProfile!,
+                        percent: account.profileCompleteness,
                         onTap: () => Navigator.of(
                           context,
                         ).push(MaterialPageRoute(builder: (_) => const ResidentProfileOverviewScreen())),
@@ -357,9 +358,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                             Expanded(
                               child: StatTile(
                                 // "Account Details", not "Profile Complete": the
-                                // four contact fields on Edit Profile, which
-                                // legitimately differs from the Resident Profile
-                                // card's own percentage above.
+                                // server's profile_completeness, the same figure
+                                // as the Resident Profile card above and the
+                                // website (one rule since 20 Nov).
                                 label: tr('Account Details'),
                                 value: '${account.profileCompleteness}%',
                                 icon: Icons.badge_outlined,
