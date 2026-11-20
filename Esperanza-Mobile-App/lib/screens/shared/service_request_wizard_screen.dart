@@ -109,11 +109,11 @@ class _ServiceRequestWizardScreenState extends State<ServiceRequestWizardScreen>
   // step regardless of whether this service has a fee.
   int get _lastStep => _reviewStep;
 
-  late final List<String> _stepLabels = [
-    'Applicant Info',
+  List<String> get _stepLabels => [
+    tr('Applicant Info'),
     for (final s in _serviceSteps) s.label,
-    'Requirements',
-    'Review',
+    tr('Requirements'),
+    tr('Review'),
   ];
 
   int _step = 0;
@@ -572,7 +572,7 @@ class _ServiceRequestWizardScreenState extends State<ServiceRequestWizardScreen>
   String? _validateStep(int step) {
     if (step == 0) {
       if (_firstName.text.trim().isEmpty || _lastName.text.trim().isEmpty) {
-        return 'Please enter your first and last name.';
+        return tr('Please enter your first and last name.');
       }
       return PhMobile.validate(_contact.text);
     }
@@ -580,12 +580,12 @@ class _ServiceRequestWizardScreenState extends State<ServiceRequestWizardScreen>
       final s = _serviceSteps[step - 1];
       for (final f in s.fields) {
         if (!_isFieldVisible(f)) continue;
-        if (f.required && _isFieldEmpty(f)) return 'Please complete "${f.label}".';
+        if (f.required && _isFieldEmpty(f)) return '${tr('Please complete')} "${f.label}".';
         if (f.type == ServiceFieldType.number) {
           final t = _controllers[f.key]?.text.trim() ?? '';
-          if (t.isNotEmpty && FeeInputs.parse(t) == null) return '${f.label}: numbers only.';
+          if (t.isNotEmpty && FeeInputs.parse(t) == null) return '${f.label}: ${tr('numbers only.')}';
           if (widget.item.feeInputs.any((n) => _feeSource(n) == f.key) && FeeInputs.parse(t) == null) {
-            return '${f.label}: enter the amount; the fee is computed from it.';
+            return '${f.label}: ${tr('enter the amount; the fee is computed from it.')}';
           }
         }
         if (f.type == ServiceFieldType.phone) {
@@ -650,13 +650,13 @@ class _ServiceRequestWizardScreenState extends State<ServiceRequestWizardScreen>
         final v = _multiselectAnswer(f);
         return (v == null || v.isEmpty) ? '—' : v.join(', ');
       case ServiceFieldType.checkbox:
-        return (_values[f.key] == true) ? 'Yes' : 'No';
+        return (_values[f.key] == true) ? tr('Yes') : tr('No');
       case ServiceFieldType.derivedAge:
         final a = _computeAge(f.derivedFromKey!);
-        return a == null ? '—' : '$a years old';
+        return a == null ? '—' : '$a ${tr('years old')}';
       case ServiceFieldType.table:
         final rows = _tableRows(f.key);
-        return rows.isEmpty ? '—' : '${rows.length} added';
+        return rows.isEmpty ? '—' : '${rows.length} ${tr('added')}';
     }
   }
 
@@ -831,7 +831,7 @@ class _ServiceRequestWizardScreenState extends State<ServiceRequestWizardScreen>
     if (notUploaded.isNotEmpty) {
       AppDialogs.toast(
         context,
-        'Your request was filed, but ${notUploaded.join(', ')} could not be uploaded. Add it from your request.',
+        '${tr('Your request was filed, but')} ${notUploaded.join(', ')} ${tr('could not be uploaded. Add it from your request.')}',
         success: false,
       );
     }
@@ -894,7 +894,7 @@ class _ServiceRequestWizardScreenState extends State<ServiceRequestWizardScreen>
                     Expanded(
                       flex: 2,
                       child: AppButton(
-                        label: _step != _lastStep ? 'Continue' : 'Submit Request',
+                        label: _step != _lastStep ? tr('Continue') : tr('Submit Request'),
                         icon: _step == _lastStep ? Icons.send_rounded : Icons.arrow_forward_rounded,
                         iconTrailing: _step != _lastStep,
                         fullWidth: true,
@@ -933,7 +933,7 @@ class _ServiceRequestWizardScreenState extends State<ServiceRequestWizardScreen>
               const SizedBox(width: AppSpacing.sm),
               Expanded(
                 child: Text(
-                  "We've prefilled this from your Resident Profile. Changes here only apply to this request — to update your saved profile, use Edit Profile.",
+                  tr("We've prefilled this from your Resident Profile. Changes here only apply to this request — to update your saved profile, use Edit Profile."),
                   style: TextStyle(fontSize: AppTextSize.label, color: _accent.deep, height: 1.4),
                 ),
               ),
@@ -949,9 +949,9 @@ class _ServiceRequestWizardScreenState extends State<ServiceRequestWizardScreen>
           ),
         ),
         const SizedBox(height: AppSpacing.xl),
-        AppTextField(label: 'First name', controller: _firstName, required: true),
+        AppTextField(label: tr('First name'), controller: _firstName, required: true),
         const SizedBox(height: AppSpacing.lg),
-        AppTextField(label: 'Last name', controller: _lastName, required: true),
+        AppTextField(label: tr('Last name'), controller: _lastName, required: true),
         const SizedBox(height: AppSpacing.lg),
         AppTextField(label: tr('Address'), controller: _address, icon: Icons.place_outlined),
         const SizedBox(height: AppSpacing.lg),
@@ -1056,7 +1056,7 @@ class _ServiceRequestWizardScreenState extends State<ServiceRequestWizardScreen>
           options: f.options!,
           labelBuilder: (o) => o,
           onChanged: (v) => setState(() => _values[f.key] = v),
-          hintText: f.hint ?? 'Select ${f.label}',
+          hintText: f.hint ?? '${tr('Select')} ${f.label}',
           required: f.required,
         );
       case ServiceFieldType.multiselect:
@@ -1072,7 +1072,7 @@ class _ServiceRequestWizardScreenState extends State<ServiceRequestWizardScreen>
           children: [
             picker,
             const SizedBox(height: AppSpacing.sm),
-            AppTextField(hintText: 'Others (please specify)', controller: _controllerFor(_otherKey(f.key))),
+            AppTextField(hintText: tr('Others (please specify)'), controller: _controllerFor(_otherKey(f.key))),
           ],
         );
       case ServiceFieldType.checkbox:
@@ -1094,7 +1094,7 @@ class _ServiceRequestWizardScreenState extends State<ServiceRequestWizardScreen>
   /// "Add" and the row's name (the website's family members / dependents list).
   Widget _tableField(ServiceFormField f) {
     final rows = _tableRows(f.key);
-    final rowLabel = f.rowLabel ?? 'Entry';
+    final rowLabel = f.rowLabel ?? tr('Entry');
     final accent = _WizardAccent.of(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1113,7 +1113,7 @@ class _ServiceRequestWizardScreenState extends State<ServiceRequestWizardScreen>
               border: Border.all(color: AppColors.border),
             ),
             child: Text(
-              'None added yet.',
+              tr('None added yet.'),
               textAlign: TextAlign.center,
               style: AppTypography.captionSmallRegular.copyWith(color: AppColors.textMuted),
             ),
@@ -1138,7 +1138,7 @@ class _ServiceRequestWizardScreenState extends State<ServiceRequestWizardScreen>
                       ),
                     ),
                     IconButton(
-                      tooltip: 'Remove $rowLabel ${i + 1}',
+                      tooltip: '${tr('Remove')} $rowLabel ${i + 1}',
                       onPressed: () => _removeTableRow(f, rows[i]),
                       icon: const Icon(Icons.delete_outline_rounded, color: AppColors.slate600),
                     ),
@@ -1154,7 +1154,7 @@ class _ServiceRequestWizardScreenState extends State<ServiceRequestWizardScreen>
         OutlinedButton.icon(
           onPressed: () => _addTableRow(f),
           icon: const Icon(Icons.add_rounded, size: 18),
-          label: Text('Add $rowLabel'),
+          label: Text('${tr('Add')} $rowLabel'),
         ),
       ],
     );
@@ -1169,7 +1169,7 @@ class _ServiceRequestWizardScreenState extends State<ServiceRequestWizardScreen>
         options: c.options!,
         labelBuilder: (o) => o,
         onChanged: (v) => setState(() => _values[key] = v),
-        hintText: 'Select',
+        hintText: tr('Choose one'),
       );
     }
     if (c.type == 'date') {
@@ -1193,8 +1193,8 @@ class _ServiceRequestWizardScreenState extends State<ServiceRequestWizardScreen>
       children: [
         if (!_fromServer)
           AppTextField(
-            label: _hasPurposeField ? 'Additional notes (optional)' : 'Purpose',
-            hintText: 'e.g. Employment requirement, medical assistance for hospital bill...',
+            label: _hasPurposeField ? tr('Additional notes (optional)') : tr('Purpose'),
+            hintText: tr('e.g. Employment requirement, medical assistance for hospital bill...'),
             controller: _notesController,
             maxLines: 3,
           ),
@@ -1237,9 +1237,9 @@ class _ServiceRequestWizardScreenState extends State<ServiceRequestWizardScreen>
           style: TextStyle(fontSize: AppTextSize.card, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
         ),
         const SizedBox(height: AppSpacing.xs),
-        const Text(
-          'Make sure everything looks correct before submitting.',
-          style: TextStyle(fontSize: AppTextSize.helper, color: AppColors.textMuted, height: 1.4),
+        Text(
+          tr('Make sure everything looks correct before submitting.'),
+          style: const TextStyle(fontSize: AppTextSize.helper, color: AppColors.textMuted, height: 1.4),
         ),
         const SizedBox(height: AppSpacing.xl),
         _reviewRow(
@@ -1253,7 +1253,7 @@ class _ServiceRequestWizardScreenState extends State<ServiceRequestWizardScreen>
           onEdit: () => setState(() => _step = 0),
         ),
         _reviewRow(
-          'Mobile',
+          tr('Mobile'),
           _contact.text.trim().isEmpty ? '—' : _contact.text.trim(),
           onEdit: () => setState(() => _step = 0),
         ),
@@ -1272,12 +1272,12 @@ class _ServiceRequestWizardScreenState extends State<ServiceRequestWizardScreen>
                   : _prefilledFromProfile.contains(f.key)
                   ? _goToEditProfile
                   : () => setState(() => _step = i + 1),
-              editLabel: _prefilledFromProfile.contains(f.key) ? 'Edit Profile' : 'Edit',
+              editLabel: _prefilledFromProfile.contains(f.key) ? tr('Edit Profile') : tr('Edit'),
             ),
         ],
         if (!_fromServer)
           _reviewRow(
-            _hasPurposeField ? 'Additional notes' : 'Purpose',
+            _hasPurposeField ? tr('Additional notes') : tr('Purpose'),
             _notesController.text.trim().isEmpty ? '—' : _notesController.text.trim(),
             onEdit: () => setState(() => _step = _requirementsStep),
           ),
@@ -1290,7 +1290,7 @@ class _ServiceRequestWizardScreenState extends State<ServiceRequestWizardScreen>
         for (final req in _requirementInfos.where((r) => r.requiresUpload))
           _reviewRow(
             req.label,
-            _picked[req.label]?.fileName ?? (req.isRequired ? 'Not attached yet — add it later from your request' : 'Not attached'),
+            _picked[req.label]?.fileName ?? (req.isRequired ? tr('Not attached yet — add it later from your request') : tr('Not attached')),
             onEdit: () => setState(() => _step = _requirementsStep),
           ),
         if (widget.item.fee != 'Free') _reviewRow(tr('Fee'), widget.item.fee, onEdit: null),
@@ -1299,9 +1299,9 @@ class _ServiceRequestWizardScreenState extends State<ServiceRequestWizardScreen>
         PaymentGuidanceCard(item: widget.item, sayWhenFree: widget.category == ServiceCategory.dokyu),
         if (_documentMeta != null) ...[
           const SizedBox(height: AppSpacing.lg),
-          const Text(
-            'Preview',
-            style: TextStyle(fontSize: AppTextSize.body, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
+          Text(
+            tr('Preview'),
+            style: const TextStyle(fontSize: AppTextSize.body, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
           ),
           const SizedBox(height: AppSpacing.sm),
           _documentPreview(),
@@ -1346,7 +1346,7 @@ class _ServiceRequestWizardScreenState extends State<ServiceRequestWizardScreen>
         // Tap to open it full screen, where it can be pinched in and out.
         return Semantics(
           button: true,
-          hint: 'Opens the document full screen to zoom',
+          hint: tr('Opens the document full screen to zoom'),
           child: GestureDetector(
             onTap: () => Navigator.of(context).push(
               MaterialPageRoute(builder: (_) => DocumentFullScreen(sheet: sheet, barangaySealUrl: officials.sealUrl)),
@@ -1357,7 +1357,7 @@ class _ServiceRequestWizardScreenState extends State<ServiceRequestWizardScreen>
                 DocumentPaper(sheet: sheet, barangaySealUrl: officials.sealUrl),
                 const SizedBox(height: AppSpacing.xs),
                 Text(
-                  'Tap to view full screen and pinch to zoom.',
+                  tr('Tap to view full screen and pinch to zoom.'),
                   textAlign: TextAlign.center,
                   style: AppTypography.bodySmall.copyWith(color: AppColors.textMuted),
                 ),
@@ -1369,7 +1369,7 @@ class _ServiceRequestWizardScreenState extends State<ServiceRequestWizardScreen>
     );
   }
 
-  Widget _reviewRow(String label, String value, {required VoidCallback? onEdit, String editLabel = 'Edit'}) {
+  Widget _reviewRow(String label, String value, {required VoidCallback? onEdit, String? editLabel}) {
     return Padding(
       padding: const EdgeInsets.only(bottom: AppSpacing.md),
       child: Row(
@@ -1399,7 +1399,7 @@ class _ServiceRequestWizardScreenState extends State<ServiceRequestWizardScreen>
             GestureDetector(
               onTap: onEdit,
               child: Text(
-                editLabel,
+                editLabel ?? tr('Edit'),
                 style: TextStyle(fontSize: AppTextSize.helper, fontWeight: FontWeight.w600, color: _accent.strong),
               ),
             ),
@@ -1443,7 +1443,7 @@ class _DerivedAgeField extends StatelessWidget {
               const Icon(Icons.cake_outlined, size: 17, color: AppColors.slate400),
               const SizedBox(width: AppSpacing.sm),
               Text(
-                age == null ? 'Select your Date of Birth above first' : '$age years old',
+                age == null ? tr('Select your Date of Birth above first') : '$age ${tr('years old')}',
                 style: const TextStyle(
                   fontSize: AppTextSize.body,
                   color: AppColors.textBody,

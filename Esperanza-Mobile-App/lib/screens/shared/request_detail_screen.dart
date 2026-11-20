@@ -131,7 +131,7 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
   Future<void> _replaceFlagged(RequestsService service, String flaggedId, Attachment newAttachment) async {
     final path = newAttachment.localPath;
     if (path == null) {
-      AppDialogs.toast(context, 'Could not read the selected file. Please pick it again.', success: false);
+      AppDialogs.toast(context, tr('Could not read the selected file. Please pick it again.'), success: false);
       return;
     }
     setState(() => _busy = true);
@@ -140,7 +140,7 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
       final updated = await service.replaceRequirement(widget.requestId, requirementKey: flaggedId, filePath: path);
       if (mounted) {
         setState(() => _latest = updated);
-        AppDialogs.toast(context, 'Document replaced.');
+        AppDialogs.toast(context, tr('Document replaced.'));
       }
     } on ApiException catch (e) {
       if (mounted) AppDialogs.toast(context, e.message(), success: false);
@@ -155,7 +155,7 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
     final path = newAttachment.localPath;
     final papelesId = newAttachment.papelesId;
     if (path == null && papelesId == null) {
-      AppDialogs.toast(context, 'Could not read the selected file. Please pick it again.', success: false);
+      AppDialogs.toast(context, tr('Could not read the selected file. Please pick it again.'), success: false);
       return;
     }
     setState(() => _busy = true);
@@ -169,7 +169,7 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
       );
       if (mounted) {
         setState(() => _latest = updated);
-        AppDialogs.toast(context, 'Document attached.');
+        AppDialogs.toast(context, tr('Document attached.'));
       }
     } on ApiException catch (e) {
       if (mounted) AppDialogs.toast(context, e.message(), success: false);
@@ -185,7 +185,7 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
       final updated = await service.resubmit(widget.requestId);
       if (mounted) {
         setState(() => _latest = updated);
-        AppDialogs.toast(context, 'Application resubmitted.');
+        AppDialogs.toast(context, tr('Application resubmitted.'));
       }
     } on ApiException catch (e) {
       if (mounted) AppDialogs.toast(context, e.message(), success: false);
@@ -212,14 +212,13 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Withdraw this request?'),
+        title: Text(tr('Withdraw this request?')),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'The office stops working on ${request.referenceNumber} and it cannot be reopened. '
-              'To ask again, file a new request.',
+              '${tr('The office stops working on')} ${request.referenceNumber} ${tr('and it cannot be reopened. To ask again, file a new request.')}',
               style: AppTypography.helper,
             ),
             const SizedBox(height: AppSpacing.md),
@@ -232,7 +231,7 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
           FilledButton(
             style: FilledButton.styleFrom(backgroundColor: AppColors.danger),
             onPressed: () => Navigator.of(ctx).pop(true),
-            child: const Text('Withdraw'),
+            child: Text(tr('Withdraw')),
           ),
         ],
       ),
@@ -245,7 +244,7 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
       final updated = await service.withdraw(widget.requestId, reason: why);
       if (mounted) {
         setState(() => _latest = updated);
-        AppDialogs.toast(context, '${request.referenceNumber} withdrawn.');
+        AppDialogs.toast(context, '${request.referenceNumber} ${tr('withdrawn.')}');
       }
     } on ApiException catch (e) {
       if (mounted) AppDialogs.toast(context, e.message(), success: false);
@@ -292,7 +291,7 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
     if (item == null) {
       AppDialogs.toast(
         context,
-        unread ?? '${request.typeName} cannot be applied for in the app right now. Ask the office about it.',
+        unread ?? '${request.typeName} ${tr('cannot be applied for in the app right now. Ask the office about it.')}',
         success: false,
       );
       return;
@@ -397,7 +396,7 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
               if (request.category != ServiceCategory.sakunaIncident && request.purpose.isNotEmpty) ...[
                 const SizedBox(height: AppSpacing.xs),
                 Text(
-                  'Purpose: ${request.purpose}',
+                  '${tr('Purpose')}: ${request.purpose}',
                   style: AppTypography.bodySmallRegular.copyWith(color: AppColors.textPrimary),
                 ),
               ],
@@ -426,10 +425,10 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
                 Text(at.text, style: AppTypography.helper),
               ],
               const Divider(height: AppSpacing.xxl),
-              _infoRow('Submitted', dateAndTime(request.submittedAt)),
+              _infoRow(tr('Submitted'), dateAndTime(request.submittedAt)),
               // As the website works it out, from the service's processing time.
               if (due != null) _infoRow(tr('Expected release'), shortDate(due)),
-              if (!usesMilestones && request.adminRemarks != null) _infoRow('Admin remarks', request.adminRemarks!),
+              if (!usesMilestones && request.adminRemarks != null) _infoRow(tr('Admin remarks'), request.adminRemarks!),
             ],
           ),
         ),
@@ -446,7 +445,7 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
                 Text(tr('This request was cancelled'), style: AppTypography.cardHeading),
                 const SizedBox(height: AppSpacing.xs),
                 Text(
-                  request.adminRemarks != null ? 'The reason is shown under Status below.' : 'No reason was given.',
+                  request.adminRemarks != null ? tr('The reason is shown under Status below.') : tr('No reason was given.'),
                   style: AppTypography.helper,
                 ),
               ],
@@ -458,7 +457,7 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
           const SizedBox(height: AppSpacing.xl),
           _RejectedApplicationCard(
             reason: request.adminRemarks ?? tr('Visit the office below for details.'),
-            guidance: 'Submit a new ${request.typeName} application.',
+            guidance: '${tr('Submit a new')} ${request.typeName} ${tr('application.')}',
             onApplyAgain: () => _applyAgain(context, service, request, accent),
           ),
         ],
@@ -473,9 +472,8 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
               children: [
                 Text(tr('Not confirmed by the office'), style: AppTypography.cardHeading),
                 const SizedBox(height: AppSpacing.xs),
-                const Text(
-                  'The office could not confirm this report, or it repeats another one. If you still need help, '
-                  'report it again or call an emergency hotline.',
+                Text(
+                tr('The office could not confirm this report, or it repeats another one. If you still need help, report it again or call an emergency hotline.'),
                   style: AppTypography.helper,
                 ),
               ],
@@ -516,7 +514,7 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
           else
             _ManualVerificationCard(
               needsRequirements: request.status == TulongStatus.needsRequirements,
-              reason: request.adminRemarks ?? 'The request requires additional verification.',
+              reason: request.adminRemarks ?? tr('The request requires additional verification.'),
               // Nothing flagged, nothing missing: the server takes a
               // resubmit, and the website offers it (parity check, 2026-10-26).
               busy: _busy,
@@ -633,7 +631,7 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
         if (request.canWithdraw) ...[
           const SizedBox(height: AppSpacing.xl),
           AppButton(
-            label: 'Withdraw Request',
+            label: tr('Withdraw Request'),
             icon: Icons.undo_rounded,
             variant: AppButtonVariant.secondary,
             fullWidth: true,
@@ -643,15 +641,15 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
         ],
         const SizedBox(height: AppSpacing.xl),
         Text(
-          usesMilestones ? 'Request Timeline' : 'Status Timeline',
+          usesMilestones ? tr('Request Timeline') : tr('Status Timeline'),
           style: const TextStyle(fontSize: AppTextSize.body, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
         ),
         const SizedBox(height: AppSpacing.md),
         AppCard(
           child: request.statusHistory.isEmpty
-              ? const Padding(
-                  padding: EdgeInsets.symmetric(vertical: AppSpacing.md),
-                  child: Text('No history recorded yet.', style: TextStyle(color: AppColors.textMuted, fontSize: AppTextSize.label)),
+              ? Padding(
+                  padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
+                  child: Text(tr('No history recorded yet.'), style: const TextStyle(color: AppColors.textMuted, fontSize: AppTextSize.label)),
                 )
               : usesMilestones
                   ? RequestMilestoneTimeline(request: request, accent: accent)
@@ -717,23 +715,23 @@ class _RejectedApplicationCard extends StatelessWidget {
             children: [
               const Icon(Icons.cancel_outlined, size: 18, color: AppColors.rose700),
               const SizedBox(width: AppSpacing.sm),
-              const Text(
-                'Application Rejected',
-                style: TextStyle(fontSize: AppTextSize.body, fontWeight: FontWeight.w700, color: AppColors.rose700),
+              Text(
+                tr('Application Rejected'),
+                style: const TextStyle(fontSize: AppTextSize.body, fontWeight: FontWeight.w700, color: AppColors.rose700),
               ),
             ],
           ),
           const SizedBox(height: AppSpacing.md),
           Text(reason, style: AppTypography.bodySmallRegular.copyWith(color: AppColors.slate700, height: 1.45)),
           const SizedBox(height: AppSpacing.md),
-          const Text(
-            'What you can do:',
-            style: TextStyle(fontSize: AppTextSize.label, fontWeight: FontWeight.w700, color: AppColors.slate700),
+          Text(
+            tr('What you can do:'),
+            style: const TextStyle(fontSize: AppTextSize.label, fontWeight: FontWeight.w700, color: AppColors.slate700),
           ),
           const SizedBox(height: AppSpacing.xs),
           Text(guidance, style: AppTypography.bodySmallRegular.copyWith(color: AppColors.slate600, height: 1.4)),
           const SizedBox(height: AppSpacing.lg),
-          AppButton(label: 'Apply Again', fullWidth: true, onPressed: onApplyAgain),
+          AppButton(label: tr('Apply Again'), fullWidth: true, onPressed: onApplyAgain),
         ],
       ),
     );
@@ -797,12 +795,12 @@ class _CorrectionsSection extends StatelessWidget {
           const SizedBox(height: AppSpacing.xs),
           Text(
             allResolved
-                ? 'All flagged documents have been replaced — you may now resubmit.'
+                ? tr('All flagged documents have been replaced — you may now resubmit.')
                 : unresolved.length + missing.length > 1
-                    ? '${unresolved.length + missing.length} documents need your attention.'
+                    ? '${unresolved.length + missing.length} ${tr('documents need your attention.')}'
                     : unresolved.isNotEmpty
-                        ? '1 document requires correction.'
-                        : '1 required document still needs to be attached.',
+                        ? tr('1 document requires correction.')
+                        : tr('1 required document still needs to be attached.'),
             style: AppTypography.captionSmallRegular.copyWith(color: AppColors.slate500, height: 1.4),
           ),
           for (final flagged in unresolved)
@@ -843,7 +841,7 @@ class _CorrectionsSection extends StatelessWidget {
                   const SizedBox(width: AppSpacing.sm),
                   Expanded(
                     child: Text(
-                      '${done.requirementLabel}: replaced. The office checks it after you resubmit.',
+                      '${done.requirementLabel}: ${tr('replaced. The office checks it after you resubmit.')}',
                       style: AppTypography.captionSmallRegular.copyWith(color: AppColors.slate700, height: 1.4),
                     ),
                   ),
@@ -863,11 +861,11 @@ class _CorrectionsSection extends StatelessWidget {
             Text(
               unresolved.isNotEmpty
                   ? (unresolved.length > 1
-                        ? 'Replace the flagged documents above first, then resubmit.'
-                        : 'Replace the flagged document above first, then resubmit.')
+                        ? tr('Replace the flagged documents above first, then resubmit.')
+                        : tr('Replace the flagged document above first, then resubmit.'))
                   : missing.isNotEmpty
-                      ? 'Attach the required document${missing.length > 1 ? 's' : ''} above first, then resubmit.'
-                      : 'This request cannot be resubmitted right now. Pull down to refresh.',
+                      ? (missing.length > 1 ? tr('Attach the required documents above first, then resubmit.') : tr('Attach the required document above first, then resubmit.'))
+                      : tr('This request cannot be resubmitted right now. Pull down to refresh.'),
               style: AppTypography.captionSmallRegular.copyWith(color: AppColors.slate500, height: 1.4),
             ),
           ],
@@ -897,10 +895,10 @@ class _RequirementKindChip extends StatelessWidget {
   Widget build(BuildContext context) {
     final info = resolveRequirements([label]).single;
     final (text, bg, fg) = !info.requiresUpload
-        ? ('Done at the office', AppColors.slate100, AppColors.slate600)
+        ? (tr('Done at the office'), AppColors.slate100, AppColors.slate600)
         : info.isRequired
-        ? ('Required', AppColors.rose50, AppColors.rose600)
-        : ('If it applies', AppColors.slate100, AppColors.slate600);
+        ? (tr('Required'), AppColors.rose50, AppColors.rose600)
+        : (tr('If it applies'), AppColors.slate100, AppColors.slate600);
     return Padding(
       padding: const EdgeInsets.only(bottom: AppSpacing.xs),
       child: Container(
@@ -997,7 +995,7 @@ class _FlaggedRequirementCard extends StatelessWidget {
           ),
           const SizedBox(height: AppSpacing.xs),
           Text(
-            'Reason: ${flagged.reason}',
+            '${tr('Reason')}: ${flagged.reason}',
             style: const TextStyle(fontSize: AppTextSize.label, color: AppColors.slate600, height: 1.4),
           ),
           const SizedBox(height: AppSpacing.sm),
@@ -1053,11 +1051,11 @@ class _AttachSection extends StatelessWidget {
     final summary = [
       if (rejected > 0)
         rejected == 1
-            ? '1 document was not accepted: replace it below so the office can review it again.'
-            : '$rejected documents were not accepted: replace them below so the office can review them again.',
-      if (owed > 0) owed == 1 ? '1 required document still needs to be attached.' : '$owed required documents still need to be attached.',
-      if (owed == 0 && pending.isNotEmpty) 'Every required document is attached. You can change one until the office reviews it.',
-      if (rows.isNotEmpty) '$accepted of ${rows.length} accepted by the office.',
+            ? tr('1 document was not accepted: replace it below so the office can review it again.')
+            : '$rejected ${tr('documents were not accepted: replace them below so the office can review them again.')}',
+      if (owed > 0) owed == 1 ? tr('1 required document still needs to be attached.') : '$owed ${tr('required documents still need to be attached.')}',
+      if (owed == 0 && pending.isNotEmpty) tr('Every required document is attached. You can change one until the office reviews it.'),
+      if (rows.isNotEmpty) '$accepted ${tr('of')} ${rows.length} ${tr('accepted by the office.')}',
     ].join(' ');
     return GlassSurface(
       radius: AppRadius.xl,
@@ -1069,10 +1067,10 @@ class _AttachSection extends StatelessWidget {
             children: [
               Icon(Icons.upload_file_rounded, size: 18, color: accent),
               const SizedBox(width: AppSpacing.sm),
-              const Expanded(
+              Expanded(
                 child: Text(
-                  'Documents for this request',
-                  style: TextStyle(fontSize: AppTextSize.body, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
+                  tr('Documents for this request'),
+                  style: const TextStyle(fontSize: AppTextSize.body, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
                 ),
               ),
             ],
@@ -1105,7 +1103,7 @@ class _AttachSection extends StatelessWidget {
                         onPicked: (a) => onAttach(p.key, a),
                       )
                     else
-                      _RequirementStateRow(label: p.label, line: 'Nothing to upload: the office does this with you.', color: AppColors.slate500),
+                      _RequirementStateRow(label: p.label, line: tr('Nothing to upload: the office does this with you.'), color: AppColors.slate500),
                   ],
                 ),
               ),
@@ -1126,11 +1124,11 @@ class _AttachSection extends StatelessWidget {
                   : _RequirementStateRow(
                 label: r.label,
                 line: switch (r.status) {
-                  'Approved' => 'Accepted by the office${r.fileName == null ? '' : ' · ${r.fileName}'}',
-                  'Rejected' => 'Not accepted by the office',
-                  'Flagged for Replacement' => 'The office asked for a replacement',
-                  'Resubmitted' => 'Replaced; the office checks it again',
-                  _ => r.fileName == null ? 'With the office' : 'With the office · ${r.fileName}',
+                  'Approved' => '${tr('Accepted by the office')}${r.fileName == null ? '' : ' · ${r.fileName}'}',
+                  'Rejected' => tr('Not accepted by the office'),
+                  'Flagged for Replacement' => tr('The office asked for a replacement'),
+                  'Resubmitted' => tr('Replaced; the office checks it again'),
+                  _ => r.fileName == null ? tr('With the office') : '${tr('With the office')} · ${r.fileName}',
                 },
                 color: switch (r.status) {
                   'Approved' => AppColors.emerald700,
@@ -1173,14 +1171,14 @@ class _RejectedRequirement extends StatelessWidget {
       children: [
         _RequirementStateRow(
           label: row.label,
-          line: row.replaceable ? 'Not accepted by the office. Upload a replacement.' : 'Not accepted by the office',
+          line: row.replaceable ? tr('Not accepted by the office. Upload a replacement.') : tr('Not accepted by the office'),
           color: AppColors.rose600,
         ),
         if (why.isNotEmpty)
           Padding(
             padding: const EdgeInsets.only(left: 26, top: AppSpacing.xs),
             child: Text(
-              'Reason: $why',
+              '${tr('Reason')}: $why',
               style: AppTypography.captionSmallRegular.copyWith(color: AppColors.rose700, height: 1.4),
             ),
           ),
@@ -1218,10 +1216,10 @@ class _FeeCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final (bg, fg, icon, line) = payment.isPaid
-        ? (AppColors.emerald50, AppColors.emerald700, Icons.receipt_long_rounded, 'Paid. Official receipt ${payment.receiptNo ?? '—'}.')
+        ? (AppColors.emerald50, AppColors.emerald700, Icons.receipt_long_rounded, '${tr('Paid. Official receipt')} ${payment.receiptNo ?? '—'}.')
         : payment.isRejected
-        ? (AppColors.rose50, AppColors.rose600, Icons.error_outline_rounded, 'The payment was not accepted. Please contact the office.')
-        : (AppColors.orange50, AppColors.orange700, Icons.payments_outlined, 'Pay at the office and bring your reference number. The office issues the official receipt.');
+        ? (AppColors.rose50, AppColors.rose600, Icons.error_outline_rounded, tr('The payment was not accepted. Please contact the office.'))
+        : (AppColors.orange50, AppColors.orange700, Icons.payments_outlined, tr('Pay at the office and bring your reference number. The office issues the official receipt.'));
     return GlassSurface(
       radius: AppRadius.xl,
       padding: const EdgeInsets.all(AppSpacing.lg),
@@ -1264,9 +1262,9 @@ class _AssistanceCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final received = status == TulongStatus.completed;
     final title = switch (status) {
-      TulongStatus.readyForRelease => 'Ready to claim',
-      TulongStatus.completed => 'Assistance received',
-      _ => 'Approved — being prepared',
+      TulongStatus.readyForRelease => tr('Ready to claim'),
+      TulongStatus.completed => tr('Assistance received'),
+      _ => tr('Approved — being prepared'),
     };
     final amount = pesoText(received ? (assistance.releasedAmount ?? assistance.approvedAmount) : assistance.approvedAmount);
     return GlassSurface(
@@ -1292,12 +1290,12 @@ class _AssistanceCard extends StatelessWidget {
           ),
           if (amount != null) ...[
             const SizedBox(height: AppSpacing.md),
-            Text(received ? 'Amount received' : 'Approved amount', style: AppTypography.captionSmallRegular.copyWith(color: AppColors.slate600)),
+            Text(received ? tr('Amount received') : tr('Approved amount'), style: AppTypography.captionSmallRegular.copyWith(color: AppColors.slate600)),
             Text(amount, style: const TextStyle(fontSize: AppTextSize.card, fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
           ],
           if (received && assistance.releaseReference != null) ...[
             const SizedBox(height: AppSpacing.sm),
-            Text('Reference: ${assistance.releaseReference}', style: AppTypography.bodySmallRegular.copyWith(color: AppColors.slate700)),
+            Text('${tr('Reference')}: ${assistance.releaseReference}', style: AppTypography.bodySmallRegular.copyWith(color: AppColors.slate700)),
           ],
           if (received && assistance.releasedAt != null) ...[
             const SizedBox(height: AppSpacing.xs),
@@ -1306,7 +1304,7 @@ class _AssistanceCard extends StatelessWidget {
           if (claimHint && status == TulongStatus.readyForRelease) ...[
             const SizedBox(height: AppSpacing.sm),
             Text(
-              'Bring a valid ID to ${assistance.office ?? 'the office'} to claim it.',
+              '${tr('Bring a valid ID to')} ${assistance.office ?? tr('the office')} ${tr('to claim it.')}',
               style: AppTypography.bodySmallRegular.copyWith(color: AppColors.slate700, height: 1.4),
             ),
           ],
@@ -1358,12 +1356,10 @@ class _ManualVerificationCard extends StatelessWidget {
           const SizedBox(height: AppSpacing.sm),
           Text(
             needsRequirements
-                ? 'The office needs more for this case. Read the remarks above, or contact the MSWDO. This is still an '
-                      'active request, not a rejection.'
+                ? tr('The office needs more for this case. Read the remarks above, or contact the MSWDO. This is still an active request, not a rejection.')
                 : onResubmit != null
-                    ? 'When you have done what the office asks, resubmit the request so they review it again.'
-                    : 'The request requires additional verification. This is still an active request, not a rejection — no '
-                          'action is needed from you at this time.',
+                    ? tr('When you have done what the office asks, resubmit the request so they review it again.')
+                    : tr('The request requires additional verification. This is still an active request, not a rejection — no action is needed from you at this time.'),
             style: AppTypography.captionSmallRegular.copyWith(color: AppColors.slate500, height: 1.4),
           ),
           if (onResubmit != null) ...[
@@ -1475,14 +1471,14 @@ class _IncidentPhotos extends StatelessWidget {
                     )
                   : Semantics(
                       button: true,
-                      label: 'Open photo ${i + 1} of ${urls.length}',
+                      label: '${tr('Open photo')} ${i + 1} ${tr('of')} ${urls.length}',
                       child: InkWell(
                         onTap: () => Navigator.of(context).push(
                           MaterialPageRoute(
                             builder: (_) => ImageViewerScaffold(
-                              title: 'Photo ${i + 1} of ${urls.length}',
+                              title: '${tr('Photo')} ${i + 1} ${tr('of')} ${urls.length}',
                               image: NetworkImage(urls[i]!),
-                              semanticLabel: 'Photo ${i + 1} you sent with the report',
+                              semanticLabel: '${tr('Photo')} ${i + 1} ${tr('you sent with the report')}',
                             ),
                           ),
                         ),
@@ -1519,7 +1515,7 @@ class _ReleaseProofCard extends StatelessWidget {
           builder: (_) => ImageViewerScaffold(
             title: tr('Proof of release'),
             image: NetworkImage(url),
-            semanticLabel: 'Proof of release photo',
+            semanticLabel: tr('Proof of release photo'),
           ),
         ),
       );
@@ -1527,7 +1523,7 @@ class _ReleaseProofCard extends StatelessWidget {
     }
     final uri = Uri.tryParse(url);
     if (uri == null || !await launchUrl(uri, mode: LaunchMode.externalApplication)) {
-      if (context.mounted) AppDialogs.toast(context, 'Could not open the file. Pull down to refresh, then try again.', success: false);
+      if (context.mounted) AppDialogs.toast(context, tr('Could not open the file. Pull down to refresh, then try again.'), success: false);
     }
   }
 

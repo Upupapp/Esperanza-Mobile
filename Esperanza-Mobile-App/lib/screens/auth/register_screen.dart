@@ -57,13 +57,13 @@ class RegisterScreen extends StatefulWidget {
 }
 
 class _RegisterScreenState extends State<RegisterScreen> {
-  static const _stepLabels = [
-    'Personal Information',
-    'Terms & Conditions',
-    'Valid ID Upload',
-    'Selfie',
-    'Review',
-    'Verification Status',
+  static List<String> get _stepLabels => [
+    tr('Personal Information'),
+    tr('Terms & Conditions'),
+    tr('Valid ID Upload'),
+    tr('Selfie'),
+    tr('Review'),
+    tr('Verification Status'),
   ];
 
   late int _step;
@@ -154,7 +154,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   /// The steps the indicator shows: without Valid ID and Selfie when Didit's
   /// screen captures them after the account exists.
   List<String> get _visibleLabels => _hosted
-      ? const ['Personal Information', 'Terms & Conditions', 'Review', 'Verify Identity']
+      ? [tr('Personal Information'), tr('Terms & Conditions'), tr('Review'), tr('Verify Identity')]
       : _stepLabels;
 
   int get _visibleStep => !_hosted ? _step : switch (_step) { 0 => 0, 1 => 1, 4 => 2, _ => 3 };
@@ -171,11 +171,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
       final r = await IdentityCapture.verifyOnDidit();
       if (!mounted) return;
       if (r.launch.outcome == DiditLaunchOutcome.cancelled) {
-        setState(() => _diditMessage = 'Verification closed before it finished. You can start again now, or later from your profile.');
+        setState(() => _diditMessage = tr('Verification closed before it finished. You can start again now, or later from your profile.'));
         return;
       }
       if (r.launch.outcome == DiditLaunchOutcome.failed && r.launch.error == 'cameraAccessDenied') {
-        setState(() => _diditMessage = 'Esperanza needs your camera for the ID scan and face check. Allow camera access in Settings, then try again.');
+        setState(() => _diditMessage = tr('Esperanza needs your camera for the ID scan and face check. Allow camera access in Settings, then try again.'));
       }
       // Wait briefly for the result if Didit is still finishing it.
       setState(() => _checkingDidit = true);
@@ -271,25 +271,25 @@ class _RegisterScreenState extends State<RegisterScreen> {
     switch (step) {
       case 0:
         if (_firstName.text.trim().isEmpty || _lastName.text.trim().isEmpty) {
-          return 'Please enter your first and last name.';
+          return tr('Please enter your first and last name.');
         }
-        if (_email.text.trim().isEmpty) return 'Please enter your email address.';
+        if (_email.text.trim().isEmpty) return tr('Please enter your email address.');
         if (!_emailVerified) return tr('Please verify your email before continuing.');
         final mobileError = PhMobile.validate(_mobile.text);
         if (mobileError != null) return mobileError;
-        if (_barangay == null) return 'Please select your barangay.';
+        if (_barangay == null) return tr('Please select your barangay.');
         final unmet = PasswordStandard.unmetMessages(_password.text);
         if (unmet.isNotEmpty) return unmet.map((m) => '• $m').join('\n');
         return null;
       case 1:
-        if (!_termsAccepted) return 'Please accept the Terms & Conditions to continue.';
+        if (!_termsAccepted) return tr('Please accept the Terms & Conditions to continue.');
         return null;
       case 2:
-        if (_idType == null) return 'Please choose the type of ID.';
-        if (_idFilePath == null) return 'Please upload a valid ID to continue.';
+        if (_idType == null) return tr('Please choose the type of ID.');
+        if (_idFilePath == null) return tr('Please upload a valid ID to continue.');
         return null;
       case 3:
-        if (_selfiePath == null) return 'Please take a selfie to continue.';
+        if (_selfiePath == null) return tr('Please take a selfie to continue.');
         return null;
       default:
         return null;
@@ -317,7 +317,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   Future<void> _sendEmailCode() async {
     final email = _email.text.trim();
     if (!_emailShape.hasMatch(email)) {
-      setState(() => _emailError = 'Hindi valid ang email. Tingnan kung tama ang pagkakasulat (halimbawa: name@gmail.com).');
+      setState(() => _emailError = tr('That email is not valid. Check how it is written (for example: name@gmail.com).'));
       return;
     }
     setState(() {
@@ -337,7 +337,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       setState(() {
         _emailSending = false;
         _emailError = e.code == 'EMAIL_TAKEN'
-            ? 'Naka-register na ang email na ito. Gumamit ng ibang email.'
+            ? tr('This email is already registered. Use a different email.')
             : registrationErrorText(e);
       });
     }
@@ -346,7 +346,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   Future<void> _confirmEmailCode() async {
     final code = _emailCode.text.trim();
     if (code.length != 6) {
-      setState(() => _emailError = 'Ilagay ang 6-digit code na ipinadala sa iyong email.');
+      setState(() => _emailError = tr('Enter the 6-digit code sent to your email.'));
       return;
     }
     setState(() {
@@ -375,7 +375,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       context,
       allowedExtensions: ['jpg', 'jpeg', 'png', 'pdf'],
       withData: false,
-      explanation: 'Esperanza needs to let you choose a photo or scan of your valid ID. The LGU uses it to verify your account.',
+      explanation: tr('Esperanza needs to let you choose a photo or scan of your valid ID. The LGU uses it to verify your account.'),
     );
     if (result == null || result.files.isEmpty) return;
     final f = result.files.single;
@@ -394,7 +394,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       // A selfie: the front camera, so the resident need not flip it.
       preferredCamera: CameraDevice.front,
       maxDimension: 1280,
-      explanation: 'Esperanza needs your camera to take a selfie. The LGU compares it with your valid ID to verify your account.',
+      explanation: tr('Esperanza needs your camera to take a selfie. The LGU compares it with your valid ID to verify your account.'),
     );
     if (file == null || !mounted) return;
     final bytes = await file.readAsBytes();
@@ -552,7 +552,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     // The design's form wizard (2026-10): a navy header holding the stepper,
     // the step's form on a glass card, the pill buttons below.
     return Scaffold(
-      appBar: NavyBand.appBar(title: Text(_step == 5 ? 'Verification Status' : 'Create your account')),
+      appBar: NavyBand.appBar(title: Text(_step == 5 ? tr('Verification Status') : tr('Create your account'))),
       body: SafeArea(
         top: false,
         child: Column(
@@ -583,7 +583,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     Expanded(
                       flex: 2,
                       child: AppButton(
-                        label: _step == 4 ? 'Submit for Verification' : 'Continue',
+                        label: _step == 4 ? tr('Submit for Verification') : tr('Continue'),
                         icon: _step == 4 ? null : Icons.arrow_forward_rounded,
                         iconTrailing: true,
                         fullWidth: true,
@@ -624,14 +624,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
         Container(
           padding: const EdgeInsets.all(AppSpacing.md),
           decoration: BoxDecoration(color: AppColors.brand50, borderRadius: BorderRadius.circular(AppRadius.md)),
-          child: const Row(
+          child: Row(
             children: [
-              Icon(Icons.info_outline_rounded, color: AppColors.brand600, size: 18),
-              SizedBox(width: AppSpacing.sm),
+              const Icon(Icons.info_outline_rounded, color: AppColors.brand600, size: 18),
+              const SizedBox(width: AppSpacing.sm),
               Expanded(
                 child: Text(
-                  "Let's start with your basic information. You can complete your full Resident Profile later.",
-                  style: TextStyle(fontSize: AppTextSize.label, color: AppColors.brand700, height: 1.4),
+                  tr("Let's start with your basic information. You can complete your full Resident Profile later."),
+                  style: const TextStyle(fontSize: AppTextSize.label, color: AppColors.brand700, height: 1.4),
                 ),
               ),
             ],
@@ -642,17 +642,17 @@ class _RegisterScreenState extends State<RegisterScreen> {
           children: [
             Expanded(
               child: AppTextField(
-                label: 'First name',
+                label: tr('First name'),
                 controller: _firstName,
-                error: _attempted && _firstName.text.trim().isEmpty ? 'Required' : null,
+                error: _attempted && _firstName.text.trim().isEmpty ? tr('Required') : null,
               ),
             ),
             const SizedBox(width: AppSpacing.md),
             Expanded(
               child: AppTextField(
-                label: 'Last name',
+                label: tr('Last name'),
                 controller: _lastName,
-                error: _attempted && _lastName.text.trim().isEmpty ? 'Required' : null,
+                error: _attempted && _lastName.text.trim().isEmpty ? tr('Required') : null,
               ),
             ),
           ],
@@ -679,18 +679,18 @@ class _RegisterScreenState extends State<RegisterScreen> {
               child: SizedBox(
                 height: 48,
                 child: _emailVerified
-                    ? const Row(
+                    ? Row(
                         children: [
-                          Icon(Icons.verified_rounded, color: AppColors.emerald700, size: 20),
-                          SizedBox(width: AppSpacing.xs),
+                          const Icon(Icons.verified_rounded, color: AppColors.emerald700, size: 20),
+                          const SizedBox(width: AppSpacing.xs),
                           Text(
-                            'Verified',
-                            style: TextStyle(fontSize: AppTextSize.helper, fontWeight: FontWeight.w600, color: AppColors.emerald700),
+                            tr('Verified'),
+                            style: const TextStyle(fontSize: AppTextSize.helper, fontWeight: FontWeight.w600, color: AppColors.emerald700),
                           ),
                         ],
                       )
                     : AppButton(
-                        label: _emailCodeSent ? 'Resend' : 'Verify',
+                        label: _emailCodeSent ? tr('Resend') : tr('Verify'),
                         size: AppButtonSize.sm,
                         variant: _emailCodeSent ? AppButtonVariant.secondary : AppButtonVariant.primary,
                         loading: _emailSending,
@@ -707,12 +707,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
             children: [
               Expanded(
                 child: AppTextField(
-                  label: 'Verification code',
+                  label: tr('Verification code'),
                   controller: _emailCode,
                   keyboardType: TextInputType.number,
                   icon: Icons.mark_email_read_outlined,
-                  hintText: '6-digit code',
-                  hint: 'Ipinadala ang code sa ${_email.text.trim()}. Tingnan din ang spam folder.',
+                  hintText: tr('6-digit code'),
+                  hint: '${tr('The code was sent to')} ${_email.text.trim()}. ${tr('Check your spam folder too.')}',
                 ),
               ),
               const SizedBox(width: AppSpacing.md),
@@ -785,13 +785,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
             borderRadius: BorderRadius.circular(AppRadius.md),
             border: Border.all(color: AppColors.border),
           ),
-          child: const Text(
-            'By creating an Esperanza account, you agree to provide accurate information for barangay/municipal record-keeping. '
-            'Your data is used only for LGU service delivery (document requests, assistance programs, resident records) and is '
-            'not shared with third parties. Esperanza LGU staff may contact you to verify submitted information. False or '
-            'misleading information may result in your verification being rejected.\n\n'
-            'When you finish, your details are sent to the Municipality of Esperanza for verification.',
-            style: TextStyle(fontSize: AppTextSize.helper, color: AppColors.slate600, height: 1.5),
+          child: Text(
+            '${tr('By creating an Esperanza account, you agree to provide accurate information for barangay/municipal record-keeping. Your data is used only for LGU service delivery (document requests, assistance programs, resident records) and is not shared with third parties. Esperanza LGU staff may contact you to verify submitted information. False or misleading information may result in your verification being rejected.')}\n\n'
+            '${tr('When you finish, your details are sent to the Municipality of Esperanza for verification.')}',
+            style: const TextStyle(fontSize: AppTextSize.helper, color: AppColors.slate600, height: 1.5),
           ),
         ),
         // The full documents the box above summarises: the ones the
@@ -893,7 +890,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 const SizedBox(width: AppSpacing.md),
                 Expanded(
                   child: Text(
-                    _idFileName ?? 'ID uploaded',
+                    _idFileName ?? tr('ID uploaded'),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(fontSize: AppTextSize.helper, fontWeight: FontWeight.w600, color: AppColors.emerald700),
@@ -930,7 +927,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     style: TextStyle(fontSize: AppTextSize.helper, fontWeight: FontWeight.w700, color: AppColors.brand600),
                   ),
                   SizedBox(height: AppSpacing.xs),
-                  Text('JPG, PNG, or PDF', style: TextStyle(fontSize: AppTextSize.label, color: AppColors.textMuted)),
+                  Text(tr('JPG, PNG, or PDF'), style: TextStyle(fontSize: AppTextSize.label, color: AppColors.textMuted)),
                 ],
               ),
             ),
@@ -989,7 +986,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         const _SelfieTips(),
         const SizedBox(height: AppSpacing.xl),
         AppButton(
-          label: _selfieBytes != null ? 'Retake Selfie' : 'Take Selfie',
+          label: _selfieBytes != null ? tr('Retake Selfie') : tr('Take Selfie'),
           icon: Icons.camera_alt_outlined,
           variant: _selfieBytes != null ? AppButtonVariant.secondary : AppButtonVariant.primary,
           fullWidth: true,
@@ -1028,20 +1025,20 @@ class _RegisterScreenState extends State<RegisterScreen> {
         ),
         _reviewRow('Email', _email.text.trim(), onEdit: () => setState(() => _step = 0)),
         _reviewRow(
-          'Mobile',
+          tr('Mobile'),
           _mobile.text.trim().isEmpty ? '—' : _mobile.text.trim(),
           onEdit: () => setState(() => _step = 0),
         ),
         _reviewRow('Barangay', _barangay ?? '—', onEdit: () => setState(() => _step = 0)),
         _reviewRow(
           tr('Terms & Conditions'),
-          _termsAccepted ? 'Accepted' : 'Not accepted',
+          _termsAccepted ? tr('Accepted') : tr('Not accepted'),
           onEdit: () => setState(() => _step = 1),
         ),
         if (!_hosted) ...[
           _reviewRow(tr('Type of ID'), _idType ?? '—', onEdit: () => setState(() => _step = 2)),
-          _reviewRow('Valid ID', _idFileName ?? '—', onEdit: () => setState(() => _step = 2)),
-          _reviewRow('Selfie', _selfiePath != null ? 'Taken' : 'Not taken', onEdit: () => setState(() => _step = 3)),
+          _reviewRow(tr('Valid ID'), _idFileName ?? '—', onEdit: () => setState(() => _step = 2)),
+          _reviewRow('Selfie', _selfiePath != null ? tr('Taken') : tr('Not taken'), onEdit: () => setState(() => _step = 3)),
         ] else
           Padding(
             padding: EdgeInsets.only(bottom: AppSpacing.md),
@@ -1114,7 +1111,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         ),
         const SizedBox(height: AppSpacing.lg),
         Text(
-          _alreadyHasAccount ? 'Your Verification Status' : 'You\'re All Set!',
+          _alreadyHasAccount ? tr('Your Verification Status') : tr("You're All Set!"),
           textAlign: TextAlign.center,
           style: const TextStyle(fontSize: AppTextSize.card, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
         ),
@@ -1122,8 +1119,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
         if (!_alreadyHasAccount)
           Text(
             _accountNo != null && _otpDestination != null
-                ? 'Enter the 6-digit code sent to $_otpDestination to confirm your account.'
-                : 'Your email is verified. Your information has been sent to Esperanza LGU for review.',
+                ? '${tr('Enter the 6-digit code sent to')} $_otpDestination ${tr('to confirm your account.')}'
+                : tr('Your email is verified. Your information has been sent to Esperanza LGU for review.'),
             textAlign: TextAlign.center,
             style: const TextStyle(fontSize: AppTextSize.helper, color: AppColors.textMuted, height: 1.4),
           ),
@@ -1134,7 +1131,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         if (_signInError != null && !_alreadyHasAccount && account == null) ...[
           const SizedBox(height: AppSpacing.lg),
           Text(
-            'Your account was created, but signing in did not work: $_signInError',
+            '${tr('Your account was created, but signing in did not work:')} $_signInError',
             textAlign: TextAlign.center,
             style: const TextStyle(fontSize: AppTextSize.helper, color: AppColors.rose600, height: 1.4),
           ),
@@ -1150,7 +1147,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         if (_identityError != null && !_identitySent && !_alreadyHasAccount && account != null) ...[
           const SizedBox(height: AppSpacing.lg),
           Text(
-            'Your account was created, but your ID did not reach the LGU: $_identityError',
+            '${tr('Your account was created, but your ID did not reach the LGU:')} $_identityError',
             textAlign: TextAlign.center,
             style: const TextStyle(fontSize: AppTextSize.helper, color: AppColors.rose600, height: 1.4),
           ),
@@ -1166,7 +1163,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         if (_accountNo != null) ...[
           const SizedBox(height: AppSpacing.lg),
           AppTextField(
-            label: '6-digit code',
+            label: tr('6-digit code'),
             controller: _otpCode,
             keyboardType: TextInputType.number,
             icon: Icons.mark_email_read_outlined,
@@ -1237,10 +1234,9 @@ extension on _RegisterScreenState {
           style: TextStyle(fontSize: AppTextSize.card, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
         ),
         const SizedBox(height: AppSpacing.xs),
-        const Text(
-          'Have your valid ID ready. You will scan it with your camera, then do a quick face check - about 2 minutes. '
-          'The check is done by Didit, our identity verification provider. You can also do this later from your profile.',
-          style: TextStyle(fontSize: AppTextSize.helper, color: AppColors.textMuted, height: 1.4),
+        Text(
+          tr('Have your valid ID ready. You will scan it with your camera, then do a quick face check - about 2 minutes. The check is done by Didit, our identity verification provider. You can also do this later from your profile.'),
+          style: const TextStyle(fontSize: AppTextSize.helper, color: AppColors.textMuted, height: 1.4),
         ),
         if (_diditMessage != null) ...[
           const SizedBox(height: AppSpacing.sm),
@@ -1248,7 +1244,7 @@ extension on _RegisterScreenState {
         ],
         const SizedBox(height: AppSpacing.md),
         AppButton(
-          label: _checkingDidit ? 'Checking your identity…' : 'Verify My Identity',
+          label: _checkingDidit ? tr('Checking your identity…') : tr('Verify My Identity'),
           icon: Icons.document_scanner_outlined,
           fullWidth: true,
           loading: _launchingDidit,
@@ -1280,9 +1276,9 @@ class _SelfieTips extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        tip(Icons.wb_sunny_outlined, 'Stand in good light, facing the camera.'),
-        tip(Icons.face_outlined, 'Show your whole face: no sunglasses, mask or cap.'),
-        tip(Icons.person_outline_rounded, 'Only you in the photo, with a plain background if you can.'),
+        tip(Icons.wb_sunny_outlined, tr('Stand in good light, facing the camera.')),
+        tip(Icons.face_outlined, tr('Show your whole face: no sunglasses, mask or cap.')),
+        tip(Icons.person_outline_rounded, tr('Only you in the photo, with a plain background if you can.')),
         const SizedBox(height: AppSpacing.xs),
         Container(
           padding: const EdgeInsets.all(AppSpacing.md),
@@ -1291,16 +1287,15 @@ class _SelfieTips extends StatelessWidget {
             borderRadius: BorderRadius.circular(AppRadius.lg),
             border: Border.all(color: AppColors.navy700.withValues(alpha: 0.15)),
           ),
-          child: const Row(
+          child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Icon(Icons.lock_outline_rounded, size: 18, color: AppColors.navy800),
-              SizedBox(width: AppSpacing.sm),
+              const Icon(Icons.lock_outline_rounded, size: 18, color: AppColors.navy800),
+              const SizedBox(width: AppSpacing.sm),
               Expanded(
                 child: Text(
-                  'Your selfie is used only to verify your account: the LGU staff who review it compare it with your '
-                  'valid ID. It is not your profile photo and is never shown publicly.',
-                  style: TextStyle(fontSize: AppTextSize.label, color: AppColors.navy800, height: 1.4),
+                  tr('Your selfie is used only to verify your account: the LGU staff who review it compare it with your valid ID. It is not your profile photo and is never shown publicly.'),
+                  style: const TextStyle(fontSize: AppTextSize.label, color: AppColors.navy800, height: 1.4),
                 ),
               ),
             ],

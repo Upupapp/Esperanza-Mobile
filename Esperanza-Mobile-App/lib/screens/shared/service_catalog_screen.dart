@@ -67,7 +67,7 @@ class _ServiceCatalogScreenState extends State<ServiceCatalogScreen> {
     // the next one — this is what makes "not enough distinct values to
     // matter" transparently skip instead of showing a single-option menu.
     Widget body;
-    final appBarTitle = 'Select ${widget.title} Type';
+    final appBarTitle = '${tr('Choose a type of')} ${widget.title}';
     if (_needsScopeStep && _scope == null) {
       body = _ScopeStep(scopes: _availableScopes, accent: widget.accent, onSelected: (s) => setState(() => _scope = s));
     } else if (_needsDepartmentStep && _department == null) {
@@ -140,14 +140,14 @@ class _ScopeStep extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.lg, AppSpacing.lg, AppSpacing.xxl),
       children: [
-        const Text(
-          'Where is this service administered?',
-          style: TextStyle(fontSize: AppTextSize.card, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
+        Text(
+          tr('Where is this service administered?'),
+          style: const TextStyle(fontSize: AppTextSize.card, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
         ),
         const SizedBox(height: AppSpacing.xs),
-        const Text(
-          'Choose Barangay or Municipality-level services to narrow the list.',
-          style: TextStyle(fontSize: AppTextSize.helper, color: AppColors.textMuted, height: 1.4),
+        Text(
+          tr('Choose Barangay or Municipality-level services to narrow the list.'),
+          style: const TextStyle(fontSize: AppTextSize.helper, color: AppColors.textMuted, height: 1.4),
         ),
         const SizedBox(height: AppSpacing.xl),
         for (final scope in scopes)
@@ -173,14 +173,14 @@ class _DepartmentStep extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.lg, AppSpacing.lg, AppSpacing.xxl),
       children: [
-        const Text(
-          'Which office handles this?',
-          style: TextStyle(fontSize: AppTextSize.card, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
+        Text(
+          tr('Which office handles this?'),
+          style: const TextStyle(fontSize: AppTextSize.card, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
         ),
         const SizedBox(height: AppSpacing.xs),
-        const Text(
-          'Choose a department to see its specific services.',
-          style: TextStyle(fontSize: AppTextSize.helper, color: AppColors.textMuted, height: 1.4),
+        Text(
+          tr('Choose a department to see its specific services.'),
+          style: const TextStyle(fontSize: AppTextSize.helper, color: AppColors.textMuted, height: 1.4),
         ),
         const SizedBox(height: AppSpacing.xl),
         for (final dept in departments)
@@ -289,7 +289,7 @@ class _ItemListState extends State<_ItemList> {
                   onChanged: (v) => setState(() => _query = v),
                   textInputAction: TextInputAction.search,
                   decoration: InputDecoration(
-                    hintText: 'Search services',
+                    hintText: tr('Search services'),
                     prefixIcon: const Icon(Icons.search_rounded, color: AppColors.slate500),
                     contentPadding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: AppSpacing.md),
                     border: OutlineInputBorder(
@@ -310,7 +310,7 @@ class _ItemListState extends State<_ItemList> {
                   Padding(
                     padding: const EdgeInsets.only(top: AppSpacing.xxl),
                     child: Text(
-                      'No service matches "${_query.trim()}".',
+                      '${tr('No service matches')} "${_query.trim()}".',
                       style: const TextStyle(fontSize: AppTextSize.helper, color: AppColors.textMuted),
                     ),
                   ),

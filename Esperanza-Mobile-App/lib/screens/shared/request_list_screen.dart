@@ -33,7 +33,6 @@ import '../../models/access_level.dart';
 import '../../services/citizen_session_service.dart';
 import '../profile/profile_screen.dart';
 import '../tulong/certificates_screen.dart';
-import '../../services/message_language.dart';
 // This screen's own FAB-clearance constants — not navbar geometry. Pair
 // with `MediaQuery.paddingOf(context).bottom`, which RootShell's
 // `extendBody: true` keeps in sync with whatever the bottom nav bar
@@ -205,7 +204,7 @@ class _RequestListScreenState extends State<RequestListScreen> {
           accent: widget.accent,
           // An incident is reported, not requested (flow guide 2026-11-13,
           // MDRRMO bug 9): the website's own words for the button.
-          label: widget.category == ServiceCategory.sakunaIncident ? tr('Report an Incident') : 'New Request',
+          label: widget.category == ServiceCategory.sakunaIncident ? tr('Report an Incident') : tr('New Request'),
           // Dokyu and Tulong's RequestListScreen instances are both mounted
           // at once (RootShell's IndexedStack), so the FAB's default hero tag
           // — shared by every FloatingActionButton unless overridden — would
@@ -237,7 +236,7 @@ class _RequestListScreenState extends State<RequestListScreen> {
           Padding(
             padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.md, AppSpacing.lg, AppSpacing.xs),
             child: SegmentedTabs(
-              labels: ['Active (${activeAll.length + officeActive.length})', 'Done (${doneAll.length + officeDone.length})'],
+              labels: ['${tr('Active')} (${activeAll.length + officeActive.length})', '${tr('Done')} (${doneAll.length + officeDone.length})'],
               selectedIndex: _tab,
               onChanged: (i) => setState(() => _tab = i),
               accent: widget.accent,
@@ -256,7 +255,7 @@ class _RequestListScreenState extends State<RequestListScreen> {
                       color: _filters.isActive ? widget.accent : AppColors.slate600,
                     ),
                     label: Text(
-                      _filters.isActive ? 'Filter (${_filters.activeCount})' : 'Filter',
+                      _filters.isActive ? '${tr('Filter')} (${_filters.activeCount})' : tr('Filter'),
                       style: TextStyle(
                         color: _filters.isActive ? widget.accent : AppColors.slate700,
                         fontWeight: FontWeight.w600,
@@ -272,7 +271,7 @@ class _RequestListScreenState extends State<RequestListScreen> {
                 IconButton(
                   onPressed: visible.isEmpty ? null : () => _shareFilteredResults(visible),
                   icon: const Icon(Icons.ios_share_rounded),
-                  tooltip: 'Share results',
+                  tooltip: tr('Share results'),
                   style: IconButton.styleFrom(
                     side: const BorderSide(color: AppColors.slate200),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
@@ -311,7 +310,7 @@ class _RequestListScreenState extends State<RequestListScreen> {
                             ),
                           if (_filters.dateRange != null)
                             ActiveFilterChip(
-                              label: 'Date range',
+                              label: tr('Date range'),
                               accent: widget.accent,
                               onRemove: () => setState(() => _filters = _filters.copyWith(clearDateRange: true)),
                             ),
@@ -321,7 +320,7 @@ class _RequestListScreenState extends State<RequestListScreen> {
                   ),
                   TextButton(
                     onPressed: () => setState(() => _filters = const RequestFilters()),
-                    child: const Text('Clear All'),
+                    child: Text(tr('Clear All')),
                   ),
                 ],
               ),
@@ -339,7 +338,7 @@ class _RequestListScreenState extends State<RequestListScreen> {
                 crossAxisAlignment: WrapCrossAlignment.center,
                 children: [
                   Text(
-                    '${visible.length + officeShown.length} result${visible.length + officeShown.length == 1 ? '' : 's'}',
+                    '${visible.length + officeShown.length} ${visible.length + officeShown.length == 1 ? tr('result') : tr('results')}',
                     style: const TextStyle(fontSize: AppTextSize.label, color: AppColors.textMuted, fontWeight: FontWeight.w500),
                   ),
                   // Certificates live on the Tulong page, as on the website
@@ -352,7 +351,7 @@ class _RequestListScreenState extends State<RequestListScreen> {
                           Navigator.of(context).push(MaterialPageRoute(builder: (_) => const CertificatesScreen())),
                       icon: Icon(Icons.workspace_premium_outlined, size: AppSizes.iconSm, color: widget.accent),
                       label: Text(
-                        MessageLanguage.filipino.value ? 'Aking mga sertipiko' : 'My certificates',
+                        tr('My certificates'),
                         style: TextStyle(color: widget.accent, fontWeight: FontWeight.w600),
                       ),
                     ),
@@ -367,17 +366,17 @@ class _RequestListScreenState extends State<RequestListScreen> {
                   ? _EmptyStateArea(
                       icon: widget.icon,
                       title: _filters.isActive
-                          ? 'No requests match your current filters.'
+                          ? tr('No requests match your current filters.')
                           : widget.category == ServiceCategory.sakunaIncident && _tab == 0
                               ? tr('You have not reported an incident yet.')
-                              : (_tab == 0 ? 'No active requests' : 'No completed requests yet'),
+                              : (_tab == 0 ? tr('No active requests') : tr('No completed requests yet')),
                       description: _filters.isActive || widget.category == ServiceCategory.sakunaIncident
                           ? null
-                          : (_tab == 0 ? 'Tap "New Request" to get started.' : null),
+                          : (_tab == 0 ? tr('Tap "New Request" to get started.') : null),
                       action: _filters.isActive
                           ? OutlinedButton(
                               onPressed: () => setState(() => _filters = const RequestFilters()),
-                              child: const Text('Clear Filters'),
+                              child: Text(tr('Clear Filters')),
                             )
                           : null,
                     )
@@ -561,7 +560,7 @@ class _RequestTile extends StatelessWidget {
                 // PostActionButton's own label elsewhere in this app.
                 Flexible(
                   child: Text(
-                    'Submitted ${shortDate(request.submittedAt)}',
+                    '${tr('Submitted')} ${shortDate(request.submittedAt)}',
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(fontSize: AppTextSize.fine, color: AppColors.textMuted),
                   ),
@@ -617,8 +616,7 @@ class _ApprovalNotice extends StatelessWidget {
                 ),
                 const SizedBox(height: AppSpacing.xs),
                 Text(
-                  'You can file a $service request once the LGU has checked your valid ID and verified your account. '
-                  'You will be notified when that is done.',
+                  '${tr('You can file a')} $service ${tr('request once the LGU has checked your valid ID and verified your account. You will be notified when that is done.')}',
                   style: AppTypography.helper.copyWith(color: AppColors.slate700),
                 ),
                 TextButton(

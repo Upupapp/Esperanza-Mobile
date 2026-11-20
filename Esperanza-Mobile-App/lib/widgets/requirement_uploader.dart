@@ -180,9 +180,9 @@ class RequirementUploader extends StatelessWidget {
                   margin: const EdgeInsets.only(left: AppSpacing.xs),
                   padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xs, vertical: AppSpacing.xs),
                   decoration: BoxDecoration(color: AppColors.slate100, borderRadius: BorderRadius.circular(AppRadius.full)),
-                  child: const Text(
-                    'Optional',
-                    style: TextStyle(fontSize: AppTextSize.fine, fontWeight: FontWeight.w700, color: AppColors.slate500),
+                  child: Text(
+                    tr('Optional'),
+                    style: const TextStyle(fontSize: AppTextSize.fine, fontWeight: FontWeight.w700, color: AppColors.slate500),
                   ),
                 ),
             ],
@@ -293,10 +293,10 @@ class _UploadSourceSheet extends StatelessWidget {
                     ),
                   ),
                 ),
-                _option(context, Icons.photo_camera_outlined, 'Take Photo', _UploadSource.camera),
-                _option(context, Icons.image_outlined, 'Choose Image', _UploadSource.gallery),
-                _option(context, Icons.description_outlined, 'Choose File / PDF', _UploadSource.document),
-                if (offerPapeles) _option(context, Icons.folder_copy_outlined, 'From My Papeles', _UploadSource.papeles),
+                _option(context, Icons.photo_camera_outlined, tr('Take Photo'), _UploadSource.camera),
+                _option(context, Icons.image_outlined, tr('Choose Image'), _UploadSource.gallery),
+                _option(context, Icons.description_outlined, tr('Choose File / PDF'), _UploadSource.document),
+                if (offerPapeles) _option(context, Icons.folder_copy_outlined, tr('From My Papeles'), _UploadSource.papeles),
                 const Divider(height: 1),
                 ListTile(
                   leading: const Icon(Icons.close_rounded, color: AppColors.rose600),
@@ -340,11 +340,11 @@ class _PapelesPickerSheet extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const Padding(
-                padding: EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.lg, AppSpacing.lg, AppSpacing.sm),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.lg, AppSpacing.lg, AppSpacing.sm),
                 child: Text(
-                  'From My Papeles',
-                  style: TextStyle(fontSize: AppTextSize.body, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
+                  tr('From My Papeles'),
+                  style: const TextStyle(fontSize: AppTextSize.body, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
                 ),
               ),
               Flexible(
@@ -394,7 +394,7 @@ class _UploadPrompt extends StatelessWidget {
     return Semantics(
       container: true,
       button: true,
-      label: 'Upload $label',
+      label: '${tr('Upload')} $label',
       excludeSemantics: true,
       onTap: onTap,
       child: InkWell(
@@ -418,7 +418,7 @@ class _UploadPrompt extends StatelessWidget {
               // long requirement name wraps onto a second line instead of
               // being truncated or overflowing.
               Text(
-                'Upload $label',
+                '${tr('Upload')} $label',
                 textAlign: TextAlign.center,
                 style: TextStyle(fontSize: AppTextSize.helper, fontWeight: FontWeight.w600, color: accent),
               ),
@@ -453,10 +453,10 @@ class _ExistingDocumentPrompt extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Row(
+          Row(
             children: [
-              Icon(Icons.folder_copy_outlined, size: 15, color: AppColors.emerald700),
-              SizedBox(width: AppSpacing.xs),
+              const Icon(Icons.folder_copy_outlined, size: 15, color: AppColors.emerald700),
+              const SizedBox(width: AppSpacing.xs),
               // Flexible — this card's available width was previously only
               // ever exercised inside NewRequestScreen (Dokyu); reusing the
               // same per-requirement uploaders inside
@@ -464,8 +464,8 @@ class _ExistingDocumentPrompt extends StatelessWidget {
               // padding overflowed this unwrapped Text on the right.
               Flexible(
                 child: Text(
-                  'Existing document found',
-                  style: TextStyle(fontSize: AppTextSize.label, fontWeight: FontWeight.w700, color: AppColors.emerald700),
+                  tr('Existing document found'),
+                  style: const TextStyle(fontSize: AppTextSize.label, fontWeight: FontWeight.w700, color: AppColors.emerald700),
                 ),
               ),
             ],
@@ -484,7 +484,7 @@ class _ExistingDocumentPrompt extends StatelessWidget {
                 child: OutlinedButton(
                   onPressed: onUploadNew,
                   style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm)),
-                  child: const Text('Upload New Document', style: TextStyle(fontSize: AppTextSize.label)),
+                  child: Text(tr('Upload New Document'), style: const TextStyle(fontSize: AppTextSize.label)),
                 ),
               ),
               const SizedBox(width: AppSpacing.sm),
@@ -495,7 +495,7 @@ class _ExistingDocumentPrompt extends StatelessWidget {
                     backgroundColor: AppColors.emerald500,
                     padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
                   ),
-                  child: const Text('Use Existing Document', style: TextStyle(fontSize: AppTextSize.label, color: Colors.white)),
+                  child: Text(tr('Use Existing Document'), style: const TextStyle(fontSize: AppTextSize.label, color: Colors.white)),
                 ),
               ),
             ],
@@ -568,7 +568,7 @@ class _AttachedTile extends StatelessWidget {
                     ),
                     const SizedBox(height: AppSpacing.xs),
                     Text(
-                      '${attachment.category.shortLabel} • ${attachment.readableSize} • Uploaded',
+                      '${attachment.category.shortLabel} • ${attachment.readableSize} • ${tr('Uploaded')}',
                       style: const TextStyle(fontSize: AppTextSize.fine, color: AppColors.textMuted),
                     ),
                   ],
@@ -637,10 +637,10 @@ class _StaffProcessNote extends StatelessWidget {
         children: [
           const Icon(Icons.info_outline_rounded, size: 16, color: AppColors.slate400),
           const SizedBox(width: AppSpacing.sm),
-          const Expanded(
+          Expanded(
             child: Text(
-              'Handled by our staff during processing — no document to upload here.',
-              style: TextStyle(fontSize: AppTextSize.label, color: AppColors.textMuted, height: 1.35),
+              tr('Handled by our staff during processing — no document to upload here.'),
+              style: const TextStyle(fontSize: AppTextSize.label, color: AppColors.textMuted, height: 1.35),
             ),
           ),
         ],

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../../l10n/tr.dart';
 import '../../models/catalog_item.dart';
 import '../../models/service_request.dart';
 import '../../services/requests_service.dart';
@@ -28,7 +29,7 @@ class TulongScreen extends StatelessWidget {
       builder: (context, catalog, reload) => RequestListScreen(
         category: ServiceCategory.tulong,
         title: 'Tulong',
-        subtitle: 'Submit and follow up assistance program requests.',
+        subtitle: tr('Submit and follow up assistance program requests.'),
         catalog: catalog,
         accent: AppColors.purple700,
         icon: Icons.volunteer_activism_outlined,

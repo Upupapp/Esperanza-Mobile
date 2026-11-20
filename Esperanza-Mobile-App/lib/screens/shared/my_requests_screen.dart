@@ -121,7 +121,7 @@ class _MyRequestsScreenState extends State<MyRequestsScreen> {
                         else if (failed)
                           EmptyState(
                             glyph: ClayGlyph.error,
-                            title: 'Your requests could not be loaded',
+                            title: tr('Your requests could not be loaded'),
                             description: _loadError,
                             action: AppButton(
                               label: tr('Try Again'),
@@ -134,8 +134,8 @@ class _MyRequestsScreenState extends State<MyRequestsScreen> {
                         else
                           EmptyState(
                             icon: Icons.folder_open_outlined,
-                            title: _tab == 0 ? 'No requests yet' : 'No ${_tab == 1 ? 'Dokyu' : 'Tulong'} requests yet',
-                            description: 'Your submitted Dokyu and Tulong requests will appear here.',
+                            title: _tab == 0 ? tr('No requests yet') : _tab == 1 ? tr('No Dokyu requests yet') : tr('No Tulong requests yet'),
+                            description: tr('Your submitted Dokyu and Tulong requests will appear here.'),
                           ),
                       ],
                     )
@@ -235,7 +235,7 @@ class _MyRequestCard extends StatelessWidget {
               ),
             const SizedBox(height: AppSpacing.xs),
             Text(
-              'Submitted ${shortDate(request.submittedAt)}',
+              '${tr('Submitted')} ${shortDate(request.submittedAt)}',
               style: const TextStyle(fontSize: AppTextSize.label, color: AppColors.textMuted),
             ),
             const Divider(height: AppSpacing.xl),

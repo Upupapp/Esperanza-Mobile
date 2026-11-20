@@ -70,6 +70,187 @@ APP_ONLY = {
     'Warning': 'Babala',
     'Esperanza LGU reviews your residency once your identity is verified: with the ID check below, or by LGU staff using your valid ID.':
         'Ire-review ng Esperanza LGU ang residency mo kapag verified na ang identity mo: gamit ang ID check sa ibaba, o ng staff ng LGU gamit ang valid ID mo.',
+    # Register + Tulong screens (flows review, 20 Nov 2026): the English that was not yet through tr().
+    'Verification closed before it finished. You can start again now, or later from your profile.':
+        'Nagsara ang verification bago natapos. Puwede kang magsimula ulit ngayon, o mamaya sa profile mo.',
+    'Esperanza needs your camera for the ID scan and face check. Allow camera access in Settings, then try again.':
+        'Kailangan ng Esperanza ang camera mo para sa ID scan at face check. I-allow ang camera sa Settings, tapos subukan ulit.',
+    'That email is not valid. Check how it is written (for example: name@gmail.com).':
+        'Hindi valid ang email. Tingnan kung tama ang pagkakasulat (halimbawa: name@gmail.com).',
+    'Esperanza needs to let you choose a photo or scan of your valid ID. The LGU uses it to verify your account.':
+        'Kailangan ng Esperanza na makapili ka ng photo o scan ng valid ID mo. Ginagamit ito ng LGU para i-verify ang account mo.',
+    'Esperanza needs your camera to take a selfie. The LGU compares it with your valid ID to verify your account.':
+        'Kailangan ng Esperanza ang camera mo para mag-selfie. Ikinukumpara ito ng LGU sa valid ID mo para i-verify ang account mo.',
+    'First name': 'Pangalan',
+    'Last name': 'Apelyido',
+    'The code was sent to': 'Ipinadala ang code sa',
+    'Check your spam folder too.': 'Tingnan din ang spam folder.',
+    'ID uploaded': 'Na-upload na ang ID',
+    'JPG, PNG, or PDF': 'JPG, PNG, o PDF',
+    'Your Verification Status': 'Status ng verification mo',
+    'Enter the 6-digit code sent to': 'Ilagay ang 6-digit code na ipinadala sa',
+    'to confirm your account.': 'para kumpirmahin ang iyong account.',
+    'Your account was created, but signing in did not work:':
+        'Nagawa na ang account mo, pero hindi gumana ang pag-sign in:',
+    'Checking your identity…': 'Chine-check ang identity mo…',
+    'Your selfie is used only to verify your account: the LGU staff who review it compare it with your valid ID. It is not your profile photo and is never shown publicly.':
+        'Ginagamit lang ang selfie mo para i-verify ang account mo: ikinukumpara ito ng LGU staff sa valid ID mo. Hindi ito ang profile photo mo at hindi ito ipinapakita sa iba.',
+    'Have your valid ID ready. You will scan it with your camera, then do a quick face check - about 2 minutes. The check is done by Didit, our identity verification provider. You can also do this later from your profile.':
+        'Ihanda ang valid ID mo. I-scan mo ito gamit ang camera, tapos mabilis na face check - mga 2 minuto. Ang Didit, ang identity verification provider namin, ang gagawa ng check. Puwede mo rin itong gawin mamaya sa profile mo.',
+    'By creating an Esperanza account, you agree to provide accurate information for barangay/municipal record-keeping. Your data is used only for LGU service delivery (document requests, assistance programs, resident records) and is not shared with third parties. Esperanza LGU staff may contact you to verify submitted information. False or misleading information may result in your verification being rejected.':
+        'Sa paggawa ng Esperanza account, pumapayag kang magbigay ng tamang impormasyon para sa records ng barangay at munisipyo. Ginagamit lang ang data mo para sa mga serbisyo ng LGU (document requests, assistance programs, resident records) at hindi ito ibinibigay sa iba. Puwede kang kontakin ng staff ng Esperanza LGU para i-check ang info na ibinigay mo. Kapag mali o nakakalito ang info, puwedeng ma-reject ang verification mo.',
+    'Some of your details need a closer look from Esperanza LGU staff. No action needed from you right now.':
+        'Kailangan pang tingnang mabuti ng staff ng Esperanza LGU ang ilang detalye mo. Wala ka pang kailangang gawin ngayon.',
+    'Your account has been verified. You now have full access to Esperanza mobile services.':
+        'Verified na ang account mo. Magagamit mo na lahat ng services ng Esperanza app.',
+    'Your submission needs corrections before it can be verified. Please review and resubmit your information.':
+        'May kailangang itama sa ipinasa mo bago ito ma-verify. Pakitingnan at ipasa ulit ang info mo.',
+    'Complete your registration to begin the verification process.':
+        'Tapusin ang registration mo para masimulan ang verification.',
+    'Continue Registration': 'Ituloy ang Registration',
+    'Submit and follow up assistance program requests.':
+        'Mag-submit at i-follow up ang mga request para sa assistance programs.',
+    'Done': 'Tapos na',
+    'Share results': 'I-share ang results',
+    'Clear All': 'I-clear lahat',
+    'result': 'resulta',
+    'No requests match your current filters.': 'Walang request na tugma sa filters mo.',
+    'No active requests': 'Walang active na request',
+    'No completed requests yet': 'Wala pang tapos na request',
+    'Tap "New Request" to get started.': 'I-tap ang "Bagong hiling" para magsimula.',
+    'Clear Filters': 'I-clear ang filters',
+    'You can file a': 'Makakapag-file ka ng kahilingan sa',
+    'request once the LGU has checked your valid ID and verified your account. You will be notified when that is done.':
+        'kapag nasuri na ng LGU ang iyong valid ID at na-verify ang iyong account. Aabisuhan ka kapag tapos na ito.',
+    'No requests yet': 'Wala pang request',
+    'No Dokyu requests yet': 'Wala pang Dokyu request',
+    'No Tulong requests yet': 'Wala pang Tulong request',
+    'Your submitted Dokyu and Tulong requests will appear here.':
+        'Dito lalabas ang mga Dokyu at Tulong request na in-file mo.',
+    'Track This Request': 'I-track ang request na ito',
+    'Back to Home': 'Bumalik sa Home',
+    'Choose a type of': 'Pumili ng uri ng',
+    'Where is this service administered?': 'Saan pinoproseso ang service na ito?',
+    'Choose Barangay or Municipality-level services to narrow the list.':
+        'Pumili ng Barangay o Municipal na services para umikli ang listahan.',
+    'Which office handles this?': 'Aling office ang humahawak nito?',
+    'Choose a department to see its specific services.': 'Pumili ng department para makita ang mga service nito.',
+    'Search services': 'Maghanap ng service',
+    'No service matches': 'Walang service na tugma sa',
+    'Applicant Info': 'Info ng applicant',
+    'Please complete': 'Pakisagutan ang',
+    'numbers only.': 'numbers lang.',
+    'enter the amount; the fee is computed from it.': 'ilagay ang halaga; dito kukuwentahin ang fee.',
+    "We've prefilled this from your Resident Profile. Changes here only apply to this request — to update your saved profile, use Edit Profile.":
+        'Kinuha namin ito sa Resident Profile mo. Sa request na ito lang ang mga babaguhin mo rito — para i-update ang naka-save mong profile, gamitin ang Edit Profile.',
+    'Select': 'Pumili ng',
+    'Choose one': 'Pumili ng isa',
+    'Others (please specify)': 'Iba pa (pakisulat)',
+    'None added yet.': 'Wala pang naidagdag.',
+    'Add': 'Idagdag',
+    'Remove': 'Alisin',
+    'Process': 'Proseso',
+    'e.g. Employment requirement, medical assistance for hospital bill...':
+        'hal. requirement sa trabaho, medical assistance para sa hospital bill...',
+    'Submit Request': 'I-submit ang request',
+    'Additional notes (optional)': 'Dagdag na notes (optional)',
+    'Additional notes': 'Dagdag na notes',
+    'Make sure everything looks correct before submitting.': 'Siguraduhing tama lahat bago i-submit.',
+    'Not attached yet — add it later from your request':
+        'Hindi pa naka-attach — puwede mo itong idagdag mamaya sa request mo',
+    'Not attached': 'Hindi naka-attach',
+    'Opens the document full screen to zoom': 'Bubuksan ang document nang full screen para ma-zoom',
+    'Tap to view full screen and pinch to zoom.': 'I-tap para makita nang full screen, at i-pinch para mag-zoom.',
+    'Select your Date of Birth above first': 'Piliin muna ang Date of Birth mo sa itaas',
+    'It may still have been filed: check your requests before you submit again.':
+        'Baka na-file na ito: tingnan muna ang mga request mo bago mag-submit ulit.',
+    'Your request was filed, but': 'Na-file na ang request mo, pero',
+    'could not be uploaded. Add it from your request.': 'ay hindi na-upload. Idagdag ito mula sa request mo.',
+    'That photo is larger than 5 MB. Please take or choose a smaller one.':
+        'Lampas 5 MB ang photo. Kumuha o pumili ng mas maliit.',
+    'Take Photo': 'Mag-picture',
+    'Choose Image': 'Pumili ng image',
+    'Choose File / PDF': 'Pumili ng file / PDF',
+    'From My Papeles': 'Mula sa My Papeles',
+    'Upload': 'I-upload',
+    'Existing document found': 'May naka-save ka nang document',
+    'Upload New Document': 'Mag-upload ng bagong document',
+    'Use Existing Document': 'Gamitin ang naka-save na document',
+    'Uploaded': 'Na-upload',
+    'Handled by our staff during processing — no document to upload here.':
+        'Ang staff na ang bahala dito habang pinoproseso — walang kailangang i-upload dito.',
+    'Could not read the selected file. Please pick it again.': 'Hindi mabasa ang file na pinili mo. Pumili ulit.',
+    'Document replaced.': 'Napalitan na ang document.',
+    'Document attached.': 'Na-attach na ang document.',
+    'Application resubmitted.': 'Na-resubmit na ang application.',
+    'Withdraw this request?': 'Bawiin ang request na ito?',
+    'The office stops working on': 'Ititigil ng office ang pag-process ng',
+    'and it cannot be reopened. To ask again, file a new request.':
+        'at hindi na ito mabubuksan ulit. Para humiling ulit, mag-file ng bago.',
+    'Withdraw': 'Bawiin',
+    'withdrawn.': 'binawi na.',
+    'cannot be applied for in the app right now. Ask the office about it.':
+        'ay hindi pa puwedeng i-apply sa app ngayon. Magtanong sa office.',
+    'Admin remarks': 'Remarks ng office',
+    'The reason is shown under Status below.': 'Nasa ilalim ng Status sa ibaba ang dahilan.',
+    'No reason was given.': 'Walang ibinigay na dahilan.',
+    'Submit a new': 'Mag-submit ng bagong',
+    'The office could not confirm this report, or it repeats another one. If you still need help, report it again or call an emergency hotline.':
+        'Hindi ma-confirm ng office ang report na ito, o kapareho ito ng ibang report. Kung kailangan mo pa rin ng tulong, mag-report ulit o tumawag sa emergency hotline.',
+    'The request requires additional verification.': 'Kailangan pa ng dagdag na verification ang request.',
+    'Withdraw Request': 'Bawiin ang request',
+    'Request Timeline': 'Timeline ng request',
+    'Status Timeline': 'Timeline ng status',
+    'No history recorded yet.': 'Wala pang history.',
+    'Application Rejected': 'Na-reject ang application',
+    'What you can do:': 'Ang puwede mong gawin:',
+    'Apply Again': 'Mag-apply ulit',
+    'All flagged documents have been replaced — you may now resubmit.':
+        'Napalitan na lahat ng na-flag na document — puwede mo na itong i-resubmit.',
+    'documents need your attention.': 'na document ang kailangang ayusin.',
+    '1 document requires correction.': '1 document ang kailangang itama.',
+    '1 required document still needs to be attached.': '1 required document pa ang kailangang i-attach.',
+    'replaced. The office checks it after you resubmit.':
+        'napalitan na. Iche-check ito ng office kapag na-resubmit mo na.',
+    'Replace the flagged documents above first, then resubmit.':
+        'Palitan muna ang mga na-flag na document sa itaas, tapos i-resubmit.',
+    'Replace the flagged document above first, then resubmit.':
+        'Palitan muna ang na-flag na document sa itaas, tapos i-resubmit.',
+    'Attach the required documents above first, then resubmit.':
+        'I-attach muna ang mga required document sa itaas, tapos i-resubmit.',
+    'Attach the required document above first, then resubmit.':
+        'I-attach muna ang required document sa itaas, tapos i-resubmit.',
+    'This request cannot be resubmitted right now. Pull down to refresh.':
+        'Hindi pa ito ma-resubmit ngayon. I-pull down para mag-refresh.',
+    '1 document was not accepted: replace it below so the office can review it again.':
+        '1 document ang hindi tinanggap: palitan ito sa ibaba para ma-review ulit ng office.',
+    'documents were not accepted: replace them below so the office can review them again.':
+        'na document ang hindi tinanggap: palitan ang mga ito sa ibaba para ma-review ulit ng office.',
+    'required documents still need to be attached.': 'na required document pa ang kailangang i-attach.',
+    'Every required document is attached. You can change one until the office reviews it.':
+        "Naka-attach na lahat ng required document. Puwede mo pang palitan hangga't hindi pa nare-review ng office.",
+    'accepted by the office.': 'ang tinanggap ng office.',
+    'Documents for this request': 'Mga document para sa request na ito',
+    'Accepted by the office': 'Tinanggap ng office',
+    'Not accepted by the office': 'Hindi tinanggap ng office',
+    'The office asked for a replacement': 'Humingi ng kapalit ang office',
+    'Replaced; the office checks it again': 'Napalitan na; iche-check ulit ng office',
+    'With the office': 'Nasa office',
+    'Not accepted by the office. Upload a replacement.': 'Hindi tinanggap ng office. Mag-upload ng kapalit.',
+    'Approved — being prepared': 'Approved — inihahanda na',
+    'Bring a valid ID to': 'Magdala ng valid ID sa',
+    'to claim it.': 'para ma-claim ito.',
+    'The office needs more for this case. Read the remarks above, or contact the MSWDO. This is still an active request, not a rejection.':
+        'May kailangan pa ang office para sa case na ito. Basahin ang remarks sa itaas, o kontakin ang MSWDO. Active pa rin ang request na ito, hindi ito rejected.',
+    'When you have done what the office asks, resubmit the request so they review it again.':
+        'Kapag nagawa mo na ang hinihingi ng office, i-resubmit ang request para ma-review nila ulit.',
+    'The request requires additional verification. This is still an active request, not a rejection — no action is needed from you at this time.':
+        'Kailangan pa ng dagdag na verification ang request. Active pa rin ito, hindi rejected — wala ka pang kailangang gawin ngayon.',
+    'Open photo': 'Buksan ang photo',
+    'you sent with the report': 'na ipinadala mo kasama ng report',
+    'Proof of release photo': 'Photo ng proof of release',
+    'Could not open the file. Pull down to refresh, then try again.':
+        'Hindi mabuksan ang file. I-pull down para mag-refresh, tapos subukan ulit.',
 }
 
 # A Filipino phrase ending in a linker is the first half of a sentence the

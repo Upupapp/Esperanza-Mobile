@@ -227,7 +227,7 @@ class _NewRequestScreenState extends State<NewRequestScreen> {
     if (notUploaded.isNotEmpty) {
       AppDialogs.toast(
         context,
-        'Your request was filed, but ${notUploaded.join(', ')} could not be uploaded. Add it from your request.',
+        '${tr('Your request was filed, but')} ${notUploaded.join(', ')} ${tr('could not be uploaded. Add it from your request.')}',
         success: false,
       );
     }
@@ -274,7 +274,7 @@ class _NewRequestScreenState extends State<NewRequestScreen> {
                 children: [
                   Icon(Icons.timeline_rounded, size: 16, color: widget.accent),
                   const SizedBox(width: AppSpacing.sm),
-                  const Text('Process', style: TextStyle(fontSize: AppTextSize.helper, fontWeight: FontWeight.w600)),
+                  Text(tr('Process'), style: const TextStyle(fontSize: AppTextSize.helper, fontWeight: FontWeight.w600)),
                 ],
               ),
               const SizedBox(height: AppSpacing.sm),
@@ -293,7 +293,7 @@ class _NewRequestScreenState extends State<NewRequestScreen> {
         const SizedBox(height: AppSpacing.lg),
         AppTextField(
           label: tr('Purpose'),
-          hintText: 'e.g. Employment requirement, medical assistance for hospital bill...',
+          hintText: tr('e.g. Employment requirement, medical assistance for hospital bill...'),
           controller: _purposeController,
           maxLines: 3,
         ),
@@ -320,7 +320,7 @@ class _NewRequestScreenState extends State<NewRequestScreen> {
         ],
         const SizedBox(height: AppSpacing.xxl),
         AppButton(
-          label: 'Submit Request',
+          label: tr('Submit Request'),
           icon: Icons.send_rounded,
           onPressed: _submitting ? null : _submit,
           loading: _submitting,

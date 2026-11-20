@@ -77,9 +77,9 @@ class RequestSubmittedScreen extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl, vertical: AppSpacing.md),
                 child: Column(
                   children: [
-                    const Text(
-                      'REFERENCE NUMBER',
-                      style: TextStyle(
+                    Text(
+                      tr('REFERENCE NUMBER'),
+                      style: const TextStyle(
                         fontSize: AppTextSize.fine,
                         fontWeight: FontWeight.w600,
                         color: AppColors.textMuted,
@@ -104,7 +104,7 @@ class RequestSubmittedScreen extends StatelessWidget {
               ),
               const SizedBox(height: AppSpacing.huge),
               AppButton(
-                label: _incident ? tr('View the report') : 'Track This Request',
+                label: _incident ? tr('View the report') : tr('Track This Request'),
                 onPressed: () => Navigator.of(context).pushReplacement(
                   MaterialPageRoute(builder: (_) => RequestDetailScreen(requestId: requestId)),
                 ),
@@ -121,7 +121,7 @@ class RequestSubmittedScreen extends StatelessWidget {
                 )
               else
                 AppButton(
-                  label: 'Back to Home',
+                  label: tr('Back to Home'),
                   variant: AppButtonVariant.ghost,
                   onPressed: () => Navigator.of(context).popUntil((r) => r.isFirst),
                   fullWidth: true,

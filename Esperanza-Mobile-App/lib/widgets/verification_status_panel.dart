@@ -46,8 +46,8 @@ class VerificationStatusPanel extends StatelessWidget {
   };
 
   String? get _actionLabel => switch (status) {
-    AppStatus.rejected => 'Send a New ID',
-    AppStatus.draft => 'Continue Registration',
+    AppStatus.rejected => tr('Send a New ID'),
+    AppStatus.draft => tr('Continue Registration'),
     _ => null,
   };
 
