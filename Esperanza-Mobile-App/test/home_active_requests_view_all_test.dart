@@ -8,11 +8,11 @@ import 'package:flutter_test/flutter_test.dart';
 void main() {
   test('Active Requests "View all" opens Track Requests, which lists Dokyu and Tulong', () {
     final home = File('lib/screens/home/home_screen.dart').readAsStringSync();
-    final start = home.indexOf("title: 'Active Requests',");
+    final start = home.indexOf("title: tr('Active Requests'),");
     expect(start, greaterThan(0));
     final header = home.substring(start, home.indexOf('if (activeRequests.isEmpty)', start));
 
-    expect(header, contains("actionLabel: activeRequests.isNotEmpty ? 'View all' : null,"));
+    expect(header, contains("actionLabel: activeRequests.isNotEmpty ? tr('View all') : null,"));
     expect(header, contains('builder: (_) => const MyRequestsScreen()'));
     expect(header, isNot(contains('ServiceLauncherTarget.dokyu')));
   });
