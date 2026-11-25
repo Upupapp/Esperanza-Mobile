@@ -27,7 +27,7 @@ enum WalletDocumentStatus { uploadedNotChecked, checkedByDidit, verifiedByLgu, r
 extension WalletDocumentStatusX on WalletDocumentStatus {
   String get label => switch (this) {
     WalletDocumentStatus.uploadedNotChecked => 'Uploaded — Not checked',
-    WalletDocumentStatus.checkedByDidit => 'Checked by Didit',
+    WalletDocumentStatus.checkedByDidit => 'ID checked',
     WalletDocumentStatus.verifiedByLgu => 'Verified by the LGU',
     WalletDocumentStatus.returnedByLgu => 'Returned by the LGU',
   };
