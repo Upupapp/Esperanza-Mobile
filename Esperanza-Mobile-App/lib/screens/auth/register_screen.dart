@@ -1235,7 +1235,7 @@ extension on _RegisterScreenState {
         ),
         const SizedBox(height: AppSpacing.xs),
         Text(
-          tr('Have your valid ID ready. You will scan it with your camera, then do a quick face check - about 2 minutes. The check is done by Didit, our identity verification provider. You can also do this later from your profile.'),
+          tr('Have your valid ID ready. You will scan it with your camera, then take a quick selfie to show it is really you. It takes about 2 minutes. You can also do this later from your profile.'),
           style: const TextStyle(fontSize: AppTextSize.helper, color: AppColors.textMuted, height: 1.4),
         ),
         if (_diditMessage != null) ...[

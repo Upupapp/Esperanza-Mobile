@@ -366,9 +366,9 @@ void main() {
       expect(find.text('•••• 3456'), findsOneWidget);
 
       await _openDetails(tester, 'Philippine National ID (PhilSys)');
-      expect(find.text('Checked by Didit'), findsOneWidget);
+      expect(find.text('ID checked'), findsOneWidget);
       expect(find.text('Only LGU staff can verify it for the Esperanza seal.'), findsOneWidget);
-      expect(find.textContaining('Didit checked this ID when you verified your account'), findsOneWidget);
+      expect(find.textContaining('This ID was checked when you verified your account'), findsOneWidget);
       expect(find.text('Only the last four digits were kept. Use Edit details to add the full number.'), findsOneWidget);
     });
 
@@ -424,23 +424,23 @@ void main() {
       final pushed = await pushForm(tester);
       await choose(tester, 'Philippine National ID (PhilSys)');
 
-      expect(find.text('Scan with Didit'), findsOneWidget);
+      expect(find.text('Scan ID'), findsOneWidget);
       expect(find.text('Front (required)'), findsNothing, reason: 'No photo upload while Didit scans it.');
 
-      await tester.tap(find.text('Scan with Didit'));
+      await tester.tap(find.text('Scan ID'));
       await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 50)));
       await tester.pumpAndSettle();
 
       expect(calls, ['POST /citizen/wallet/ids/check', 'didit token-1', 'POST /citizen/wallet/ids/check/sess-1/sync']);
       expect(await pushed, isTrue);
-      expect(find.text('Added to your wallet, checked by Didit.'), findsOneWidget);
+      expect(find.text('Added to your wallet and checked.'), findsOneWidget);
     });
 
     testWidgets('a declined scan says why in plain words and offers the upload instead', (tester) async {
       fakeScan([], {'session_id': 'sess-1', 'outcome': 'declined', 'reasons': ['SCREEN_CAPTURE_DETECTED'], 'document': null});
       await pushForm(tester);
       await choose(tester, 'Philippine National ID (PhilSys)');
-      await tester.tap(find.text('Scan with Didit'));
+      await tester.tap(find.text('Scan ID'));
       await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 50)));
       await tester.pumpAndSettle();
 
@@ -448,14 +448,14 @@ void main() {
       await tester.tap(find.text('Upload photos instead'));
       await tester.pumpAndSettle();
       expect(find.text('Front (required)'), findsOneWidget);
-      expect(find.text('Scan with Didit'), findsNothing);
+      expect(find.text('Scan ID'), findsNothing);
     });
 
     testWidgets('a kind Didit does not read, or Didit not set up, stays an upload', (tester) async {
       await pushForm(tester);
       await choose(tester, 'PhilHealth ID');
       expect(find.text('Front (required)'), findsOneWidget);
-      expect(find.text('Scan with Didit'), findsNothing);
+      expect(find.text('Scan ID'), findsNothing);
     });
 
     test('the wallet reads checked_by_didit and the kinds Didit can scan', () {

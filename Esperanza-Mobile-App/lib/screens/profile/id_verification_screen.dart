@@ -287,8 +287,8 @@ class _IdVerificationScreenState extends State<IdVerificationScreen> {
     ),
     const SizedBox(height: AppSpacing.xs),
     const Text(
-      'Have your valid ID ready. You will scan it with your camera, then do a quick face check. It takes about 2 minutes. '
-      'The check is done by Didit, our identity verification provider.',
+      'Have your valid ID ready. You will scan it with your camera, then take a quick selfie to show it is really you. '
+      'It takes about 2 minutes.',
       style: AppTypography.helper,
     ),
     if (_sendError != null) ...[

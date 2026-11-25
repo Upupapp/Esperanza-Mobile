@@ -424,16 +424,16 @@ class WalletScanResult {
             'Scan the ID itself, not a photo, screen or photocopy of it.',
           'DOCUMENT_EXPIRED' => 'The ID has expired.',
           'DOCUMENT_NOT_SUPPORTED_FOR_APPLICATION' || 'DOCUMENT_NOT_SUPPORTED' || 'UNSUPPORTED_DOCUMENT' =>
-            'Didit does not check this kind of ID.',
+            'This kind of ID cannot be checked automatically.',
           'NAME_NOT_DETECTED' ||
           'DOCUMENT_NUMBER_NOT_DETECTED' ||
           'MRZ_NOT_DETECTED' ||
           'BLURRY_IMAGE' ||
           'LOW_QUALITY_IMAGE' => 'Parts of the ID could not be read. Try again in good light, holding it steady.',
-          _ => 'Didit could not confirm this ID.',
+          _ => 'We could not confirm this ID.',
         },
     };
-    return words.isEmpty ? 'Didit could not confirm this ID.' : words.join(' ');
+    return words.isEmpty ? 'We could not confirm this ID.' : words.join(' ');
   }
 }
 

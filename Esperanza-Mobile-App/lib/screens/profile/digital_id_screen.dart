@@ -1344,7 +1344,7 @@ class _MyIds extends StatelessWidget {
                       ),
                       TextSpan(
                         text:
-                            ' IDs Didit checked say so; IDs verified by the LGU have the Esperanza seal on them.',
+                            ' IDs that were checked say so; IDs verified by the LGU have the Esperanza seal on them.',
                       ),
                     ],
                   ),
@@ -1712,7 +1712,7 @@ class _IdDeckState extends State<_IdDeck> {
 
 String _badgeText(WalletDocumentStatus s) => switch (s) {
   WalletDocumentStatus.uploadedNotChecked => 'Not checked',
-  WalletDocumentStatus.checkedByDidit => 'Checked by Didit',
+  WalletDocumentStatus.checkedByDidit => 'ID checked',
   WalletDocumentStatus.verifiedByLgu => 'Verified by the LGU',
   WalletDocumentStatus.returnedByLgu => 'Returned by the LGU',
 };
@@ -2642,7 +2642,7 @@ class _WalletIdDetailScreenState extends State<_WalletIdDetailScreen> {
                 ),
                 const Divider(height: AppSpacing.xl),
                 _StatusRow(
-                  title: tr('Didit check'),
+                  title: tr('ID check'),
                   status: d.checkedAt != null
                       ? _PlainChip(
                           label: tr('Checked'),
@@ -2657,10 +2657,10 @@ class _WalletIdDetailScreenState extends State<_WalletIdDetailScreen> {
                         ),
                   details: [
                     if (d.checkedAt != null)
-                      '${d.checkSource == 'registration' ? 'Didit checked this ID when you verified your account' : 'Didit checked this ID when you scanned it'}'
+                      '${d.checkSource == 'registration' ? 'This ID was checked when you verified your account' : 'This ID was checked when you scanned it'}'
                           ' on ${_date(d.checkedAt!.toLocal())}.'
                     else
-                      'Didit did not check this ID.',
+                      'This ID was not checked.',
                     if (d.checkSource == 'registration' && d.details.idNumber == null && d.numberLast4 != null)
                       'Only the last four digits were kept. Use Edit details to add the full number.',
                   ],
@@ -2891,15 +2891,15 @@ class _AddWalletIdScreenState extends State<AddWalletIdScreen> {
             SnackBar(
               content: Text(
                 r.outcome == WalletScanOutcome.checked
-                    ? 'Added to your wallet, checked by Didit.'
-                    : 'Added to your wallet. Didit did not finish checking it.',
+                    ? 'Added to your wallet and checked.'
+                    : 'Added to your wallet. The check did not finish.',
               ),
             ),
           );
           Navigator.of(context).pop(true);
         case WalletScanOutcome.pending:
           messenger.showSnackBar(
-            SnackBar(content: Text(tr('Didit is still checking your ID. It appears in your wallet when it is done.'))),
+            SnackBar(content: Text(tr('Your ID is still being checked. It appears in your wallet when it is done.'))),
           );
           Navigator.of(context).pop(true);
         case WalletScanOutcome.cancelled:
@@ -2915,7 +2915,7 @@ class _AddWalletIdScreenState extends State<AddWalletIdScreen> {
         case WalletScanOutcome.closed:
           setState(() {
             _sending = false;
-            _error = 'Didit did not finish the scan. Try again, or upload photos instead.';
+            _error = 'The scan did not finish. Try again, or upload photos instead.';
           });
       }
     } on ApiException catch (e) {
@@ -3067,13 +3067,13 @@ class _AddWalletIdScreenState extends State<AddWalletIdScreen> {
                     children: [
                       Icon(Icons.verified_outlined, size: AppSizes.iconBase, color: AppColors.sky700),
                       SizedBox(width: AppSpacing.sm),
-                      Expanded(child: Text(tr('Scan it with Didit'), style: AppTypography.cardHeading)),
+                      Expanded(child: Text(tr('Scan your ID'), style: AppTypography.cardHeading)),
                     ],
                   ),
                   const SizedBox(height: AppSpacing.xs),
                   Text(
-                    'Didit reads and checks your ${_type!.name} on its own screen, and its card in your wallet '
-                    'shows "Checked by Didit". Only LGU staff can verify it for the Esperanza seal.',
+                    'Your ${_type!.name} is read and checked on a secure screen, and its card in your wallet '
+                    'then shows "ID checked". Only LGU staff can verify it for the Esperanza seal.',
                     style: AppTypography.helper,
                   ),
                 ],
@@ -3085,7 +3085,7 @@ class _AddWalletIdScreenState extends State<AddWalletIdScreen> {
             ],
             const SizedBox(height: AppSpacing.xl),
             AppButton(
-              label: tr('Scan with Didit'),
+              label: tr('Scan ID'),
               icon: Icons.document_scanner_outlined,
               fullWidth: true,
               loading: _sending,
@@ -3424,7 +3424,7 @@ class _EditIdDetailsScreenState extends State<_EditIdDetailsScreen> {
           if (d.checkedAt != null) ...[
             const SizedBox(height: AppSpacing.sm),
             Text(
-              'Changing the number, name or dates ends Didit\'s check of this ID.',
+              'Changing the number, name or dates removes the check on this ID.',
               style: AppTypography.helper.copyWith(color: AppColors.amber700),
             ),
           ],
