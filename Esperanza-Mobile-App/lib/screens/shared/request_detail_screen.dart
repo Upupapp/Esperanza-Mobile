@@ -1047,7 +1047,9 @@ class _AttachSection extends StatelessWidget {
       return info.isRequired && info.requiresUpload && _attachmentFor(request, p.label) == null;
     }).length;
     final accepted = rows.where((r) => r.isAccepted).length;
-    final rejected = rows.where((r) => r.isRejected).length;
+    // Only a document the resident can still replace (bug hunt 25 Nov, C8):
+    // a closed case's rejected rows have nothing "below" to replace.
+    final rejected = rows.where((r) => r.isRejected && r.replaceable).length;
     final summary = [
       if (rejected > 0)
         rejected == 1
@@ -1263,7 +1265,9 @@ class _AssistanceCard extends StatelessWidget {
     final received = status == TulongStatus.completed;
     final title = switch (status) {
       TulongStatus.readyForRelease => tr('Ready to claim'),
-      TulongStatus.completed => tr('Assistance received'),
+      // A session, counseling or referral case is a service done, as the
+      // website says (bug hunt 25 Nov, C4).
+      TulongStatus.completed => assistance.isServiceKind ? tr('The service is complete') : tr('Assistance received'),
       _ => tr('Approved — being prepared'),
     };
     final amount = pesoText(received ? (assistance.releasedAmount ?? assistance.approvedAmount) : assistance.approvedAmount);

@@ -532,6 +532,7 @@ const Map<String, String> filipinoText = {
   'The reason is shown under Status below.': 'Nasa ilalim ng Status sa ibaba ang dahilan.',
   'The request requires additional verification.': 'Kailangan pa ng dagdag na verification ang request.',
   'The request requires additional verification. This is still an active request, not a rejection — no action is needed from you at this time.': 'Kailangan pa ng dagdag na verification ang request. Active pa rin ito, hindi rejected — wala ka pang kailangang gawin ngayon.',
+  'The service is complete': 'Natapos na ang serbisyo',
   'The ticket goes to the office handling that request.': 'Mapupunta ang ticket sa opisinang humahawak ng kahilingang ito.',
   'They appear here once your barangay verifies your account and confirms the record is yours.': 'Lalabas dito ang mga Dokyu at Tulong mo kapag na-verify na ng barangay ang account mo at na-confirm na sa iyo ang record.',
   'This center is not on the map yet; directions search for its name and address.': 'Wala pa sa mapa ang center na ito; hahanapin ng direksyon ang pangalan at address nito.',

@@ -625,6 +625,7 @@ class RequestsService extends ChangeNotifier {
       releaseReference: JsonRead.nonEmpty(json['release_reference']),
       releasedAt: JsonRead.date(json['released_at']),
       office: office,
+      processingKind: JsonRead.nonEmpty(json['processing_kind']),
     );
   }
 

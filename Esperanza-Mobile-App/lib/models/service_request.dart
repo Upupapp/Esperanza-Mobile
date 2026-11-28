@@ -184,7 +184,13 @@ class TulongAssistance {
   /// Where to claim it: the request's own office, copied in by the parser.
   final String? office;
 
-  const TulongAssistance({this.approvedAmount, this.releasedAmount, this.releaseReference, this.releasedAt, this.office});
+  /// How the service is worked (the server's `processing_kind`): a session,
+  /// counseling or referral is completed, not received (bug hunt 25 Nov, C4).
+  final String? processingKind;
+
+  const TulongAssistance({this.approvedAmount, this.releasedAmount, this.releaseReference, this.releasedAt, this.office, this.processingKind});
+
+  bool get isServiceKind => const ['session', 'counseling', 'referral'].contains(processingKind);
 }
 
 /// A request's fee (the detail's `payment`). It is paid at the office, which
