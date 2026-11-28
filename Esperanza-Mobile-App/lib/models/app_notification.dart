@@ -53,6 +53,10 @@ class AppNotification {
   /// Kept at the top, as on the website (a pinned server notification).
   final bool pinned;
 
+  /// The reference it concerns (a request, a ticket, an account number),
+  /// which the Notifications search also looks in.
+  final String? ref;
+
   const AppNotification({
     required this.id,
     required this.kind,
@@ -67,5 +71,6 @@ class AppNotification {
     this.status,
     this.category,
     this.pinned = false,
+    this.ref,
   });
 }

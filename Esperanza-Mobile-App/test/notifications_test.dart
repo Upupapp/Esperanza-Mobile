@@ -8,7 +8,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:esperanza_mobile/models/app_notification.dart';
 import 'package:esperanza_mobile/models/citizen_account.dart';
+import 'package:esperanza_mobile/models/notification_kind.dart';
 import 'package:esperanza_mobile/screens/balita/balita_post_screen.dart';
 import 'package:esperanza_mobile/screens/notifications/notifications_screen.dart';
 import 'package:esperanza_mobile/screens/shared/request_detail_screen.dart';
@@ -77,7 +79,7 @@ void main() {
   testWidgets("an incomplete profile adds no reminder of the app's own, as on the website", (tester) async {
     await _pump(tester, account: _incompleteAccount);
     expect(find.text('Complete Your Profile'), findsNothing);
-    expect(find.text("You're all caught up"), findsOneWidget);
+    expect(find.text('No notifications yet.'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
@@ -86,16 +88,20 @@ void main() {
 
     expect(find.text('Complete Your Profile'), findsNothing);
     expect(find.textContaining('Typhoon Advisory'), findsNothing);
-    expect(find.text("You're all caught up"), findsOneWidget);
+    expect(find.text('No notifications yet.'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets("the website's tabs: All, Unread, Read, Dokyu, Tulong; pinned first", (tester) async {
+  // The website's redesign (28 Nov 2026, after eBPCO's): All / Unread with
+  // counts, Category (the kinds this resident has), Search and When, Clear
+  // filters; an unread notice has a blue dot that marks it read.
+  Future<NotificationsService> pumpThree(WidgetTester tester, {List<String>? posts}) async {
     Map<String, dynamic> row(int id, String category, String title, {bool pinned = false, String time = ''}) => {
       'id': id,
       'category': category,
       'title': {'fil': title, 'en': title},
       'body': {'fil': '$title body', 'en': '$title body'},
+      'ref': '${category.toUpperCase()}-$id',
       'unread': true,
       'pinned': pinned,
       'time': time,
@@ -108,6 +114,10 @@ void main() {
           row(3, 'account', 'Pinned notice', pinned: true, time: '2026-09-01T00:00:00Z'),
         ];
       }
+      if (r.method == 'POST') {
+        posts?.add(r.path);
+        return {'unread': false};
+      }
       return <dynamic>[];
     });
     addTearDown(FakeApi.restore);
@@ -115,26 +125,97 @@ void main() {
     await _pump(tester, account: _incompleteAccount, notifications: notifications);
     await tester.runAsync(notifications.loadServer);
     await tester.pumpAndSettle();
+    return notifications;
+  }
+
+  testWidgets('All / Unread with counts, the kinds under Category, pinned first', (tester) async {
+    await pumpThree(tester);
 
     // Pinned first, though it is the oldest.
     expect(tester.getTopLeft(find.text('Pinned notice')).dy, lessThan(tester.getTopLeft(find.text('Dokyu update')).dy));
+    expect(find.text('All (3)'), findsOneWidget);
     expect(find.text('Unread (3)'), findsOneWidget);
+    expect(find.widgetWithText(ChoiceChip, 'Read'), findsNothing, reason: 'no Read tab any more');
+    expect(find.text('Clear filters'), findsNothing, reason: 'only once something is filtered');
 
-    await tester.tap(find.widgetWithText(ChoiceChip, 'Dokyu'));
+    await tester.tap(find.text('All categories'));
+    await tester.pumpAndSettle();
+    expect(find.text('Dokyu (1)'), findsOneWidget);
+    expect(find.text('Tulong (1)'), findsOneWidget);
+    expect(find.text('Account (1)'), findsOneWidget);
+    await tester.tap(find.text('Dokyu (1)'));
     await tester.pumpAndSettle();
     expect(find.text('Dokyu update'), findsOneWidget);
     expect(find.text('Tulong update'), findsNothing);
     expect(find.text('Pinned notice'), findsNothing);
 
-    await tester.tap(find.widgetWithText(ChoiceChip, 'Tulong'));
+    await tester.tap(find.text('Clear filters'));
+    await tester.pumpAndSettle();
+    expect(find.text('Tulong update'), findsOneWidget);
+    expect(find.text('Pinned notice'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('search looks in the title, message and reference; When narrows by day; the empty state leads back', (tester) async {
+    await pumpThree(tester);
+
+    await tester.enterText(find.byType(TextField), 'tulong-2');
     await tester.pumpAndSettle();
     expect(find.text('Tulong update'), findsOneWidget);
     expect(find.text('Dokyu update'), findsNothing);
+    expect(find.text('Clear filters'), findsOneWidget);
 
-    await tester.tap(find.widgetWithText(ChoiceChip, 'Read'));
+    await tester.enterText(find.byType(TextField), '');
+    await tester.tap(find.text('Any time'));
     await tester.pumpAndSettle();
-    expect(find.text('No notifications here'), findsOneWidget);
+    await tester.tap(find.text('Today').last);
+    await tester.pumpAndSettle();
+    // Every notice here is from September.
+    expect(find.text('No notifications match these filters.'), findsOneWidget);
+    await tester.tap(find.text('Show all notifications'));
+    await tester.pumpAndSettle();
+    expect(find.text('Dokyu update'), findsOneWidget);
+    expect(find.text('Any time'), findsOneWidget);
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('the blue dot marks one read on the server; the Unread list keeps it until reopened', (tester) async {
+    final posts = <String>[];
+    final notifications = await pumpThree(tester, posts: posts);
+
+    await tester.tap(find.text('Unread (3)'));
+    await tester.pumpAndSettle();
+    expect(find.bySemanticsLabel('Mark as read'), findsNWidgets(3));
+
+    await tester.tap(find.byKey(const ValueKey('mark-read-srv-1')));
+    await tester.pumpAndSettle();
+    expect(posts, ['/citizen/notifications/1/read']);
+    expect(notifications.isRead('srv-1'), isTrue);
+    expect(find.text('Unread (2)'), findsOneWidget);
+    expect(find.text('Dokyu update'), findsOneWidget, reason: 'still listed, now plain');
+    expect(find.byKey(const ValueKey('mark-read-srv-1')), findsNothing, reason: 'no dot once read');
+    expect(tester.takeException(), isNull);
+  });
+
+  test('the When choices: today, the last 7 and 30 days from midnight, or one day', () {
+    final now = DateTime(2026, 11, 28, 10);
+    AppNotification at(DateTime d) => AppNotification(id: 'x', kind: NotificationKind.info, icon: Icons.info, title: 't', body: 'b', at: d);
+    bool when(DateTime d, NotificationWhen w, [DateTime? date]) =>
+        notificationMatches(at(d), unread: true, unreadOnly: false, when: w, date: date, now: now);
+
+    expect(when(DateTime(2026, 11, 28, 0, 5), NotificationWhen.today), isTrue);
+    expect(when(DateTime(2026, 11, 27, 23, 59), NotificationWhen.today), isFalse);
+    expect(when(DateTime(2026, 11, 22), NotificationWhen.week), isTrue);
+    expect(when(DateTime(2026, 11, 21, 23), NotificationWhen.week), isFalse);
+    expect(when(DateTime(2026, 10, 30), NotificationWhen.month), isTrue);
+    expect(when(DateTime(2026, 10, 29, 12), NotificationWhen.month), isFalse);
+    expect(when(DateTime(2026, 11, 3, 15), NotificationWhen.on, DateTime(2026, 11, 3)), isTrue);
+    expect(when(DateTime(2026, 11, 4, 1), NotificationWhen.on, DateTime(2026, 11, 3)), isFalse);
+    expect(
+      notificationMatches(at(now), unread: false, unreadOnly: true),
+      isFalse,
+      reason: 'Unread lists only the unread',
+    );
   });
 
   testWidgets('server notifications render in Filipino, mark read on the server, and open their request', (

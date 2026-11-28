@@ -94,6 +94,7 @@ List<AppNotification> buildNotificationFeed(BuildContext context) {
           status: n.pill,
           category: n.category,
           pinned: n.pinned,
+          ref: ref,
           onTap: switch (serverNotificationDestination(n)) {
             final destination? => () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => destination)),
             null => null,
