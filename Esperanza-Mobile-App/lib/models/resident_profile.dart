@@ -825,7 +825,9 @@ class ResidentProfileOptions {
   ResidentProfileOptions._();
 
   static const sex = ['Male', 'Female'];
-  static const civilStatus = ['Single', 'Married', 'Widowed', 'Separated', 'Divorced'];
+  // The registry's list too (bug hunt 25 Nov, #29): an officer's Annulled
+  // or Live-in read blank here, as on the website.
+  static const civilStatus = ['Single', 'Married', 'Live-in', 'Widowed', 'Separated', 'Annulled', 'Divorced'];
   static const educationalAttainment = [
     'No Formal Education', 'Elementary', 'High School', 'Senior High School', 'Vocational', 'College', 'Post Graduate',
   ];

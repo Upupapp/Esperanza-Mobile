@@ -23,9 +23,16 @@ class VerificationStatusPanel extends StatelessWidget {
   /// only after it is, so "no action needed" would be untrue.
   final bool waitingOnIdentity;
 
-  const VerificationStatusPanel({super.key, required this.status, this.onAction, this.waitingOnIdentity = false});
+  /// Approved, but the LGU revoked the identity check (bug hunt 25 Nov, #6):
+  /// requests are paused, so "full access" would be untrue.
+  final bool identityRevoked;
+
+  const VerificationStatusPanel({super.key, required this.status, this.onAction, this.waitingOnIdentity = false, this.identityRevoked = false});
+
+  bool get _paused => status == AppStatus.approved && identityRevoked;
 
   IconData get _icon => switch (status) {
+    _ when _paused => Icons.pause_circle_outline_rounded,
     AppStatus.approved => Icons.verified_rounded,
     AppStatus.rejected => Icons.error_outline_rounded,
     AppStatus.underVerification => Icons.fact_check_outlined,
@@ -39,13 +46,17 @@ class VerificationStatusPanel extends StatelessWidget {
       tr('Esperanza LGU is reviewing your submitted information. This usually takes 1–3 business days — no action needed from you right now.'),
     AppStatus.underVerification =>
       tr('Some of your details need a closer look from Esperanza LGU staff. No action needed from you right now.'),
+    _ when _paused =>
+      tr('Your account is still approved, but the LGU revoked your ID check. Send a new valid ID to make requests again.'),
     AppStatus.approved => tr('Your account has been verified. You now have full access to Esperanza mobile services.'),
-    AppStatus.rejected =>
-      tr('Your submission needs corrections before it can be verified. Please review and resubmit your information.'),
+    // Not "wait": a rejected account, or one whose approval was withdrawn,
+    // sends a new ID (#6), as the website says.
+    AppStatus.rejected => tr('Send a new valid ID from your profile, or visit your barangay office.'),
     _ => tr('Complete your registration to begin the verification process.'),
   };
 
   String? get _actionLabel => switch (status) {
+    _ when _paused => tr('Send a New ID'),
     AppStatus.rejected => tr('Send a New ID'),
     AppStatus.draft => tr('Continue Registration'),
     _ => null,

@@ -40,6 +40,9 @@ NOT_ON_THEIR_OWN = {'Done', 'Also served'}
 # deep filipino" - everyday Filipino or Taglish, common English words kept). The website's own wording wins
 # wherever it has one.
 APP_ONLY = {
+    # Bug hunt 25 Nov, #6: an approved resident whose ID check was revoked.
+    'Your account is still approved, but the LGU revoked your ID check. Send a new valid ID to make requests again.':
+        'Approved pa rin ang account mo, pero binawi ng LGU ang ID check mo. Magpadala ng bagong valid ID para makapag-request ulit.',
     'Up to': 'Hanggang',
     'From the office': 'Mula sa office',
     'Recorded by': 'Naitala ng',

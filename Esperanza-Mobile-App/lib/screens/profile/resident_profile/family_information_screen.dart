@@ -164,7 +164,10 @@ class _FamilyInformationScreenState extends State<FamilyInformationScreen> {
                   )
                 else
                   for (final member in profile.familyMembers)
-                    _MemberTile(member: member, onEdit: () => _editMember(member), onRemove: () => _removeMember(member)),
+                    // A member the barangay has on record is removed by the
+                    // barangay: the save kept them, so Remove did nothing
+                    // (bug hunt 25 Nov, #8).
+                    _MemberTile(member: member, onEdit: () => _editMember(member), onRemove: member.serverRef == null ? () => _removeMember(member) : null),
                 OutlinedButton.icon(
                   onPressed: _addMember,
                   icon: const Icon(Icons.person_add_alt_1_rounded, size: 17),
@@ -232,7 +235,7 @@ class _InfoRow extends StatelessWidget {
 class _MemberTile extends StatelessWidget {
   final Individual member;
   final VoidCallback onEdit;
-  final VoidCallback onRemove;
+  final VoidCallback? onRemove;
   const _MemberTile({required this.member, required this.onEdit, required this.onRemove});
 
   @override
@@ -268,16 +271,21 @@ class _MemberTile extends StatelessWidget {
                   ),
                   const SizedBox(height: AppSpacing.xs),
                   Text(subtitleParts.join(' · '), style: const TextStyle(fontSize: AppTextSize.label, color: AppColors.textMuted)),
+                  if (onRemove == null) ...[
+                    const SizedBox(height: AppSpacing.xs),
+                    Text(tr('To remove, ask your barangay'), style: const TextStyle(fontSize: AppTextSize.helper, color: AppColors.textMuted)),
+                  ],
                 ],
               ),
             ),
-            IconButton(
-              tooltip: 'Remove family member',
-              onPressed: onRemove,
-              icon: const Icon(Icons.delete_outline_rounded, size: 19, color: AppColors.rose500),
-              constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
-              padding: EdgeInsets.zero,
-            ),
+            if (onRemove != null)
+              IconButton(
+                tooltip: 'Remove family member',
+                onPressed: onRemove,
+                icon: const Icon(Icons.delete_outline_rounded, size: 19, color: AppColors.rose500),
+                constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+                padding: EdgeInsets.zero,
+              ),
           ],
         ),
       ),

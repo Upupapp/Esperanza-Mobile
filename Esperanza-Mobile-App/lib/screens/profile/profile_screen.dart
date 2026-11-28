@@ -179,10 +179,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
             VerificationStatusPanel(
               status: AppStatusX.fromLabel(account.status),
               waitingOnIdentity: account.identityStatus != 'Verified' && account.status != 'Approved',
+              identityRevoked: account.identityStatus == 'Revoked',
               // A rejected account sends a new valid ID from here, as on the web
               // portal's Profile; it used to open registration, which makes a
-              // second account instead of fixing this one.
-              onAction: account.status == 'Rejected'
+              // second account instead of fixing this one. So does an approved
+              // one whose ID check was revoked (#6).
+              onAction: account.status == 'Rejected' || (account.status == 'Approved' && account.identityStatus == 'Revoked')
                   ? () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const IdVerificationScreen()))
                   : null,
             ),
