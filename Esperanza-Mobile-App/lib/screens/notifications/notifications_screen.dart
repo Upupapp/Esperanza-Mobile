@@ -136,13 +136,15 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   Future<void> _pickCategory(List<({String key, int total, int unread})> kinds) async {
     final picked = await showModalBottomSheet<String>(
       context: context,
+      backgroundColor: AppColors.surface,
+      showDragHandle: true,
       builder: (ctx) => SafeArea(
         child: ListView(
           shrinkWrap: true,
-          padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
+          padding: const EdgeInsets.only(bottom: AppSpacing.sm),
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.sm, AppSpacing.lg, AppSpacing.sm),
+              padding: const EdgeInsets.fromLTRB(AppSpacing.lg, 0, AppSpacing.lg, AppSpacing.sm),
               child: Text(tr('Category'), style: AppTypography.cardHeading),
             ),
             _SheetOption(label: tr('All categories'), selected: _category == null, onTap: () => Navigator.pop(ctx, '')),
@@ -164,13 +166,15 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   Future<void> _pickWhen() async {
     final picked = await showModalBottomSheet<NotificationWhen>(
       context: context,
+      backgroundColor: AppColors.surface,
+      showDragHandle: true,
       builder: (ctx) => SafeArea(
         child: ListView(
           shrinkWrap: true,
-          padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
+          padding: const EdgeInsets.only(bottom: AppSpacing.sm),
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.sm, AppSpacing.lg, AppSpacing.sm),
+              padding: const EdgeInsets.fromLTRB(AppSpacing.lg, 0, AppSpacing.lg, AppSpacing.sm),
               child: Text(tr('When'), style: AppTypography.cardHeading),
             ),
             for (final w in NotificationWhen.values)
@@ -274,34 +278,39 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
             ),
           ),
           const SizedBox(height: AppSpacing.sm),
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(
-              children: [
-                _FilterButton(
+          // Two equal buttons on one row (a label too long ends in "…"), and
+          // Clear filters under them once something is filtered.
+          Row(
+            children: [
+              Expanded(
+                child: _FilterButton(
                   icon: Icons.category_outlined,
                   label: _category == null ? tr('All categories') : notificationKindName(_category!),
                   active: _category != null,
                   onTap: () => _pickCategory(kinds),
                 ),
-                const SizedBox(width: AppSpacing.sm),
-                _FilterButton(
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(
+                child: _FilterButton(
                   icon: Icons.event_outlined,
                   label: _whenLabel(),
                   active: _when != NotificationWhen.any,
                   onTap: _pickWhen,
                 ),
-                if (_filtered) ...[
-                  const SizedBox(width: AppSpacing.xs),
-                  TextButton.icon(
-                    onPressed: _clearFilters,
-                    icon: const Icon(Icons.close_rounded, size: AppSizes.iconSm),
-                    label: Text(tr('Clear filters')),
-                  ),
-                ],
-              ],
-            ),
+              ),
+            ],
           ),
+          if (_filtered)
+            Align(
+              alignment: Alignment.centerLeft,
+              child: TextButton.icon(
+                onPressed: _clearFilters,
+                style: TextButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xs)),
+                icon: const Icon(Icons.close_rounded, size: AppSizes.iconSm),
+                label: Text(tr('Clear filters')),
+              ),
+            ),
         ],
       ),
     );
@@ -408,13 +417,14 @@ class _FilterButton extends StatelessWidget {
       label: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Text(label, style: TextStyle(color: color, fontWeight: FontWeight.w600)),
+          Flexible(child: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: color, fontWeight: FontWeight.w600))),
           const SizedBox(width: AppSpacing.xs),
           Icon(Icons.expand_more_rounded, size: AppSizes.iconSm, color: color),
         ],
       ),
       style: OutlinedButton.styleFrom(
         minimumSize: const Size(0, AppSizes.minTouchTarget),
+        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
         backgroundColor: active ? AppColors.brand50 : null,
         side: BorderSide(color: active ? AppColors.brand300 : AppColors.slate200),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.full)),
