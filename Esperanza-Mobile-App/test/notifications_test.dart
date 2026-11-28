@@ -138,7 +138,7 @@ void main() {
     expect(find.widgetWithText(ChoiceChip, 'Read'), findsNothing, reason: 'no Read tab any more');
     expect(find.text('Clear filters'), findsNothing, reason: 'only once something is filtered');
 
-    await tester.tap(find.text('All categories'));
+    await tester.tap(find.text('Category'));
     await tester.pumpAndSettle();
     expect(find.text('Dokyu (1)'), findsOneWidget);
     expect(find.text('Tulong (1)'), findsOneWidget);

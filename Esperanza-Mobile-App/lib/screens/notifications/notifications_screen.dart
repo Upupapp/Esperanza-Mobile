@@ -285,7 +285,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
               Expanded(
                 child: _FilterButton(
                   icon: Icons.category_outlined,
-                  label: _category == null ? tr('All categories') : notificationKindName(_category!),
+                  label: _category == null ? tr('Category') : notificationKindName(_category!),
                   active: _category != null,
                   onTap: () => _pickCategory(kinds),
                 ),
